@@ -1398,6 +1398,46 @@
      ]
     }
    }
+  },
+  "dilophosaurus": {
+   "_note": "SP-DILOPHOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Toe.R",
+       "radius": 2.11,
+       "calibrated": true
+      },
+      {
+       "bone": "Metatarsal.R"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Toe.L"
+      },
+      {
+       "bone": "Toe.R"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.74,
+       "calibrated": true
+      }
+     ]
+    }
+   }
   }
  },
  "survivor": {

@@ -924,6 +924,10 @@ func _on_windup(clip: StringName) -> void:
 
 func _on_hit(clip: StringName) -> void:
 	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
+	if clip == &"spit":  # SP-DILOPHOSAURUS: the spit's hit frame launches the venom glob; it lands its own hit
+		if brain is TacticalBrain:
+			(brain as TacticalBrain).launch_spit()
+		return
 	var target := brain.attack_target if brain else null
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup. HITBOXES: the

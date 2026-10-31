@@ -7,11 +7,6 @@
       "note_therizinosaurus": "therizinosaurus (SP-THERIZINOSAURUS, tools/gait/make_theri_moves.py): claw sweep, 1.0 s: the right arm cocks out to its right, the sickle claws sweep low across its front on 0.42 (hit from Claw.R); a landed sweep shoves her back (tactics.primary_shove_m)",
       "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
-    "arm_bite": {
-      "hit_frac": 0.42,
-      "windup": false,
-      "note": "utahraptor (UTAHARMS 2026-10-31): its attack_primary with the hands reaching forward, claws spread, and raking down clenched on the bite (tools/gait/raptor_overlay.py --keep); same timing as attack_primary; TacticalBrain plays it for tactics.bite_alt_chance of the bites"
-    },
     "attack_heavy": {
       "hit_frac": 0.72,
       "windup": true,
@@ -77,6 +72,7 @@
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
       "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)",
+      "note_dilophosaurus": "dilophosaurus: tools/gait/make_dilo_moves.py pounce (the leaping slash), 1.0 s: crouch, legs tucked then thrown forward toes-up in the air, lands feet first ahead of itself and both sickle claws rake down at hit_frac 0.7; the windup is attack_heavy's flared, hissing crouch",
       "note_tarbosaurus": "tarbosaurus: make_rex_moves.py --tarbo pounce, 1.0 s: the burst out of the stalk, one long low bound (both feet off 0.2-0.65, the game carries the arc), jaws thrust ahead and slammed shut on 0.7; a landed burst is an attack_heavy hit, so it pins (pin_foot)",
       "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
@@ -138,6 +134,16 @@
       "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)",
       "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)"
     },
+    "spit": {
+      "hit_frac": 0.62,
+      "windup": false,
+      "note": "dilophosaurus venom spit (SP-DILOPHOSAURUS, tools/gait/make_dilo_moves.py), 1.4 s: the frill flares and the head draws back and up, jaws gaping (held, quivering, to 0.55), then the neck whips forward; at 0.62 TacticalBrain.launch_spit fires the VenomSpit glob at where the prey stood (the brain's ground ring is the telegraph)"
+    },
+    "bite_shake": {
+      "hit_frac": 0.3,
+      "windup": true,
+      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
+    },
     "charge_turn": {
       "airborne": [
         0.2,
@@ -145,29 +151,6 @@
       ],
       "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn",
       "note_raptor": "raptor (RAPTORFLANK, make_raptor_moves.py charge_turn, 0.71 s): the flank's skid-turn after it runs past the prey: brakes leaning back, hops with the arms flung wide and the tail lifted, lands crouched facing the prey; same airborne window, TacticalBrain flank turns the short way inside it"
-    },
-    "leap": {
-      "airborne": [
-        0.12,
-        0.78
-      ],
-      "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
-    },
-    "grab_bite": {
-      "hit_frac": 0.3,
-      "hit_fracs": [
-        0.3,
-        0.55,
-        0.8
-      ],
-      "windup": true,
-      "windup_hold": 0.25,
-      "note": "SP-ALLOSAURUS: the hands clamp at 0.3 (TacticalBrain.landed pins the prey), bites at 0.55 and 0.8 (tools/gait/make_allo_moves.py)"
-    },
-    "bite_shake": {
-      "hit_frac": 0.3,
-      "windup": true,
-      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
     },
     "charge_windup": {
       "note": "STYRAFIX telegraph before a horned charge (styracosaurus): horns lowered, a fore-foot paws twice, a snort; the body stands still (tools/jaw/make_styra_impale.py)"
@@ -200,6 +183,29 @@
       "windup": true,
       "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up to close_moves.tackle.lunge_m into her and lands the hit on contact (knockdown)"
     },
+    "arm_bite": {
+      "hit_frac": 0.42,
+      "windup": false,
+      "note": "utahraptor (UTAHARMS 2026-10-31): its attack_primary with the hands reaching forward, claws spread, and raking down clenched on the bite (tools/gait/raptor_overlay.py --keep); same timing as attack_primary; TacticalBrain plays it for tactics.bite_alt_chance of the bites"
+    },
+    "leap": {
+      "airborne": [
+        0.12,
+        0.78
+      ],
+      "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
+    },
+    "grab_bite": {
+      "hit_frac": 0.3,
+      "hit_fracs": [
+        0.3,
+        0.55,
+        0.8
+      ],
+      "windup": true,
+      "windup_hold": 0.25,
+      "note": "SP-ALLOSAURUS: the hands clamp at 0.3 (TacticalBrain.landed pins the prey), bites at 0.55 and 0.8 (tools/gait/make_allo_moves.py)"
+    },
     "flank_rake": {
       "airborne": [
         0.18,
@@ -211,25 +217,6 @@
     }
   },
   "natural_speeds": {
-    "carnotaurus": {
-      "height_m": 5.74,
-      "walk": 3.203,
-      "walk_l": 3.203,
-      "walk_r": 3.203,
-      "walk_len": 1.042,
-      "run": 9.058,
-      "run_l": 9.058,
-      "run_r": 9.058,
-      "run_len": 0.708,
-      "charge": 14.688,
-      "charge_len": 0.542,
-      "strafe_left": 3.203,
-      "strafe_left_len": 1.042,
-      "strafe_right": 3.203,
-      "strafe_right_len": 1.042,
-      "walk_back": 1.725,
-      "walk_back_len": 1.042
-    },
     "ankylosaurus": {
       "height_m": 2.25,
       "run_l": 2.06,
@@ -246,6 +233,23 @@
       "strafe_right_len": 1.083,
       "walk_back": 0.793,
       "walk_back_len": 1.083
+    },
+    "ceratosaurus": {
+      "height_m": 4.0,
+      "run_l": 11.242,
+      "run_len": 0.542,
+      "run_r": 11.051,
+      "walk_l": 2.912,
+      "walk_len": 1.0,
+      "walk_r": 2.912,
+      "walk": 2.912,
+      "run": 11.146,
+      "strafe_left": 1.941,
+      "strafe_left_len": 1.0,
+      "strafe_right": 1.941,
+      "strafe_right_len": 1.0,
+      "walk_back": 1.941,
+      "walk_back_len": 1.0
     },
     "coelophysis": {
       "height_m": 2.0,
@@ -468,6 +472,60 @@
       "sprint": 12.667,
       "sprint_len": 0.5
     },
+    "dilophosaurus": {
+      "height_m": 3.6,
+      "run_l": 10.63,
+      "run_len": 0.5,
+      "run_r": 10.612,
+      "walk_l": 2.758,
+      "walk_len": 0.917,
+      "walk_r": 2.756,
+      "walk": 2.757,
+      "run": 10.621,
+      "strafe_left": 1.838,
+      "strafe_left_len": 0.917,
+      "strafe_right": 1.838,
+      "strafe_right_len": 0.917,
+      "walk_back": 1.838,
+      "walk_back_len": 0.917,
+      "_note": "SP-DILOPHOSAURUS: walk/run from tools/bake_clip_speeds.py --dry-run; strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.16/0.917 mesh units/s x 3.6/0.3418)"
+    },
+    "carnotaurus": {
+      "height_m": 5.74,
+      "walk": 3.203,
+      "walk_l": 3.203,
+      "walk_r": 3.203,
+      "walk_len": 1.042,
+      "run": 9.058,
+      "run_l": 9.058,
+      "run_r": 9.058,
+      "run_len": 0.708,
+      "charge": 14.688,
+      "charge_len": 0.542,
+      "strafe_left": 3.203,
+      "strafe_left_len": 1.042,
+      "strafe_right": 3.203,
+      "strafe_right_len": 1.042,
+      "walk_back": 1.725,
+      "walk_back_len": 1.042
+    },
+    "megarex": {
+      "height_m": 10.4,
+      "run_l": 5.957,
+      "run_len": 0.917,
+      "run_r": 5.956,
+      "walk_l": 2.018,
+      "walk_len": 1.417,
+      "walk_r": 2.018,
+      "walk": 2.018,
+      "run": 5.957,
+      "strafe_left": 2.018,
+      "strafe_left_len": 1.417,
+      "strafe_right": 2.018,
+      "strafe_right_len": 1.417,
+      "walk_back": 2.018,
+      "walk_back_len": 1.417
+    },
     "tarbosaurus": {
       "height_m": 6.8,
       "run_l": 5.353,
@@ -488,73 +546,25 @@
       "walk_back_len": 1.292,
       "_note": "SP-TARBOSAURUS: walk/run from tools/bake_clip_speeds.py --dry-run; stalk = make_gait stride / cycle (1.6 / 2.2 rig m/s) x 6.8 / 8; strafes and walk_back reuse the walk plan"
     },
-    "allosaurus": {
-      "height_m": 6.5,
-      "walk": 2.621,
-      "walk_len": 1.417,
-      "run": 5.921,
-      "run_len": 0.917,
-      "strafe_left": 1.613,
-      "strafe_left_len": 1.417,
-      "strafe_right": 1.613,
-      "strafe_right_len": 1.417,
-      "walk_back": 1.613,
-      "walk_back_len": 1.417,
-      "_note": "SP-ALLOSAURUS: make_gait stride / clip length x height_meters / source height (0.455), not a Godot bake; tuned so the run (5.9 m/s) and walk (2.6 m/s) sit at the stats' 5.2 / 2.6 m/s"
-    },
-    "ceratosaurus": {
-      "height_m": 4.0,
-      "run_l": 11.242,
-      "run_len": 0.542,
-      "run_r": 11.051,
-      "walk_l": 2.912,
-      "walk_len": 1.0,
-      "walk_r": 2.912,
-      "walk": 2.912,
-      "run": 11.146,
-      "strafe_left": 1.941,
-      "strafe_left_len": 1.0,
-      "strafe_right": 1.941,
-      "strafe_right_len": 1.0,
-      "walk_back": 1.941,
-      "walk_back_len": 1.0
-    },
-    "megarex": {
-      "height_m": 10.4,
-      "run_l": 5.957,
-      "run_len": 0.917,
-      "run_r": 5.956,
-      "walk_l": 2.018,
-      "walk_len": 1.417,
-      "walk_r": 2.018,
-      "walk": 2.018,
-      "run": 5.957,
-      "strafe_left": 2.018,
-      "strafe_left_len": 1.417,
-      "strafe_right": 2.018,
-      "strafe_right_len": 1.417,
-      "walk_back": 2.018,
-      "walk_back_len": 1.417
-    },
     "raptor": {
       "height_m": 3.5,
-      "walk": 1.162,
-      "walk_len": 1.0,
-      "walk_l": 1.162,
-      "walk_r": 1.162,
-      "run": 5.399,
-      "run_len": 0.5,
       "run_l": 5.399,
+      "run_len": 0.5,
       "run_r": 5.399,
+      "walk_l": 1.162,
+      "walk_len": 1.0,
+      "walk_r": 1.162,
+      "walk": 1.162,
+      "run": 5.399,
       "charge": 7.918,
+      "_note": "RAPTORFLANK 2026-10-31: the raptor's own make_gait.py gaits (tools/gait/raptor.json): ground speed = planned stride / cycle x 7.498 (game m per mesh unit at 3.5 m). Strafes and walk_back are baked so the sidestep no longer plays at the walk's speed (its feet slid ~20 %).",
       "charge_len": 0.4167,
       "strafe_left": 1.671,
       "strafe_left_len": 0.5833,
       "strafe_right": 1.671,
       "strafe_right_len": 0.5833,
       "walk_back": 1.162,
-      "walk_back_len": 1.0,
-      "_note": "RAPTORFLANK 2026-10-31: the raptor's own make_gait.py gaits (tools/gait/raptor.json): ground speed = planned stride / cycle x 7.498 (game m per mesh unit at 3.5 m). Strafes and walk_back are baked so the sidestep no longer plays at the walk's speed (its feet slid ~20 %)."
+      "walk_back_len": 1.0
     },
     "therizinosaurus": {
       "height_m": 8.0,
@@ -572,6 +582,20 @@
       "strafe_right_len": 1.208,
       "walk_back": 2.194,
       "walk_back_len": 1.208
+    },
+    "allosaurus": {
+      "height_m": 6.5,
+      "walk": 2.621,
+      "walk_len": 1.417,
+      "run": 5.921,
+      "run_len": 0.917,
+      "strafe_left": 1.613,
+      "strafe_left_len": 1.417,
+      "strafe_right": 1.613,
+      "strafe_right_len": 1.417,
+      "walk_back": 1.613,
+      "walk_back_len": 1.417,
+      "_note": "SP-ALLOSAURUS: make_gait stride / clip length x height_meters / source height (0.455), not a Godot bake; tuned so the run (5.9 m/s) and walk (2.6 m/s) sit at the stats' 5.2 / 2.6 m/s"
     }
   }
 }
