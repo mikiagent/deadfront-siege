@@ -391,11 +391,15 @@ def collapse(t, T, death):
     lie_z = 0.30 * H  # body centre height lying on its side (about half the barrel's width)
     s.off.z = -(bh * 0.45) * kneel * (1 - roll) - (bh - lie_z) * roll
     s.pitch = -10 * kneel * (1 - sink) + 6 * sink * (1 - roll)
-    s.roll = -86 * roll
+    lie = LIE_FIX.get(death, LIE0) if STAG else LIE0
+    s.roll = lie[0] * roll
     s.neck[0] = -20 * kneel + (-5 if death else 10) * roll; s.head = -10 * kneel - (20 if death else 0) * roll
     s.neck_yaw[0] = 8 * roll; s.jaw = (14 if death else 4) * roll
     if STAG:  # lying on the right side, the head rolls back up so the antlers rest on their edges, not under the floor
-        s.head_roll = 70 * roll; s.neck[0] += 18 * roll
+        # MEGANTLERS: plus the body roll and head pose solved for the Tripo rack (LIE_FIX: roll, neck, neck yaw, head
+        # roll, head pitch), eased in with the roll
+        s.head_roll = (70 + lie[3]) * roll; s.neck[0] += (18 + lie[1]) * roll
+        s.neck_yaw[0] += lie[2] * roll; s.head += lie[4] * roll
     s.tail[0] = -10 * roll
     for k, L in LEGS.items():
         fold = kneel if L["front"] else sink
@@ -466,11 +470,67 @@ os.makedirs(OUT, exist_ok=True)
 GROUND = {"knockdown", "death", "sleep"}
 
 
+def antler_low():
+    """Lowest point of the skinned antlers in the current pose (None without antlers)."""
+    ant = bpy.data.objects.get("Antlers")
+    if ant is None: return None
+    e = ant.evaluated_get(bpy.context.evaluated_depsgraph_get()); m = e.to_mesh()
+    z = min((ant.matrix_world @ v.co).z for v in m.vertices); e.to_mesh_clear()
+    return z
+
+
+def antler_hits():
+    """Antler points more than 3 cm inside the hide (nearest hide point, against its face normal), skipping the burrs and
+    pedicles (within 1.1 m of each side's innermost antler point at rest, as tools/gait/megaloceros/check_antlers.py)."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    hide = bpy.data.objects["MegalocerosHide"]; he = hide.evaluated_get(dg); hm = he.to_mesh()
+    bvh = BVHTree.FromPolygons([v.co.copy() for v in hm.vertices], [p.vertices[:] for p in hm.polygons]); he.to_mesh_clear()
+    ant = bpy.data.objects["Antlers"]; ae = ant.evaluated_get(dg); am = ae.to_mesh()
+    n = 0
+    for i in ANT_FAR:
+        p = am.vertices[i].co; loc, nor, _, d = bvh.find_nearest(p)
+        if loc is not None and d < 0.5 and (p - loc).dot(nor) < -0.03: n += 1
+    ae.to_mesh_clear()
+    return n
+
+
+# MEGANTLERS: a 7.6 m rack cannot lie on its side as SP-MEGALOCEROS posed it: one antler went 1.2-2 m under the floor,
+# and no head turn alone clears both the floor and the body. For the stag's lying clips, a seeded random search over
+# the body roll (fully on its side -86 to slumped on its brisket -10), neck pitch and yaw, head roll and head pitch, scored
+# on every frame from the roll's start to the last: no antler point under ANTLER_REST_M nor in the body, then the most rolled,
+# then the smallest change.
+LIE0 = (-86.0, 0.0, 0.0, 0.0, 0.0)
+LIE_FIX = {}
+ANTLER_REST_M = 0.03
+if STAG and bpy.data.objects.get("Antlers"):
+    import random
+    from mathutils.bvhtree import BVHTree
+    pts = [v.co for v in bpy.data.objects["Antlers"].data.vertices]
+    seats = [min((p for p in pts if sx * p.x > 0), key=lambda p: abs(p.x)) for sx in (1, -1)]
+    ANT_FAR = [i for i, p in enumerate(pts) if min((p - q).length for q in seats) >= 1.1][::2]
+    for death in (False, True):
+        T = 2.2 if death else 1.6; rng = random.Random(7); best = None
+        for k in range(1500):
+            c = (float(rng.choice(range(-86, -9, 4))), rng.uniform(-40, 60), rng.uniform(-60, 60), rng.uniform(-120, 120), rng.uniform(-40, 40))
+            LIE_FIX[death] = c; bad = 0.0
+            N = int(round(T * FPS))
+            for f in range(N, int(N * 0.4) - 1, -1):  # every exported frame from the last back to the roll's start (the rack swings through the neck)
+                apply(collapse(T * f / N, T, death)); z = antler_low()
+                if f == N: z_end = z
+                bad += max(0.0, ANTLER_REST_M - z) * 100
+                if bad > (best[0] if best else 1e9): break
+                bad += antler_hits()
+            score = (bad, -abs(c[0]) // 15, sum(abs(x) for x in c[1:]))
+            if best is None or score < best: best = score + (c, z_end)
+        LIE_FIX[death] = best[3]
+        print(f"LIE_FIX {'death' if death else 'knockdown'}: roll {best[3][0]:+.0f}, neck {best[3][1]:+.0f}, neck_yaw {best[3][2]:+.0f}, head_roll {best[3][3]:+.0f}, head {best[3][4]:+.0f}; lowest antler {best[4]:+.2f} m, penalty {best[0]:.0f}")
+
+
 for name, (T, fn, loop) in CLIPS.items():
     if ONLY and name not in ONLY: continue
+    N = max(2, int(round(T * FPS)))
     act = bpy.data.actions.new(name)
     arm.animation_data_create(); arm.animation_data.action = act
-    N = max(2, int(round(T * FPS)))
     for f in range(N + 1):
         t = T * f / N
         s = fn(t % T if loop else t, T) if not loop else fn(t if f < N else 0.0, T)
@@ -492,6 +552,9 @@ for name, (T, fn, loop) in CLIPS.items():
                 q.z = max(q.z, LEGS[k]["home"].z * 0.9)
                 s.feet[k] = q
         apply(s)
+        if LIE_FIX and name in ("death", "knockdown"):
+            z, n = antler_low(), antler_hits()
+            if z < -0.02 or n: print(f"ANTLER_CLIP {name} frame {f + 1}: lowest {z:+.2f} m, {n} points in the body")
         key(f + 1)
     act.use_fake_user = True
     sc.frame_start, sc.frame_end = 1, N + 1

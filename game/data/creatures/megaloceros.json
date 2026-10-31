@@ -26,7 +26,7 @@
     "mount",
     "bag"
   ],
-  "look": "giant Irish elk: stag with enormous palmate antlers (span ~6 m in game), dark brown back, cream neck ruff, tan legs; antlerless doe in tan with a grey-brown cape and cream throat",
+  "look": "giant Irish elk: stag with enormous palmate antlers (span 7.6 m in game), dark brown back, cream neck ruff, tan legs; antlerless doe in tan with a grey-brown cape and cream throat",
   "texture_prompt": "stag: brown back, cream ruff, bone antlers with dark bases; doe: tan coat, grey-brown cape, cream throat",
   "clips": {
     "attack_primary": "stag: antler hook, head drops then rips up and sideways through the target (hit 0.42); doe: forehoof strike",
@@ -56,10 +56,12 @@
       "stag": "bcfbeaa9-7512-43e7-8dc4-d468de798bd3",
       "doe": "0ed68442-1cbd-43f6-a33b-9f9ef7a682da",
       "model": "P1-20260311 multiview, texture+PBR, face_limit 15000",
-      "credits": 100
+      "credits": 100,
+      "stag_antlers": "48c4db1d-c6b8-40fb-a881-4cff854d7c78",
+      "stag_antlers_model": "v3.1-20260211 image-to-model of ref/stag_antlers_codex.png, texture+PBR, face_limit 20000, 30 credits (MEGANTLERS)"
     },
     "reference": "owner sheets megaloceros_owner_sheet_stag.png / _doe.png; stag views: Codex, antlers removed (ref/stag_tripo_*.png); doe views cropped from her sheet (ref/doe_tripo_*.png)",
-    "build": "tools/gait/megaloceros/build.sh (build_rig.py: deer skeleton with carpus/hock/fetlock, Jaw, geometric weights, Blender-built palmate antlers skinned to Head; clips.py: every clip authored on that rig)",
+    "build": "tools/gait/megaloceros/build.sh (build_rig.py: deer skeleton with carpus/hock/fetlock, Jaw, geometric weights, the Tripo antler rack (antler_prep.py cleans it, build_rig.py seats it on the skull with hide-covered pedicles) skinned to Head; clips.py: every clip authored on that rig; check_antlers.py: the rack against the body and the floor in every stag clip)",
     "clips": [
       "idle",
       "walk",
