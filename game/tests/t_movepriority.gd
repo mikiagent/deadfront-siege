@@ -155,7 +155,7 @@ func _stop_counting(box: Array) -> void:
 ## Without a move order today's combat is unchanged: a live hunt target in reach swings by itself.
 func _test_baseline_auto_attack() -> void:
 	await _clear_world()
-	var c = _creature(&"protoceratops", Vector3(1.3, 0, 0))
+	var c = _creature(&"zebraceratops", Vector3(1.3, 0, 0))
 	await _frames(5)
 	var swings := _count_swings()
 	player.hunt.start(c)
@@ -171,7 +171,7 @@ func _test_baseline_auto_attack() -> void:
 ## swing or chase happens, even with a hunt target started over the walk.
 func _test_ground_click_wins() -> void:
 	await _clear_world()
-	var c = _creature(&"protoceratops", Vector3(1.3, 0, 0))
+	var c = _creature(&"zebraceratops", Vector3(1.3, 0, 0))
 	await _frames(4)
 	var goal := Vector3(0, 0, -9)
 	var swings := _count_swings()
@@ -205,8 +205,8 @@ func _test_ground_click_wins() -> void:
 ## DoT tick (bleed) is not "taking damage" and does not break the order.
 func _test_enemy_tap_and_tick() -> void:
 	await _clear_world()
-	var near = _creature(&"protoceratops", Vector3(1.4, 0, 0))
-	var far = _creature(&"protoceratops", Vector3(-2.0, 0, -4.0))
+	var near = _creature(&"zebraceratops", Vector3(1.4, 0, 0))
+	var far = _creature(&"zebraceratops", Vector3(-2.0, 0, -4.0))
 	await _frames(4)
 	var goal := Vector3(0, 0, -11)
 	_tap_ground(goal + Vector3(0, 0.05, 0))
@@ -241,8 +241,8 @@ func _test_enemy_tap_and_tick() -> void:
 ## Owner rule 2: a hit during the walk cancels the move after the hurt stun and she attacks the source.
 func _test_damage_breaks_move() -> void:
 	await _clear_world()
-	var a = _creature(&"protoceratops", Vector3(1.3, 0, 0))
-	var b = _creature(&"protoceratops", Vector3(-1.4, 0, -1.4))
+	var a = _creature(&"zebraceratops", Vector3(1.3, 0, 0))
+	var b = _creature(&"zebraceratops", Vector3(-1.4, 0, -1.4))
 	await _frames(4)
 	var swings := _count_swings()
 	_tap_ground(Vector3(0, 0.05, -11))
@@ -258,7 +258,7 @@ func _test_damage_breaks_move() -> void:
 	_expect(int(swings[0]) >= 1, "damage: she attacks the damage source once the stun ends (%d swings)" % int(swings[0]))
 	# No live source (a trap, a fall, a projectile whose attacker is gone): the nearest hostile.
 	await _clear_world()
-	b = _creature(&"protoceratops", Vector3(-1.4, 0, -1.4))
+	b = _creature(&"zebraceratops", Vector3(-1.4, 0, -1.4))
 	await _frames(4)
 	_tap_ground(Vector3(0, 0.05, -11))
 	await _frames(3)

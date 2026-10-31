@@ -352,6 +352,32 @@ func _level_factor() -> float:
 func body_radius() -> float:
 	return maxf(0.18, def.real_length_m * 0.12 * size_scale())
 
+## BIGREACH: the visible body's ground footprint in this body's local XZ (Rect2 x = local x across,
+## y = local z nose to tail), from the model's mesh bounds at the current body size. Melee reach and
+## the survivor's approach read it, so a long animal is hit at its flank, legs, head or tail.
+var _footprint := Rect2()
+var _footprint_size := -1.0
+
+func footprint() -> Rect2:
+	if _footprint_size == size_scale() or view == null or not is_inside_tree():
+		return _footprint if _footprint_size > 0.0 else Rect2(-body_radius(), -body_radius(), body_radius() * 2.0, body_radius() * 2.0)
+	var inv := global_transform.affine_inverse()
+	var lo := Vector3(INF, INF, INF)
+	var hi := -lo
+	for mi in view.find_children("*", "MeshInstance3D", true, false):
+		if (mi as MeshInstance3D).mesh == null or not (mi as MeshInstance3D).is_visible_in_tree():
+			continue
+		var b: AABB = inv * (mi as MeshInstance3D).global_transform * (mi as MeshInstance3D).get_aabb()
+		lo = lo.min(b.position)
+		hi = hi.max(b.end)
+	var r := body_radius()
+	if lo.x > hi.x:
+		lo = Vector3(-r, 0, -r)
+		hi = Vector3(r, 0, r)
+	_footprint = Rect2(lo.x, lo.z, hi.x - lo.x, hi.z - lo.z)
+	_footprint_size = size_scale()
+	return _footprint
+
 func defense_for(ranged: bool = false) -> float:
 	return stat_value(&"ranged_defense" if ranged else &"melee_defense") * pack_aura_mult("defense")
 
@@ -661,6 +687,10 @@ func _slide() -> void:
 func _size_collision() -> void:
 	var cap := CapsuleShape3D.new()
 	cap.radius = body_radius()
+	# BIGREACH: never wider than the visible body (a stegosaurus's 2.4 m capsule held the survivor a metre
+	# off its 1.3 m flank). body_radius() stays the AI's spacing size; melee reads this shape.
+	var fp := footprint()
+	cap.radius = maxf(0.18, minf(cap.radius, minf(-fp.position.x, fp.end.x) + 0.1))
 	cap.height = maxf(cap.radius * 2.0 + 0.1, def.height_meters * size_scale())
 	shape.shape = cap
 	shape.position.y = cap.height * 0.5
@@ -673,6 +703,8 @@ func _make_brain() -> void:
 		brain = PetBrain.new()
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
+	elif def and def.archetype == &"club_tail":
+		brain = ClubTailBrain.new()  # ANKYLOAI: tail toward the threat, rare hard club hits
 	elif def and TacticalBrain.has_tactics(def):
 		brain = TacticalBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":
@@ -847,10 +879,11 @@ func _update_label() -> void:
 	label.position.y = def.height_meters * size_scale() + 0.4
 
 func _on_windup(clip: StringName) -> void:
+	if brain is ClubTailBrain: return  # it rings where the club will pass, not ahead of the snout
 	Telegraph.show_for(self, clip)
 
 func _on_hit(clip: StringName) -> void:
-	if brain is TyrantBrain: return
+	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
 	var target := brain.attack_target if brain else null
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup.

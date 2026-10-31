@@ -97,6 +97,7 @@ func _run() -> void:
 	await _test_pen_refunds()
 	await _test_refused_save_keeps_camp()
 	await _test_away_island()
+	await _test_retired_species()
 	await _test_hostile_types()
 	_test_gate_open_direct()
 	await _test_aborted_load()
@@ -557,6 +558,28 @@ func _test_away_island() -> void:
 	_check(why != "", "after an away load the camp fire's cells are still occupied (can_place='%s')" % why)
 	W.load_island(host, &"home_grassland", Vector3(0, 1, 12), false)
 	await process_frame
+
+## RETIREPROTO (owner 2026-10-31 removed the protoceratops): an old save's tamed protoceratops loads
+## as a zebraceratops (its retired_to) with its bag, and a pen or tame of one makes a zebraceratops.
+func _test_retired_species() -> void:
+	_clean()
+	var data := root.get_node("Data")
+	var row: Dictionary = PetRecordS.from_def(data.creature(&"zebraceratops")).to_dict()
+	row["species"] = "protoceratops"
+	row["variant"] = "protoceratops_pink"
+	row["bag"] = [{"id": "stone", "count": 7}]
+	_check(SG.save_now(), "save before the retired-species load")
+	var d: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SG.path))
+	d["pets"] = [row]
+	_put(JSON.stringify(d))
+	SG.load_now(host)
+	await process_frame
+	var pet = player.bonded[0] if player.bonded.size() == 1 else null
+	print("[t_save] retired protoceratops loads as %s variant='%s' stone=%d" % [pet.species if pet else &"?", pet.variant if pet else &"", pet.bag.count_of(&"stone") if pet else -1])
+	_check(pet != null and pet.species == &"zebraceratops" and pet.variant == &"" and pet.bag.count_of(&"stone") == 7, "a saved protoceratops loads as a zebraceratops with its bag")
+	_check(PetRecordS.from_def(data.creature(&"protoceratops")).species == &"zebraceratops", "taming a retired species makes its stand-in")
+	_check(not load("res://scripts/creatures/creature_def.gd").has_model(&"protoceratops"), "the protoceratops has no model, so it never spawns")
+	player.bonded.clear()
 
 ## Wrong-typed leaves the loader casts with int()/float()/bool(): each must load completely
 ## (the golden's 42 t_stones and 6 stacks arrive) and keep saving, never abort halfway.

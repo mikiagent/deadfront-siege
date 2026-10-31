@@ -20,6 +20,7 @@
     "missing_clip_swing_seconds": 0.35,
     "hit_frac": 0.6,
     "hit_reach_slack_m": 0.3,
+    "edge_reach_m": 0.5,
     "hit_arc_min_dot": 0.0,
     "xp_per_hit": 2,
     "basic_cooldown_s": 0.8,
