@@ -1166,6 +1166,99 @@
         "slashing"
       ],
       "temperament": "defensive"
+    },
+    "claw_guardian": {
+      "is_herbivore": true,
+      "temperament": "territorial",
+      "territory_m": 14.0,
+      "_territory": "ASSUMPTION (therizinosaurus, owner 2026-10-31: 'mostly non-predatory herbivore that defends itself brutally', territorial): it grazes until someone comes within territory_m of its body (surface to surface), then turns on them; one hit provokes it too. It never flees on sight. Chased animals turning on the chaser is the shared rule (claude/mmo-cornered), not repeated here.",
+      "attack_range": 5.3,
+      "weak_to": [
+        "blunt"
+      ],
+      "resists": [
+        "slashing"
+      ],
+      "chase_speed_mult": 0.7,
+      "perception_base": 12.0,
+      "tactics": {
+        "base": "horned_charger",
+        "_about": "CLAW GUARDIAN (therizinosaurus, SP-THERIZINOSAURUS; owner 2026-10-31, design notes: two-arm overhead claw rake that bleeds, a forward claw sweep that keeps you at range, a threat display rearing up with the claws spread, a claw-hook pull). A slow territorial herbivore that fights standing, never charges: it squares up on a ring (circle/hold), rears into its threat display (alert) and HOOKS (the bite_combo clip: right claws hook her at 0.092 and drag her hook_pull_m in toward its chest, a left backhand at 0.338, then a rear-up tell and a double claw thrust at 0.815); from the ring it dashes in for the hook if she stands off. Point blank: the overhead rake (attack_heavy: rears with both arms high and trembling, the 0.6 windup hold is the telegraph, x heavy_mult, and the only move that bleeds: pipeline.status_clips in therizinosaurus.json), the hook combo, or the claw sweep (attack_primary) whose landed hit shoves her primary_shove_m back to claw's length. The claws sit ~5.5 m ahead of its centre (reach_m); every hit also needs a claw bone on her (pipeline.hit_parts), so under the belly or behind it she is safe, and it turns slowly (turn_rate 2.4). Flees when badly hurt (retreat_frac). Every number is an ASSUMPTION (TZ1-TZ6).",
+        "reach_m": 5.6,
+        "sequences": [
+          {
+            "name": "display_hook",
+            "steps": [
+              "display",
+              "combo"
+            ],
+            "weight": 2.5
+          },
+          {
+            "name": "hook",
+            "steps": [
+              "combo"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_left_hook",
+            "steps": [
+              "strafe_left",
+              "combo"
+            ],
+            "weight": 0.6
+          },
+          {
+            "name": "strafe_right_hook",
+            "steps": [
+              "strafe_right",
+              "combo"
+            ],
+            "weight": 0.6
+          }
+        ],
+        "point_blank": [
+          "heavy",
+          "combo",
+          "bite"
+        ],
+        "attack_priority": [
+          "combo",
+          "bite"
+        ],
+        "ring_m": 10.0,
+        "circle_speed_frac": 0.5,
+        "contact_after_s": 1.0,
+        "bite_cd": 3.0,
+        "heavy_cd": 8.0,
+        "heavy_mult": 1.8,
+        "combo_cd": 9.0,
+        "combo_mults": [
+          0.8,
+          1.0,
+          1.6
+        ],
+        "primary_shove_m": 3.0,
+        "primary_shove_stagger_s": 0.5,
+        "hook_pull_m": 3.5,
+        "hook_stop_m": 4.5,
+        "hook_pull_stagger_s": 0.45,
+        "display_s": 1.6,
+        "herd_defend": false,
+        "retreat_frac": 0.2,
+        "max_retreat_m": 14.0,
+        "w_hold": 1.0,
+        "w_strafe": 0.4,
+        "w_hop": 0.0,
+        "w_feint": 0.2,
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_combo": 1.5,
+          "beat_mult": 0.7,
+          "wait_mult": 0.5
+        }
+      }
     }
   },
   "energy": {
