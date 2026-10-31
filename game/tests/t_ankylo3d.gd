@@ -1,15 +1,14 @@
 extends SceneTree
 ## ANKYLO3D: the ankylosaurus draws its rigged Tripo model (no box placeholder) with every listed clip plus the
 ## strafes and walk_back, it stands about survivor-shoulder high, the feet stay on the floor in the standing clips,
-## the jaw bone exists, the tail-club attack swings the club out to the side at its hit frame, and an
-## attack_primary started by the brain lands on a survivor in reach.
+## the jaw bone exists, and a spawned one runs ClubTailBrain (ANKYLOAI): its attack_primary, played with a survivor at
+## its snout, does not hurt her (the club, not reach from the centre, is the hit; t_ankyloai tests the hits themselves).
 ## Run: Godot --headless --path game --script res://tests/t_ankylo3d.gd  -> "[t_ankylo3d] PASS", exit 0.
 
 const ID := &"ankylosaurus"
 const EXTRA_CLIPS: Array[StringName] = [&"walk_back", &"strafe_left", &"strafe_right"]
 const FEET := ["BackFoot.L", "BackFoot.R", "FrontFoot.L", "FrontFoot.R"]
 const GROUND_TOL := 0.06  ## m: the lowest foot bone stays this close to its rest height in standing clips
-const HIT := {&"attack_primary": 0.42, &"attack_heavy": 0.72}  ## anim_events.json hit_frac
 
 var failures: Array[String] = []
 var _started := false
@@ -108,25 +107,10 @@ func _test_view() -> void:
 				lo = minf(lo, _bone_y(sk, view, b))
 			worst = maxf(worst, absf(lo - rest))
 		_expect(worst <= GROUND_TOL, "%s: lowest foot stays on the floor (worst %.3f m off rest)" % [clip, worst])
-	# The club is the hit: at the hit frame the tail tip is out to the side of the body and moving fast.
-	var fwd: Vector3 = -(view as Node3D).global_transform.basis.z.normalized()
-	var right: Vector3 = fwd.cross(Vector3.UP).normalized()
-	var tip := sk.find_bone("Tail5")
-	for clip in HIT:
-		sk.reset_bone_poses()
-		ap.play(clip)
-		var a := ap.get_animation(clip)
-		var at: float = a.length * float(HIT[clip])
-		ap.seek(at - 0.1, true)
-		var before := (sk.global_transform * sk.get_bone_global_pose(tip)).origin
-		ap.seek(at, true)
-		var p := (sk.global_transform * sk.get_bone_global_pose(tip)).origin
-		var side: float = (p - (view as Node3D).global_position).dot(right)
-		var speed := p.distance_to(before) / 0.1
-		_expect(absf(side) > 1.5 and speed > 4.0, "%s: club %.2f m to the side at the hit, %.1f m/s" % [clip, side, speed])
+	# ANKYLOAI: where and when the club hits is t_ankyloai (club sphere in each move's strike window).
 	view.free()
 
-## A real ankylosaurus, provoked, swings attack_primary at a survivor in reach and the hit lands.
+## A real ankylosaurus runs ClubTailBrain; its tail whip played at a survivor in front of its snout does not reach her.
 func _test_hit() -> void:
 	load("res://scripts/combat/combat_tuning.gd").force_accuracy = 1.0
 	var host := Node3D.new()
@@ -161,6 +145,7 @@ func _test_hit() -> void:
 	c.anim.play_clip(&"attack_primary")
 	for _f in 120:
 		await physics_frame
+	_expect(c.brain.get_script().get_global_name() == &"ClubTailBrain", "a wild ankylosaurus runs ClubTailBrain")
 	_expect(hits[0] == 1, "attack_primary reaches its hit frame once (%d)" % hits[0])
-	_expect(player.vitals.health < hp0, "the club lands on the survivor (hp %.0f -> %.0f)" % [hp0, player.vitals.health])
+	_expect(is_equal_approx(player.vitals.health, hp0), "the old reach-from-centre hit is gone: a survivor at the snout keeps hp %.0f -> %.0f" % [hp0, player.vitals.health])
 	host.free()

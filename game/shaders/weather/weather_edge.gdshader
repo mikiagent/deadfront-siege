@@ -1,8 +1,8 @@
 shader_type canvas_item;
 // WEATHER screen layer (WeatherFx), no screen read so it stays cheap on gl_compatibility and phones:
-// the rain's grey wash, heat's warm wash and orange edge, cold's blue-white edge, frost creeping in from
-// the borders, and the lightning flash. The edge ramp is the combat red edge's (StatusFx.draw_vignette):
-// linear, 14% of the short side deep.
+// the rain's grey wash, heat's warm wash and orange edge (both kept to the border, the middle stays clear),
+// cold's blue-white edge, frost creeping in from the borders, and the lightning flash. The edge ramp is the
+// combat red edge's (StatusFx.draw_vignette): linear, 14% of the short side deep.
 uniform vec2 px = vec2(1600.0, 900.0);
 uniform float heat = 0.0;
 uniform float cold = 0.0;
@@ -52,10 +52,10 @@ void fragment() {
 	vec4 o = vec4(0.0);
 	o = over(o, vec3(0.18, 0.22, 0.3), rain * rain * 0.26);
 	o = over(o, vec3(0.08, 0.1, 0.16), rain * rain * 0.3 * ramp);
-	o = over(o, vec3(1.0, 0.6, 0.25), heat * 0.04);
+	o = over(o, vec3(1.0, 0.6, 0.25), heat * 0.06 * ramp);
 	o = over(o, vec3(0.74, 0.86, 1.0), cold * 0.05);
 	float throb = 0.8 + 0.2 * sin(TIME * 2.4);
-	o = over(o, vec3(1.0, 0.36, 0.04), heat * 0.6 * throb * ramp * ramp * edge_scale);
+	o = over(o, vec3(1.0, 0.36, 0.04), heat * 0.4 * throb * ramp * ramp * edge_scale);
 	o = over(o, vec3(0.62, 0.84, 1.0), cold * 0.5 * ramp * ramp * edge_scale);
 	if (frost > 0.002) {
 		vec2 q = p / s;

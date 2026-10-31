@@ -46,21 +46,24 @@ Verdict: approve / new animations / reject model / new moves or AI.
 
 | Species | Brain (archetype) | Verb | Moves | Fight clips | Verdict |
 |---|---|---|---|---|---|
-| Ankylosaurus | CreatureBrain (club_tail) | tail club | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
+| Ankylosaurus | ClubTailBrain (club_tail) | tail club | no rush: shuffles to turn its tail to you; TAIL WHIP (side sweep, knockback), TAIL SMASH (overhead slam behind it, knockdown + shockwave), CLUB SWEEP (long arc behind, also when two of you are close); order whip, whip, smash, whip, sweep; hits only from the club (the head is safe); a ring + the move name for the whole wind-up, roll through it | alert, attack_primary, attack_heavy, tail_swipe | reworked per owner 2026-10-31, re-test |
 | Coelophysis | CreatureBrain (flock_harass) | flock harass, darting bites | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
 | Compsognathus | TacticalBrain (swarm) | swarm nips, four to eight at once | crouch-then-charge (charge_crouch coil, then a low charge sprint into the bite), pounce, strafe walk and strafe jumps, backstep; twitchy combat idle while aggro | alert, attack_primary, attack_heavy, pounce, charge_crouch, charge, strafe_left, strafe_right, investigate (combat idle) | reworked per owner 2026-10-31, re-test |
 | Deinonychus | TacticalBrain (pack_flanker) | pack flank, sickle-claw rake | backstep, strafe, pounce, charge, combo | alert, attack_primary, attack_heavy, bite_combo, pounce, charge | run and charge re-stepped (glide) per owner 2026-10-31, re-test |
 | Gallimimus | CreatureBrain (runner) | charge, kick, outruns you | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
 | Megaloceros | CreatureBrain (antlered) | antler gore, flees | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
 | Pachycephalosaurus | TacticalBrain (pack_mule) | dome headbutt charge | display, charge, strafe | alert, attack_primary, attack_heavy, charge | |
-| Protoceratops | TacticalBrain (pack_mule) | shoving beak, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
+| Protoceratops | TacticalBrain (pack_mule) | shoving beak, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | removed by owner 2026-10-31 |
 | Stegosaurus | CreatureBrain (spiked_tail) | thagomizer tail sweep | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
 | Styracosaurus | TacticalBrain (horned_charger) | horn sweep, knockback | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
 | Triceratops | TacticalBrain (horned_charger) | full charge | display, charge, strafe | alert, attack_primary, attack_heavy | |
-| Tyrannosaurus | TyrantBrain (tyrant) | three-phase raid: stomp, roar, tail | telegraphed bite, stomp every 3rd attack, tail whip from behind, roar on spotting | alert, attack_primary, attack_heavy, tail_swipe | |
+| Tyrannosaurus | TyrantBrain (tyrant) | three-phase raid: stomp, roar, tail | telegraphed bite, stomp every 3rd attack (a stomp that lands pins you under its foot), tail whip from behind, roar on spotting | alert, attack_primary, attack_heavy, tail_swipe, pin_foot | |
 | Utahraptor | RaptorPackBrain (apex_raptor) | one devastating claw strike | pack flank, bites, heavy pounce from 4-7 m off-axis | alert, attack_primary, attack_heavy | |
 | Velociraptor | RaptorPackBrain (pack_raptor) | pounce knockdown from off-screen | pack flank, bites, heavy pounce from 4-7 m off-axis | alert, attack_primary, attack_heavy | |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
+
+ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
+archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
 
 No glide (owner 2026-10-31): a body never moves under a one-shot. Attacks play in place; alert, sniff and hit_react
 give way to the stride-matched gait when the brain moves the body; leaps move on their own arc. Test:
@@ -69,5 +72,13 @@ give way to the stride-matched gait when the brain moves the body; leaps move on
 CreatureBrain swings attack_primary and attack_heavy only, so the kick clips of Megaloceros and Stegosaurus do
 not show in a fight, and verbs such as Gallimimus "kick" have no move behind them yet.
 
+Pin shots: `-- --lab=creature_lab --god --skip-charcreate --species=tyrannosaurus --pinshots=DIR` (windowed, off
+screen with `--position 6000,3000`) saves the stomp, the foot pin and the release, then quits. Test: `game/tests/t_pinfeel.gd`.
+
 Test: `game/tests/t_godlab.gd` (GOD survives a T. rex bite chain at full health, off without `--god`; NEXT
 cycles every modelled species, one model each).
+
+Reach on big bodies (BIGREACH): a swing is in reach by the old centre rule or when the survivor's edge is within
+`player_melee.edge_reach_m` (0.5 m) of the creature's visible footprint (`Creature.footprint()`, mesh bounds), so
+the flank, legs, head and tail all count; auto-attack walks to the nearest point of that footprint, not the centre.
+The collision capsule is clamped to the visible half-width. Test: `game/tests/t_bigreach.gd`.

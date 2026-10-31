@@ -473,7 +473,8 @@ def spawn_rows(data: Path, assets: Path):
             out.append({"island": iid, "climate": isl.get("climate", "?"), "tier": isl.get("tier"),
                         "kind": isl.get("kind", "unstable"), "where": where, "want": want, "got": got,
                         "count": count, "groups": groups, "chance": chance, "levels": lv,
-                        "alpha": alphas, "tameable": bool(defs.get(want, {}).get("tameable", False))})
+                        "alpha": alphas, "tameable": bool(defs.get(want, {}).get("tameable", False)),
+                        "retired": bool(defs.get(want, {}).get("retired"))})
 
         for r in isl.get("creatures", []):
             if isinstance(r, dict):
@@ -498,9 +499,10 @@ def spawn_rows(data: Path, assets: Path):
 def status_txt(r) -> str:
     if r["got"] == r["want"]:
         return "in game"
+    why = "retired" if r.get("retired") else "no model yet"  # RETIREPROTO: removed by the owner, model deleted
     if r["got"]:
-        return "no model yet: spawns fall through to %s" % r["got"]
-    return "no model yet: nothing spawns"
+        return "%s: spawns fall through to %s" % (why, r["got"])
+    return "%s: nothing spawns" % why
 
 
 def lv_txt(lv) -> str:
@@ -534,9 +536,11 @@ def gen_spawns(data: Path, docs: Path) -> None:
     a("- **tameable**: the written species' `tameable` flag. At most %s creatures spawn per island "
       "(`Game.max_creatures_per_island`), so late rows on a crowded island can be cut." % 24)
     a("")
-    no_model = sorted(sp for sp in defs if not has_model(assets, sp))
-    a("**Models:** %d of %d species have one. No model yet: %s." % (
-        len(defs) - len(no_model), len(defs), ", ".join("%s (`%s`)" % (name(sp), sp) for sp in no_model) or "none"))
+    retired = sorted(sp for sp in defs if defs[sp].get("retired"))
+    no_model = sorted(sp for sp in defs if not has_model(assets, sp) and sp not in retired)
+    a("**Models:** %d of %d species have one. No model yet: %s. Retired (model removed, never spawns): %s." % (
+        len(defs) - len(no_model) - len(retired), len(defs), ", ".join("%s (`%s`)" % (name(sp), sp) for sp in no_model) or "none",
+        ", ".join("%s (`%s`)" % (name(sp), sp) for sp in retired) or "none"))
     a("")
 
     by_climate = OrderedDict()

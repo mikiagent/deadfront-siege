@@ -6,7 +6,6 @@ const TINTS := {
 	"velociraptor": Color(0.76, 0.58, 0.32),
 	"deinonychus": Color(0.42, 0.55, 0.28),
 	"utahraptor": Color(0.62, 0.32, 0.18),
-	"protoceratops": Color(0.72, 0.64, 0.42),
 }
 
 ## GENETICS: the info-card swatch for one individual: the species' body tint with its own natural

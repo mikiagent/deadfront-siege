@@ -1,5 +1,5 @@
 extends Node3D
-## TARGETUI lab (spec 23): on the home island a real mouse tap selects a wild protoceratops (plate,
+## TARGETUI lab (spec 23): on the home island a real mouse tap selects a wild zebraceratops (plate,
 ## ring, red swords hex), a real click on the swords starts the fight, a raptor already on the
 ## survivor is selected with its aggro ring showing, in a herd the swords keep off the neighbours and a
 ## tap on one selects it, the bag or the Animals screen hides the swords and E fights nothing behind
@@ -84,9 +84,9 @@ func _swords() -> TargetSwordsHex:
 func _run() -> void:
 	await get_tree().create_timer(3.0).timeout
 	print("[targetui] window=%s logical=%s" % [get_tree().root.size, get_viewport().get_visible_rect().size])
-	# 1. Tap a wild protoceratops (real art; the wildsaurus is still a stand-in): selected, no fight.
-	var wild := _spawn(&"protoceratops", Vector3(4.0, 0, 1.5))
-	_check(wild != null, "protoceratops spawned")
+	# 1. Tap a wild zebraceratops (real art; the wildsaurus is still a stand-in): selected, no fight.
+	var wild := _spawn(&"zebraceratops", Vector3(4.0, 0, 1.5))
+	_check(wild != null, "zebraceratops spawned")
 	if wild == null:
 		get_tree().quit(1)
 		return
@@ -136,7 +136,7 @@ func _run() -> void:
 	var right := Vector3(_cam.global_basis.x.x, 0.0, _cam.global_basis.x.z).normalized()
 	var herd: Array[Creature] = []
 	for i in 5:
-		var h := _spawn(&"protoceratops", right * (3.2 + 1.6 * i) + Vector3(0, 0, 0.8))
+		var h := _spawn(&"zebraceratops", right * (3.2 + 1.6 * i) + Vector3(0, 0, 0.8))
 		if h:
 			h.brain.process_mode = Node.PROCESS_MODE_DISABLED
 			herd.append(h)

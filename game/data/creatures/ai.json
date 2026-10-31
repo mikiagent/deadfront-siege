@@ -626,7 +626,48 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "defensive"
+      "temperament": "defensive",
+      "_club_moves": "ANKYLOAI (owner 2026-10-31: no rush/tackle, rare HARD tail hits). ClubTailBrain: strike = the clip fractions where the Tail5 club is live; the hit is a sphere of hit_radius_m round the club (plus the target's body), so the snout is safe. target_bearing_deg (+ = right of the snout) / target_dist_m (from the origin) is where the brain puts its target before it swings: the club passes there in the window (tools/gait/check_ankylo.py prints the club path). Every number below is an ASSUMPTION (WildLandsMMO_Open_Questions.md).",
+      "club_moves": {
+        "whip": {
+          "clip": "attack_primary",
+          "label": "TAIL WHIP",
+          "strike": [0.5, 0.72],
+          "target_bearing_deg": 120.0,
+          "target_dist_m": 3.0,
+          "hit_radius_m": 1.1,
+          "damage_mult": 0.8,
+          "knockback_m": 3.0,
+          "cooldown_s": 3.5
+        },
+        "smash": {
+          "clip": "attack_heavy",
+          "label": "TAIL SMASH",
+          "strike": [0.62, 0.76],
+          "slam": true,
+          "slam_height_m": 0.9,
+          "target_bearing_deg": 165.0,
+          "target_dist_m": 3.0,
+          "hit_radius_m": 1.1,
+          "damage_mult": 1.6,
+          "knockdown": true,
+          "shock_radius_m": 2.6,
+          "shock_mult": 0.35,
+          "shock_knockback_m": 2.0,
+          "cooldown_s": 6.0
+        },
+        "sweep": {
+          "clip": "tail_swipe",
+          "label": "CLUB SWEEP",
+          "strike": [0.44, 0.78],
+          "target_bearing_deg": 180.0,
+          "target_dist_m": 2.8,
+          "hit_radius_m": 1.1,
+          "damage_mult": 1.0,
+          "knockback_m": 3.5,
+          "cooldown_s": 5.0
+        }
+      }
     },
     "horned_charger": {
       "is_herbivore": true,

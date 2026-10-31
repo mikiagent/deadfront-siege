@@ -4,9 +4,15 @@ height_meters, so the mesh is scaled by height / rest height). Every clip in ani
 - ground: lowest skin point per frame (below -0.03 m = sinking; standing clips must touch, lowest <= 0.05 m),
 - moonwalk: in walk/run each foot's planted run (sole within 4 cm of the floor) slides backwards (+Y in Blender: this
   rig faces -Y) or stays put; walk_back the opposite. Drift = y(end) - y(start) in metres; below -0.05 on walk/run fails,
-- the tail club is the hit: at the clip's hit frame (attack_primary 0.42, attack_heavy 0.72, anim_events.json) the
-  club (skin weighted mostly to Tail5) is out to the side, at least --club-side metres from the body's midline,
-  and still moving fast (at least --club-speed m/s over the previous 3 frames).
+- ANKYLOAI planted feet: in every tail move (attack_primary, attack_heavy, tail_swipe) and alert, each foot's sole, while
+  planted (within 3 cm of the floor), moves at most --slide metres in total over each planted run (the body may turn
+  over it; a foot that moves must lift: a step),
+- ANKYLOAI the club is the hit: ClubTailBrain's move table (game/data/creatures/ai.json archetypes.club_tail.club_moves)
+  names each move's strike window (fractions of the clip) and the spot it is aimed at (target_bearing_deg, + = right of
+  the snout, target_dist_m from the creature origin). In that window the club (skin weighted mostly to Tail5) must pass
+  within hit_radius_m - 0.35 (survivor radius) of that spot, move faster than --club-speed m/s there, and never come
+  within hit_radius_m + 0.35 of a survivor standing at the snout (bearing 0, 1 m ahead of the head). The script prints
+  the club's bearing/distance through the window: those are the numbers the move table is set from.
 usage: Blender -b -P tools/gait/check_ankylo.py -- <base.glb> <anim_dir> --height 2.25   (exit 1 on any FAIL)
 """
 import bpy, sys, os
@@ -15,9 +21,13 @@ import numpy as np
 a = sys.argv[sys.argv.index("--") + 1:]
 base, anim_dir = a[0], a[1]
 H = float(a[a.index("--height") + 1]) if "--height" in a else 2.25
-CLUB_SIDE = float(a[a.index("--club-side") + 1]) if "--club-side" in a else 1.5
 CLUB_SPEED = float(a[a.index("--club-speed") + 1]) if "--club-speed" in a else 3.0
-HIT = {"attack_primary": 0.42, "attack_heavy": 0.72}
+SLIDE = float(a[a.index("--slide") + 1]) if "--slide" in a else 0.03
+import json, math
+AI = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../game/data/creatures/ai.json")
+MOVES = {m["clip"]: m for m in json.load(open(AI))["archetypes"]["club_tail"]["club_moves"].values()}
+PLANTED = set(MOVES) | {"alert"}
+SURVIVOR_R = 0.35
 FPS = 24
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.render.fps = FPS
@@ -47,6 +57,10 @@ gi = {g.index: g.name for g in body.vertex_groups}
 dom = np.array([gi[max(v.groups, key=lambda g: g.weight).group] if v.groups else "" for v in body.data.vertices])
 FEET = {f"{k}_{s}": np.where(dom == f"{k}Foot.{s}")[0] for k in ("Back", "Front") for s in ("L", "R")}
 FEET = {k: v for k, v in FEET.items() if len(v)}
+# the sole proper: vertices weighted 0.9+ to the foot bone (the dominant set includes ankle skin that bends with the shin)
+PURE = {f"{k}_{s}": np.array([v.index for v in body.data.vertices
+                              if sum(g.weight for g in v.groups if gi[g.group] == f"{k}Foot.{s}") > 0.9])
+        for k in ("Back", "Front") for s in ("L", "R")}
 CLUB = np.where(dom == "Tail5")[0]
 assert len(FEET) == 4 and len(CLUB) > 50, (list(FEET), len(CLUB))
 fails = 0
@@ -75,7 +89,7 @@ for f in sorted(os.listdir(anim_dir)):
             stretch = float(r.max()); k = int(r.argmax())
             where["stretch"] = (fr, dom[edges[k, 0]], dom[edges[k, 1]], round(float(rl[k]), 3))
         for k, idx in FEET.items():
-            fp = p[idx]; feet[k].append((fp[:, 2].min(), fp[:, 1].mean()))
+            fp = p[idx]; sp_ = p[PURE[k]]; feet[k].append((fp[:, 2].min(), fp[:, 1].mean(), sp_[:, :2].mean(axis=0), sp_[:, 2].min()))
         club.append(p[CLUB].mean(axis=0))
     lo, hi_low = min(lows), max(lows)
     bad, extra = [], ""
@@ -86,7 +100,7 @@ for f in sorted(os.listdir(anim_dir)):
     if clip in ("walk", "run", "walk_back"):
         for k, seq in feet.items():
             best, cur = [], []
-            for z, y in seq:
+            for z, y, _, _ in seq:
                 if z < 0.04: cur.append(y)
                 else:
                     if len(cur) > len(best): best = cur
@@ -95,13 +109,41 @@ for f in sorted(os.listdir(anim_dir)):
             d = (best[-1] - best[0]) if len(best) > 1 else 0.0
             drift[k] = round(d, 3)
             if (-1 if clip == "walk_back" else 1) * -d > 0.05: bad.append(f"moonwalk {k} {d:+.2f}")
-    if clip in HIT:
-        i = int(round(HIT[clip] * (f1 - f0)))
-        side = abs(club[i][0]); speed = np.linalg.norm(club[i] - club[max(0, i - 3)]) / (3.0 / FPS)
-        widest = max(abs(c[0]) for c in club)
-        extra = f" club@hit side={side:.2f} m speed={speed:.1f} m/s (widest {widest:.2f} m)"
-        if side < CLUB_SIDE: bad.append(f"club only {side:.2f} m to the side at the hit")
-        if speed < CLUB_SPEED: bad.append(f"club moving {speed:.1f} m/s at the hit")
+    if clip in PLANTED:
+        worst = (0.0, "")
+        for k, seq in feet.items():
+            run = 0.0
+            for (_, _, p0, z0), (_, _, p1, z1) in zip(seq, seq[1:]):
+                if z0 < 0.03 and z1 < 0.03:
+                    run += float(np.linalg.norm(p1 - p0))
+                    if run > worst[0]: worst = (run, k)
+                else:
+                    run = 0.0
+        extra += f" slide={worst[0]:.3f} m ({worst[1]})"
+        if worst[0] > SLIDE: bad.append(f"planted foot {worst[1]} slides {worst[0]:.3f} m")
+    if clip in MOVES:
+        mv = MOVES[clip]
+        n = f1 - f0
+        i0, i1 = int(math.floor(mv["strike"][0] * n)), int(math.ceil(mv["strike"][1] * n))
+        b = math.radians(mv["target_bearing_deg"])
+        tgt = np.array([-math.sin(b), -math.cos(b)]) * mv["target_dist_m"]  # rig faces -Y, right is -X
+        head_y = rest[:, 1].min()
+        snout = np.array([0.0, head_y - 1.0])
+        r = mv["hit_radius_m"]
+        path = []
+        for i in range(i0, i1 + 1):
+            c2 = club[i][:2]
+            sp = np.linalg.norm(club[i] - club[max(0, i - 1)]) * FPS
+            path.append((i, float(np.linalg.norm(c2 - tgt)), float(np.linalg.norm(c2 - snout)), sp,
+                         math.degrees(math.atan2(-c2[0], -c2[1])), float(np.linalg.norm(c2)), float(club[i][2])))
+        best = min(path, key=lambda q: q[1])
+        near_head = min(q[2] for q in path)
+        extra += (f" club: closest {best[1]:.2f} m to the target spot at frame {best[0]} ({best[0] / n:.2f}), {best[3]:.1f} m/s;"
+                  f" nearest the snout {near_head:.2f} m; path " + " ".join(f"{q[0]}:{q[4]:+.0f}deg/{q[5]:.1f}m/z{q[6]:.1f}" for q in path))
+        if best[1] > r - SURVIVOR_R: bad.append(f"club misses the target spot by {best[1]:.2f} m (radius {r - SURVIVOR_R:.2f})")
+        if best[3] < CLUB_SPEED and not mv.get("slam"): bad.append(f"club moving {best[3]:.1f} m/s at the target")
+        if mv.get("slam") and min(q[6] for q in path) > mv.get("slam_height_m", 0.9): bad.append(f"slam: the club never comes down to {mv.get('slam_height_m', 0.9)} m in the window")
+        if near_head < r + SURVIVOR_R: bad.append(f"club reaches a survivor at the snout ({near_head:.2f} m)")
     print(f"CLIP {clip} {'FAIL ' + '; '.join(bad) if bad else 'PASS'} frames={f1-f0+1} stretch={stretch:.2f} low=[{lo:.3f},{hi_low:.3f}] drift={drift}{extra} at={where}")
     fails += bool(bad)
 print("ANKYLO_CHECK", "PASS" if fails == 0 else f"FAIL {fails}")
