@@ -640,6 +640,18 @@ Owner sheet: "use this for the therezino". The PRDs say nothing about the Theriz
 | **TZ4** | Claw sweep shoves her 3 m back (`primary_shove_m`); the hook's first hit drags her up to 3.5 m toward it, never closer than 4.5 m from its centre (`hook_pull_m`, `hook_stop_m`). Both are new `TacticalBrain.landed` hooks. | `tactical_brain.gd`, `ai.json` | The pull sets up the rake; the owner may want it stronger or a stagger on it. |
 | **TZ5** | Only the overhead rake bleeds (`status_applied` bleed_2, limited to attack_heavy by canon's `pipeline.status_clips`). | `therizinosaurus.json` | Bleed strength/duration. |
 | **TZ6** | Spawns: temperate_45 working ring (1, 60 %) and temperate_35 far shore (1, 50 %); climate temperate. Hits use claw-tip marker bones (`ClawTip.L/R`, `pipeline.hit_parts`, radius 1.4-1.6) until claude/mmo-hitboxes lands. | `world/islands.json`, `therizinosaurus.json` | Which islands and how common; move hit parts to hitboxes.json later. |
+### SP-MEGATHERIUM (2026-10-31) — the giant ground sloth (claude/mmo-sp-megatherium)
+
+Owner: "build some of the models ... be creative with what moves you think they should do". Report `docs/orchestration/reports/claude-sp-megatherium.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **GS1** | Id `megatherium` (no sloth id existed). Size: 1.75 m withers x1.6 = 2.8 m at the shoulder, 3.39 m to the head top, 8 m nose to tail, ~5.1-5.3 m head height reared in the tripod. `real_length_m` 12 (2x of 6 m). | `megatherium.json`, `tools/gait/megatherium/sloth.json` | Size against the survivor and the pens. |
+| **GS2** | A temperate `titan` (defensive: it ignores you until hit); tier 40; hp 5200, attack 240, defense 260, speed 420; tameable, bag + combat, no saddle; capture tier 3; berries/herbs. Unprovoked it never displays at you (it roams), the tripod display only runs inside a fight. | `megatherium.json` | Temperament, tame roles and stats are design calls. |
+| **GS3** | Fight: display (tripod rear-up) -> bear hug (weight 3) or -> lumbering advance (1.5); plain advance 1, plain hug 1. Point blank: the overhead swipe (x2.0, bleeds, 2.5 m shove) or the hook pull (drags her up to 2 m toward it, stops 3.3 m from its centre). Hug: grab windup 1.3 s under a 2.2 m ring, 4.5-8.5 m, x1.2, then pinned with two x1.3 squeezes. Advance: 0.65x its run speed (~2.7 m/s), up to 4.5 s, super armour, 4.5 m shove on contact. | `megatherium.json` tactics | Every number is a first guess. |
+| **GS4** | Bleed rides only on the overhead swipe's hit token (`status_clips`), but the hug and the advance land through the attack_heavy path, so they can bleed too. | `pipeline.status_clips`, `CreatureAttack` | Whether the hug/advance should bleed. |
+| **GS5** | Spawns: 2 in the gathering ring of `temperate_35`, 1 in the gathering ring of `temperate_45` (both rows were empty). | `world/islands.json` | Where it lives and whether a 5200 HP animal belongs in a gathering ring. |
+| **GS6** | No alpha skin (no alpha sheet given), no saddle, no big stomp (left for claude/mmo-bigstomp: tactics `_big_stomp` hook). The crushed survivor lies in PINFEEL's pinned pose under its chest (not held upright in the hug). | `megatherium.json` | Look of the hug; extras to add later. |
 
 ### SP-SPINOSAURUS (2026-10-31) — the Spinosaurus, a semi-aquatic grab-and-fling predator (claude/mmo-sp-spinosaurus)
 
