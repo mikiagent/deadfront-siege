@@ -12,7 +12,7 @@ How to read it:
 - **alpha**: each group rolls 8% once; on a hit its first member is an alpha (`ai.json` `alpha.chance_per_group`). Islands with `no_alphas` never roll.
 - **tameable**: the written species' `tameable` flag. At most 24 creatures spawn per island (`Game.max_creatures_per_island`), so late rows on a crowded island can be cut.
 
-**Models:** 15 of 20 species have one (Smilodon added by SP-SMILODON). No model yet: Allosaurus (`allosaurus`), Brachiosaurus (`brachiosaurus`), Dilophosaurus (`dilophosaurus`), Tarbosaurus (`tarbosaurus`). Retired (model removed, never spawns): Protoceratops (`protoceratops`).
+**Models:** 16 of 20 species have one (Smilodon added by SP-SMILODON, Dilophosaurus by SP-DILOPHOSAURUS). No model yet: Allosaurus (`allosaurus`), Brachiosaurus (`brachiosaurus`), Tarbosaurus (`tarbosaurus`). Retired (model removed, never spawns): Protoceratops (`protoceratops`).
 
 ## Grassland
 
@@ -151,8 +151,8 @@ Islands: `tropical_25` (L25, unstable), `tropical_40` (L40, unstable).
 | **Coelophysis** (`coelophysis`) | `tropical_25` | L18 | 1 | yes | in game |
 | **Protoceratops** (`protoceratops`) | `tropical_25` | L18 | 1 | yes | retired: spawns fall through to coelophysis |
 | **Deinonychus** (`deinonychus`) | `tropical_25`, `tropical_40` | L30-43 | 3 | yes | in game |
-| **Dilophosaurus** (`dilophosaurus`) | `tropical_25` | L20 | 1 | yes | no model yet: spawns fall through to compsognathus |
-| **Dilophosaurus** (`dilophosaurus`) | `tropical_40` | L35-43 | 2 | yes | no model yet: spawns fall through to deinonychus |
+| **Dilophosaurus** (`dilophosaurus`) | `tropical_25` | L20 | 1 | yes | model (SP-DILOPHOSAURUS) |
+| **Dilophosaurus** (`dilophosaurus`) | `tropical_40` | L35-43 | 2 | yes | model (SP-DILOPHOSAURUS) |
 | **Allosaurus** (`allosaurus`) | `tropical_40` | L40 | 1 | no | no model yet: spawns fall through to deinonychus |
 
 ### `tropical_25` (L25, unstable)
@@ -163,16 +163,16 @@ Islands: `tropical_25` (L25, unstable), `tropical_40` (L40, unstable).
 | working | Coelophysis | 4 × 1 | 100% | L18 | 8%/group | yes | in game |
 | working | Protoceratops | 3 × 1 | 100% | L18 | 8%/group | yes | retired: spawns fall through to coelophysis |
 | crater | Deinonychus | 3 × 1 | 100% | L43 | 8%/group | yes | in game |
-| far_shore | Dilophosaurus | 1 × 1 | 100% | L20 | 8%/group | yes | no model yet: spawns fall through to compsognathus |
+| far_shore | Dilophosaurus | 1 × 1 | 100% | L20 | 8%/group | yes | model (SP-DILOPHOSAURUS) |
 
 ### `tropical_40` (L40, unstable)
 
 | where | species | count × groups | chance | level | alpha | tameable | status |
 |---|---|---|---|---|---|---|---|
 | gathering | Deinonychus | 3 × 1 | 100% | L30 | 8%/group | yes | in game |
-| working | Dilophosaurus | 2 × 1 | 100% | L35 | 8%/group | yes | no model yet: spawns fall through to deinonychus |
+| working | Dilophosaurus | 2 × 1 | 100% | L35 | 8%/group | yes | model (SP-DILOPHOSAURUS) |
 | working | Deinonychus | 3 × 1 | 100% | L35 | 8%/group | yes | in game |
-| crater | Dilophosaurus | 3 × 1 | 100% | L43 | 8%/group | yes | no model yet: spawns fall through to deinonychus |
+| crater | Dilophosaurus | 3 × 1 | 100% | L43 | 8%/group | yes | model (SP-DILOPHOSAURUS) |
 | far_shore | Allosaurus | 1 × 1 | 30% | L40 | 8%/group | no | no model yet: spawns fall through to deinonychus |
 
 ## Tundra
@@ -248,7 +248,7 @@ Islands: `swamp_55` (L55, unstable).
 |---|---|---|---|---|---|
 | **Compsognathus** (`compsognathus`) | `swamp_55` | L10 | 1 | yes | in game |
 | **Deinonychus** (`deinonychus`) | `swamp_55` | L35 | 1 | yes | in game |
-| **Dilophosaurus** (`dilophosaurus`) | `swamp_55` | L20 | 1 | yes | no model yet: spawns fall through to compsognathus |
+| **Dilophosaurus** (`dilophosaurus`) | `swamp_55` | L20 | 1 | yes | model (SP-DILOPHOSAURUS) |
 | **Triceratops** (`triceratops`) | `swamp_55` | L55-60 | 2 | yes | in game |
 
 ### `swamp_55` (L55, unstable)
@@ -259,7 +259,7 @@ Islands: `swamp_55` (L55, unstable).
 | working | Triceratops | 3 × 1 | 100% | L55 | 8%/group | yes | in game |
 | working | Deinonychus | 4 × 1 | 100% | L35 | 8%/group | yes | in game |
 | crater | Triceratops | 3 × 1 | 100% | L60 | 8%/group | yes | in game |
-| far_shore | Dilophosaurus | 3 × 1 | 100% | L20 | 8%/group | yes | no model yet: spawns fall through to compsognathus |
+| far_shore | Dilophosaurus | 3 × 1 | 100% | L20 | 8%/group | yes | model (SP-DILOPHOSAURUS) |
 
 ## Volcanic
 

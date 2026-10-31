@@ -467,3 +467,17 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM5** | Alpha skin = the brown sheet as a recolour of the regular texture (same mesh, mane shape unchanged); the alpha's eyeshine stays blue (the eyes block has one colour). | `smilodon_alpha_albedo.jpg`, `Creature.spawn` | A separate alpha mesh or amber alpha eyes would need more work. |
 | **SM6** | Saddle: the shared builder, no neck strap (the mane lets its rays out), seat behind the mane. Rideable (back 1.6 m clears the 1.78/1.6 rule). | `saddles.json`, `mount/` | Riding a sabre cat was in its data (`tamed_role` mount); the owner may prefer combat-only. |
 
+
+### SP-DILOPHOSAURUS (2026-10-31) — the dilophosaurus gets a model, a frill, a venom spit and a leaping slash (claude/mmo-sp-dilophosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight". Report `docs/orchestration/reports/claude-sp-dilophosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **DL1** | Size unchanged: `height_meters` 3.6 (crest top), 10.5 m long of which half is the whip tail, hip 2.1 m; `real_length_m` 12 (the roster's 2x). The model's origin sits mid-torso (the snout is 3.2 m ahead of it), not at the bbox centre. | `dilophosaurus.json`, `dilophosaurus_frill.py` ORIGIN_Y | The sheet does not fix a size against the survivor. |
+| **DL2** | Venom from the spit only (`tactics.status_clips`), using the existing **Venom** status (0.4 HP/s, accuracy -30 %, 45 s, antivenom cures). No Blinded status exists, so none was invented. The bite and the rakes carry no status. | `dilophosaurus.json` tactics, `CreatureAttack._carries_status` | Whether the bite should also poison is a design call. |
+| **DL3** | The spit: from 3.5-11 m, 6 s cooldown, a 1.0 m ring on the prey that follows her until the glob leaves at the clip's 62 % frame, then a 16 m/s glob at where she stood (no homing). Stepping out of the ring or rolling in it dodges. x0.6 attack. | `tactics` spit_*, `VenomSpit` | Range, speed, radius and damage are first-pass numbers. |
+| **DL4** | One-shots: at the old stat block (attack 210) a fresh 100 HP survivor dies to one spit (~85), one snap (~207) or the leaping slash (~210). | `dilophosaurus.json` stats | Balance pass (venom never gets to tick on a fresh survivor). |
+| **DL5** | `venom_ranged` attack_range 2.4 -> 3.0 (only the dilophosaurus uses it), so the snap reaches what the snout reaches. | `ai.json` | Shared archetype number. |
+| **DL6** | Hits land from the body part (`pipeline.hit_parts`: snap from Head/Jaw, rake from the right foot, leaping slash from either foot or the jaws); the hitbox system had not landed on canon. | `dilophosaurus.json` pipeline | Swap for the hitbox system when it lands. |
+| **DL7** | The frill is a single double-sided sheet folded along the neck at rest, so the folded frill shows as a yellow ruff along the neck in idle and the gaits. Alpha = sheet 2 as a recolour plus a repainted orange frill. No saddle (tamed role is combat only). | `dilophosaurus_frill.py`, `dilophosaurus_alpha_skin.py` | A skin-coloured outer face when folded would need a second paint region. |
