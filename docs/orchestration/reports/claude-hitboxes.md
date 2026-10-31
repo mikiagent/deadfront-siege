@@ -154,5 +154,6 @@ overhaul twice more (sp-tarbosaurus, megaloceros stag and doe, compyfeel, sp-car
 - The therizinosaurus claws come from its `pipeline.hit_parts`.
 - Front moves are now calibrated at 0.85x and 1x of the contact reach (a tyrant at 0.6x and 1x): brains strike prey
   that walks inside their reach (t_sp_therizinosaurus sweeps at 5.2 m with a 5.97 m reach).
-- `t_plantedflinch` fails on the therizinosaurus's feet (36-38 cm), on canon as well (checked in a scratch worktree
-  of `origin/claude/mmo-overhaul`). It is not caused by this branch.
+- `t_plantedflinch` failed on the therizinosaurus feet, on canon as well. flinchtheri fixed it on canon, and it passes after the last merge.
+- The smilodon chase leap (smilorun) is judged with its own clip (`_pounce_land(clip)`). Its parts come from the
+  smilodon row.
