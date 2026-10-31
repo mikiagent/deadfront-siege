@@ -38,7 +38,7 @@ var _off: Dictionary = {}
 
 static func default_off_clips() -> Array[StringName]:
 	var out: Array[StringName] = []
-	for c in CreatureAnim.ONESHOT + EXTRA_OFF:
+	for c in CreatureAnim.ONESHOT + CreatureAnim.ATTACKS + CreatureAnim.LEAPS + EXTRA_OFF:
 		if c not in KEEP_ON and c not in out:
 			out.append(c)
 	return out
