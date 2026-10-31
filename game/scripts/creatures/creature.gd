@@ -129,10 +129,6 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	_slide_phase = _slide_counter
 	pack_id = p_pack
 	add_to_group("creatures")
-	view.setup(def, variant)
-	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
-	# old 26 m cut-off culled every creature mesh and only the plates showed.
-	_set_vis_range(view, 0.0)
 	if genetics == null:
 		# The colour roll is seeded off the animal's identity (spawn point), so a wild individual
 		# keeps its colours when the caller reuses a seeded genetics roll for it.
@@ -142,6 +138,13 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		genetics = CreatureGenetics.for_species(def, null, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
 	if alpha_spawn and not genetics.alpha:
 		genetics.make_alpha()
+	# ALPHA SKIN (SP-SMILODON): a species with an "alpha" model variant wears it on its alphas, and only on them.
+	if is_alpha() and CreatureView.model_variants(def).has("alpha"):
+		variant = &"alpha"
+	view.setup(def, variant)
+	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
+	# old 26 m cut-off culled every creature mesh and only the plates showed.
+	_set_vis_range(view, 0.0)
 	# One colour profile per individual, kept on the genetics record so taming carries it over.
 	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
 	if pet_record:  # SADDLES: the equipped saddle shows on the back, ridden or not
@@ -885,7 +888,8 @@ func _on_hit(clip: StringName) -> void:
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
 		var offset := global_position - target.global_position
-		if brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
+		var part := part_reaches(clip, target)
+		if part == 0 or (part < 0 and brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3):
 			if target is Player or target is Creature:
 				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
@@ -893,6 +897,35 @@ func _on_hit(clip: StringName) -> void:
 			return
 		if target is Player:
 			(target as Player).receive_creature_hit(self, clip)
+
+## HIT PARTS (SP-SMILODON; species JSON pipeline.hit_bones: clip -> {bone, radius_m}): the clip's hit lands from where
+## that part of the body is on the hit frame (the swiping paw, the sabres), not from the body centre. 1 reaches,
+## 0 misses, -1 no part for this clip (the caller keeps its centre reach).
+## shortcut: flat distance from one bone to the target's axis; replace with the hitbox system (claude/mmo-hitboxes) when it lands.
+func part_reaches(clip: StringName, target: Node3D) -> int:
+	var p: Variant = hit_part_point(clip)
+	if p == null or target == null:
+		return -1
+	var row: Dictionary = (def.pipeline.get("hit_bones", {}) as Dictionary).get(str(clip), {})
+	var r := float(row.get("radius_m", 1.0)) * size_scale() + CreatureBrain._size_excess(target) + CreatureBrain.SURVIVOR_RADIUS
+	var d := Vector2((p as Vector3).x - target.global_position.x, (p as Vector3).z - target.global_position.z).length()
+	return 1 if d <= r else 0
+
+## World position of the clip's hit bone right now, or null when the species names none for it.
+func hit_part_point(clip: StringName) -> Variant:
+	var bones: Variant = def.pipeline.get("hit_bones") if def else null
+	if not bones is Dictionary or not (bones as Dictionary).has(str(clip)):
+		return null
+	var sk: Skeleton3D = view.rig.skeleton if view and view.rig else null
+	if sk == null:
+		return null
+	var bone_name := str(((bones as Dictionary)[str(clip)] as Dictionary).get("bone", ""))
+	var b := sk.find_bone(bone_name)
+	if b < 0:
+		b = sk.find_bone(bone_name.replace(".", "_"))  # the glTF importer may rename dots
+	if b < 0:
+		return null
+	return sk.global_transform * sk.get_bone_global_pose(b).origin
 
 func _on_attack_done() -> void:
 	pass

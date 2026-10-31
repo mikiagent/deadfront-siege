@@ -1,0 +1,69 @@
+{
+ "mount": "smilodon",
+ "saddle": "saddle.glb",
+ "socket": "Torso",
+ "rider_offset": [
+  -0.7162575125694275,
+  -0.021568501368165016,
+  -0.6975025534629822,
+  0.0,
+  -0.03882591426372528,
+  -0.9967420101165771,
+  0.07069165259599686,
+  0.0,
+  -0.696755051612854,
+  0.07771430164575577,
+  0.7130868434906006,
+  0.0,
+  0.0293791051954031,
+  0.014101680368185043,
+  -0.030722271651029587,
+  1.0
+ ],
+ "seat": {
+  "y": -0.1384,
+  "top": 0.4898,
+  "half_len": 0.0991,
+  "half_w": 0.0853,
+  "back_z": 0.4716
+ },
+ "hips_above_socket_m": 0.4357,
+ "seat_above_socket_m": 0.3357,
+ "stirrups": {
+  "L": [
+   0.0918,
+   -0.1828,
+   0.381
+  ],
+  "R": [
+   -0.0925,
+   -0.1828,
+   0.381
+  ]
+ },
+ "scale": {
+  "height_meters": 2.0,
+  "source_height_m": 0.5684,
+  "game_m_per_source": 3.5189
+ },
+ "notes": "seat and straps are skinned to Torso (the back just behind the shoulders), the neck strap and its leads blend to Neck; rider_offset is the rider armature root relative to Torso in Blender's imported bone frame, column-major; rider_in_mount (added by mount_to_model_space.py) is the same pose in the mount's glTF model space and is what the game uses",
+ "rider_in_mount": [
+  0.9999999403953552,
+  1.3853423297405243e-08,
+  1.862645149230957e-09,
+  0.0,
+  -4.0745362639427185e-08,
+  1.0,
+  1.862645149230957e-09,
+  0.0,
+  0.0,
+  -5.587935447692871e-09,
+  0.9999998807907104,
+  0.0,
+  -1.560692908242345e-08,
+  0.3531309962272644,
+  0.1384316235780716,
+  1.0
+ ],
+ "rider_in_mount_note": "rider armature root in the mount's glTF model space (Y-up), mount rest pose; preferred over rider_offset"
+}

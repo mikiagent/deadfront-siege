@@ -87,6 +87,14 @@
    "cushion_m": 0.22,
    "skirt_m": 0.18,
    "pad_m": 0.06
+  },
+  "smilodon": {
+   "neck_strap": false,
+   "body_half_w": 0.11,
+   "seat_half_w_m": 0.3,
+   "seat_half_len_m": 0.3,
+   "cushion_m": 0.06,
+   "skirt_m": 0.16
   }
  }
 }

@@ -2,15 +2,15 @@
   "species": "Smilodon",
   "clade": "Machairodontinae",
   "period": "Pleistocene",
-  "real_length_m": 2.5,
-  "height_meters": 1.2,
+  "real_length_m": 4.4,
+  "height_meters": 2.0,
   "rig": "quadruped",
   "tier": 45,
   "climate": "tundra",
   "archetype": "saber_cat",
   "tameable": true,
   "capture_tier": 5,
-  "verb": "two-hit pounce, throat bite",
+  "verb": "stalk, pounce and pin, sabre stab, forepaw swipe",
   "status_applied": [
     "deep_bleed"
   ],
@@ -25,13 +25,23 @@
     "combat",
     "mount"
   ],
-  "look": "muscular sabre-toothed cat with two long curved upper canines, powerful shoulders, short bobbed tail, four legs, tawny fur with faint dark spots and a white chest,",
-  "texture_prompt": "tawny short fur with faint dark spots, white chest and muzzle, ivory sabre teeth, matte surface",
+  "look": "massive sabre-toothed cat with two long ivory sabre canines, a dark grey-black shaggy mane over neck and shoulders, white-grey fur with bold black tiger stripes, glowing pale blue eyes, a long striped tail with a black tip, heavy clawed paws; the alpha is brown-maned and tawny with umber mottling",
+  "texture_prompt": "white and pale grey fur with bold black tiger stripes, dark grey-black mane, black tail tip, ivory sabres, glowing pale blue eyes, matte fur",
   "clips": {
-    "attack_primary": "Big cat swipes with a forepaw",
-    "attack_heavy": "Big cat crouches, holds, then pounces forward",
+    "idle": "Breathing, slow look round, tail sway",
+    "walk": "Lateral-sequence cat walk, heel peels off the toes",
+    "run": "Rotary gallop with the back flexing",
+    "stalk": "Low hunting creep: body flat, head low and level, slow placed steps (approach)",
+    "attack_primary": "Forepaw swipe: rises on the left fore, right paw rakes down and across (hit from the paw)",
+    "attack_heavy": "Pounce windup: sinks into a flat crouch, rump wiggles, jaws gape, then springs into a sabre lunge",
+    "pounce": "Launches from the crouch, forelegs reaching, slams both paws on the prey and stabs",
+    "pin_stab": "Holds the prey under both forepaws, rears the head with jaws wide and drives the sabres down twice",
+    "hit_react": "Flinches back off the forepaws, head jerks away, snarls",
     "knockdown": "Big cat is thrown onto its side",
-    "alert": "Big cat lifts its head and bares its fangs"
+    "death": "Collapses onto its side",
+    "alert": "Rises on the forelegs and roars, jaws wide, head shaking",
+    "feed": "Head down on the carcass, jaws tearing, a yank back",
+    "sleep": "Lies down on its belly, forepaws out, chin low, tail curled"
   },
   "taming": {
     "preferred_food": [
@@ -71,12 +81,94 @@
         "id": "countershade",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "",
         "weight": 3.0
       }
     ]
+  },
+  "size_note": "# ASSUMPTION (SP-SMILODON): height_meters 2.0 is the top of the mane and ears (shoulder ~1.6 m, length nose to tail tip ~3.5 m on screen, the house 1.6x of a ~2.2 m long-tailed smilodon); real_length_m 4.4 is the roster's 2x convention (was 2.5). The owner's sheet draws it about twice the survivor's height at the shoulder; if he wants that, height_meters ~3.4.",
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 0.5684,
+    "source_length_m": 0.998,
+    "route": "skeleton_transplant_v3 + cat legs (tools/gait/build_smilodon.sh)",
+    "mesh": "Tripo P1 multiview (front, left, back, right), task aad4a28f-718f-4e91-ad56-27300a8e3246, 50 Tripo credits (task credits_consumed 50; shared balance 2505 before, 2355 after, other species agents ran at the same time)",
+    "reference_sheet": "game/assets/creatures/smilodon/ref/smilodon_sheet.png (owner sheet 1, regular) and smilodon_alpha_sheet.png (owner sheet 2, alpha); the four Tripo views were drawn by Codex from sheet 1 in a neutral standing pose (left), front (tail hidden) and back; right = left mirrored",
+    "legs": "tools/gait/smilodon_rig.py: digitigrade cat legs (hip/shoulder -> knee/elbow -> hock/wrist, Foot = metatarsus+paw to the toe tips), leg skin re-weighted geometrically, the paw rigid on Foot",
+    "jaw": "tools/jaw/add_jaw.py --pivot 0.03 0.393 --split -6 --chin-depth 0.35 --blend 0.008; tools/gait/smilodon_sabres.py keeps the sabre islands rigid on Head",
+    "gaits": "tools/gait/make_gait.py tools/gait/smilodon.json: walk, run (rotary gallop), stalk; strafe_left/right and walk_back from the walk plan (stride 0.3)",
+    "clips_from": {
+      "attack_primary,attack_heavy,pounce,pin_stab,alert,sleep,feed,idle,hit_react": "tools/gait/make_cat_moves.py (keyed from rest, IK feet, floor pass)",
+      "knockdown,death": "the Triceratops donor transplant, moved onto the cat legs (transfer_clips.py)"
+    },
+    "grounding": "tools/gait/ground_clip.py on knockdown, death and the gaits",
+    "hit_bones": {
+      "attack_primary": {
+        "bone": "FrontFoot.R",
+        "radius_m": 0.9
+      },
+      "attack_heavy": {
+        "bone": "Head",
+        "radius_m": 1.0
+      },
+      "pounce": {
+        "bone": "Head",
+        "radius_m": 1.4
+      },
+      "pin_stab": {
+        "bone": "Head",
+        "radius_m": 1.2
+      }
+    },
+    "hit_bones_note": "SP-SMILODON: each hit lands from that bone at the hit frame (Creature.part_reaches), radius in metres at size 1 plus the survivor radius; claude/mmo-hitboxes had not landed on canon. # ASSUMPTION radii",
+    "model_variants": {
+      "regular": "",
+      "alpha": "smilodon_alpha_albedo.jpg"
+    },
+    "variant_note": "alpha = the owner's brown-maned sheet as a recolour of the regular albedo (tools/gait/smilodon_alpha_skin.py); Creature.spawn gives it to alphas only, regular animals keep the GLB as authored",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "stalk",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "attack_primary",
+      "attack_heavy",
+      "pounce",
+      "pin_stab",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert",
+      "feed",
+      "sleep"
+    ]
+  },
+  "eyes": {
+    "bone": "Head",
+    "points": [
+      [
+        -0.0091,
+        0.0198,
+        0.0603
+      ],
+      [
+        0.0557,
+        0.02,
+        0.0245
+      ]
+    ],
+    "radius": 0.012,
+    "color": [
+      0.45,
+      0.85,
+      1.0
+    ],
+    "_note": "SP-SMILODON: the owner's glowing pale blue eyes; points = the painted eyes (Blender +-0.037, -0.449, 0.466 mesh units) in Head bone space"
   }
 }

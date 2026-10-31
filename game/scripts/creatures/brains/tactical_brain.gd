@@ -26,7 +26,7 @@ signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -83,6 +83,8 @@ var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the poun
 var _charge_to := Vector3.ZERO
 var _charge_dir := Vector3.FORWARD
 var _charge_hit := false
+## PIN (tactics.pin, SP-SMILODON): the prey held down under the forepaws after a landed pounce.
+var _pin_victim: Node3D
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -241,6 +243,8 @@ func hit_damage_mult(clip: StringName, hit_index: int) -> float:
 		mult = float(mults[clampi(hit_index, 0, mults.size() - 1)])
 	elif clip == &"kick":
 		mult = _t("kick_mult", 1.0)
+	elif clip == &"pin_stab":
+		mult = _t("pin_mult", 1.0)
 	elif clip == &"attack_heavy":
 		# ASSUMPTION (horned_charger): the sweeping horn swipe, x heavy_mult (2.2). Only the
 		# anim-driven attack_heavy reads this (the charge and the pounce pass their own mult).
@@ -316,6 +320,7 @@ func _think(delta: float) -> void:
 		&"dodge": _dodge(delta)
 		&"charge": _charge(delta)
 		&"display": _display(delta)
+		&"pin": _pin(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
 func _roam(delta: float) -> void:
@@ -418,6 +423,10 @@ func _approach_ring() -> void:
 	if _flat_dist(attack_target) <= ring_m() + 0.6 + creature.agent.target_desired_distance:
 		_enter_circle()
 		return
+	# tactics.stalk (saber cat): it closes in on the low hunting creep, slow and flat, until the pounce is in range.
+	if tac.get("stalk", false) and creature.anim.has_state(&"stalk"):
+		gait_clip = &"stalk"
+		speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("stalk_speed_frac", 0.5)
 	creature.move_to(attack_target.global_position + _to_me() * ring_m())
 
 ## The prey moving away from it (> 1 m/s outward).
@@ -1076,6 +1085,8 @@ func _pounce(delta: float) -> void:
 				_pounce_land()
 			if done:
 				_jump_end()
+				if _pounce_landed and _start_pin():
+					return
 				_pounce_phase = &"recover"
 				# A miss (overshoot, or the prey stepped out) leaves it open longer: the punish window.
 				_left = _t("pounce_recover_s", 0.7) if _pounce_landed else _t("pounce_miss_recover_s", 1.5)
@@ -1092,8 +1103,10 @@ func _pounce_land() -> void:
 	_pounce_landed = false
 	var ahead := tgt.global_position - creature.global_position
 	ahead.y = 0.0
-	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close.
-	if _flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0:
+	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close. A species with a pounce
+	# hit bone (pipeline.hit_bones) lands from that part of the body instead of its centre.
+	var part := creature.part_reaches(&"pounce", tgt)
+	if part == 0 or (part < 0 and _flat_dist(tgt) > reach_to(tgt) + 0.3) or ahead.dot(_pounce_dir) < 0.0:
 		_log("[ai] %s pounce missed" % creature.def.id)
 		if tgt is Player or tgt is Creature:
 			CombatAvoid.avoided(tgt, creature, &"miss")
@@ -1227,6 +1240,59 @@ func _end_pounce() -> void:
 		_telegraph.queue_free()
 	_telegraph = null
 
+## PIN (tactics.pin, SP-SMILODON): a landed pounce holds the prey down under the forepaws. The prey gets Pinned (it cannot
+## act) and Knockdown (it lies down; ASSUMPTION until claude/mmo-pinfeel's pinned pose lands) and is held pin_reach_m in
+## front of the body while pin_stab drives the sabres in (anim_events pin_stab hit_fracs, x pin_mult each, from the Head
+## bone). It lets go when the clip ends or either dies. Prey bigger than itself, or a mount being ridden, is not pinned.
+func _start_pin() -> bool:
+	var tgt := attack_target
+	if not tac.get("pin", false) or not creature.anim.has_state(&"pin_stab"):
+		return false
+	var st: StatusEffects = null
+	if tgt is Player and not (tgt as Player).dead:
+		st = (tgt as Player).statuses
+	elif tgt is Creature and not (tgt as Creature).health.dead and (tgt as Creature).body_radius() <= creature.body_radius():
+		st = (tgt as Creature).statuses
+	if st == null:
+		return false
+	_set_state(&"pin")
+	_pin_victim = tgt
+	st.apply(&"pinned", creature, 1)
+	st.apply(&"knockdown", creature, 1)
+	creature.stop_move()
+	creature.anim.play_clip(&"pin_stab")
+	tactic.emit(&"pin")
+	_log("[ai] %s pins %s" % [creature.def.id, tgt.name])
+	return true
+
+func _pin(delta: float) -> void:
+	var v := _pin_victim
+	var gone := not is_instance_valid(v) or (v is Player and (v as Player).dead) or (v is Creature and (v as Creature).health.dead)
+	if gone or creature.anim.current_clip != &"pin_stab":
+		_end_pin()
+		if _valid_target():
+			_back_off()
+		return
+	creature.stop_move()
+	creature.face_towards(v.global_position, delta)
+	# Held under the forepaws: slid toward the pin point in front of the chest (the stab lands there).
+	var fwd := -creature.global_basis.z
+	fwd.y = 0.0
+	var hold := creature.global_position + fwd.normalized() * _t("pin_reach_m", 1.5) * creature.size_scale()
+	var d := hold - v.global_position
+	d.y = 0.0
+	v.global_position += d * (1.0 - exp(-delta / 0.12))
+
+func _end_pin() -> void:
+	var v := _pin_victim
+	_pin_victim = null
+	if not is_instance_valid(v):
+		return
+	var st: StatusEffects = (v as Player).statuses if v is Player else ((v as Creature).statuses if v is Creature else null)
+	if st:
+		st.clear_id(&"pinned")
+		st.clear_id(&"knockdown")
+
 func _start_retreat(seconds: float) -> void:
 	if str(tac.get("retreat_mode", "leap")) == "flee":
 		_start_flee(_t("flee_s", 3.0))
@@ -1264,6 +1330,8 @@ func _start_flee(seconds: float) -> void:
 	tactic.emit(&"flee")
 
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
+	if prev == &"pin":
+		_end_pin()
 	if prev == &"pounce":
 		_end_pounce()
 	elif prev == &"hop" or prev == &"lunge" or prev == &"dodge":

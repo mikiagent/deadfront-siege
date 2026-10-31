@@ -455,7 +455,128 @@
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "tactics": {
+        "_about": "SABER CAT (SP-SMILODON, owner 2026-10-30: 'be creative with what moves you think they should do'). A lone ambush stalker: it closes in on the low stalk creep (stalk clip, stalk_speed_frac of its walk), and from 4-9 m it POUNCES (attack_heavy is the crouch, rump wiggle and gape under the ground ring, then the pounce leap). A landed pounce PINS the prey under both forepaws (Pinned + Knockdown, held pin_reach_m in front) while pin_stab drives the sabres in twice (pin_mult each). Point blank it rakes with a forepaw (attack_primary, the swipe, hit from the paw bone) or lunges into a sabre stab (heavy, attack_heavy from the Head bone). Pinned prey can be freed only by the clip ending (no struggle exists yet). Every number an ASSUMPTION (first pass, not balanced).",
+        "stalk": true,
+        "stalk_speed_frac": 0.25,
+        "sequences": [
+          {
+            "name": "pounce",
+            "steps": [
+              "pounce"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "strafe_left_pounce",
+            "steps": [
+              "strafe_left",
+              "pounce"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_right_pounce",
+            "steps": [
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "backstep_pounce",
+            "steps": [
+              "backstep",
+              "pounce"
+            ],
+            "weight": 1.5
+          },
+          {
+            "name": "charge",
+            "steps": [
+              "charge"
+            ],
+            "weight": 1.0
+          }
+        ],
+        "point_blank": [
+          "heavy",
+          "bite"
+        ],
+        "approach_pounce": true,
+        "ring_m": 7.0,
+        "circle_speed_frac": 0.6,
+        "contact_after_s": 1.0,
+        "circle_step_deg": 28.0,
+        "circle_min_s": 0.8,
+        "circle_max_s": 1.6,
+        "flip_chance": 0.25,
+        "bite_cd": 4.0,
+        "lunge_speed_mult": 1.0,
+        "lunge_max_s": 1.0,
+        "feint_s": 0.7,
+        "heavy_cd": 7.0,
+        "heavy_mult": 1.8,
+        "pounce_cd": 9.0,
+        "pounce_min_m": 4.0,
+        "pounce_max_m": 9.0,
+        "chase_pounce_max_m": 8.0,
+        "pounce_telegraph_s": 1.0,
+        "pounce_leap_s": 0.5,
+        "pounce_radius_m": 1.8,
+        "pounce_recover_s": 0.8,
+        "pounce_miss_recover_s": 1.6,
+        "pounce_mult": 1.6,
+        "pounce_overshoot_chance": 0.15,
+        "pounce_overshoot_m": 2.5,
+        "pin": true,
+        "pin_mult": 1.2,
+        "pin_reach_m": 1.5,
+        "leap_height_per_m": 0.18,
+        "retreat_frac": 0.3,
+        "retreat_s": 2.5,
+        "retreat_cd": 12.0,
+        "retreat_speed_frac": 1.1,
+        "wide_ring_mult": 1.5,
+        "wide_circle_s": 3.0,
+        "hop_m": 4.0,
+        "hop_s": 0.4,
+        "hop_land_s": 0.15,
+        "hop_cd": 4.0,
+        "leap_back_m": 5.0,
+        "max_retreat_m": 14.0,
+        "strafe_m": 2.5,
+        "strafe_s": 0.5,
+        "dodge_height_per_m": 0.08,
+        "charge_cd": 6.0,
+        "charge_max_s": 1.6,
+        "charge_speed_mult": 1.3,
+        "w_hold": 1.0,
+        "w_strafe": 0.4,
+        "w_dodge": 0.2,
+        "w_feint": 0.1,
+        "w_hop": 0.2,
+        "hold_min_s": 0.8,
+        "hold_max_s": 1.6,
+        "wait_max_s": 2.5,
+        "opening_swing_cd_s": 0.2,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.3,
+        "pack_gap_s": 0.6,
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_pounce": 1.5,
+          "w_charge": 1.3,
+          "beat_mult": 0.6,
+          "wait_mult": 0.5
+        },
+        "alpha": {
+          "tactic_cooldown_mult": 0.7,
+          "tactic_hold_mult": 0.6,
+          "tactic_w_pounce": 1.5
+        }
+      }
     },
     "tyrant": {
       "attack_range": 2.6,
