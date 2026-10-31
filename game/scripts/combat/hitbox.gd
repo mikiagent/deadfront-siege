@@ -85,7 +85,8 @@ static func _bones_as_parts(bones: Array) -> Array:
 		out.append({"bone": str(b)})
 	return out
 
-## Judge one move against one target: {} when no part touched it, else {part, region, at}.
+## Judge one move against one target: {} when no part touched it, else {part, region, at, spot} (spot: the target's
+## crit spot that touching part passed through, CritSpots.world, or {}).
 ## preview: a reach test (the survivor's approach), not a swing: it is not drawn.
 ## face (world, flat): judge it as if the attacker had turned to face that way (the approach's reach test);
 ## back_m: and stood that much farther back along it (a reach test with room to spare for a moving target).
@@ -198,6 +199,8 @@ static func _sweep(samples: Array, xf: Transform3D, hurt: Hurtboxes, draw: bool)
 				if found.is_empty():
 					found = _touch(sg[0], sg[1], r, hurt)
 					touched = not found.is_empty()
+					if touched:
+						found["spot"] = CritSpots.on_path(hurt.body, sg[0], sg[1], r)  # WEAK SPOTS: where it first touches
 				if draw:
 					recent.append([Time.get_ticks_msec() + DEBUG_LINGER_MS, sg[0], sg[1], r, touched])
 			if not found.is_empty() and not draw:

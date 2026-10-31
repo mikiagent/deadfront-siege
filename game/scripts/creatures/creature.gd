@@ -1122,13 +1122,17 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	var kind := next_hit_kind
 	next_hit_kind = &"hit"
 	combat_float.emit(_amount, kind)
-	view.flash_damage(0.18 if kind == &"crit" else 0.1)
+	var weak_spot := kind == CritSpots.KIND  # its gold burst came out of the spot itself (CritSpots.land)
+	view.flash_damage(0.26 if weak_spot else 0.18 if kind == &"crit" else 0.1, CritSpots.BURST if weak_spot else Color(1.0, 0.2, 0.2))
+	if weak_spot:
+		kind = &"crit"  # flinches and staggers as a crit
 	var burst_col := Color(1, 1, 1)
 	match kind:
 		&"weak": burst_col = Color(0.6, 0.6, 0.6)
 		&"strong": burst_col = Color(1.0, 0.6, 0.15)
 		&"crit": burst_col = Color(1.0, 0.15, 0.1)
-	hit_burst(burst_col, 0.16 if kind == &"crit" else 0.1, 22 if kind == &"crit" else 12)
+	if not weak_spot:
+		hit_burst(burst_col, 0.16 if kind == &"crit" else 0.1, 22 if kind == &"crit" else 12)
 	if brain:
 		brain.note_damage(_amount)
 	# A groggy animal collapses on the next hit once it is already capturable by health.
@@ -1249,8 +1253,8 @@ func _on_status_applied(id: StringName, _stacks: int) -> void:
 	status_float.emit(id)
 	hit_burst(status_color(id), 0.2, 20, 0.55)
 
-## One-shot particle puff at chest height. Frees itself.
-func hit_burst(col: Color, radius: float = 0.1, count: int = 12, life: float = 0.4) -> void:
+## One-shot particle puff at chest height (or at world point `at`: a weak spot). Frees itself.
+func hit_burst(col: Color, radius: float = 0.1, count: int = 12, life: float = 0.4, at: Vector3 = Vector3.INF) -> void:
 	if not is_inside_tree():
 		return
 	var p := GPUParticles3D.new()
@@ -1261,7 +1265,7 @@ func hit_burst(col: Color, radius: float = 0.1, count: int = 12, life: float = 0
 	p.position = Vector3(0, def.height_meters * 0.55, 0)
 	var mat := ParticleProcessMaterial.new()
 	mat.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	mat.emission_sphere_radius = maxf(0.08, def.height_meters * 0.25)
+	mat.emission_sphere_radius = maxf(0.08, def.height_meters * 0.25) if not at.is_finite() else 0.08
 	mat.direction = Vector3(0, 1, 0)
 	mat.spread = 180.0
 	mat.initial_velocity_min = 1.2
@@ -1281,6 +1285,8 @@ func hit_burst(col: Color, radius: float = 0.1, count: int = 12, life: float = 0
 	draw.material = dm
 	p.draw_pass_1 = draw
 	add_child(p)
+	if at.is_finite():
+		p.global_position = at
 	p.emitting = true
 	get_tree().create_timer(life + 0.3).timeout.connect(p.queue_free)
 

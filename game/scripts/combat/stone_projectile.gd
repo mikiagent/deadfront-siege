@@ -44,14 +44,18 @@ func _physics_process(delta: float) -> void:
 	if not hit.is_empty():
 		var victim := hit.get("collider") as Creature
 		if victim and not victim.health.dead and not victim.is_pet:
-			impact(victim)
+			# WEAK SPOTS: the flight from here on into the body, through its collider's depth.
+			# shortcut: the ray stops at the collision capsule, so a spot outside it (a T. rex head) is never shot; test the stone against hurtboxes when ranged needs it.
+			var through: Vector3 = hit["position"] + step.normalized() * victim.body_radius() * 2.0
+			impact(victim, CritSpots.on_path(victim, global_position, through, 0.08))
 		queue_free()
 		return
 	global_position = end
 	range_left -= distance
 	if range_left <= 0: queue_free()
 
-func impact(victim: Creature) -> void:
+## spot: the crit spot its flight passed through (CritSpots.on_path), or {}.
+func impact(victim: Creature, spot: Dictionary = {}) -> void:
 	var dodge := victim.dodge_chance() + victim.statuses.evasion_add() * CombatTuning.top("evasion_add_scale", 0.01)
 	if not CombatTuning.roll(CombatTuning.hit_chance(source.statuses.accuracy_mult(), dodge)):
 		CombatAvoid.avoided(victim, source)
@@ -60,10 +64,13 @@ func impact(victim: Creature) -> void:
 	var raw := maxf(damage * float(tune.get("min_damage_frac", 0.05)), damage - victim.defense_for(true) * victim.statuses.defense_mult() * float(tune.get("defense_factor", 0.5)))
 	var dealt := raw * (1.0 + float(tune.get("damage_per_ranged_level", 0.01)) * skill_level) * CombatCounters.multiplier(victim.def.archetype, &"blunt")
 	victim.next_hit_kind = Hunt.effectiveness(victim, &"blunt")
+	var spot_mult := CritSpots.land(victim, spot, source)  # a sure crit at the spot's multiplier
+	if spot_mult > 0.0:
+		dealt *= spot_mult
 	victim.health.take_damage(dealt, source)
 	victim.add_torpor(torpor if torpor >= 0.0 else CombatTuning.num("torpor", "blunt", 6.0), source)
 	if source.skills: source.skills.add_xp("ranged", int(tune.get("xp_per_hit", 2)))
 	source.hunt.wear_weapon(weapon)
 	source.hunt.apply_counter_hit(weapon, victim)
 	if victim.brain is TyrantBrain: (victim.brain as TyrantBrain).blunt_counter()
-	print("[ranged] hit %s blunt=%.1f" % [victim.def.id, dealt])
+	print("[ranged] hit %s blunt=%.1f%s" % [victim.def.id, dealt, " weak spot" if spot_mult > 0.0 else ""])
