@@ -97,11 +97,13 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		var b := HexButton.new(_hex)
 		var item_id := StringName(str(o.get("item", "")))
 		b.name = "Opt_%s" % item_id
-		b.icon = _icon_for(item_id)
-		b.color_icon = b.icon != null
+		# BUTCHERHEX: a carcass part draws its white part icon at full white, like the owner's Durango carcass.
+		var part_icon := UiIcons.for_part(item_id) if p_anchor is Corpse else null
+		b.icon = part_icon if part_icon != null else _icon_for(item_id)
+		b.color_icon = b.icon != null and part_icon == null
 		if b.icon == null:
 			b.glyph = str(_display_name(item_id)).left(1)
-		b.icon_grey = true  # spec §4.3: the resource symbol greyed out until it is gathered
+		b.icon_grey = part_icon == null  # spec §4.3: the resource symbol greyed out until it is gathered
 		b.rim_color = UiTokens.HUD_RIM
 		b.rim_width = 4.0 if _hex >= 70.0 else 3.0
 		b.fill = UiTokens.HUD_FILL
@@ -112,11 +114,11 @@ func open_options(p_anchor: Node3D, p_title: String, p_level: int, p_height: flo
 		var reason := inv.tool_block_reason(tool) if blocked else str(o.get("blocked_reason", ""))
 		blocked = blocked or reason != ""
 		b.disabled = blocked
-		_set_badge(b, blocked, bool(o.get("rare", false)))
+		_set_badge(b, blocked, bool(o.get("rare", false)), reason)
 		b.pressed.connect(_on_pick.bind(i))
 		add_child(b)
 		_buttons.append(b)
-		_labels.append(label_for(_display_name(item_id), reason))
+		_labels.append(label_for(_option_name(item_id, reason), reason))
 	_open = true
 	visible = true
 	_show_ring3d()
@@ -133,11 +135,19 @@ func open_carcass(p: Player, c: Corpse) -> void:
 	_solve()  # the title's second line grew by the note
 	_paint(_anchor())
 
-## Red ⊘ on a locked option, else a gold ★ on a rare part.
-static func _set_badge(b: HexButton, blocked: bool, rare: bool) -> void:
+## Red ⊘ on a locked option, else a gold ★ on a rare part. A lock the player lifts with a tool or a
+## skill ("needs knife", "needs Butchering 2", "Needs <node>", "your axe is broken") draws the
+## tool_needed wrench in that red badge (BUTCHERHEX, the owner's Durango carcass reference).
+static func _set_badge(b: HexButton, blocked: bool, rare: bool, reason: String = "") -> void:
 	b.badge = "⊘" if blocked else ("★" if rare else "")
 	b.badge_color = Color(0.85, 0.15, 0.12, 0.95) if blocked else UiTokens.GOLD
 	b.badge_ink = Color.WHITE if blocked else UiTokens.CTA_INK
+	b.badge_icon = UiIcons.icon(&"tool_needed") if blocked and tool_gate(reason) else null
+
+## True for a refusal that a tool or a skill lifts (not "already cut", "no cuts left", "nothing left").
+static func tool_gate(reason: String) -> bool:
+	var r := reason.to_lower()
+	return r.begins_with("need") or r.contains("broken")
 
 ## Hexagon flat on the terrain under the node (1.15 m), rebuilt on open; the mesh is depth-tested,
 ## so the trunk/bush occludes the far edge and the ring reads as sitting on the ground.
@@ -240,11 +250,11 @@ func refresh() -> void:
 		if reason == "" and tool != &"none" and tool != &"" and _inventory != null and not _inventory.has_tool_class(tool):
 			reason = _inventory.tool_block_reason(tool)
 		b.disabled = reason != ""
-		_set_badge(b, reason != "", bool(o.get("rare", false)))
+		_set_badge(b, reason != "", bool(o.get("rare", false)), reason)
 		b.queue_redraw()
 		if i < _labels.size():
 			var item_id := StringName(str(o.get("item", "")))
-			_labels[i] = label_for(_display_name(item_id), reason)
+			_labels[i] = label_for(_option_name(item_id, reason), reason)
 	_lock_others()
 	queue_redraw()
 
@@ -508,6 +518,14 @@ func nameplate() -> Rect2:
 	if cam == null or who == null:
 		return Rect2()
 	return HudLayout.nameplate_rect(cam, who, ThemeDB.fallback_font).grow(4.0)
+
+## A hex's name: an open carcass part carries the carcass's level, the level its cut lands at
+## (LootRoller.roll_part). A locked one gives that room to its reason (the phone's 148 px cut it).
+## ASSUMPTION: on a phone the title's "Lv. 54" stands for every part (they share the carcass level):
+## six "Name Lv. 54" labels round a big carcass at 844x390 pushed one onto the vitals bars.
+func _option_name(id: StringName, reason: String = "") -> String:
+	var lv := node is Corpse and reason == "" and _hex >= 100.0
+	return "%s %s" % [_display_name(id), LevelDisplay.label(level)] if lv else _display_name(id)
 
 func _display_name(id: StringName) -> String:
 	var def := Data.item(id)

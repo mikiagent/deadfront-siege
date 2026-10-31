@@ -341,3 +341,24 @@ Build status: TD4, TD5 (P2 RECIPETOOLS) and TD10 (P4 TRAITGEAR) are built with t
 `claude/mmo-recipetools`, not merged yet (report `docs/orchestration/reports/claude-recipetools.md`).
 
 - **HOLDKICK (2026-10-30):** with HOLD on, the auto-ability no longer casts push abilities (Kick), because the push shoves the target out of reach while HOLD keeps the survivor still. The manual Kick press still works under HOLD. # ASSUMPTION, owner can flip it.
+
+### PENCLAIM (2026-10-30) — tame result card and offline pen timer
+
+Branch `claude/mmo-penclaim`, report `docs/orchestration/reports/claude-penclaim.md`. Defaults taken:
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **PC1** | The pen rolls when its wait ends even at the bonded cap; the tamed pet waits in the pen, and the cap is checked at Bond. The old "hold the roll at the cap" (and a paused-left timer for it) is gone. | `TamingPen.resolve` / `claim` | A full roster no longer delays the result; the pet just stays in the pen. |
+| **PC2** | A pen tame is generation 1; the card's Bag is the pet's bag slot count (the reference showed a carry value of 100). | `TamingPenUI._fill_result` | Bag reads as slots, not weight, until pets get a carry stat. |
+| **PC3** | Packing up or demolishing a pen whose tame is waiting for Bond hands the captured animal back (the tame result is dropped, as taming progress always was). | `BuildPlacer.stored_items` (unchanged) | The player can lose a finished tame by packing the pen up. |
+| **PC4** | The wait runs on the wall clock: closed game, a pen on an island you left, and a paused game all count. A save from before the change restarts its remaining wait from the load. | `TamingPen.end_at` | Offline taming; old in-progress pens get no free catch-up time. |
+- **PETSTAY (2026-10-30):** the pet radial has a Stay/Follow toggle (spec 02 "Commands: Follow, Stay"). Defaults taken, each `# ASSUMPTION` in code, owner can flip them: (1) whistles (SIC / HEEL / GUARD) skip a staying pet, so a parked cargo animal never runs off; only Follow from its radial frees it. (2) A staying pet that is hit fights back but drops the foe once it is 15 m from its stay spot (`PetBrain.STAY_LEASH_M`), then walks back. (3) A stayed pet that is dismissed and summoned again stays at its new summon spot, not the old one; ridden and dismounted, it stays where you got off. Saved as the additive PetRecord key `command` ("follow" / "stay"); old saves load as follow. Branch `claude/mmo-petstay`, not merged.
+### LOOKPASS (2026-10-30) — the tutorial town's look from engine settings (claude/mmo-lookpass)
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **LP1** | The sun peaks at 42 deg (was 58) and comes from the south-west (yaw band -38..-62, was -55..-105), so the fronts the north-up camera sees are sunlit and the two roof slopes differ. Sun colour warmer (1.0, 0.9, 0.76). Applies to every climate that does not set its own elevation (tundra 38, snowfield 34 keep theirs). | `lighting.json` default | Shadows now fall north-east, behind and to the right of buildings; if the owner wants shadows on the street side, the band moves. |
+| **LP2** | Sky top (0.34, 0.5, 0.74), warmer horizon (0.82, 0.8, 0.74), ambient 0.34 (band 0.25-0.35), contrast 1.06, fog 0.0026 (thinned by the camera's distance, ~0.0006 at the game zoom). | `lighting.json` default | Shade colour and haze are taste. |
+| **LP3** | Forward+ only: SSAO intensity 5, radius 2.5 m, light_affect 0.6; SSIL 0.5 at quality "very low"; their fade-out moved to 600-900 m (Godot's default 50-300 m hid them at the iso camera's 186-430 m). Never on the web/phone renderers; SDFGI stays off. | `lighting.json`, `project.godot`, `WorldLighting._screen_space` | Full-quality SSIL cost ~1 ms on the Mac for little visible change, so it is kept at very low. |
+| **LP4** | Golden hour ported from LIGHTPORT (374d7970): warmth ramps 0.56-0.64 and holds to NIGHT; the day-phase "neutral sun" check now ends at 0.54. LIGHTPORT's glow strength/bloom/soft-light and `--tod` pin are not ported. | `world_lighting.gd`, `t_lighting.gd` | LIGHTPORT can merge on top; its remaining parts conflict only in these lines. |
+| **LP5** | Town ground: worn dirt within 3 m of streets, door paths and every taken cell (houses, stalls, fields), coloured between the dirt texture and the road tint; untrodden town ground mixes two greens in ~12 m patches. Dense grass tufts (9 per m2 on Forward+, half on the web/phone renderers, about 24 k in the town), 6 % flowers, thinning with wear, off streets, cells and the square, no shadows, visibility range = the town's prop range. | `TownDress._ground_look`, `terrain_tiles.gdshader` | Density, colours and the wear width are visual tuning; the tufts are procedural blades, not painted cards. |

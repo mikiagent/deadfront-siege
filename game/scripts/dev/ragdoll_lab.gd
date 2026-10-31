@@ -158,8 +158,6 @@ func _ready() -> void:
 		_headings = [0]
 	if _shots != "":
 		DirAccess.make_dir_recursive_absolute(_shots)
-	# The creature view only uses the stegosaurus GLB when asked (its in-game override stays).
-	CreatureView.allow_stegosaurus_rig = true
 	Game.debug_overlay = false  # no creature debug labels in the shots
 	print("[boot] lab=ragdoll_lab renderer=%s" % RenderingServer.get_current_rendering_method())
 	if perf:

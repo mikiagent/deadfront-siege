@@ -11,7 +11,7 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff"]
 const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
 const XFADE := 0.08
@@ -67,11 +67,13 @@ func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 	_playback = tree.get("parameters/playback")
 	play_idle()
 
-func play_idle() -> void:
+## aware: the brain knows of prey but is not attacking; a rig with an investigate loop plays it instead of idle.
+func play_idle(aware: bool = false) -> void:
 	if _dead or _hold_knockdown:
 		return
-	_scale[&"idle"] = CreatureClips.clip_speed(&"idle", _def)
-	_travel(&"idle")
+	var state := &"investigate" if aware and _param.has(&"investigate") else &"idle"
+	_scale[state] = CreatureClips.clip_speed(state, _def)
+	_travel(state)
 
 ## Legacy gait pick from creature.gd's speed / 8. Run now really plays at its anim_events cadence.
 func play_locomotion(speed_frac: float) -> void:
@@ -324,10 +326,12 @@ func _build_tree() -> void:
 	for clip in _param:
 		if clip in HUBS:
 			continue
+		# The investigate loop holds a deep crouch: a longer blend in and out so the body does not drop in one frame.
+		var xf := GAIT_XFADE if clip == &"investigate" else XFADE
 		for hub in HUBS:
 			if _param.has(hub):
-				_trans(sm, hub, clip, XFADE)
-		_trans(sm, clip, &"idle", XFADE)
+				_trans(sm, hub, clip, xf)
+		_trans(sm, clip, &"idle", xf)
 		# A self-transition (attack -> attack) would fade a back-to-back replay, but Godot's state
 		# machine made the node report a zero length and broke hit/done timing, so the one-frame
 		# replay pop stays (accepted polish in the report; attacks are gated by _busy anyway).

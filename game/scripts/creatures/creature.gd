@@ -124,7 +124,7 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	platform_floor_layers = 0
 	platform_wall_layers = 0
 	def = p_def
-	variant = p_variant
+	variant = p_variant if p_variant != &"" else CreatureView.pick_variant(p_def, "%s@%v" % [p_def.id, global_position.round()])
 	_slide_counter += 1
 	_slide_phase = _slide_counter
 	pack_id = p_pack
@@ -603,7 +603,7 @@ func _physics_process(delta: float) -> void:
 		velocity.z = 0.0
 		_face_vel = _face_vel.lerp(Vector3.ZERO, 1.0 - exp(-delta / FACE_VEL_TAU_S))
 		if not anim._busy and not anim._forced:
-			anim.play_idle()
+			anim.play_idle(brain != null and not is_pet and brain.aware_idle())
 	_slide()
 	current_clip = anim.current_clip
 	_status_fx()

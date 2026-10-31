@@ -12,6 +12,8 @@ var _started := false
 var _out := ""
 var _quick := false
 var _only := ""
+## --tods=day:0.42,dusk:0.68 replaces the default day/night pair (LOOKPASS dusk shots).
+var _tods: Array = [["day", 0.42], ["night", 0.93]]
 var _player: Node3D
 var _town: Node
 var _cam: Camera3D
@@ -32,6 +34,10 @@ func _run() -> void:
 			_quick = true
 		elif a.begins_with("--only="):
 			_only = a.substr(7)
+		elif a.begins_with("--tods="):
+			_tods = []
+			for kv in a.substr(7).split(","):
+				_tods.append([kv.get_slice(":", 0), float(kv.get_slice(":", 1))])
 	DirAccess.make_dir_recursive_absolute(_out)
 	var wd := create_timer(900.0)
 	wd.timeout.connect(func () -> void:
@@ -65,6 +71,14 @@ func _run() -> void:
 	_street.far = 600.0
 	current_scene.add_child(_street)
 	print("[townshots] town %s" % _town.get("stats"))
+	var env := root.get_viewport().find_world_3d().environment
+	if env == null:
+		for we in root.find_children("*", "WorldEnvironment", true, false):
+			if (we as WorldEnvironment).environment:
+				env = (we as WorldEnvironment).environment
+				break
+	if env:
+		print("[townshots] env renderer=%s ssao=%s ssil=%s sdfgi=%s tonemap=%d exposure=%.2f fog=%.4f" % [RenderingServer.get_current_rendering_method(), env.ssao_enabled, env.ssil_enabled, env.sdfgi_enabled, env.tonemap_mode, env.tonemap_exposure, env.fog_density])
 	var view := root.get_visible_rect().size
 	var tag := "%dx%d" % [int(view.x), int(view.y)]
 	for a in OS.get_cmdline_user_args():
@@ -163,7 +177,7 @@ func _run() -> void:
 				hs.append(line)
 			print("[townshots] camp %s heights %s river_d=%.1f" % [cp, hs, rt.call("river_dist_at", cp.x, cp.z)])
 	print("[townshots] anchors %s" % [anchors.keys()])
-	for tod: Array in [["day", 0.42], ["night", 0.93]]:
+	for tod: Array in _tods:
 		await _set_time(float(tod[1]))
 		for nm: String in anchors:
 			var at: Vector3 = anchors[nm]
@@ -285,6 +299,23 @@ func _save(name: String) -> void:
 	_hide_ui(true)
 	for i in 30:
 		await process_frame
+	if "--perf" in OS.get_cmdline_user_args():  # LOOKPASS: frame time per shot (run with --disable-vsync)
+		var vp := root.get_viewport_rid()
+		RenderingServer.viewport_set_measure_render_time(vp, true)
+		var ms: Array[float] = []
+		var gpu := 0.0
+		for i in 240:
+			var t0 := Time.get_ticks_usec()
+			await process_frame
+			ms.append((Time.get_ticks_usec() - t0) / 1000.0)
+			gpu += RenderingServer.viewport_get_measured_render_time_gpu(vp)
+		ms.sort()
+		var mean := 0.0
+		for m in ms:
+			mean += m / ms.size()
+		print("[townshots] RESULT perf shot=%s ms_mean=%.2f ms_median=%.2f ms_p95=%.2f gpu_ms=%.2f prims=%d draws=%d" % [name, mean, ms[120], ms[228], gpu / 240.0,
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME),
+			RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)])
 	await create_timer(0.8).timeout
 	await RenderingServer.frame_post_draw
 	var img := root.get_texture().get_image()

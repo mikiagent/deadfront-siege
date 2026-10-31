@@ -40,7 +40,7 @@ const SHAPE := {
 const BUILDING_ROW := {
 	"kind": "", "rot": 0, "x": 0.0, "z": 0.0, "sleeps_left": 0, "hp": 0.0, "reload_left": 0.0,
 	"seconds_left": 0.0, "fuel_seconds": 0.0, "durability": 0.0, "growth": 0.0, "watered": 0.0, "fertilizer": 0.0, "fertilizer_overflow": 0.0,
-	"remaining": 0.0, "cargo": false, "running": false, "mature": false, "failed": false, "open": false,
+	"remaining": 0.0, "end_at": 0.0, "cargo": false, "running": false, "mature": false, "failed": false, "open": false,
 }
 const SNARE_ROW := {"heavy": false, "life_left": 0.0, "arm_left": 0.0}
 const STATUS_ROW := {"id": "", "stacks": 0, "time_left": 0.0}
@@ -62,6 +62,7 @@ const PET_ROW := {
 	"tamed_at": 0, "wild_level": 0, "genetics": GENETICS,
 	"nature": "", # NATURES: optional (an old row has none; PetRecord.from_dict derives one from the uid)
 	"gear": {}, # SADDLES: optional {slot: item row}; an old row has none
+	"command": "", # PETSTAY: optional "follow"/"stay"; an old row has none (loads as follow)
 }
 ## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).
@@ -293,6 +294,12 @@ static func _buildings(rows: Array) -> Array:
 			b["occupant"] = _stack(b.get("occupant")) # null when it is not a known, well-formed stack
 			if b["occupant"] == null:
 				b["running"] = false # a running pen reads its occupant when the timer ends
+			# PENCLAIM: the pet waiting for Bond goes through the same checks as a roster pet.
+			var t: Array = _pets([b["tamed"]]) if b.get("tamed") is Dictionary else []
+			if t.is_empty():
+				b.erase("tamed")
+			else:
+				b["tamed"] = t[0]
 		out.append(b)
 	return out
 

@@ -12,6 +12,8 @@ extends Node3D
 ## a lurking ambusher is stepped into its ambush radius after a second so the capture shows the fight.
 ## --clipshots=DIR (with --species=X): the selector shows X picked, then that creature plays each clip of CLIPSHOTS
 ## with its brain off, side-on beside the survivor, 6 frames per clip saved as DIR/<clip>_<k>.png, then the lab quits.
+## --clipsheet=DIR [--clips=investigate,sniff]: contact sheets of the first creature's clips (8 frames, front
+## three-quarter row over a side row) to DIR/<species>_<clip>.png, then quits. Brain off, tree stepped by hand.
 
 var _player: Player
 ## The on-screen SPAWN selector (species, count 1-6, nature, Alpha; Spawn / Clear all).
@@ -20,6 +22,8 @@ var _seq_dir := ""
 var _seq_t := 0.0
 var _seq_n := 0
 const CLIPSHOTS: Array[StringName] = [&"idle", &"walk", &"run", &"alert", &"attack_primary", &"attack_heavy", &"tail_swipe"]
+var _sheet_dir := ""
+var _sheet_clips: Array[StringName] = [&"investigate", &"sniff"]
 
 func _ready() -> void:
 	Game.lab_force_clips = true
@@ -44,6 +48,12 @@ func _ready() -> void:
 			ride = a.substr(7)
 		elif a.begins_with("--seq="):
 			_seq_dir = a.substr(6)
+		elif a.begins_with("--clipsheet="):
+			_sheet_dir = a.substr(12)
+		elif a.begins_with("--clips="):
+			_sheet_clips.clear()
+			for n in a.substr(8).split(","):
+				_sheet_clips.append(StringName(n))
 		elif a == "--spawn-open":
 			(func() -> void: spawn_panel.get_node("SpawnPanel").visible = true).call_deferred()
 		elif a.begins_with("--clipshots="):
@@ -65,6 +75,67 @@ func _ready() -> void:
 		_spawn(&"utahraptor", 1, Vector3(12, 0, -8), 1.0, false)
 		_spawn(&"protoceratops", 1, Vector3(-6, 0, -8), 1.0, false)
 	print("[boot] lab=creature_lab")
+	if _sheet_dir != "":
+		_clip_sheets.call_deferred()
+
+func _clip_sheets() -> void:
+	await get_tree().create_timer(1.5).timeout
+	var c: Creature = _player.actions.nearest_creature(9999.0, true)
+	if c == null:
+		push_error("creature_lab: --clipsheet found no creature")
+		get_tree().quit(1)
+		return
+	for n in find_children("*", "CanvasLayer", true, false):
+		(n as CanvasLayer).visible = false  # no HUD over the sheet
+	c.set_physics_process(false)
+	c.brain.process_mode = Node.PROCESS_MODE_DISABLED
+	c.label.visible = false
+	c.global_position = _player.global_position + Vector3(0, 0, -6)
+	c.rotation.y = 0.0  # faces -Z
+	_player.visible = false
+	c.anim.tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+	var h := c.def.height_meters
+	var at := c.global_position
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.fov = 32.0
+	cam.current = true
+	var views := [[Vector3(-1.3, 1.0, -2.9) * h, Vector3(0, 0.62, -0.75) * h], [Vector3(-5.2, 0.5, -0.1) * h, Vector3(0, 0.36, -0.1) * h]]  # head-on three-quarter, side
+	DirAccess.make_dir_recursive_absolute(_sheet_dir)
+	for clip in _sheet_clips:
+		if not c.anim.has_state(clip):
+			print("[creature_lab] %s has no %s" % [c.def.id, clip])
+			continue
+		var length := c.anim.player.get_animation(clip).length
+		var tiles: Array[Image] = []
+		for v in views:
+			cam.look_at_from_position(at + (v[0] as Vector3), at + (v[1] as Vector3))
+			await RenderingServer.frame_post_draw
+			c.anim.play_idle()
+			c.anim.tree.advance(0.5)
+			if clip == &"investigate":
+				c.anim.play_idle(true)
+			else:
+				c.anim.play_clip(clip)
+			c.anim.tree.advance(0.0)
+			for k in 8:
+				c.anim.tree.advance(length / 8.0 if k > 0 else 0.25)  # first frame past the cross-fade
+				await RenderingServer.frame_post_draw
+				await RenderingServer.frame_post_draw
+				var full := get_viewport().get_texture().get_image()
+				var w := int(full.get_height() * 1.2)  # centre crop, a little wider than square
+				var img := full.get_region(Rect2i((full.get_width() - w) / 2, 0, w, full.get_height()))
+				img.resize(360, 300)
+				tiles.append(img)
+		var tw := tiles[0].get_width()
+		var th := tiles[0].get_height()
+		var sheet := Image.create(tw * 8, th * 2, false, tiles[0].get_format())
+		for i in tiles.size():
+			sheet.blit_rect(tiles[i], Rect2i(0, 0, tw, th), Vector2i((i % 8) * tw, (i / 8) * th))
+		var out := "%s/%s_%s.png" % [_sheet_dir, c.def.id, clip]
+		sheet.save_png(out)
+		print("[creature_lab] sheet %s" % out)
+	get_tree().quit()
 
 func _process(_dt: float) -> void:
 	if _seq_dir != "":

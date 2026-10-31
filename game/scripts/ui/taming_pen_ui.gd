@@ -8,6 +8,9 @@ extends UiWorldSheet
 ## to pick it), and Store / Tame. Once the pen runs: "Taming started" with a live countdown, Feed (its diet)
 ## and OK. Wired to the existing pen (TamingPen.try_insert / feed, 30 min x nature, 70 % success)
 ## through PlayerActions.pen_interact -> HuntHud.open_taming_pen(pen).
+## PENCLAIM: a pen holding a finished tame (TamingPen.tamed) shows the gold "Taming successful" card
+## instead (spec 02 reference: grade stamp, generation, Bag / Max HP / Speed / Attack / Defense) with
+## Bond (TamingPen.claim) and Keep in pen.
 ##
 ## ASSUMPTION: no mood system exists. The slider is read-only: before taming it shows the animal's
 ## nature pen-time knob (a shorter wait reads happier), while the pen runs it shows the elapsed share.
@@ -54,6 +57,15 @@ var _tame: Button
 var _feed: Button
 var _ok: Button
 var _msg: Label
+var _result: PanelContainer
+var _r_icon: TextureRect
+var _r_name: Label
+var _r_sub: Label
+var _r_grade: Label
+var _r_stats: GridContainer
+var _r_msg: Label
+var _bond: Button
+var _keep: Button
 
 func _init() -> void:
 	super("Taming Pen")
@@ -263,6 +275,79 @@ func _build() -> void:
 		foot.add_child(b)
 	_tame.size_flags_stretch_ratio = 1.6
 	_ok.size_flags_stretch_ratio = 1.6
+	_build_result()
+
+## The gold result card: title band, the pet's row with its grade stamp, the stat grid, Keep / Bond.
+func _build_result() -> void:
+	_result = PanelContainer.new()
+	_result.name = "Result"
+	_result.add_theme_stylebox_override("panel", SheetChrome.box(Color(UiTokens.HEADER.lightened(0.10), 0.97), UiTokens.GOLD, 3))
+	_result.visible = false
+	body.add_child(_result)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 0)
+	_result.add_child(v)
+	var band := PanelContainer.new()
+	band.add_theme_stylebox_override("panel", SheetChrome.box(UiTokens.GOLD, Color(0, 0, 0, 0), 0))
+	v.add_child(band)
+	var title := SheetChrome.label("Taming successful", 28, UiTokens.CTA_INK, true)
+	title.name = "ResultTitle"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	band.add_child(title)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	v.add_child(_padded(row, "PadRow"))
+	_r_icon = TextureRect.new()
+	_r_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_r_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	row.add_child(_r_icon)
+	var nv := VBoxContainer.new()
+	nv.alignment = BoxContainer.ALIGNMENT_CENTER
+	nv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	nv.add_theme_constant_override("separation", 0)
+	row.add_child(nv)
+	_r_name = SheetChrome.label("", 30, UiTokens.GOLD)
+	_r_name.clip_text = true
+	nv.add_child(_r_name)
+	_r_sub = SheetChrome.label("", 19, UiTokens.TEXT)
+	nv.add_child(_r_sub)
+	# The quality stamp: the grade letter in a gold-ringed square.
+	var stamp := PanelContainer.new()
+	stamp.name = "Grade"
+	stamp.add_theme_stylebox_override("panel", SheetChrome.box(Color(UiTokens.GOLD, 0.12), UiTokens.GOLD, 3))
+	stamp.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(stamp)
+	_r_grade = SheetChrome.label("", 40, UiTokens.GOLD, true)
+	_r_grade.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_r_grade.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	stamp.add_child(_r_grade)
+	_r_stats = GridContainer.new()
+	_r_stats.name = "Stats"
+	_r_stats.columns = 3
+	v.add_child(_padded(_r_stats, "PadStats"))
+	_r_msg = SheetChrome.label("", 15, UiTokens.GOLD)
+	_r_msg.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_r_msg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(_r_msg)
+	var foot := HBoxContainer.new()
+	foot.add_theme_constant_override("separation", 14)
+	v.add_child(_padded(foot, "PadFoot"))
+	_keep = SheetChrome.ghost_button("Keep in pen")
+	_keep.name = "Keep"
+	_keep.pressed.connect(close)
+	_bond = SheetChrome.gold_button("Bond")
+	_bond.name = "BondPet"
+	_bond.pressed.connect(_on_bond)
+	for b in [_keep, _bond]:
+		(b as Button).size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		foot.add_child(b)
+	_bond.size_flags_stretch_ratio = 1.6
+
+func _padded(c: Control, n: String) -> MarginContainer:
+	var m := MarginContainer.new()
+	m.name = n
+	m.add_child(c)
+	return m
 
 func _pad(parent: Control) -> MarginContainer:
 	var m := MarginContainer.new()
@@ -347,7 +432,7 @@ func open(p: Player, the_pen: TamingPen = null) -> void:
 	_msg.text = ""
 	_refresh()
 	relayout()
-	UiTokens.focus_first([_ok if is_running() else _tame])
+	UiTokens.focus_first([_bond if is_tamed() else (_ok if is_running() else _tame)])
 
 func close() -> void:
 	visible = false
@@ -379,6 +464,18 @@ func _on_tame() -> void:
 	_refresh()
 	relayout()
 
+func is_tamed() -> bool:
+	return pen != null and is_instance_valid(pen) and pen.tamed != null
+
+## Bond: claim moves the record to the roster once (a second tap finds nothing left to claim).
+func _on_bond() -> void:
+	if not is_tamed():
+		return
+	if pen.claim(player):
+		close()
+		return
+	_r_msg.text = "Bonded roster full (%d / %d): it waits in the pen." % [player.bonded.size(), Data.bonded_cap()]
+
 func _on_feed() -> void:
 	if pen == null or not is_instance_valid(pen):
 		return
@@ -386,10 +483,22 @@ func _on_feed() -> void:
 	_refresh()
 
 func _process(_delta: float) -> void:
-	if visible and is_running():
+	if not visible:
+		return
+	if _result.visible != is_tamed():
+		_refresh() # the wait ended (or the tame failed) while the screen was open
+		relayout()
+	elif is_running():
 		_refresh_timer()
 
 func _refresh() -> void:
+	var done := is_tamed()
+	_result.visible = done
+	_left.visible = not done
+	_dlg.visible = not done
+	if done:
+		_fill_result(pen.tamed)
+		return
 	var s := shown_stack()
 	var running := is_running()
 	var cages := caged_slots()
@@ -401,7 +510,7 @@ func _refresh() -> void:
 	_tame.disabled = s == null or not has_pen or (pen.running if has_pen else true)
 	_store.disabled = s == null
 	if running and pen.remaining <= 0.0:
-		_q.text = "Taming done: waiting for a free pack slot"
+		_q.text = "Taming done: the result is on its way"
 	elif running:
 		_q.text = "Taming started: check back in %s" % duration(pen.remaining / maxf(0.01, Game.time_scale))
 	elif s == null:
@@ -481,6 +590,34 @@ func _refresh() -> void:
 	_mood.pen_time = pen_seconds(s)
 	_refresh_timer()
 
+## Spec 02 reference card: the pet's base lineup (the Bag screen later shows buffed values).
+## ASSUMPTION: a pen tame is generation 1 (no breeding yet), and Bag is the pet's bag slot count.
+func _fill_result(rec: PetRecord) -> void:
+	var def := Data.creature(rec.species)
+	_r_icon.texture = ItemIcons.texture(&"captured_animal") if ItemIcons.texture(&"captured_animal") != null else UiIcons.icon(&"capture")
+	_r_name.text = def.species if def != null else str(rec.species).capitalize()
+	_r_sub.text = "Lv. %d · Generation 1 · %s" % [rec.level, CreatureNatures.label(rec.nature)]
+	_r_grade.text = str(rec.grade)
+	for c in _r_stats.get_children():
+		_r_stats.remove_child(c)
+		c.queue_free()
+	var stats := [["Bag", rec.bag.slot_count if rec.bag else 0], ["Max HP", roundi(rec.hp)], ["Speed", roundi(rec.speed)], ["Attack", roundi(rec.attack)], ["Defense", roundi(rec.defense)]]
+	var compact := UiTokens.is_compact(get_viewport_rect().size)
+	for st in stats:
+		var tile := HBoxContainer.new()
+		tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var k := SheetChrome.label(str(st[0]), 13 if compact else 20, UiTokens.MUTED)
+		k.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tile.add_child(k)
+		var val := SheetChrome.label(str(st[1]), 15 if compact else 24, UiTokens.TEXT, true)
+		tile.add_child(val)
+		var cell := PanelContainer.new()
+		cell.add_theme_stylebox_override("panel", SheetChrome.box(Color(1, 1, 1, 0.05), Color(0, 0, 0, 0), 0))
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cell.add_child(tile)
+		_r_stats.add_child(cell)
+	_r_msg.text = ""
+
 func _refresh_timer() -> void:
 	if is_running():
 		var total := pen_seconds(pen.occupant)
@@ -530,6 +667,7 @@ func _fill_tags(def: CreatureDef) -> void:
 
 func _layout_body(view: Vector2, rect: Rect2) -> void:
 	var compact := UiTokens.is_compact(view)
+	_layout_result(view, rect, compact)
 	var lw := floorf(minf(420.0, rect.size.x * 0.30)) if not compact else floorf(rect.size.x * 0.34)
 	_left.position = rect.position
 	_left.size = Vector2(lw, rect.size.y)
@@ -577,6 +715,29 @@ func _layout_body(view: Vector2, rect: Rect2) -> void:
 	for b in [_store, _tame, _feed, _ok]:
 		(b as Button).custom_minimum_size = Vector2(0.0, 64.0 if compact else 76.0)
 		(b as Button).add_theme_font_size_override("font_size", 18 if compact else 28)
+
+func _layout_result(_view: Vector2, rect: Rect2, compact: bool) -> void:
+	(_result.find_child("ResultTitle", true, false) as Label).add_theme_font_size_override("font_size", 18 if compact else 30)
+	_r_icon.custom_minimum_size = Vector2.ONE * (44.0 if compact else 96.0)
+	_r_name.add_theme_font_size_override("font_size", 18 if compact else 32)
+	_r_sub.add_theme_font_size_override("font_size", 13 if compact else 20)
+	_r_grade.add_theme_font_size_override("font_size", 26 if compact else 48)
+	_r_grade.custom_minimum_size = Vector2.ONE * (48.0 if compact else 84.0)
+	_r_msg.add_theme_font_size_override("font_size", 12 if compact else 16)
+	var gap := 6 if compact else 16
+	_r_stats.add_theme_constant_override("h_separation", gap)
+	_r_stats.add_theme_constant_override("v_separation", 4 if compact else 10)
+	for m in _result.find_children("Pad*", "MarginContainer", true, false):
+		for side in ["left", "right", "top", "bottom"]:
+			(m as MarginContainer).add_theme_constant_override("margin_" + side, gap)
+	for b in [_keep, _bond]:
+		(b as Button).custom_minimum_size = Vector2(0.0, 64.0 if compact else 76.0)
+		(b as Button).add_theme_font_size_override("font_size", 18 if compact else 28)
+	# The card hugs its content, centred in the body.
+	var w := minf(rect.size.x, 820.0 if not compact else 640.0)
+	var h := minf(rect.size.y, _result.get_combined_minimum_size().y)
+	_result.position = rect.position + (rect.size - Vector2(w, h)) * 0.5
+	_result.size = Vector2(w, h)
 
 ## The mood slider: angry face, track with a GOLD fill to `ratio`, happy face, and a boxed caption
 ## (pen time, or the countdown) riding above the fill's end.
