@@ -162,6 +162,8 @@ for i, k in enumerate(names):
         D[V[:, 2] < belly - 0.03 * S, i] = np.inf  # and never a leg
     if k == "Jaw":
         D[:, i] = np.inf
+    if any(t in k for t in ("Lower", "Cannon", "Foot.")):  # forearm/shin and below: never the chest or flank above the joint
+        D[V[:, 2] > segs[k][0].z + 0.02 * S, i] = np.inf
 # jaw: head skin forward of the corner and below the split line through the pivot
 piv = Vector((0, jw["pivot"][0], jw["pivot"][1])) * S
 ang = math.radians(jw["split_deg"])  # the split line through the pivot, tilted down toward the snout tip
@@ -187,9 +189,42 @@ for i, v in enumerate(V):
     # put the jaw share in the weakest slot
     j = int(np.argmin(Wk[i])); Wk[i, j] = 0; order[i, j] = ij; Wk[i, j] = head_w * f
     Wk[i] /= Wk[i].sum()
+# dense weights, then: (1) cut the webbing Tripo leaves between the two forelegs / hindlegs (faces whose corners
+# belong to opposite legs: they stretch a metre the moment the legs part), (2) a few neighbour-averaging passes so the
+# flank-to-thigh and chest-to-forearm folds blend instead of switching bone across one short edge (check_megaloceros
+# stretch gate). The head and jaw keep their hard split (a smoothed lip line opens a crack).
+Wd = np.zeros((len(V), len(names)))
+np.put_along_axis(Wd, order, Wk, 1)
+dom = Wd.argmax(1)
+side_of = np.array([(k[-1] if k[-2] == "." else "") for k in names])
+leg_of = np.array([("Front" in k or "Hind" in k or "Foot" in k) for k in names])
+bm = bmesh.new(); bm.from_mesh(body.data); bm.verts.ensure_lookup_table(); bm.faces.ensure_lookup_table()
+web = [f for f in bm.faces if len({side_of[dom[v.index]] for v in f.verts if leg_of[dom[v.index]]} - {""}) > 1]
+bmesh.ops.delete(bm, geom=web, context="FACES_ONLY")
+print("webbing faces cut", len(web))
+bm.to_mesh(body.data); bm.free()
+E = np.array([e.vertices[:] for e in body.data.edges])
+deg = np.bincount(E.ravel(), minlength=len(V)).astype(float)
+headish = (Wd[:, ih] + Wd[:, ij]) > 0.3
+for _ in range(6):
+    acc = np.zeros_like(Wd); np.add.at(acc, E[:, 0], Wd[E[:, 1]]); np.add.at(acc, E[:, 1], Wd[E[:, 0]])
+    nb = acc / np.maximum(deg, 1)[:, None]
+    new = 0.5 * Wd + 0.5 * nb
+    new[headish] = Wd[headish]; new[deg == 0] = Wd[deg == 0]
+    new[np.ix_(V[:, 0] < -mid, side_of == "L")] = 0; new[np.ix_(V[:, 0] > mid, side_of == "R")] = 0  # no leg pulls the far side
+    # groin and brisket between the legs ride the trunk: leg weights fade out from |x| 0.14 m to 0.06 m
+    taper = np.where(V[:, 2] > 0.25 * S, np.clip((np.abs(V[:, 0]) - 0.06) / 0.08, 0, 1), 1.0)
+    new[:, leg_of] *= taper[:, None]
+    empty = new.sum(1) <= 1e-9  # a masked vertex with only leg weights goes to its nearest trunk bone
+    if empty.any():
+        trunk = [names.index(k) for k in ("Hips", "Torso", "Shoulders", "Neck")]
+        new[np.where(empty)[0], np.array(trunk)[D[np.ix_(empty, trunk)].argmin(1)]] = 1.0
+    Wd = new / np.maximum(new.sum(1, keepdims=True), 1e-9)
+order = np.argsort(-Wd, axis=1)[:, :4]
+Wk = np.take_along_axis(Wd, order, 1); Wk[Wk < 0.03] = 0; Wk /= np.maximum(Wk.sum(1, keepdims=True), 1e-9)
 groups = {k: body.vertex_groups.new(name=k) for k in names}
 for i in range(len(V)):
-    for j in range(3):
+    for j in range(4):
         if Wk[i, j] > 0: groups[names[order[i, j]]].add([i], float(Wk[i, j]), "REPLACE")
 body.parent = arm
 body.modifiers.new("Armature", "ARMATURE").object = arm

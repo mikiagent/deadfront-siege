@@ -183,7 +183,7 @@ def walk(t, T, travel=-Y, sideways=False):
 
 
 def gallop(t, T, head_low=0.0):
-    s = gait(t, T, 0.34, (1.0 * SH, 1.0 * SH), PH_GALLOP, (0.24, 0.20), -Y, curl=85, tilt_f=70, tilt_h=55, roll_toe=0.2)
+    s = gait(t, T, 0.34, (0.76 * SH, 0.76 * SH), PH_GALLOP, (0.24, 0.20), -Y, curl=85, tilt_f=70, tilt_h=55, roll_toe=0.2)
     w = 2 * math.pi * t / T
     # the back rocks: nose up as the forelegs land (gather), croup up as the hinds push off
     s.pitch = 6.0 * math.sin(w - 0.5)
@@ -221,7 +221,7 @@ def alert(t, T):
     s = St(); u = t / T
     if STAG:
         roar = bump(u, 0.05, 0.22, 0.48, 0.58)
-        s.neck[0] = 18 * roar; s.neck[1] = 10 * roar; s.head = 20 * roar; s.jaw = 30 * roar * (1 + 0.1 * math.sin(t * 60))
+        s.neck[0] = 18 * roar; s.neck[1] = 10 * roar; s.head = 20 * roar; s.jaw = 24 * roar * (1 + 0.1 * math.sin(t * 60))
         s.chest = 3 * roar; s.off.z = 0.01 * H * roar
         low = smooth((u - 0.55) / 0.2)
         s.neck[0] += -26 * low; s.neck[1] += -14 * low; s.head += -18 * low
@@ -286,10 +286,11 @@ def attack_heavy(t, T):
         air = bump(u, 0.08, 0.25, hit - 0.06, hit)
         # in the air the hoof rides under the chest, folded; it reaches forward and down for the stomp
         p = L["home"].copy() + Vector((0, -0.36 * H * lunge, 0))
-        p.z += air * (0.62 * H * rise + 0.08 * H * paw * (1 if i == 0 else -1))
+        p.z += air * ((0.62 if STAG else 0.5) * H * rise + 0.08 * H * paw * (1 if i == 0 else -1))
         p.y += air * (0.08 * H * rise) - 0.06 * H * air * paw * (1 if i == 0 else -1)
         s.feet[k] = p
-        s.curl[k] = 90 * air; s.tilt[k] = 95 * air * rise
+        fold = 1.0 if STAG else 0.8  # the doe's narrow brisket tears if her forelegs fold as tight
+        s.curl[k] = 90 * air * fold; s.tilt[k] = 95 * air * rise * fold
     return s
 
 

@@ -172,15 +172,21 @@
       "run": 7.842
     },
     "megaloceros": {
-      "height_m": 2.1,
-      "run_l": 5.964,
-      "run_len": 0.583,
-      "run_r": 5.943,
-      "walk_l": 1.292,
-      "walk_len": 1.167,
-      "walk_r": 1.292,
-      "walk": 1.292,
-      "run": 5.954
+      "height_m": 3.95,
+      "run_l": 10.209,
+      "run_len": 0.708,
+      "run_r": 9.987,
+      "walk_l": 2.293,
+      "walk_len": 1.292,
+      "walk_r": 2.292,
+      "walk": 2.292,
+      "run": 10.098,
+      "strafe_left": 2.292,
+      "strafe_left_len": 1.292,
+      "strafe_right": 2.292,
+      "strafe_right_len": 1.292,
+      "walk_back": 2.292,
+      "walk_back_len": 1.292
     },
     "pachycephalosaurus": {
       "height_m": 1.8,
