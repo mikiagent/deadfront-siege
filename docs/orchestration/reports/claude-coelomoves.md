@@ -79,8 +79,13 @@ the old rest-referenced check, because of the rest-pose issue above.
 - the body stays on the ground outside leaps
 - gallimimus flees once, turns territorial, never pounces, runs under 30 % HP, and forgets once the threat is gone
 
-Gates: t_coelomoves, t_combat, t_canim, t_godlab, t_raptorfeel, t_tactical, t_alphas, t_ai, t_swarm, t_zebra,
-t_styraco PASS; `run_all.gd` [tests] PASS; `tools/smoke.sh --no-import` SMOKE PASS (final numbers in the commit).
+Gates, after merging origin/claude/mmo-overhaul (0152e8d4):
+- t_coelomoves, t_combat, t_canim, t_godlab, t_raptorfeel, t_tactical, t_kicktackle, t_saddles, t_ankyloai PASS
+- earlier on this branch: t_alphas, t_ai, t_swarm, t_zebra, t_styraco PASS
+- `run_all.gd` [tests] PASS; `tools/smoke.sh --no-import` SMOKE PASS
+
+t_raptorfeel's "after the hold it commits" now accepts any TacticalBrain fight state; it had accepted only
+approach and attack, the RaptorPackBrain states.
 
 Shots (windowed off-screen `creature_lab --clipsheet`, self-quitting, front three-quarter over side, 8 frames per clip):
 `coelomoves_coelophysis_sheet.jpg`, `coelomoves_gallimimus_sheet.jpg`, `coelomoves_utahraptor_sheet.jpg`,
