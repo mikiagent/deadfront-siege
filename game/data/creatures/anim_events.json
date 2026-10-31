@@ -3,7 +3,13 @@
   "clips": {
     "attack_primary": {
       "hit_frac": 0.42,
-      "windup": false
+      "windup": false,
+      "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
+    },
+    "grab_bite": {
+      "hit_frac": 0.42,
+      "windup": false,
+      "note": "utahraptor (UTAHARMS 2026-10-31): its attack_primary with the hands reaching forward, claws spread, and raking down clenched on the bite (tools/gait/raptor_overlay.py --keep); same timing as attack_primary; TacticalBrain plays it for tactics.bite_alt_chance of the bites"
     },
     "attack_heavy": {
       "hit_frac": 0.72,
@@ -30,7 +36,8 @@
       ],
       "windup": true,
       "note": "chomp left, chomp right, MEGA chomp: the front rears up for 12 frames (frames 33-44 of 66, the tell), then the whole body tips down from the hips like an animal drinking and bites at ground level. Exaggerated on purpose (owner: big by default, tune after). tools/jaw/make_combo.py.",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
     "hop_back": {
       "airborne": [
@@ -66,7 +73,8 @@
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
       "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)",
-      "note_tarbosaurus": "tarbosaurus: make_rex_moves.py --tarbo pounce, 1.0 s: the burst out of the stalk, one long low bound (both feet off 0.2-0.65, the game carries the arc), jaws thrust ahead and slammed shut on 0.7; a landed burst is an attack_heavy hit, so it pins (pin_foot)"
+      "note_tarbosaurus": "tarbosaurus: make_rex_moves.py --tarbo pounce, 1.0 s: the burst out of the stalk, one long low bound (both feet off 0.2-0.65, the game carries the arc), jaws thrust ahead and slammed shut on 0.7; a landed burst is an attack_heavy hit, so it pins (pin_foot)",
+      "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing",
@@ -136,7 +144,17 @@
         0.2,
         0.6
       ],
-      "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn"
+      "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn",
+      "note_raptor": "raptor (RAPTORFLANK, make_raptor_moves.py charge_turn, 0.71 s): the flank's skid-turn after it runs past the prey: brakes leaning back, hops with the arms flung wide and the tail lifted, lands crouched facing the prey; same airborne window, TacticalBrain flank turns the short way inside it"
+    },
+    "flank_rake": {
+      "airborne": [
+        0.18,
+        0.55
+      ],
+      "hit_frac": 0.56,
+      "windup": false,
+      "note": "raptor (RAPTORFLANK, owner 2026-10-31: 'run past, turn, strafe, attack from behind'; make_raptor_moves.py flank_rake, 1.0 s): from behind the prey a short leap onto its back (the brain carries the arc inside airborne), both sickle feet swung forward and cocked, arms thrown forward with the hand claws spread, jaws wide; at 0.56 both feet and hands rake down through it and the jaws bite (TacticalBrain flank, x flank_mult); it rakes back and drops into its stance"
     }
   },
   "natural_speeds": {
@@ -432,16 +450,23 @@
     },
     "raptor": {
       "height_m": 3.5,
-      "run_l": 5.515,
-      "run_len": 0.5,
-      "run_r": 5.515,
-      "walk_l": 1.17,
+      "walk": 1.162,
       "walk_len": 1.0,
-      "walk_r": 1.17,
-      "walk": 1.17,
-      "run": 5.515,
-      "charge": 8.21,
-      "_note": "SP-RAPTOR: walk/run from tools/bake_clip_speeds.py --dry-run (the deinonychus gaits moved onto the raptor); charge = run x the deinonychus charge/run ratio (6.6/4.432)"
+      "walk_l": 1.162,
+      "walk_r": 1.162,
+      "run": 5.399,
+      "run_len": 0.5,
+      "run_l": 5.399,
+      "run_r": 5.399,
+      "charge": 7.918,
+      "charge_len": 0.4167,
+      "strafe_left": 1.671,
+      "strafe_left_len": 0.5833,
+      "strafe_right": 1.671,
+      "strafe_right_len": 0.5833,
+      "walk_back": 1.162,
+      "walk_back_len": 1.0,
+      "_note": "RAPTORFLANK 2026-10-31: the raptor's own make_gait.py gaits (tools/gait/raptor.json): ground speed = planned stride / cycle x 7.498 (game m per mesh unit at 3.5 m). Strafes and walk_back are baked so the sidestep no longer plays at the walk's speed (its feet slid ~20 %)."
     }
   }
 }

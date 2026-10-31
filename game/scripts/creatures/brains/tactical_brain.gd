@@ -26,7 +26,7 @@ signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn", &"flank"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -446,6 +446,7 @@ func _think(delta: float) -> void:
 		&"charge_turn": _charge_turn(delta)
 		&"display": _display(delta)
 		&"pin": _pin(delta)
+		&"flank": _flank(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
 func _roam(delta: float) -> void:
@@ -725,6 +726,8 @@ func _terminal_ready(last: StringName, d: float) -> bool:
 			return creature.anim.has_state(&"bite_combo") and creature.can_use_special(creature.special_cost(&"bite_combo")) and creature.can_sprint()
 		&"charge":
 			return creature.can_sprint() and (tac.get("charge_straight", false) or _ready_to(&"bite"))  # a homing charge ends in a bite
+		&"flank":
+			return tac.get("flank", false) and creature.anim.has_state(&"flank_rake") and creature.can_sprint() and d <= _t("flank_max_m", 16.0)
 	return false
 
 ## The offensive pick from the ring or a hold: the ambush opener while it waits for its pounce, point
@@ -801,6 +804,8 @@ func _seq_next() -> void:
 			_start_charge()
 		&"display":
 			_start_display()
+		&"flank":
+			_start_flank()
 		&"combo":
 			if _flat_dist(attack_target) <= reach_to(attack_target) and creature.try_special(&"bite_combo"):
 				_combo()
@@ -1192,7 +1197,11 @@ func _bite(charge: bool = false) -> void:
 		_beat_since_basic = false
 		_basic_streak += 1
 	creature.stop_move()
-	creature.anim.play_clip(&"attack_primary")
+	# UTAHARMS (owner 2026-10-31: the utahraptor "just needs to use its arms in the attacks too sometimes"): a rig with
+	# tactics.bite_alt plays that clip (the grab-and-bite) instead of the plain bite bite_alt_chance of the time.
+	var alt := StringName(str(tac.get("bite_alt", "")))
+	var clip := alt if alt != &"" and creature.anim.has_state(alt) and rng.randf() < _t("bite_alt_chance", 0.5) else &"attack_primary"
+	creature.anim.play_clip(clip)
 	last_bite_s = _now_s()
 	_start_cd(&"bite")
 	_set_state(&"attack")
@@ -1392,7 +1401,7 @@ func _jump_end() -> void:
 	_j_loop = &""
 	if creature and creature.view:
 		creature.view.position.y = 0.0
-	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right", &"charge_turn"]:
+	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right", &"charge_turn", &"flank_rake"]:
 		creature.anim.release_oneshot()  # landed: the clip's last frame must not hold the next strike
 	if _j_timed:
 		_j_timed = false
@@ -1547,7 +1556,162 @@ func _start_flee(seconds: float) -> void:
 	_set_state(&"flee")
 	tactic.emit(&"flee")
 
+## FLANK (tactics.flank, RAPTORFLANK; owner 2026-10-31 on the raptor: "There should be a move that's like run past,
+## turn, strafe, attack from behind"). A sequence finisher in four phases:
+##   pass   - runs at the charge gait past the prey on one side, to flank_past_m beyond its line and flank_lane_m out
+##   turn   - the charge_turn clip (a skid-turn hop): the yaw swings round to the prey, the short way, only while airborne
+##   strafe - sidesteps round the prey facing it (the strafe clips, stride-matched) on flank_ring_m toward its back (where
+##            its back was when the flank began), until it stands more than flank_behind_deg off the prey's facing (after
+##            flank_strafe_min_s, so the strafe shows). A survivor who keeps turning to face it can deny her live back;
+##            then it rakes from where her back was (# ASSUMPTION: the counter is turning, the move still finishes)
+##   rake   - the flank_rake leap from behind onto it (the brain carries the arc inside the clip's airborne window);
+##            at its hit_frac both sickle feet and the jaws must reach it (pipeline.hit_parts flank_rake), x flank_mult
+## It gives up (back to the ring) when the strafe runs out of time before it gets behind. # ASSUMPTION every number.
+var _flank_phase: StringName = &""
+var _flank_to := Vector3.ZERO
+var _flank_dir := Vector3.FORWARD
+var _flank_turn_from := 0.0
+var _flank_hit_done := false
+var _flank_landed := false
+var _flank_face0 := Vector3.FORWARD  ## the prey's facing when the flank began
+## Degrees off the prey's facing when the rake took off (tests, labs).
+var flank_behind_deg := 0.0
+
+## The way the prey faces: a survivor's model (it turns without the body), else the body.
+func _prey_facing() -> Vector3:
+	var b: Basis = (attack_target as Player).visual.global_basis if attack_target is Player and (attack_target as Player).visual else attack_target.global_basis
+	var f := -b.z
+	f.y = 0.0
+	return f.normalized() if f.length_squared() > 0.0001 else Vector3.FORWARD
+
+## How far round from the prey's facing it stands (0 = in front of it, 180 = straight behind).
+func behind_deg() -> float:
+	return rad_to_deg(_prey_facing().angle_to(_to_me()))
+
+func _start_flank() -> void:
+	_set_state(&"flank")
+	_seq = []
+	_just_disengaged = false
+	_basic_streak = 0
+	_flank_dir = -_to_me()  # toward the prey
+	_flank_face0 = _prey_facing()
+	# Past it on the side its back is nearer (the shorter strafe afterwards), else a coin flip.
+	var side_v := Vector3(-_flank_dir.z, 0.0, _flank_dir.x)
+	var s := signf(side_v.dot(-_prey_facing()))
+	if s == 0.0:
+		s = 1.0 if rng.randf() < 0.5 else -1.0
+	_flank_to = attack_target.global_position + _flank_dir * _t("flank_past_m", 3.0) + side_v * s * _t("flank_lane_m", 4.5)
+	_flank_phase = &"pass"
+	_left = _t("flank_pass_max_s", 3.0)
+	_mark_pack()
+	tactic.emit(&"flank")
+	_log("[ai] %s flank: runs past" % creature.def.id)
+
+func _flank(delta: float) -> void:
+	match _flank_phase:
+		&"pass":
+			_left -= delta
+			speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)
+			gait_clip = &"charge" if creature.anim.has_state(&"charge") else &""
+			# A carrot at most 8 m ahead on the line: Creature steers straight at a goal within 12 m when the nav map has
+			# no path yet (sparse labs), and the pass is a straight dash anyway.
+			var ahead := _flank_to - creature.global_position
+			ahead.y = 0.0
+			creature.move_to(_flank_to if ahead.length() <= 8.0 else creature.global_position + ahead.normalized() * 8.0)
+			if _flat_dist_to(_flank_to) <= _t("flank_arrive_m", 1.5) or _left <= 0.0:
+				_flank_phase = &"turn"
+				creature.stop_move()
+				_flank_turn_from = creature.rotation.y
+				var run := -creature.global_basis.z
+				run.y = 0.0
+				_jump_begin(creature.global_position + run.normalized() * _t("flank_skid_m", 1.5), &"charge_turn", 0.7, 0.0, 0.05)
+				tactic.emit(&"flank_turn")
+		&"turn":
+			var to := attack_target.global_position - creature.global_position
+			var turn := wrapf(atan2(-to.x, -to.z) - _flank_turn_from, -PI, PI)  # the short way round
+			var done := _jump_tick(delta)
+			var u := clampf((_j_t / maxf(0.01, _j_len) - _j_air.x) / maxf(0.01, _j_air.y - _j_air.x), 0.0, 1.0)
+			creature.rotation.y = _flank_turn_from + turn * u * u * (3.0 - 2.0 * u)
+			if done:
+				_jump_end()
+				_flank_phase = &"strafe"
+				_left = _t("flank_strafe_max_s", 4.0)
+				_circle_t = 0.0
+				tactic.emit(&"flank_strafe")
+		&"strafe":
+			_left -= delta
+			_circle_t += delta
+			var behind := behind_deg()
+			var behind_then := rad_to_deg(_flank_face0.angle_to(_to_me()))
+			if _circle_t >= _t("flank_strafe_min_s", 0.8) and maxf(behind, behind_then) >= _t("flank_behind_deg", 140.0) \
+					and _flat_dist(attack_target) <= _t("flank_rake_max_m", 7.0) + _size_excess(attack_target):
+				_start_flank_rake(behind)
+				return
+			if _left <= 0.0:
+				tactic.emit(&"flank_abort")
+				_end_flank()
+				_enter_circle()
+				return
+			strafe_face = attack_target
+			speed_override = _t("flank_strafe_mps", 2.2) * creature.size_scale()
+			# Toward the prey's back: the short way round, on flank_ring_m.
+			var back := -_prey_facing() if behind >= behind_then else -_flank_face0
+			var sgn := signf(_to_me().cross(back).y)
+			var step := deg_to_rad(_t("circle_step_deg", 35.0)) * (sgn if sgn != 0.0 else 1.0)
+			creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * _t("flank_ring_m", 5.5) / cos(step))
+		&"rake":
+			creature.face_towards(attack_target.global_position, delta)
+			var done := _jump_tick(delta)
+			if not _flank_hit_done and _j_t >= _j_len * CreatureClips._hit_frac(&"flank_rake"):
+				_flank_hit_done = true
+				_flank_rake_hit()
+			if done:
+				_jump_end()
+				_flank_phase = &"recover"
+				_left = _t("flank_recover_s", 0.5) if _flank_landed else _t("flank_miss_recover_s", 1.2)
+		&"recover":
+			creature.stop_move()
+			_left -= delta
+			if _left <= 0.0:
+				_end_flank()
+				_back_off()
+
+func _start_flank_rake(behind: float) -> void:
+	_flank_phase = &"rake"
+	flank_behind_deg = behind
+	_flank_hit_done = false
+	_flank_landed = false
+	creature.stop_move()
+	var land := attack_target.global_position + _to_me() * (_t("flank_land_m", 2.4) * creature.size_scale() + _size_excess(attack_target))
+	_jump_begin(land, &"flank_rake", 0.5, 0.0, _t("flank_height_per_m", 0.15))
+	tactic.emit(&"flank_rake")
+	_log("[ai] %s flank: rakes from behind (%.0f deg off its facing)" % [creature.def.id, behind])
+
+func _flank_rake_hit() -> void:
+	var tgt := attack_target
+	if _flat_dist(tgt) > reach_to(tgt) + 0.6 or not creature.part_hit(&"flank_rake", tgt):
+		_log("[ai] %s flank rake missed" % creature.def.id)
+		if tgt is Player or tgt is Creature:
+			CombatAvoid.avoided(tgt, creature, &"miss")
+		return
+	if tgt is Player and (tgt as Player).dead:
+		return
+	var mult := _t("flank_mult", 2.0)
+	_flank_landed = true
+	tactic_hit.emit(&"flank_rake", 0, mult)
+	tactic.emit(&"flank_hit")
+	if CreatureAttack.apply_for(creature, &"attack_heavy", tgt, mult) and tgt is Player:
+		(tgt as Player).receive_creature_hit(creature, &"attack_heavy")
+
+func _end_flank() -> void:
+	if _flank_phase == &"":
+		return
+	_flank_phase = &""
+	_jump_end()
+
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
+	if prev == &"flank":
+		_end_flank()
 	if prev == &"pin":
 		_end_pin()
 	if prev == &"pounce":
