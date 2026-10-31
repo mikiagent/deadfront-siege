@@ -88,6 +88,7 @@ part that needs the least. Shrink a radius when the clip or the AI spacing is fi
 |---|---|
 | allosaurus | attack_primary Jaw 2.07; attack_heavy Head 1.01; kick (shoulder ram) Chest 1.8 (its hit_parts radius) |
 | carnotaurus | attack_heavy Head 2.27; charge Head 1.75; attack_primary Jaw 2.17 |
+| dilophosaurus | attack_heavy (sickle kick) Toe.R 2.11; pounce Head 1.74 |
 | coelophysis | attack_primary Jaw 0.91; attack_heavy Jaw 0.95; bite_combo Jaw 0.90; pounce Head 1.17 |
 | compsognathus | pounce Jaw 0.97; attack_primary Jaw 0.85; attack_heavy Jaw 0.62 |
 | deinonychus | pounce Head 0.97; attack_primary Head 0.78; attack_heavy Jaw 0.82; bite_combo Jaw 0.70 |

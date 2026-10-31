@@ -498,6 +498,21 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM8** | Smaller ring as the trade-off: `perception_base` 4 (spots prey at 10.75 m by day, was 14.75), `leash_mult` 1.25 (ring 13.4 m, was 22.1), `spot_alert_s` 0.15 (no roar on spotting; it goes at once). Natures and the night bonus still scale both. | `ai.json` saber_cat | How small the ring should be against how fast it closes. |
 | **SM9** | Gaits: the run is a leaping rotary bound with a long flight (57 % of the cycle) at 6.2 m/s natural; a new lope (3.6 m/s canter) covers the walk-to-run gap so the bound never plays in slow motion, and a sprint (12.7 m/s) plays during bursts; the gait ladder picks by speed. | `tools/gait/smilodon.json`, `CreatureAnim.GAITS` | Flight share and back flex are by eye; the owner judges the strips. |
 
+
+### SP-DILOPHOSAURUS (2026-10-31) — the dilophosaurus gets a model, a frill, a venom spit and a leaping slash (claude/mmo-sp-dilophosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight". Report `docs/orchestration/reports/claude-sp-dilophosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **DL1** | Size unchanged: `height_meters` 3.6 (crest top), 10.5 m long of which half is the whip tail, hip 2.1 m; `real_length_m` 12 (the roster's 2x). The model's origin sits mid-torso (the snout is 3.2 m ahead of it), not at the bbox centre. | `dilophosaurus.json`, `dilophosaurus_frill.py` ORIGIN_Y | The sheet does not fix a size against the survivor. |
+| **DL2** | Venom from the spit only (`tactics.status_clips`), using the existing **Venom** status (0.4 HP/s, accuracy -30 %, 45 s, antivenom cures). No Blinded status exists, so none was invented. The bite and the rakes carry no status. | `dilophosaurus.json` tactics, `CreatureAttack._carries_status` | Whether the bite should also poison is a design call. |
+| **DL3** | The spit: from 3.5-11 m, 6 s cooldown, a 1.0 m ring on the prey that follows her until the glob leaves at the clip's 62 % frame, then a 16 m/s glob at where she stood (no homing). Stepping out of the ring or rolling in it dodges. x0.6 attack. | `tactics` spit_*, `VenomSpit` | Range, speed, radius and damage are first-pass numbers. |
+| **DL4** | One-shots: at the old stat block (attack 210) a fresh 100 HP survivor dies to one spit (~85), one snap (~207) or the leaping slash (~210). | `dilophosaurus.json` stats | Balance pass (venom never gets to tick on a fresh survivor). |
+| **DL5** | `venom_ranged` attack_range 2.4 -> 3.0 (only the dilophosaurus uses it), so the snap reaches what the snout reaches. | `ai.json` | Shared archetype number. |
+| **DL6** | Hits land from the body part (`pipeline.hit_parts`: snap from Head/Jaw, rake from the right foot, leaping slash from either foot or the jaws); the hitbox system had not landed on canon. | `dilophosaurus.json` pipeline | Swap for the hitbox system when it lands. |
+| **DL7** | The frill is a single double-sided sheet folded along the neck at rest, so the folded frill shows as a yellow ruff along the neck in idle and the gaits. Alpha = sheet 2 as a recolour plus a repainted orange frill. No saddle (tamed role is combat only). | `dilophosaurus_frill.py`, `dilophosaurus_alpha_skin.py` | A skin-coloured outer face when folded would need a second paint region. |
+
 ### SP-CARNOTAURUS (2026-10-30) — new species (claude/mmo-sp-carnotaurus)
 
 Owner: "fast bull-like predator: horn ram that knocks the target back, sprint charge with a sharp turn, snap bite". The PRDs say nothing about the Carnotaurus. Report `docs/orchestration/reports/claude-sp-carnotaurus.md`.
