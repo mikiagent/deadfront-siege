@@ -6,6 +6,7 @@
       "windup": false
     },
     "attack_heavy": {
+      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
       "hit_frac": 0.72,
       "windup": true,
       "windup_hold": 0.6
@@ -114,6 +115,7 @@
       "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
     },
     "pin_stab": {
+      "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)",
       "hit_frac": 0.38,
       "hit_fracs": [
         0.38,
@@ -357,6 +359,19 @@
       "strafe_right": 0.845,
       "walk_back": 0.845,
       "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684)"
+    },
+    "raptor": {
+      "height_m": 3.5,
+      "run_l": 5.515,
+      "run_len": 0.5,
+      "run_r": 5.515,
+      "walk_l": 1.17,
+      "walk_len": 1.0,
+      "walk_r": 1.17,
+      "walk": 1.17,
+      "run": 5.515,
+      "charge": 8.21,
+      "_note": "SP-RAPTOR: walk/run from tools/bake_clip_speeds.py --dry-run (the deinonychus gaits moved onto the raptor); charge = run x the deinonychus charge/run ratio (6.6/4.432)"
     }
   }
 }

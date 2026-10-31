@@ -365,6 +365,12 @@
           "species": "stegosaurus",
           "count": 1,
           "groups": 1
+        },
+        {
+          "species": "raptor",
+          "count": 2,
+          "groups": 1,
+          "chance": 0.7
         }
       ]
     },
@@ -413,6 +419,12 @@
           "count": 1,
           "groups": 1,
           "chance": 0.3
+        },
+        {
+          "species": "raptor",
+          "count": 2,
+          "groups": 1,
+          "chance": 0.7
         }
       ]
     },
