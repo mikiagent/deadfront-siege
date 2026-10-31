@@ -12,7 +12,7 @@ How to read it:
 - **alpha**: each group rolls 8% once; on a hit its first member is an alpha (`ai.json` `alpha.chance_per_group`). Islands with `no_alphas` never roll.
 - **tameable**: the written species' `tameable` flag. At most 24 creatures spawn per island (`Game.max_creatures_per_island`), so late rows on a crowded island can be cut.
 
-**Models:** 15 of 20 species have one (Smilodon added by SP-SMILODON). No model yet: Allosaurus (`allosaurus`), Brachiosaurus (`brachiosaurus`), Dilophosaurus (`dilophosaurus`), Tarbosaurus (`tarbosaurus`). Retired (model removed, never spawns): Protoceratops (`protoceratops`).
+**Models:** 16 of 20 species have one (Smilodon added by SP-SMILODON, Tarbosaurus by SP-TARBOSAURUS). No model yet: Allosaurus (`allosaurus`), Brachiosaurus (`brachiosaurus`), Dilophosaurus (`dilophosaurus`). Retired (model removed, never spawns): Protoceratops (`protoceratops`).
 
 ## Grassland
 
@@ -185,7 +185,7 @@ Islands: `tundra_30` (L30, unstable), `tundra_55` (L55, unstable).
 | **Megaloceros** (`megaloceros`) | `tundra_30`, `tundra_55` | L25-38 | 4 | yes | in game |
 | **Smilodon** (`smilodon`) | `tundra_30`, `tundra_55` | L35-38 | 2 | yes | spawns as smilodon (model since SP-SMILODON) |
 | **Smilodon** (`smilodon`) | `tundra_55` | L25 | 1 | yes | spawns as smilodon (model since SP-SMILODON) |
-| **Tarbosaurus** (`tarbosaurus`) | `tundra_55` | L35 | 1 | yes | no model yet: spawns fall through to megaloceros |
+| **Tarbosaurus** (`tarbosaurus`) | `tundra_55` | L35 | 1 | yes | model (SP-TARBOSAURUS): spawns as itself |
 
 ### `tundra_30` (L30, unstable)
 
@@ -205,7 +205,7 @@ Islands: `tundra_30` (L30, unstable), `tundra_55` (L55, unstable).
 | working | Smilodon | 2 × 1 | 100% | L25 | 8%/group | yes | spawns as smilodon (model since SP-SMILODON) |
 | working | Velociraptor | 4 × 1 | 100% | L25 | 8%/group | yes | in game |
 | crater | Smilodon | 3 × 1 | 100% | L38 | 8%/group | yes | spawns as smilodon (model since SP-SMILODON) |
-| far_shore | Tarbosaurus | 1 × 1 | 100% | L35 | 8%/group | yes | no model yet: spawns fall through to megaloceros |
+| far_shore | Tarbosaurus | 1 × 1 | 100% | L35 | 8%/group | yes | model (SP-TARBOSAURUS): spawns as itself |
 
 ## Desert
 
