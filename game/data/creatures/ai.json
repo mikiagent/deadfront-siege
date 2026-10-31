@@ -1,5 +1,25 @@
 {
   "_about": "Creature AI archetype tuning for M9a. Distances are metres on 1 m tiles.",
+  "thero_roar": {
+    "_about": "THERO-ROAR (owner 2026-10-31): the shared rearing roar of the big theropods (TheroRoar; any rig with a roar clip). cooldown_s: seconds between roars of one animal (the once-per-encounter guard on aggro). The burst: shake = lerp(shake[0], shake[1]) by height across size_range_m, fading to 0 at shake_range_h body heights from the animal; ring_h: the ground shockwave's radius in body heights. Every number an ASSUMPTION. species.<id>: overrides (enabled false opts a rig out).",
+    "cooldown_s": 30.0,
+    "shake": [0.35, 0.8],
+    "size_range_m": [4.0, 10.5],
+    "shake_range_h": 6.0,
+    "ring_h": 1.6,
+    "species": {}
+  },
+  "spacing_stomp": {
+    "_about": "SPACING STOMP (owner 2026-10-31: 'for animals that have weird hitboxes (like trex style where they hang over their legs) add a stomp mechanic that tosses the player backwards to the perfect range of a chomp style attack. Make the ground shake'). SpacingStomp, on any rig with a spacing_stomp clip. It fires when the target stands ahead of the hips (no further back than behind_frac body radii) but closer than the bite's jaw reach less inner_margin_m, within width_frac body radii to the side, and the bite's hitbox sweep misses her. The slam: a dust ring ring_h body heights wide, the roar's ground shake x shake_mult, damage_mult of its attack, and a shove + knockdown that lands her at the bite's reach; then the follow-up bite. cooldown_s between stomps. Every number an ASSUMPTION. species.<id>: overrides (enabled false opts out).",
+    "inner_margin_m": 0.8,
+    "behind_frac": 0.3,
+    "width_frac": 0.9,
+    "ring_h": 0.9,
+    "shake_mult": 1.0,
+    "damage_mult": 0.15,
+    "cooldown_s": 4.0,
+    "species": {}
+  },
   "default": {
     "cornered": {
       "_about": "CORNERED (owner 2026-10-31: 'Animals that run away from you should get territorial and attack you if you chase them'). ASSUMPTION: while fleeing, a threat within radius_m moving at it at pursuit_mps or more builds pressure (seconds; each hit adds hit_s; decays at decay x time when not pressed); at pressure_s, or chase_m metres of pursuit, it turns, plays the first display_clips clip it has for display_s, then fights with its own attacks for fight_s; under weak_frac HP it runs again. Override per species/archetype with a 'cornered' block in tactics; enabled false turns it off. BrainCornered.",

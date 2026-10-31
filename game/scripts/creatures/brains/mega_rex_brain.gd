@@ -7,6 +7,8 @@ extends TyrantBrain
 ##      telegraph is shorter.
 ##   3 (<= 33 %): enraged: she roars on entering it and again every ROAR_COOLDOWN in melee (survivors and small creatures
 ##      around her stagger), and attacks faster with even shorter telegraphs and recoveries.
+## THERO-ROAR: each phase change (into 2 and into 3) opens with her roar at the next attack (the rearing roar clip, its
+## burst on the impact); the phase-3 repeats keep ROAR_COOLDOWN. # ASSUMPTION: the phase-2 roar staggers like phase 3's.
 ## ASSUMPTION: the phase cut-offs, windup and recovery scales, roar radius/size/cooldown below are first guesses.
 
 const PHASE2 := 0.66
@@ -24,6 +26,8 @@ const ROAR_COOLDOWN := 14.0
 static var _bosses: Array[MegaRexBrain] = []
 var boss_phase := 1
 var roar_ready_at := 0.0
+## THERO-ROAR: a phase change (2 or 3) opens with the roar at her next attack.
+var phase_roar := false
 
 func _enter_tree() -> void:
 	if not _bosses.has(self):
@@ -50,6 +54,7 @@ func _update_phase() -> void:
 		return
 	boss_phase = p
 	creature.status_float.emit(StringName("phase %d" % p))
+	phase_roar = true
 	if p == 3:
 		creature.statuses.apply(&"enraged", creature, 1)
 		roar_ready_at = 0.0  # enraged: the roar opens phase 3
@@ -61,11 +66,14 @@ func _think(delta: float) -> void:
 	super._think(delta)
 
 func _special_attack(offset: Vector3) -> bool:
-	if boss_phase < 3 or Time.get_ticks_msec() * 0.001 < roar_ready_at or not creature.anim.has_state(&"alert"):
+	var due := phase_roar or (boss_phase == 3 and Time.get_ticks_msec() * 0.001 >= roar_ready_at)
+	var clip := TheroRoar.CLIP if TheroRoar.has_roar(creature) else &"alert"  # THERO-ROAR: the rearing roar where the rig has it
+	if not due or not creature.anim.has_state(clip):
 		return false
+	phase_roar = false
 	roar_ready_at = Time.get_ticks_msec() * 0.001 + ROAR_COOLDOWN
 	locked_forward = offset.normalized() if offset.length_squared() > 0.0001 else -creature.global_basis.z
-	windup_clip = &"alert"
+	windup_clip = clip
 	phase = &"windup"
 	phase_left = _windup_s(windup_clip)
 	creature.anim.play_timed_attack(windup_clip, phase_left)
@@ -83,11 +91,12 @@ func _pick_attack() -> StringName:
 	return &"attack_primary"
 
 func _windup_s(clip: StringName) -> float:
-	var base: float = {&"bite_shake": 0.75, &"alert": 1.0}.get(clip, super._windup_s(clip))
+	var base: float = {&"bite_shake": 0.75, &"alert": 1.0, &"roar": 1.0}.get(clip, super._windup_s(clip))
 	return base * float(WINDUP_SCALE[boss_phase - 1])
 
 func _recovery_s(clip: StringName) -> float:
-	var base: float = {&"bite_shake": 1.75, &"alert": 1.4}.get(clip, super._recovery_s(clip))
+	# roar: the rest of the rearing roar after its burst (3.4 s clip, burst at 0.34), so she settles before she moves
+	var base: float = {&"bite_shake": 1.75, &"alert": 1.4, &"roar": 2.2}.get(clip, super._recovery_s(clip))
 	return base * float(RECOVERY_SCALE[boss_phase - 1])
 
 ## Small enough to be lifted in her jaws and shaken.
@@ -97,8 +106,10 @@ static func can_grab(who: Node) -> bool:
 	return who is Creature and (who as Creature).def != null and (who as Creature).def.height_meters <= GRAB_HEIGHT
 
 func _impact_special() -> bool:
-	if windup_clip == &"alert":
+	if windup_clip == &"alert" or windup_clip == TheroRoar.CLIP:
 		roar()
+		if windup_clip == TheroRoar.CLIP:
+			TheroRoar.burst(creature)
 		return true
 	if windup_clip != &"bite_shake":
 		return false

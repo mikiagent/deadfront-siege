@@ -169,7 +169,9 @@
       "knockdown",
       "death",
       "sleep",
-      "feed"
+      "feed",
+      "roar",
+      "spacing_stomp"
     ]
   },
   "tactics": {

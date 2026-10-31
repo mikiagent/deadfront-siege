@@ -151,13 +151,9 @@ func _step(delta: float) -> void:
 func _land() -> void:
 	_clear_telegraph()
 	_dust(spot)
+	var s: Array = cfg.get("shake", [0.45, 0.9])
+	last_shake = shake_at_spot(spot, lerpf(float(s[0]), float(s[1]), size_t()), near_radius() * _num("shake_range", 3.0))
 	var local := PlayerRegistry.local()
-	if local:
-		var s: Array = cfg.get("shake", [0.45, 0.9])
-		var fall := clampf(1.0 - flat(local.global_position, spot) / (near_radius() * _num("shake_range", 3.0)), 0.0, 1.0)
-		last_shake = lerpf(float(s[0]), float(s[1]), size_t()) * fall
-		if last_shake > 0.0:
-			IsoCamera.shake(local, last_shake)
 	last = &"clear"
 	var victims: Array[Node3D] = []
 	var tgt := creature.brain.attack_target if creature.brain else null
@@ -234,8 +230,23 @@ func _clear_telegraph() -> void:
 	telegraph = null
 
 ## A short dust burst where the foot lands (one-shot particles, freed when done).
+## The ground shake on the local survivor from a slam at `at`: amount, fading to 0 at range_m. Returns what it asked of
+## IsoCamera (before its reduce-shake setting). Shared: THERO-ROAR's burst and SPACING STOMP's slam use it too.
+static func shake_at_spot(at: Vector3, amount: float, range_m: float) -> float:
+	var local := PlayerRegistry.local()
+	if local == null:
+		return 0.0
+	var out := amount * clampf(1.0 - flat(local.global_position, at) / maxf(0.01, range_m), 0.0, 1.0)
+	if out > 0.0:
+		IsoCamera.shake(local, out)
+	return out
+
 func _dust(at: Vector3) -> void:
-	var parent := creature.get_parent()
+	dust(creature.get_parent(), at, height(), direct_radius())
+
+## A dust burst kicked up from a ring of `radius` at `at` by something `h` metres tall (one-shot particles, freed when
+## done). Shared with THERO-ROAR and SPACING STOMP.
+static func dust(parent: Node, at: Vector3, h: float, radius: float) -> void:
 	if parent == null or DisplayServer.get_name() == "headless":
 		return
 	var p := CPUParticles3D.new()
@@ -245,18 +256,18 @@ func _dust(at: Vector3) -> void:
 	p.lifetime = 1.1
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
 	p.emission_ring_axis = Vector3.UP
-	p.emission_ring_radius = direct_radius()
-	p.emission_ring_inner_radius = direct_radius() * 0.5
+	p.emission_ring_radius = radius
+	p.emission_ring_inner_radius = radius * 0.5
 	p.emission_ring_height = 0.1
 	p.direction = Vector3.UP
 	p.spread = 70.0
-	p.initial_velocity_min = 1.5 + 0.3 * height()
-	p.initial_velocity_max = 3.0 + 0.5 * height()
+	p.initial_velocity_min = 1.5 + 0.3 * h
+	p.initial_velocity_max = 3.0 + 0.5 * h
 	p.gravity = Vector3(0, -4.0, 0)
 	p.damping_min = 2.0
 	p.damping_max = 4.0
-	p.scale_amount_min = 0.4 + 0.08 * height()
-	p.scale_amount_max = 0.8 + 0.15 * height()
+	p.scale_amount_min = 0.4 + 0.08 * h
+	p.scale_amount_max = 0.8 + 0.15 * h
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.5
 	mesh.height = 1.0

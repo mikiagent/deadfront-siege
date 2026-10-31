@@ -1,0 +1,16 @@
+{
+  "_about": "THERO-ROAR: per-species numbers for tools/gait/make_thero_roar.py (the shared rearing roar). Angles in degrees, rise/back in hip heights. secs: clip length; rear_pitch: body nose-up on the hips; chest_pitch: spread over Spine1..Chest; neck_pitch: Neck1 up (Neck2 takes back 0.4 of it); head_up: the head thrown up at the start and end of the sweep; dip: how far the neck dips forward in the middle of the sweep; sweep: the snout heading's total yaw sweep; jaw: the roar's gape (each species' tested alert maximum); tail_hold: fraction of the rear the tail root takes back (the rest droops: the counterweight); tail_swing: tail yaw against the head; arms: raise, spread (outward), flex (elbow), curl (hand). stomp_secs / stomp_lift: the spacing stomp clip's length and how high the right foot is hauled (hip heights). Every number an ASSUMPTION, tuned on the review renders. The carnotaurus (a transplant rig with other bone names) authors the same two clips in make_carno_moves.py (roar, spacing_stomp), built by build_carnotaurus.sh.",
+  "default": {"secs": 3.0, "rear_pitch": 22, "chest_pitch": 10, "neck_pitch": 14, "head_up": 18, "dip": 16, "sweep": 250,
+              "rise": 0.12, "back": 0.06, "jaw": 36, "tail_hold": 0.45, "tail_swing": 6,
+              "arm_raise": 55, "arm_spread": 18, "arm_flex": 45, "hand_curl": 30,
+              "stomp_secs": 1.0, "stomp_lift": 0.3},
+  "species": {
+    "ceratosaurus": {"secs": 2.8, "jaw": 32},
+    "allosaurus": {"secs": 2.9, "jaw": 42},
+    "majungasaurus": {"secs": 2.8, "jaw": 34},
+    "tarbosaurus": {"secs": 3.1, "jaw": 40},
+    "tyrannosaurus": {"secs": 3.2, "jaw": 46},
+    "megarex": {"secs": 3.4, "jaw": 46},
+    "spinosaurus": {"secs": 3.2, "jaw": 30}
+  }
+}

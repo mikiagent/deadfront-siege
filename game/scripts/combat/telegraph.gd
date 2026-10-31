@@ -108,7 +108,7 @@ static func show_tyrant(creature: Creature, radius: float, duration: float, clip
 	t._life = duration + 0.15
 	var label := Label3D.new()
 	label.text = {&"attack_heavy": "STOMP - ROLL OR GET BEHIND", &"tail_swipe": "TAIL - ROLL OR GET CLEAR",
-			&"bite_shake": "BITE & SHAKE - ROLL OR GET BEHIND", &"alert": "ROAR - GET CLEAR"}.get(clip, "BITE - ROLL OR GET BEHIND")
+			&"bite_shake": "BITE & SHAKE - ROLL OR GET BEHIND", &"alert": "ROAR - GET CLEAR", &"roar": "ROAR - GET CLEAR"}.get(clip, "BITE - ROLL OR GET BEHIND")
 	label.position.y = 2
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 32

@@ -102,6 +102,9 @@ func _holds_flee() -> bool:
 
 ## BIGSTOMP: the shared big-dinosaur stomp (null for an animal without one); ticked before the brain's own think.
 var stomp: BigStomp
+## SPACING STOMP: the overhanging theropods' stomp that shoves prey tucked under the chest out to bite reach (null for an
+## animal without one); ticked before the brain's own think.
+var spacing: SpacingStomp
 
 func setup(c: Creature) -> void:
 	creature = c
@@ -116,6 +119,7 @@ func setup(c: Creature) -> void:
 	_roam_cd = randf_range(0.1, 0.6)
 	_think_phase = randi() % _think_every()
 	stomp = BigStomp.for_creature(c)
+	spacing = SpacingStomp.for_creature(c)
 	cornered.setup()
 
 ## The player stays on the ground until respawn. Relocate every dinosaur that was fighting
@@ -195,6 +199,14 @@ func aggro_radius() -> float:
 	return maxf(26.0 if StructureHealth.is_structure(attack_target) else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
 
 ## True while this creature is actively on the survivor (ring shown).
+## SPACING STOMP: free to stomp: fighting a live target, no one-shot playing, no move of its own carrying the body.
+func spacing_ready() -> bool:
+	return state in COMBAT_STATES and _valid_target() and not creature.anim.is_busy() and not _body_committed()
+
+## A move of the brain's own that owns the body right now (TyrantBrain's timed phases, TacticalBrain's leaps and charges).
+func _body_committed() -> bool:
+	return false
+
 func hunting_player() -> bool:
 	if attack_target == null or not is_instance_valid(attack_target):
 		return false
@@ -227,6 +239,8 @@ func _physics_process(delta: float) -> void:
 		return  # PINFEEL: holding a victim under its foot; Creature._tick_pin owns the body until the pin ends
 	if stomp != null and stomp.tick(delta, self):
 		return  # BIGSTOMP: the stomp owns the body until the clip is done
+	if spacing != null and spacing.tick(delta, self):
+		return  # SPACING STOMP: the stomp owns the body until its clip ends and the follow-up bite starts
 	_think_dt += delta
 	_face_target(delta)
 	_frame_n += 1
@@ -320,8 +334,12 @@ func on_aggro(who: Node) -> void:
 			BrainRest.keep_awake(self)  # hurt animals do not doze off at the leash edge
 		# Do not downgrade combat states (retreat/flee/approach/attack) back to alert.
 		if state == &"roam" or state == &"sleep" or state == &"disengage" or state == &"downed":
+			var woke := state == &"roam" or state == &"sleep"
 			_set_state(&"alert")
 			_alert_left = 0.6
+			if woke and TheroRoar.try_roar(creature):  # THERO-ROAR: a big theropod answers its first hit with the roar
+				creature.stop_move()
+				_alert_left = TheroRoar.duration(creature)
 			_propagate_alert(who as Node3D)
 		elif state == &"alert":
 			_alert_left = maxf(_alert_left, 0.35)
@@ -481,7 +499,9 @@ func _spot(who: Node3D) -> void:
 	_alert_left = maxf(_alert_left, look)
 	creature.mark_aggro_now()
 	creature.stop_move()  # it stops to look: the pose one-shot must not glide along the roam path
-	if look >= 0.3:
+	if TheroRoar.try_roar(creature):
+		_alert_left = maxf(_alert_left, TheroRoar.duration(creature))  # THERO-ROAR: it rears and roars, then comes
+	elif look >= 0.3:
 		creature.anim.play_clip(&"sniff" if creature.anim.has_state(&"sniff") else &"alert")
 	_propagate_alert(who)
 
