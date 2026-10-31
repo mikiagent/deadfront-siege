@@ -107,6 +107,8 @@
       "mass_kg": 398.57,
       "reparent": {"BackFoot.L": "BackLowLeg.L", "BackFoot.R": "BackLowLeg.R"},
       "hit_react_s": 0.259,
+      "lie_frac": 0.62,
+      "_lie_frac": "SP-DEINONYCHUS v4 (# ASSUMPTION DN6): the stiff feathered tail fan and the folded wings prop the carcass; it settles with the hips at 47-57 % of standing (0.62-0.76 m of 1.33 m) on its side.",
       "bodies": [
         {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.5, "mass_frac": 0.36, "angular_damp": 3.442},
         {"bone": "Shoulders", "radius": 0.25, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 20, "twist": 10, "axis": [1, 0, 0], "min": -35, "max": 15}},
