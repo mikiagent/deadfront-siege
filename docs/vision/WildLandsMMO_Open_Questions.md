@@ -516,6 +516,19 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **CE4** | Water-edge ambush: when a dry bank beside the river (within 9 m of its centre line) or the shore is within 40 m of home it lurks there and opens with the lunge (ambush radius 10 m, 15 m for a turned back); with no water near home, or in the lab, it hunts in the open. Spawns: swamp_55 working ring (1) and tropical_40 working ring (1, 60 %). | `TacticalBrain._find_water_edge`, `islands.json` | Where it lives and how sneaky it is. |
 | **CE5** | Alpha = the owner's sheet 2 (camo olive/dark brown/cream, orange throat and belly) as a recolour of the regular texture: same mesh, so the alpha's bigger blocky nasal crest and taller brow horns are not there (no second generation). | `ceratosaurus_alpha_albedo.jpg` | A separate alpha mesh would cost one Tripo generation. |
 
+### SP-TRIKEALPHA (2026-10-31) — the Alpha triceratops gets its own bull-horned body (claude/mmo-sp-trikealpha)
+
+Owner: "whatever happened to that bulky triceratops with the bull horns, is that in?". Report `docs/orchestration/reports/claude-sp-trikealpha.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TA1** | The Alpha body is a separate model (`model_variants.alpha`) worn by every alpha triceratops (wild rolled alphas, the lab's Alpha toggle, tamed alphas); regular triceratops keep the regular body. | `triceratops.json`, `Creature.spawn` | The owner may want it as its own rarer morph instead of every alpha. |
+| **TA2** | Tripo views were made with the beak closed (the sheet's open mouth would bake an open jaw into the rest pose); the jaw bone opens it in the roar, attacks and feed. | `alpha/ref/` | If the gaping mouth is the look he wants, the idle needs a held jaw-open pose. |
+| **TA3** | Same 4.645 m height as the regular, so the Alpha is 10.9 m beak to tail (longer, lower, wider); alpha genetics then scale it up 1.1-1.3x like any alpha. | `prep.py` scale, `height_meters` | Could be made taller. |
+| **TA4** | Signature: a landed charge ends in the bull-horn toss: head driven low, then a twist to its right that throws the survivor 5 m sideways (toss_side_m), 1.5 m along the line, lifted 4.5 m/s, 1.2 s stagger; charge cooldown 6 s (regular 8). | `model_variants.alpha.tactics`, `TacticalBrain._charge_impact` | Balance and feel. |
+| **TA5** | The Alpha's horn hits are judged at the Head bone with 2.4-2.6 m radii (no horn bones on the regular's rig layout; hitboxes not on canon). | `model_variants.alpha.hit_parts`, `Creature.part_hit` | Move to the hitbox system when it lands. |
+| **TA6** | A ridden mount never plays its strafe clips (it turns into its heading); the slow-turning Alpha played strafes under the rider. | `PlayerPets.mounted_move` | Affects every mount with strafe clips (megaloceros, rhino, smilodon...). |
+
 ### SP-RAPTOR (2026-10-31) — the Raptor, a new rideable dromaeosaur with colour morphs (claude/mmo-sp-raptor)
 
 Owner: "black and gold is the original raptor (idk just call it Raptor)", "raptor is big enough though" (to ride), "it comes in different colors including green and different feathers". Report `docs/orchestration/reports/claude-sp-raptor.md`.
