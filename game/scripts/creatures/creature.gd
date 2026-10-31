@@ -91,6 +91,10 @@ var _fx_drip: GPUParticles3D
 var _aggro_ring: MeshInstance3D
 ## Stagger: 0.3 s frozen hurt window after a hit, at most once per second.
 var stagger_left: float = 0.0
+## Shove (the survivor's kick): slid along _shove_v, decaying to 0 over _shove_s, while staggered.
+var _shove_v := Vector3.ZERO
+var _shove_s: float = 0.0
+var _shove_left: float = 0.0
 var _stagger_immune_until: float = -1.0
 var _aggro_ring_r: float = -1.0
 var _aggro_ring_t: float = 0.0
@@ -577,9 +581,11 @@ func _physics_process(delta: float) -> void:
 	stagger_left = maxf(0.0, stagger_left - delta)
 	if pin_victim != null:
 		_tick_pin(delta)
+	_shove_left = maxf(0.0, _shove_left - delta)
 	if health.dead or pin_victim != null or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
-		velocity.x = 0.0
-		velocity.z = 0.0
+		var k := _shove_left / _shove_s if _shove_s > 0.0 and not health.dead else 0.0
+		velocity.x = _shove_v.x * k
+		velocity.z = _shove_v.z * k
 		_slide()
 		_update_label()
 		return
@@ -685,6 +691,18 @@ func _physics_process(delta: float) -> void:
 		var drain := hunger_max / 1800.0 * delta * (1.0 / maxf(0.5, pet_record.hunger_efficiency))
 		hunger = maxf(0.0, hunger - drain)
 		pet_record.hunger = hunger
+
+## Shove the body `push` metres (flat) over `seconds`, staggered meanwhile; the slide respects walls and props.
+## TELEPORT FIX (owner 2026-10-31: "Pachy is teleporting", "Smilodon kind of teleports too"): the survivor's kick
+## moved the target its whole 3.5 m push in one physics frame (move_and_collide); now it slides there.
+func shove(push: Vector3, seconds: float) -> void:
+	push.y = 0.0
+	if seconds <= 0.0 or push.length_squared() <= 0.0:
+		return
+	_shove_s = seconds
+	_shove_left = seconds
+	_shove_v = push * (2.0 / seconds)  # linear decay from 2d/T to 0 covers d metres
+	stagger_left = maxf(stagger_left, seconds)
 
 ## An animal standing still on the ground has nothing to slide (most of the idle cost), so it
 ## slides only every IDLE_SLIDE_EVERY frames: often enough to notice a floor that went away. The
