@@ -112,6 +112,11 @@
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
+    "bite_shake": {
+      "hit_frac": 0.3,
+      "windup": true,
+      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
+    },
     "toss": {
       "hit_frac": 0.3,
       "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
@@ -296,6 +301,23 @@
       "strafe_left_len": 0.917,
       "strafe_right": 1.329,
       "strafe_right_len": 0.917
+    },
+    "megarex": {
+      "height_m": 10.4,
+      "run_l": 5.957,
+      "run_len": 0.917,
+      "run_r": 5.956,
+      "walk_l": 2.018,
+      "walk_len": 1.417,
+      "walk_r": 2.018,
+      "walk": 2.018,
+      "run": 5.957,
+      "strafe_left": 2.018,
+      "strafe_left_len": 1.417,
+      "strafe_right": 2.018,
+      "strafe_right_len": 1.417,
+      "walk_back": 2.018,
+      "walk_back_len": 1.417
     },
     "tyrannosaurus": {
       "height_m": 8.0,

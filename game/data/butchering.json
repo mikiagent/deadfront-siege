@@ -686,6 +686,37 @@
           }
         }
       ]
+    },
+    "megarex": {
+      "base": [
+        {
+          "id": "raw_meat",
+          "min": 12,
+          "max": 20
+        },
+        {
+          "id": "large_leg_bone",
+          "min": 4,
+          "max": 7
+        },
+        {
+          "id": "raw_hide",
+          "min": 3,
+          "max": 6
+        },
+        {
+          "id": "dense_bone",
+          "min": 2,
+          "max": 3
+        },
+        {
+          "id": "skull_plate",
+          "min": 1,
+          "max": 1
+        }
+      ],
+      "rare": [],
+      "_generated": "MEGAREX: the T. rex rows, about 1.5x (a 1.3x bigger animal). ASSUMPTION"
     }
   }
 }
