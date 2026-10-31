@@ -18,7 +18,7 @@ The PNG at `.claude/worktrees/species-ref/raptor_size_comparison.png` is a singl
 
 | species | on-screen length (m) | height_meters | real_length_m | saddle class |
 |---|---|---|---|---|
-| velociraptor | 6.53 -> **2.88** | 2.4 -> **1.06** | 6.0 -> **3.6** | medium -> **small** |
+| velociraptor | 6.53 -> **2.88** | 2.4 -> **1.06** | 6.0 -> **3.6** | medium -> **none (not a mount)** |
 | deinonychus | 3.35 -> **4.81** | 2.0 -> **2.87** | 10.2 -> **6.0** | small -> **medium** |
 | utahraptor | 9.69 -> **11.19** | 4.0 -> **4.62** | 11.0 -> **14.0** | medium |
 
@@ -47,3 +47,15 @@ Pen tiers: velociraptor small; deinonychus medium (set by its value); utahraptor
 ## Gates
 
 t_raptorfeel, t_combat, t_canim, t_tame, t_stationstate, t_mounts, t_noboxes, t_saddles, t_kicktackle PASS; `run_all.gd` [tests] PASS; `tools/smoke.sh --no-import` SMOKE PASS. t_genetics, t_tactical, t_turnrate, t_capture09, t_tamingodds, t_swarm, t_energy, t_boneparts, t_dodgetext also PASS.
+
+## Round 2 (owner answer 2026-10-30): velociraptor is not a mount
+
+Milan: "velociraptor is too small to ride, raptor is big enough though". Kept the chart-ratio sizes (option A) and 2x real_length_m.
+- `velociraptor.json` tamed_role is now `["scout"]` (no `mount`); the pet radial's ride row says "Cannot be ridden".
+- `mounts_skip.json` lists the velociraptor: Torso bone 0.45 m, back (old seat point) 0.66 m at height 1.06, limit 1.056 m < rider 1.78 m.
+- `game/assets/creatures/velociraptor/mount/` (mount.json, saddle.glb) removed, as the rule says a skipped species ships no saddle.
+- `t_saddles` now checks that a velociraptor cannot be ridden; `saddles_lab` shows a deinonychus.
+- Merged origin/claude/mmo-overhaul (03aa14b1).
+
+Gates after the merge: t_raptorfeel, t_combat, t_canim, t_tame, t_stationstate, t_noboxes, t_saddles, t_kicktackle PASS; run_all [tests] PASS; SMOKE PASS.
+**t_mounts FAILS on the merged canon, not from this branch:** "triceratops has no saddle and is not in mounts_skip.json". The canon now ships a triceratops model with the mount role and no saddle (the trikeland work). The velociraptor part of t_mounts is clean: saddled=10. The triceratops needs a saddle or a mounts_skip entry from whoever owns it.

@@ -86,8 +86,8 @@ func _run() -> void:
 
 func _test_sizes() -> void:
 	_expect(PR.saddle_size(data.creature(&"zebraceratops")) == &"small", "zebraceratops takes a small saddle")
-	# RAPTORSCALE 2026-10-30: the velociraptor is 1.06 m tall now (small); the deinonychus, 2.87 m, is the medium one.
-	_expect(PR.saddle_size(data.creature(&"velociraptor")) == &"small", "velociraptor takes a small saddle")
+	# RAPTORSCALE 2026-10-30: the velociraptor (1.06 m) is too small to ride (owner); the deinonychus, 2.87 m, is the medium one.
+	_expect(PR.from_def(data.creature(&"velociraptor"), &"A").ride_refusal() == "Cannot be ridden", "a velociraptor cannot be ridden")
 	_expect(PR.saddle_size(data.creature(&"deinonychus")) == &"medium", "deinonychus takes a medium saddle")
 	_expect(PR.saddle_size(data.creature(&"tyrannosaurus")) == &"large", "tyrannosaurus takes a large saddle")
 

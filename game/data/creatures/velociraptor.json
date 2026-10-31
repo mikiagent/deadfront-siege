@@ -23,7 +23,6 @@
   },
   "turn_rate": 5.0,
   "tamed_role": [
-    "mount",
     "scout"
   ],
   "variants": [
