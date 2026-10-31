@@ -134,10 +134,6 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	_slide_phase = _slide_counter
 	pack_id = p_pack
 	add_to_group("creatures")
-	view.setup(def, variant)
-	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
-	# old 26 m cut-off culled every creature mesh and only the plates showed.
-	_set_vis_range(view, 0.0)
 	if genetics == null:
 		# The colour roll is seeded off the animal's identity (spawn point), so a wild individual
 		# keeps its colours when the caller reuses a seeded genetics roll for it.
@@ -147,6 +143,13 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		genetics = CreatureGenetics.for_species(def, null, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
 	if alpha_spawn and not genetics.alpha:
 		genetics.make_alpha()
+	# SP-SMILODON: an alpha rolled by the genetics above (not asked for with alpha_spawn) wears the alpha skin too.
+	if p_variant == &"" and is_alpha() and CreatureView.model_variants(def).has("alpha"):
+		variant = &"alpha"
+	view.setup(def, variant)
+	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
+	# old 26 m cut-off culled every creature mesh and only the plates showed.
+	_set_vis_range(view, 0.0)
 	# One colour profile per individual, kept on the genetics record so taming carries it over.
 	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
 	if pet_record:  # SADDLES: the equipped saddle shows on the back, ridden or not

@@ -4,7 +4,7 @@ extends StaticBody3D
 ## (persist_building = false), so StructureHealth never counts it as a structure (no creature or
 ## siege damage), pack-up refuses it ("Camp pieces stay put"), and its grid cells are occupied, so
 ## nothing is built over it. Roles: "guild" (the Faction Hall's desk, FACTIONS: a tap opens the Orders
-## sheet with the tutorial orders while they run, then the Factions screen), "faction_board" (a faction's
+## sheet with the tutorial orders while they run, then the Factions screen; "adventurers_guild" does the same), "faction_board" (a faction's
 ## mission board: the Factions screen on `faction`), "market" (a stall; a tap opens
 ## the Island Market screen), "decor" (signs, crates, barrels: no action).
 
@@ -39,11 +39,12 @@ func pack_up_block_reason() -> String:
 func interact(p: Player) -> bool:
 	var hud := get_tree().get_first_node_in_group("hud")
 	match role:
-		&"guild":
-			# The Faction Hall's desk: the tutorial's orders while they run, then the Factions screen.
+		&"guild", &"adventurers_guild":
+			# The Faction Hall's desk (and ISOCAM's Adventurer's Guild, same offer under its own role so the
+			# tutorial's "guild" order still finds the hall): the tutorial's orders while they run, then the Factions screen.
 			if Tutorial.active():
 				if p:
-					p.notice("Faction Hall: your orders")
+					p.notice("%s: your orders" % display_name)
 				if hud and hud.has_method("open_orders"):
 					hud.call("open_orders")
 			elif hud and hud.has_method("open_comms"):

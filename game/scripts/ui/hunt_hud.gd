@@ -2382,7 +2382,7 @@ func _draw_minimap_body() -> void:
 		return
 	var rt := World.runtime
 	# Camera-up map: drawn rotated by the camera yaw around the centre, so screen-up on the map is
-	# screen-up in the world. The camera looks due north (IsoCamera.YAW_DEG 0), so this is north-up.
+	# screen-up in the world (ISOCAM: the camera looks north-west, so north is up-right; the rim's N says so).
 	var cam := get_viewport().get_camera_3d()
 	var cam_yaw := cam.global_rotation.y if cam else 0.0
 	c.draw_set_transform(centre, cam_yaw, Vector2.ONE)
@@ -2447,6 +2447,9 @@ func _draw_minimap_body() -> void:
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	_draw_minimap_bezel(c)
 
+## ISOCAM: the screen direction the minimap's N marker points (unit; tests read it).
+var minimap_north := Vector2(0, -1)
+
 func _draw_minimap_bezel(c: Control) -> void:
 	# LEVELBADGE: a dark rim, a bronze band lit on its top-left, and a fine inner line; no corner covers.
 	var centre := c.size * 0.5
@@ -2460,6 +2463,13 @@ func _draw_minimap_bezel(c: Control) -> void:
 	var b := Vector2(centre.x, MAP_PX - MAP_RIM * 0.5)
 	c.draw_colored_polygon(PackedVector2Array([b + Vector2(0, -5), b + Vector2(4, 0), b + Vector2(0, 5), b + Vector2(-4, 0)]), Color(0.02, 0.02, 0.03))
 	c.draw_colored_polygon(PackedVector2Array([b + Vector2(0, -3.5), b + Vector2(2.6, 0), b + Vector2(0, 3.5), b + Vector2(-2.6, 0)]), Color(0.98, 0.86, 0.55))
+	# ISOCAM: the north marker, an N on the rim where world north (-Z) lies on the camera-turned map.
+	var cam := get_viewport().get_camera_3d()
+	var nd := Vector2(0, -1).rotated(cam.global_rotation.y if cam else 0.0)
+	var n_at := centre + nd * r
+	minimap_north = nd
+	c.draw_circle(n_at, 8.0, Color(0.02, 0.02, 0.03, 0.95), true, -1.0, true)
+	c.draw_string(_font, n_at + Vector2(-4.5, 4.5), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.98, 0.86, 0.55))
 
 ## A texture as a disc of radius `r` around the map centre (already rotated to the camera):
 ## `at` is the texel under the centre, `per_px` texels per map pixel.
