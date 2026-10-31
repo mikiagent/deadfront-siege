@@ -3,13 +3,15 @@
   "clips": {
     "attack_primary": {
       "hit_frac": 0.42,
-      "windup": false
+      "windup": false,
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)"
     },
     "attack_heavy": {
       "hit_frac": 0.72,
       "windup": true,
       "windup_hold": 0.6,
-      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R"
+      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)"
     },
     "hit_react": {
       "speed": 2.0
@@ -30,7 +32,8 @@
       ],
       "windup": true,
       "note": "chomp left, chomp right, MEGA chomp: the front rears up for 12 frames (frames 33-44 of 66, the tell), then the whole body tips down from the hips like an animal drinking and bites at ground level. Exaggerated on purpose (owner: big by default, tune after). tools/jaw/make_combo.py.",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)"
     },
     "hop_back": {
       "airborne": [
@@ -39,7 +42,8 @@
       ],
       "note": "0.46 s: crouch, backward leap, landing squash; in place, the game moves the creature back during it. tools/jaw/make_hop_back.py (deinonychus first).",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py hop_back, 0.458 s, IK-planted toes on the ground frames, jaw hisses open 10 deg",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor, coelophysis: rebuilt with tools/gait/make_leap.py (IK-planted toes; the transferred clips slid 7-12 cm on the ground frames). Hoppers (TacticalBrain HOPSTRAFE) stretch it up to 2x so a body-length bound has a real flight time."
     },
     "strafe_left": {
       "note": "sidestep loop for every species, body keeps facing; tools/gait/make_gait.py <species>.json walk --as strafe_left --travel 1,0,0"
@@ -66,7 +70,8 @@
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
       "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)",
-      "note_tarbosaurus": "tarbosaurus: make_rex_moves.py --tarbo pounce, 1.0 s: the burst out of the stalk, one long low bound (both feet off 0.2-0.65, the game carries the arc), jaws thrust ahead and slammed shut on 0.7; a landed burst is an attack_heavy hit, so it pins (pin_foot)"
+      "note_tarbosaurus": "tarbosaurus: make_rex_moves.py --tarbo pounce, 1.0 s: the burst out of the stalk, one long low bound (both feet off 0.2-0.65, the game carries the arc), jaws thrust ahead and slammed shut on 0.7; a landed burst is an attack_heavy hit, so it pins (pin_foot)",
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)"
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing",
@@ -79,7 +84,8 @@
       ],
       "note": "explosive sideways dodge to the left, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side left)",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_left, 0.417 s, banks into the jump",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor, coelophysis: rebuilt with tools/gait/make_leap.py (IK-planted toes; the transferred clips slid 7-12 cm on the ground frames). Hoppers (TacticalBrain HOPSTRAFE) stretch it up to 2x so a body-length bound has a real flight time."
     },
     "dodge_right": {
       "airborne": [
@@ -88,7 +94,8 @@
       ],
       "note": "explosive sideways dodge to the right, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side right)",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_right, 0.417 s, banks into the jump",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor, coelophysis: rebuilt with tools/gait/make_leap.py (IK-planted toes; the transferred clips slid 7-12 cm on the ground frames). Hoppers (TacticalBrain HOPSTRAFE) stretch it up to 2x so a body-length bound has a real flight time."
     },
     "kick": {
       "hit_frac": 0.45,
@@ -110,7 +117,8 @@
     },
     "charge": {
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)"
     },
     "bite_shake": {
       "hit_frac": 0.3,

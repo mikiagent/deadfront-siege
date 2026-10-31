@@ -63,11 +63,18 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Tyrannosaurus | TyrantBrain (tyrant) | three-phase raid: stomp, roar, tail | telegraphed bite, stomp every 3rd attack (a stomp that lands pins you under its foot), tail whip from behind, roar on spotting | alert, attack_primary, attack_heavy, tail_swipe, pin_foot | |
 | Woolly rhino | TacticalBrain (horned_charger, species tactics) | paws the ground, charges and tosses with its horn | paw (display), charge + horn toss, horn sweep point blank, forefoot stamp | alert, attack_primary, attack_heavy, charge, toss | |
 | Utahraptor | TacticalBrain (apex_raptor; the deinonychus profile, distances x1.4) | one devastating claw strike | backstep, strafe, pounce (x3.0), charge, combo, ambush from cover, leap-in, back-leaps | alert, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
-| Velociraptor | TacticalBrain (pack_raptor; the deinonychus profile, distances x0.75, no tree ambush) | pounce knockdown from off-screen | sniff, then the investigate hold (3 s), then backstep, strafe, pounce, charge, combo, leap-in, back-leaps; lighter hits (pounce x2.0, combo x0.8) | alert, investigate, sniff, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
+| Velociraptor | TacticalBrain (pack_raptor; the deinonychus profile, distances x0.75, no tree ambush) | pounce knockdown from off-screen | sniff, then the investigate hold (3 s), then backstep, side bounds round you (HOPSTRAFE), pounce, charge, combo, leap-in, back-leaps; arms grab and rake on every attack; 1.35 m tall; lighter hits (pounce x2.0, combo x0.8) | alert, investigate, sniff, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | hops + arms + size per owner 2026-10-31 (HOPSTRAFE), re-test |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
 
 ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
 archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
+
+HOPSTRAFE (owner 2026-10-31: "smaller animals hop around more than they strafe, big and heavy dinosaurs strafe more than
+they hop"): `TacticalBrain.reposition_style` from bulk (real_length_m x height_meters) or `tactics.reposition`. Hoppers
+(compsognathus, velociraptor, coelophysis) circle in body-length side bounds with planted pauses and only sometimes
+strafe-walk; strafers (triceratops, utahraptor, gallimimus and every TacticalBrain body of bulk 40+) side-step on foot and
+back off at a scurry, never airborne; the rest (deinonychus, raptor, megaloceros, woolly rhino) as authored. Test:
+`game/tests/t_hopstrafe.gd`; numbers HS1-HS4 in the Open Questions.
 
 No glide (owner 2026-10-31): a body never moves under a one-shot. Attacks play in place; alert, sniff and hit_react
 give way to the stride-matched gait when the brain moves the body; leaps move on their own arc. Test:

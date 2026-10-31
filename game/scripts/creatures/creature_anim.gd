@@ -199,6 +199,11 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		_os_windup_frac = float((tell as Array)[0]) if state in ATTACKS and tell is Array and not (tell as Array).is_empty() else -1.0
 		hit_index = 0
 
+## HOPSTRAFE: play the current state mult times longer (a bound covering more ground than its clip was made for).
+func stretch(state: StringName, mult: float) -> void:
+	_scale[state] = float(_scale.get(state, 1.0)) / maxf(0.01, mult)
+	_apply(state)
+
 ## End a non-attack one-shot now (a brain that timed the move itself, e.g. a leap that has landed).
 func release_oneshot() -> void:
 	if not _busy or timed_attack or current_clip in ATTACKS:
