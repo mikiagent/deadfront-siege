@@ -544,6 +544,8 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **DL5** | `venom_ranged` attack_range 2.4 -> 3.0 (only the dilophosaurus uses it), so the snap reaches what the snout reaches. | `ai.json` | Shared archetype number. |
 | **DL6** | Hits land from the body part (`pipeline.hit_parts`: snap from Head/Jaw, rake from the right foot, leaping slash from either foot or the jaws); the hitbox system had not landed on canon. | `dilophosaurus.json` pipeline | Swap for the hitbox system when it lands. |
 | **DL7** | The frill is a single double-sided sheet folded along the neck at rest, so the folded frill shows as a yellow ruff along the neck in idle and the gaits. Alpha = sheet 2 as a recolour plus a repainted orange frill. No saddle (tamed role is combat only). | `dilophosaurus_frill.py`, `dilophosaurus_alpha_skin.py` | A skin-coloured outer face when folded would need a second paint region. |
+| **DL8** | DILOFRILL (owner 2026-10-31 "make it slightly smaller"): `height_meters` 3.6 -> 3.15 and `real_length_m` 12 -> 10.5 (12.5 %; ~9.2 m long, hip ~1.84 m). `venom_ranged` attack_range 3.0 -> 2.6, the head crit spot and the calibrated rake/leap radii scaled with it. | `dilophosaurus.json`, `ai.json`, `hitboxes.json` | "Slightly" read as 10-15 %. |
+| **DL9** | DILOFRILL (owner "keep its frills out more often in combat"): `DisplayFlare` holds the frill 80 % open in every brain state but roam/flee/sleep/disengage/lurk/downed/dead, snaps it fully open while a strike clip plays, opens in 0.35 s, snaps in 0.12 s, folds in 0.6 s. Open pose = the alert clip at 50 %. | `display_flare.gd`, `pipeline.display_flare` | Hold level and timings are feel numbers. |
 
 ### SP-CARNOTAURUS (2026-10-30) — new species (claude/mmo-sp-carnotaurus)
 

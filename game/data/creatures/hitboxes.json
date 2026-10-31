@@ -50,7 +50,7 @@
     {"name": "head", "bone": "Head", "offset": [0.0, 0.29, 0.26], "radius": 0.18}
    ],
    "dilophosaurus": [
-    {"name": "head", "bone": "Head", "offset": [0.01, 0.26, 0.51], "radius": 0.27}
+    {"name": "head", "bone": "Head", "offset": [0.01, 0.23, 0.45], "radius": 0.24, "_note": "# ASSUMPTION (DILOFRILL): the SP-DILOPHOSAURUS spot ([0.01, 0.26, 0.51] r 0.27) x 0.875 with height_meters 3.6 -> 3.15"}
    ],
    "gallimimus": [
     {"name": "head", "bone": "Head", "offset": [0.02, 0.04, 0.28], "radius": 0.12},
@@ -1947,7 +1947,7 @@
    "_note_allofeel": "ALLOFEEL: ClawTip rows = a part at the tip of the three claws: the Hand bone + offset along it (the rig has no ClawTip bone and the approved model is not re-exported; 0.64 m = the Hand bone's length at size 1). # ASSUMPTION radius 0.45 m (the spread claws). They sit on every move where the hands reach the prey at the hit frame: the bite, the hatchet, the grab, the ram (right hand), the rake, the slash and the shoulder-checks (near hand). Calibrated (t_hitboxes --calibrate, the part that needs the least): the rake's left claw tip 0.86 m, the slash's jaw 1.34 m, the shoulder-checks' stepping foot (Metatarsal) 1.48 / 1.59 m: at survivor height only the legs are there (its chest is 4 m up). CARNOFEEL kit: bite_combo's right claw tip 1.32 m and the charge's Jaw 2.17 m calibrated (the charge plays the run clip with the head carried high; the body running her down, _body_over, is the other contact)."
   },
   "dilophosaurus": {
-   "_note": "SP-DILOPHOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "_note": "SP-DILOPHOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least). DILOFRILL: re-calibrated at height_meters 3.15 and attack_range 2.6: rake Toe.R 2.11 -> 1.87, pounce Head 1.74 -> 1.55",
    "parts": [
     {
      "bone": "Jaw"
@@ -1961,7 +1961,7 @@
      "parts": [
       {
        "bone": "Toe.R",
-       "radius": 2.11,
+       "radius": 1.87,
        "calibrated": true
       },
       {
@@ -1979,7 +1979,7 @@
       },
       {
        "bone": "Head",
-       "radius": 1.74,
+       "radius": 1.55,
        "calibrated": true
       }
      ]
