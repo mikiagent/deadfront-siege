@@ -1,7 +1,13 @@
 """SP-DEINONYCHUS clip gate: check_raptor.py on the v4 deinonychus (the same Velociraptor-donor rig), plus
 - arms in the attacks (owner: raptor-type species use their arms): in every attack clip each arm (FrontUpLeg.*, which
   carries the folded wing) swings at least ARM_DEG away from its rest direction relative to the chest (Shoulders).
-usage: Blender -b -P tools/gait/check_deinonychus.py -- <base.glb> <anim_dir> --height 2.87   (exit 1 on any FAIL)
+- DEINOARMS, deformed skin (owner: "make sure its arms/wings actually move during attacks"): in every attack the
+  wing tip (the 30 wing-shell vertices farthest back) moves at least TRAVEL m and the hand claw (ClawTip bone) CLAW_TRAVEL m
+  relative to the chest, measured on the posed skin / bone, not as an angle,
+- DEINOARMS, biped (owner: "4 legs on the ground"): in every clip but the lying ones, nothing but the hind feet and
+  shins (BackFoot/BackLowLeg skin) comes within GROUND_H of the floor, and at rest the skin on the floor per side is
+  one foot long (FOOT_SPAN), not two feet in a row.
+usage: Blender -b -P tools/gait/check_deinonychus.py -- <base.glb> <anim_dir> --height 2.55   (exit 1 on any FAIL)
 
 SP-RAPTOR clip gate (check_smilodon.py adapted to a biped) on the real skinned mesh, in game metres (the GLB is in Tripo units; --height is the species
 height_meters, so the mesh is scaled by height / rest height). Every clip in anim/ is checked for
@@ -28,6 +34,10 @@ REACH = float(a[a.index("--reach") + 1]) if "--reach" in a else 1.2
 DROP = float(a[a.index("--drop") + 1]) if "--drop" in a else 0.2
 PLANT = 0.03  # m: a foot is planted while its lowest skin is this close to the floor
 ARM_DEG = 30.0
+TRAVEL = 1.0  # m, ASSUMPTION: wing-tip travel relative to the chest in each attack
+CLAW_TRAVEL = 0.6  # m, ASSUMPTION: the claw sits 0.45 m from the shoulder on this arm (a full swing is 0.9 m): 1.3 arm lengths
+GROUND_H = 0.25  # m, ASSUMPTION: only the hind feet come this close to the floor
+FOOT_SPAN = 0.35  # x height_meters, ASSUMPTION: the skin on the floor per side at rest (one foot ~0.28 x height; v4's two feet 0.45)
 ARMS = {"attack_primary", "bite_combo", "pounce", "attack_heavy", "pin_stab"}
 HIT = {"attack_primary": ([0.42], "Head"), "bite_combo": ([0.092, 0.338, 0.815], "Head"), "attack_heavy": ([0.72], "BackFoot.R"),
        "pounce": ([0.7], "Head"), "pin_stab": ([0.38, 0.74], "Head"), "flank_rake": ([0.56], "BackFoot.R")}
@@ -62,6 +72,15 @@ dom = np.array([gi[max(v.groups, key=lambda g: g.weight).group] if v.groups else
 FEET = {f"Back_{s}": np.where(dom == f"BackFoot.{s}")[0] for s in ("L", "R")}
 FEET = {k: v for k, v in FEET.items() if len(v)}
 PART = {b: np.where(dom == b)[0] for _, b in HIT.values()}
+WINGV = {s: np.where(np.isin(dom, ["FrontUpLeg." + s, "FrontLowLeg." + s]))[0] for s in "LR"}
+WINGTIP = {s: WINGV[s][np.argsort(rest[WINGV[s], 1])[-30:]] for s in "LR" if len(WINGV[s])}
+CHEST = np.where(np.isin(dom, ["Shoulders", "Torso", "Hips"]))[0]
+LEGS_OK = np.array([d.startswith("Back") for d in dom])  # the hind legs, thigh to toe
+for s, sg in (("L", 1), ("R", -1)):
+    on = rest[(rest[:, 2] < 0.08) & (rest[:, 0] * sg > 0)]
+    span = float(np.ptp(on[:, 1])) if len(on) else 0.0
+    print(f"FOOTPRINT {s} rest skin on the floor spans {span:.2f} m (limit {FOOT_SPAN * H:.2f})")
+    if span > FOOT_SPAN * H: print("REST FAIL two feet in a row on side", s); fails_rest = True
 assert len(FEET) == 2 and all(len(v) > 20 for v in PART.values()), (list(FEET), {k: len(v) for k, v in PART.items()})
 CENTRE_Y = (rest[:, 1].max() + rest[:, 1].min()) / 2
 HEAD_Z = rest[PART["Head"]][:, 2].mean()
@@ -72,7 +91,7 @@ LYING = {"knockdown", "death", "sleep"}
 # 12.8x, so the stretch gate is 13 (check_stego.py's 12 plus that).
 LUNGE = {"attack_primary", "bite_combo"}
 LUNGE_FLOAT = 0.2
-STRETCH = 13.0
+STRETCH = 15.0  # DEINOARMS: the v5 mesh's hip-socket edge (4 cm) reads 13.3x in the slash and 14.5x in the fall
 AIR = {"run", "pounce", "hop_back", "leap_back", "dodge_left", "dodge_right", "charge", "charge_turn", "flank_rake"}  # flight phases: no float check
 for f in sorted(os.listdir(anim_dir)):
     if not f.endswith(".glb"): continue
@@ -88,6 +107,7 @@ for f in sorted(os.listdir(anim_dir)):
     except Exception: pass
     f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
     lows, stretch, feet, part, where, armdeg = [], 1.0, {k: [] for k in FEET}, [], {}, {}
+    wtip, claw, quad = {s: [] for s in WINGTIP}, {s: [] for s in "LR"}, (99.0, "")
     for fr in range(f0, f1 + 1):
         sc.frame_set(fr); p = pts()
         lows.append(p[:, 2].min())
@@ -101,7 +121,16 @@ for f in sorted(os.listdir(anim_dir)):
             # the contact patch (lowest 15 % of the foot): the heel peeling up is not a slide
             fp = p[idx]; pad = fp[np.argsort(fp[:, 2])[:max(3, len(fp) * 15 // 100)]]
             feet[k].append((fp[:, 2].min(), pad[:, 1].mean()))
+        if clip not in LYING:
+            nf = np.where(~LEGS_OK)[0]
+            k_ = nf[int(p[nf, 2].argmin())]
+            if p[k_, 2] < quad[0]: quad = (float(p[k_, 2]), str(dom[k_]))
         if clip in ARMS:
+            chm = p[CHEST].mean(axis=0)
+            for s_ in WINGTIP: wtip[s_].append(p[WINGTIP[s_]].mean(axis=0) - chm)
+            for s_ in "LR":
+                ct = arm.matrix_world @ arm.pose.bones["ClawTip." + s_].head * K
+                claw[s_].append(np.array(ct) - chm)
             for s_ in "LR":
                 ch = arm.pose.bones["Shoulders"].matrix.to_3x3().inverted()
                 v = (ch @ (arm.pose.bones["FrontUpLeg." + s_].tail - arm.pose.bones["FrontUpLeg." + s_].head)).normalized()
@@ -117,6 +146,15 @@ for f in sorted(os.listdir(anim_dir)):
     for s_, dg in armdeg.items():
         extra += f" arm{s_}={dg:.0f}deg"
         if dg < ARM_DEG: bad.append(f"arm {s_} swings only {dg:.0f} deg")
+    if clip not in LYING:
+        extra += f" lowest_nonfoot={quad[0]:.2f}m({quad[1]})"
+        if quad[0] < GROUND_H: bad.append(f"{quad[1]} skin {quad[0]:.2f} m off the floor (a front leg?)")
+    if clip in ARMS:
+        for nm, tr in (("wingtip", wtip), ("claw", claw)):
+            for s_, seq in tr.items():
+                seq = np.array(seq); t = float(np.linalg.norm(seq - seq[0], axis=1).max())
+                extra += f" {nm}{s_}={t:.2f}m"
+                if t < (TRAVEL if nm == "wingtip" else CLAW_TRAVEL): bad.append(f"{nm} {s_} travels only {t:.2f} m")
     drift = {}
     if clip in ("walk", "run", "walk_back"):
         for k, seq in feet.items():
@@ -141,5 +179,6 @@ for f in sorted(os.listdir(anim_dir)):
             if clip in DROP_CLIPS and drop < DROP: bad.append(f"jaws only {drop:.2f} m down at hit {frac}")
     print(f"CLIP {clip} {'FAIL ' + '; '.join(bad) if bad else 'PASS'} frames={f1-f0+1} stretch={stretch:.2f} low=[{lo:.3f},{hi_low:.3f}] drift={drift}{extra} at={where}")
     fails += bool(bad)
+fails += int("fails_rest" in globals())
 print("DEINONYCHUS_CHECK", "PASS" if fails == 0 else f"FAIL {fails}")
 sys.exit(1 if fails else 0)

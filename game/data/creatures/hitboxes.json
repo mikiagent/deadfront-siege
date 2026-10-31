@@ -343,7 +343,7 @@
    }
   },
   "deinonychus": {
-   "_note": "SP-DEINONYCHUS v4: the jaws (Jaw, Head) and the hand claws (ClawTip.L/R, non-deforming markers at the hand bones' ends; 0.25 m # ASSUMPTION) strike in the bites, the combo and the pounce; the right sickle foot in the slash; calibrated: true from t_hitboxes.gd -- --calibrate on the v4 clips",
+   "_note": "SP-DEINONYCHUS v4: the jaws (Jaw, Head) and the hand claws (ClawTip.L/R, non-deforming markers at the hand bones' ends; 0.25 m # ASSUMPTION) strike in the bites, the combo and the pounce; the right sickle foot in the slash; calibrated: true from t_hitboxes.gd -- --calibrate on the v5 clips at height 2.55 with attack_range 2.3 (DEINOARMS)",
    "parts": [
     {
      "bone": "Jaw"
@@ -357,7 +357,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.69,
+       "radius": 0.56,
        "calibrated": true
       },
       {
@@ -365,12 +365,12 @@
       },
       {
        "bone": "ClawTip.L",
-       "radius": 0.83,
+       "radius": 0.65,
        "calibrated": true
       },
       {
        "bone": "ClawTip.R",
-       "radius": 0.74,
+       "radius": 0.68,
        "calibrated": true
       }
      ]
@@ -379,7 +379,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.82,
+       "radius": 0.66,
        "calibrated": true
       },
       {
@@ -387,11 +387,13 @@
       },
       {
        "bone": "ClawTip.L",
-       "radius": 0.25
+       "radius": 1.01,
+       "calibrated": true
       },
       {
        "bone": "ClawTip.R",
-       "radius": 0.25
+       "radius": 0.97,
+       "calibrated": true
       }
      ]
     },
@@ -410,7 +412,7 @@
       },
       {
        "bone": "ClawTip.R",
-       "radius": 0.97,
+       "radius": 1.0,
        "calibrated": true
       },
       {
@@ -442,8 +444,7 @@
       },
       {
        "bone": "BackFoot.R_end",
-       "radius": 0.32,
-       "calibrated": true
+       "radius": 0.25
       }
      ]
     }

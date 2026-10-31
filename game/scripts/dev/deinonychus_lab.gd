@@ -11,7 +11,8 @@ const CLIPS: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"walk_ba
 ## anim_events.json hit fractions: the bite, the three chomps, the sickle slash, the pounce.
 const HIT := {&"attack_primary": [42], &"attack_heavy": [72], &"pounce": [70], &"bite_combo": [9, 34, 82]}
 ## The slash's held windup (anim_events windup_hold 0.6): the telegraph.
-const EXTRA := {&"attack_heavy": [60]}
+## DEINOARMS: each attack's wind-up (the wings spread before the hit): bite 0.32, the three chomps, the pounce's take-off.
+const EXTRA := {&"attack_heavy": [60], &"attack_primary": [32], &"bite_combo": [5, 28, 72], &"pounce": [25]}
 
 var _out := ""
 var _caption: Label
@@ -101,7 +102,7 @@ func _sheet() -> void:
 			ap.pause()
 			for cam_name in _cams:
 				(_cams[cam_name] as Camera3D).current = true
-				_caption.text = "deinonychus%s  %s %d%%%s   (survivor for scale)" % [(" " + str(morph)) if morph != &"" else "", clip, pct, "  HIT" if pct in HIT.get(clip, []) else ("  WINDUP" if pct in EXTRA.get(clip, []) else "")]
+				_caption.text = "deinonychus%s  %s %d%%%s   (survivor for scale)" % [(" " + str(morph)) if morph != &"" else "", clip, pct, "  HIT" if pct in HIT.get(clip, []) else ("  WIND-UP" if pct in EXTRA.get(clip, []) else "")]
 				await get_tree().process_frame
 				await _snap("%s_%d_%s" % [clip, pct, cam_name])
 	get_tree().quit(0)

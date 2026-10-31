@@ -1,4 +1,8 @@
 extends SceneTree
+## DEINOARMS (owner: "make sure its arms/wings actually move during attacks", "4 legs on the ground", "slightly
+## smaller"): on the skinned mesh as the game draws it, the wing tips travel >= 1 m and the hand claws >= 0.6 m against
+## the chest in every attack, nothing but the hind legs comes within 0.25 m of the floor in any standing clip, and it
+## is 2.55 m tall.
 ## SP-DEINONYCHUS (v4, from the owner's turnaround sheet: "this is deinonychus, fix"): the deinonychus draws its new
 ## rigged Tripo model (no box placeholder) with every listed clip, a real Jaw bone and ClawTip markers on the hands,
 ## 2.87 m tall and about 6 m long, its feet stay on the floor in the standing clips, each hit comes from its part at
@@ -92,7 +96,7 @@ func _test_view() -> void:
 		first = false
 	var long_side := maxf(aabb.size.x, aabb.size.z)
 	_expect(absf(aabb.size.y - def.height_meters) < 0.15, "height %.2f m (data %.2f)" % [aabb.size.y, def.height_meters])
-	_expect(long_side > 5.5 and long_side < 6.6, "%.1f m long: between velociraptor (3.7 m) and the raptor (7.5 m)" % long_side)
+	_expect(long_side > 5.0 and long_side < 6.0, "%.1f m long: between velociraptor (3.7 m) and the raptor (7.5 m)" % long_side)
 	var ap: AnimationPlayer = view.rig.anim_player
 	sk.reset_bone_poses()
 	var rest := INF
@@ -130,7 +134,7 @@ func _test_view() -> void:
 			if clip == &"attack_heavy":
 				_expect((p - foot_rest).dot(fwd) > 1.0, "the slash drives the sickle foot %.2f m forward of its print" % (p - foot_rest).dot(fwd))
 	# Arms in the attacks (owner: raptor-type species use their arms): the hand claws reach out ahead at the bite.
-	for clip in [&"attack_primary", &"bite_combo", &"pounce"]:
+	for clip in [&"attack_primary", &"bite_combo"]:  # the pounce spreads the arms to the sides (DEINOARMS): _skin_checks
 		sk.reset_bone_poses()
 		var claw_rest := _bone_pos(sk, "ClawTip.R", true)
 		ap.play(clip)
@@ -140,7 +144,117 @@ func _test_view() -> void:
 			ap.seek(a2.length * float(k) / 24.0, true)
 			best = maxf(best, (_bone_pos(sk, "ClawTip.R") - claw_rest).dot(fwd))
 		_expect(best > 0.3, "%s: the hand claws reach %.2f m forward of rest" % [clip, best])
+	_skin_checks(view, sk, ap)
 	view.free()
+
+## Skinned vertex positions as the game draws them: sum of weight x (bone pose x bind pose) per vertex, in world space.
+func _skinned(mi: MeshInstance3D, sk: Skeleton3D, idx: PackedInt32Array, arr: Array) -> PackedVector3Array:
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+	var per := bones.size() / verts.size()
+	var xf: Array[Transform3D] = []
+	for k in mi.skin.get_bind_count():
+		var b := mi.skin.get_bind_bone(k)
+		if b < 0:
+			b = sk.find_bone(mi.skin.get_bind_name(k))
+		xf.append(sk.get_bone_global_pose(b) * mi.skin.get_bind_pose(k))
+	var out := PackedVector3Array()
+	for i in idx:
+		var p := Vector3.ZERO
+		for j in per:
+			var w := weights[i * per + j]
+			if w > 0.0:
+				p += (xf[bones[i * per + j]] * verts[i]) * w
+		out.append(sk.global_transform * p)
+	return out
+
+## DEINOARMS: the wings and claws move in every attack, and only the hind legs reach the floor.
+func _skin_checks(view, sk: Skeleton3D, ap: AnimationPlayer) -> void:
+	var mi: MeshInstance3D = null
+	var best := 0
+	for m in view.rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+		if (m as MeshInstance3D).mesh and (m as MeshInstance3D).skin and (m as MeshInstance3D).mesh.get_surface_count() > 0:
+			var n: int = ((m as MeshInstance3D).mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+			if n > best:
+				best = n
+				mi = m
+	if mi == null:
+		_expect(false, "a skinned mesh to measure")
+		return
+	var arr: Array = mi.mesh.surface_get_arrays(0)
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+	var per := bones.size() / verts.size()
+	var names: Array[String] = []
+	for k in mi.skin.get_bind_count():
+		names.append(mi.skin.get_bind_name(k) if mi.skin.get_bind_name(k) != &"" else sk.get_bone_name(mi.skin.get_bind_bone(k)))
+	var wing := {"L": PackedInt32Array(), "R": PackedInt32Array()}
+	var front := PackedInt32Array()  # every vertex not on a hind leg
+	for i in verts.size():
+		var top := 0
+		for j in per:
+			if weights[i * per + j] > weights[i * per + top]:
+				top = j
+		var n := names[bones[i * per + top]]
+		if n.begins_with("FrontUpLeg") or n.begins_with("FrontLowLeg"):
+			var ws: PackedInt32Array = wing[n.right(1)]
+			ws.append(i)
+			wing[n.right(1)] = ws  # packed arrays are values: write it back
+		if not n.begins_with("Back"):
+			front.append(i)
+	_expect((wing["L"] as PackedInt32Array).size() > 300 and (wing["R"] as PackedInt32Array).size() > 300, "both wings are skinned to the arms (%d / %d vertices)" % [(wing["L"] as PackedInt32Array).size(), (wing["R"] as PackedInt32Array).size()])
+	sk.reset_bone_poses()
+	var fwd: Vector3 = -(view as Node3D).global_transform.basis.z.normalized()
+	var floor_y := INF
+	for p in _skinned(mi, sk, PackedInt32Array(range(verts.size())), arr):
+		floor_y = minf(floor_y, p.y)
+	# the wing tip: the 30 wing vertices farthest back at rest
+	var tips := {}
+	for s in ["L", "R"]:
+		var ws: PackedInt32Array = wing[s]
+		var pos := _skinned(mi, sk, ws, arr)
+		var order := range(ws.size())
+		order.sort_custom(func(x: int, y: int) -> bool: return pos[x].dot(fwd) < pos[y].dot(fwd))
+		var t := PackedInt32Array()
+		for k in mini(30, order.size()):
+			t.append(ws[order[k]])
+		tips[s] = t
+	var chest := sk.find_bone("Shoulders")
+	for clip in [&"attack_primary", &"bite_combo", &"pounce", &"attack_heavy"]:
+		var a := ap.get_animation(clip)
+		var start := {}
+		var travel := {"wingL": 0.0, "wingR": 0.0, "clawL": 0.0, "clawR": 0.0}
+		for k in 25:
+			sk.reset_bone_poses()
+			ap.play(clip)
+			ap.seek(a.length * float(k) / 24.0, true)
+			var c := sk.global_transform * sk.get_bone_global_pose(chest).origin
+			for s in ["L", "R"]:
+				var tp := Vector3.ZERO
+				for p in _skinned(mi, sk, tips[s], arr):
+					tp += p
+				var rel := {"wing" + s: tp / float((tips[s] as PackedInt32Array).size()) - c,
+					"claw" + s: sk.global_transform * sk.get_bone_global_pose(sk.find_bone("ClawTip." + s)).origin - c}
+				for key in rel:
+					if not start.has(key):
+						start[key] = rel[key]
+					travel[key] = maxf(travel[key], ((rel[key] as Vector3) - (start[key] as Vector3)).length())
+		_expect(travel["wingL"] >= 1.0 and travel["wingR"] >= 1.0, "%s: the wing tips travel %.2f / %.2f m against the chest (>= 1 m, skinned)" % [clip, travel["wingL"], travel["wingR"]])
+		_expect(travel["clawL"] >= 0.6 and travel["clawR"] >= 0.6, "%s: the hand claws travel %.2f / %.2f m against the chest (>= 0.6 m)" % [clip, travel["clawL"], travel["clawR"]])
+	# Biped: in the standing clips nothing but the hind legs comes within 0.25 m of the floor.
+	for clip in [&"idle", &"walk", &"run", &"charge", &"strafe_left", &"strafe_right", &"walk_back", &"alert", &"feed", &"hit_react", &"attack_primary", &"bite_combo", &"attack_heavy"]:
+		var a := ap.get_animation(clip)
+		var low := INF
+		for k in 12:
+			sk.reset_bone_poses()
+			ap.play(clip)
+			ap.seek(a.length * float(k) / 12.0, true)
+			for p in _skinned(mi, sk, front, arr):
+				low = minf(low, p.y - floor_y)
+		_expect(low >= 0.25, "%s: nothing but the hind feet reaches the floor (lowest arm/wing/body skin %.2f m up)" % [clip, low])
+	sk.reset_bone_poses()
 
 ## The owner's verdicts: keep the 3-hit chomp combo, the pounce and the leap_back; the hitbox rows strike from the
 ## jaws and the ClawTip markers.

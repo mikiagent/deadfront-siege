@@ -1,7 +1,8 @@
 #!/bin/bash
 # SP-DEINONYCHUS (v4): the deinonychus rebuilt from the owner's turnaround sheet (owner: "this is deinonychus, fix";
 # "dude turn this into a new deinonychus model. The current one is messed up"). Tripo multiview mesh
-# (task 18b9c322-1d35-48ed-beec-632399315f00, work/deinonychus_tripo_v4.glb, gitignored; the task id re-downloads it).
+# (v5, DEINOARMS: task 88864bcb-3323-4b5e-a096-a64529eb0a4f, work/deinonychus_tripo_v5.glb, gitignored; the task id
+# re-downloads it. v4 (task 18b9c322) had four hind legs: the side view's stride built a second pair).
 #   1 transplant the Quaternius Velociraptor donor (same skeleton as the Raptor and the old deinonychus)
 #   2 add_jaw.py + open_mouth.py (a real Jaw bone, lips cut, mouth bag), raptor_leg_weights.py (thigh follows the leg),
 #     deino_wing_weights.py (the folded-wing shells skinned to the arms), add_claw_tips.py (ClawTip.L/R hit markers)
@@ -19,13 +20,14 @@ D=game/assets/creatures/deinonychus; W=$D/work; V3=$W/v3; VR=game/assets/creatur
 T=$(mktemp -d)
 run() { "$BL" -b "$@" > "$T/log_$RANDOM.txt" 2>&1 || { echo "FAILED: $*"; exit 1; }; }
 if [[ "${1:-}" != "--clips-only" ]]; then
-  run --python tools/transplant_rig.py -- --mesh $W/deinonychus_tripo_v4.glb --donor tools/standins/quaternius/Velociraptor.fbx \
+  run --python tools/transplant_rig.py -- --mesh $W/deinonychus_tripo_v5.glb --donor tools/standins/quaternius/Velociraptor.fbx \
     --species deinonychus --output-root $T/tp --map Attack=attack_primary Jump=attack_heavy Death=death Idle=idle Run=run Walk=walk
   run --python tools/jaw/add_jaw.py -- $T/tp/deinonychus/deinonychus.glb $T/jaw.glb --blend 0.008
   run --python tools/jaw/open_mouth.py -- $T/jaw.glb $T/mouth.glb --corner 0.03
-  run -P tools/gait/raptor_leg_weights.py -- $T/mouth.glb $T/legw.glb
+  run -P tools/gait/raptor_leg_weights.py -- $T/mouth.glb $T/legw.glb 
   run -P tools/gait/deino_wing_weights.py -- $T/legw.glb $T/wingw.glb
-  run -P tools/gait/add_claw_tips.py -- $T/wingw.glb $D/deinonychus.glb
+  run -P tools/gait/deino_wing_shell.py -- $T/wingw.glb $T/shell.glb  # v5: the wings are fused into the flank; build them as shells
+  run -P tools/gait/add_claw_tips.py -- $T/shell.glb $D/deinonychus.glb
 fi
 mkdir -p $T/x $T/g $T/o
 LOOPS="idle"
@@ -39,10 +41,18 @@ run -P tools/gait/ground_clip.py -- $D/deinonychus.glb $T/x/charge.glb $T/g/char
 run -P tools/gait/make_gait.py -- $D/deinonychus.glb tools/gait/deinonychus.json strafe $T/x/strafe_left.glb --as strafe_left --travel 1,0,0
 run -P tools/gait/make_gait.py -- $D/deinonychus.glb tools/gait/deinonychus.json strafe $T/x/strafe_right.glb --as strafe_right --travel -1,0,0
 run -P tools/gait/make_gait.py -- $D/deinonychus.glb tools/gait/deinonychus.json walk $T/x/walk_back.glb --as walk_back --travel 0,1,0
-for c in idle attack_primary bite_combo pounce hop_back leap_back dodge_left dodge_right hit_react knockdown death; do
+for c in idle hop_back leap_back dodge_left dodge_right hit_react knockdown death; do
   run -P tools/gait/raptor_overlay.py -- $D/deinonychus.glb $T/x/$c.glb $T/o/$c.glb; cp $T/o/$c.glb $T/x/; done
+# DEINOARMS: the attacks swing the arms 1.5x, all on the upper arm (--shoulder 0: the chest skin stays put), so the
+# hand claws travel over a metre
+for c in attack_primary bite_combo pounce; do
+  run -P tools/gait/raptor_overlay.py -- $D/deinonychus.glb $T/x/$c.glb $T/o/$c.glb --arm-gain 1.5 --shoulder 0; cp $T/o/$c.glb $T/x/; done
 for c in attack_heavy alert sleep; do run -P tools/gait/make_raptor_moves.py -- $D/deinonychus.glb $c $T/x/$c.glb; done
+# DEINOARMS: the wings spread on the wind-up and through the hit in every attack, and stay off the ground in every
+# standing clip (deino_wings.py)
+for c in attack_primary bite_combo pounce attack_heavy idle walk run charge strafe_left strafe_right walk_back hop_back leap_back dodge_left dodge_right hit_react alert feed; do run -P tools/gait/deino_wings.py -- $D/deinonychus.glb $T/x/$c.glb $T/o/w_$c.glb; cp $T/o/w_$c.glb $T/x/$c.glb; done
 for c in sleep knockdown death; do run -P tools/gait/ground_clip.py -- $D/deinonychus.glb $T/x/$c.glb $T/g/$c.glb; cp $T/g/$c.glb $T/x/; done  # the v3 fall put a foot 10 cm under
 rm -f $D/anim/*.glb; cp $T/x/*.glb $D/anim/
 ls $D/anim/*.glb | wc -l
-echo "BUILD OK ($T)"
+rm -rf "$T"
+echo "BUILD OK"
