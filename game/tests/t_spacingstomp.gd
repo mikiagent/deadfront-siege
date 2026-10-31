@@ -148,9 +148,15 @@ func _test_live(id: StringName) -> void:
 	_expect(started_at >= 0.0 and started_at <= 1.0, "%s: tucked under the chest, it stomps (after %.2f s)" % [id, started_at])
 	_expect(shook > 0.0, "%s: the slam shakes the ground (%.2f)" % [id, shook])
 	_expect(knocked, "%s: she is knocked down" % id)
-	_expect(absf(o_follow.x - st.last_reach) <= REACH_TOL, "%s: she lands at the bite's reach (%.2f m ahead, lying, jaw reach %.2f m, pushed %.2f m)" % [id, o_follow.x, st.last_reach, st.last_push])
-	_expect(st.followed != &"", "%s: the brain follows up with %s" % [id, st.followed])
-	_expect(player._last_hit_taken_s > hit_follow, "%s: the follow-up %s lands on her" % [id, st.followed])
+	if float(st.cfg.get("push_to_m", 0.0)) > 0.0:
+		# ALLOCHARGE (spacing_stomp.species.<id>.push_to_m, follow "bull"): thrown out to charge range (the throw tier caps
+		# the flight), then the bull windup that leads into its charge, not a bite
+		_expect(o_follow.x >= 0.75 * st.last_reach or o_follow.x >= 10.0, "%s: she is thrown out to charge range (%.2f m ahead, asked %.2f m)" % [id, o_follow.x, st.last_reach])
+		_expect(st.followed == StringName(str(c.brain.tac.get("display_clip", ""))) or c.anim.current_clip == &"bull_huff", "%s: the brain follows up with its bull windup (%s)" % [id, st.followed])
+	else:
+		_expect(absf(o_follow.x - st.last_reach) <= REACH_TOL, "%s: she lands at the bite's reach (%.2f m ahead, lying, jaw reach %.2f m, pushed %.2f m)" % [id, o_follow.x, st.last_reach, st.last_push])
+		_expect(st.followed != &"", "%s: the brain follows up with %s" % [id, st.followed])
+		_expect(player._last_hit_taken_s > hit_follow, "%s: the follow-up %s lands on her" % [id, st.followed])
 	root.get_node("Game").god_mode = false
 	# standing at bite reach already: no stomp
 	host.free()

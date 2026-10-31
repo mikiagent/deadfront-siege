@@ -459,7 +459,7 @@ func _test_carno_kit() -> void:
 	var TG: GDScript = load("res://scripts/combat/telegraph.gd")
 	var tac: Dictionary = data.creature(ID).tactics
 	_expect(bool(tac.get("charge_straight", false)) and float(tac.get("charge_arc_r_m", 0.0)) > 0.0 and (tac.get("point_blank", []) as Array).has("combo")
-		and (tac.get("charge_follow", []) as Array).has("combo"), "the carnotaurus kit is on in its tactics (straight charge, arc, combo, charge_follow)")
+		and str(tac.get("charge_reset", "")) == "bull" and str(tac.get("display_clip", "")) == "bull_huff", "the bull charge is on in its tactics (straight charge, arc, bull reset with its huff, combo)")
 	# 1. the chomp combo (her own swings would stagger it mid-combo: she stands still)
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	seed(20261031)
@@ -492,82 +492,133 @@ func _test_carno_kit() -> void:
 	_expect(chomps[0] == 3 and hurt[0] == 3, "chomp combo: 3 chomps land on her (hit frames %d, damage events %d)" % [chomps[0], hurt[0]])
 	c.queue_free()
 	await physics_frame
-	# 2. the charge: twice, a landed hit and a damage roll that misses
-	for acc in [1.0, 0.0]:
-		player.process_mode = Node.PROCESS_MODE_INHERIT
-		player.sim.knock.cancel()
-		player.statuses.clear_all()
-		player.anim.release_knockdown()
-		player.hunt.stop()  # she auto-hunts what hit her: after the last animal she would walk off after its spot
-		player._retaliate_target = null
-		player.sim._path_points = PackedVector3Array()
-		player.sim._shove = Vector3.ZERO
-		player.sim._shove_s = 0.0
-		player.global_position = Vector3(0, 0.9, 0)
-		player.velocity = Vector3.ZERO
-		load("res://scripts/combat/combat_tuning.gd").force_accuracy = acc
-		c = _allo_seeded(host, Vector3(0, 0.1, -16.0), player)
-		b = c.brain
-		b.attack_target = player
-		b._combat_memory_left = 60.0
-		b.tac = b.tac.duplicate()
-		b.tac["charge_through_m"] = 7.0  # keep the line on the test floor
-		log = []
-		b.tactic.connect(func(k: StringName) -> void: log.append(k))
-		await _sim(player, 0.05)
-		b._start_charge()
-		var knocked := false
-		var through := false
-		var min_v := INF
-		var past := -INF
-		var arc := {"max_rate": 0.0, "max_slip": 0.0, "min_r": INF, "frames": 0}
-		var prev_yaw: float = c.rotation.y
-		var step := TIME_SCALE / float(Engine.physics_ticks_per_second)
-		for i in 500:
-			await _sim(player, step)
-			if player.sim.knock.active() and player.sim.knock.tier in [1, 2]:
-				knocked = true
-			var first: bool = log.count(&"charge") == 1  # the first line and its arc only (not the brain's own later charges)
-			if b.state == &"charge" and not b._charge_return and first:
-				through = through or b.passes_through(player)
-				if b._charge_hit:
-					min_v = minf(min_v, Vector2(c.velocity.x, c.velocity.z).length())
-				past = maxf(past, c.global_position.z)
-			if b.state == &"charge_arc" and first:
-				var v := Vector2(c.velocity.x, c.velocity.z)
-				var rate := absf(angle_difference(prev_yaw, c.rotation.y)) / step
-				if v.length() > 0.5:
-					arc["frames"] += 1
-					arc["max_rate"] = maxf(arc["max_rate"], rate)
-					var slip := minf(absf(Vector2(-sin(c.rotation.y), -cos(c.rotation.y)).angle_to(v)), absf(Vector2(-sin(prev_yaw), -cos(prev_yaw)).angle_to(v)))
-					arc["max_slip"] = maxf(arc["max_slip"], slip)
-					if rate > 0.01:
-						arc["min_r"] = minf(arc["min_r"], v.length() / rate)
-			prev_yaw = c.rotation.y
-			if log.has(&"charge_return"):
-				break
-		var what := "hit" if acc > 0.0 else "damage roll missed"
-		_expect(log.has(&"charge_hit") and knocked, "charge contact (%s) knocks her down (%s)" % [what, log])
-		if acc > 0.0:
-			_expect(not _bleeds(player), "the charge's impact does not bleed (Bleed rides on the hatchet and the slash only)")
-		_expect(through and min_v >= 0.6 * c.move_speed_mps() and past >= 7.0 - 1.5,
-			"charge (%s) runs on through her: lowest speed after contact %.1f m/s, %.1f m past her" % [what, min_v, past])
-		_expect(log.has(&"charge_arc") and int(arc["frames"]) > 10 and float(arc["max_rate"]) <= c.turn_rate() + 0.02
-				and float(arc["min_r"]) >= b.arc_radius() - 0.1 and float(arc["max_slip"]) < deg_to_rad(2.0),
-			"after the charge (%s) it arcs round wide: yaw %.2f rad/s (turn_rate %.2f), radius >= %.1f m (limit %.1f), slip %.1f deg" % [what, arc["max_rate"], c.turn_rate(), arc["min_r"], b.arc_radius(), rad_to_deg(arc["max_slip"])])
-		_expect(log.has(&"charge_return"), "wheeled round, it charges back through her (%s)" % [log])
-		if acc > 0.0:
-			for i in 240:
-				await _sim(player, 0.05)
-				if log.has(&"combo"):
-					break
-			_expect(log.has(&"combo") and log.find(&"combo") > log.rfind(&"charge_arc"), "after its charges land it closes in for the chomp combo (%s)" % [log])
-		c.queue_free()
-		await physics_frame
-		await physics_frame
-		_expect(not player.get_collision_exceptions().any(func(x) -> bool: return is_instance_valid(x) and x.is_in_group(&"creatures")), "the pass-through exception is gone once the animal is")
+	# 2. ALLOCHARGE: the bull charge
+	await _test_carno_kit_charge(host, player)
 	load("res://scripts/combat/combat_tuning.gd").force_accuracy = 1.0
 	host.free()
+
+const ARC_BACK_S := 4.0  ## ASSUMPTION (owner: "doesn't turn fast enough"): the arc is back round to her within this
+
+func _toe_y(c) -> float:
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var lo := INF
+	for b in ["Toe.L", "Toe.R"]:
+		lo = minf(lo, (sk.global_transform * sk.get_bone_global_pose(sk.find_bone(b)).origin).y)
+	return lo - c.global_position.y
+
+func _toe_l(c) -> Vector3:
+	var sk: Skeleton3D = c.view.rig.skeleton
+	return sk.global_transform * sk.get_bone_global_pose(sk.find_bone("Toe.L")).origin
+
+## ALLOCHARGE (owner 2026-10-31: "allosaurus charge is weak looking, he kind of just pads over to the player, what if you do
+## like a bull charge thats like stomp throw back, huff huff, charge (low center of gravity jump with a bite attack) charge
+## jump and bite. Stomp is important, keep it"; then "charge circle turn is weird like he walks backwards and doesn't turn
+## fast enough"). From her standing under its chin, the live brain runs: the spacing stomp throws her out to charge range;
+## the bull windup (bull_huff) with its feet planted; the charge on its own clip at >= 1.5x its walk, stride-matched (no
+## foot slide); the jump-bite (charge_leap) with both feet off the ground, whose bite lands and knocks her down while it
+## runs on through her; the tight arc, always moving forward along its facing, back round to her within ARC_BACK_S; and
+## the windup again.
+func _test_carno_kit_charge(host: Node3D, player) -> void:
+	player.process_mode = Node.PROCESS_MODE_INHERIT
+	player.sim.knock.cancel()
+	player.statuses.clear_all()
+	player.anim.release_knockdown()
+	player.hunt.stop()
+	player._retaliate_target = null
+	player.global_position = Vector3(0, 0.9, 0)
+	player.velocity = Vector3.ZERO
+	load("res://scripts/combat/combat_tuning.gd").force_accuracy = 1.0
+	var c = _allo_seeded(host, Vector3(0, 0.1, -3.2), player)  # she is tucked in under its chin
+	var b = c.brain
+	b._combat_memory_left = 60.0
+	b.tac = b.tac.duplicate()
+	b._set_state(&"circle")
+	var log: Array = []
+	b.tactic.connect(func(k: StringName) -> void: log.append(k))
+	var clips: Array = []
+	var hurt := [0]
+	player.vitals.damaged.connect(func() -> void: hurt[0] += 1)
+	var walk_v: float = float(((data.anim_events.get("natural_speeds", {}) as Dictionary).get("allosaurus", {}) as Dictionary).get("walk", 2.6))
+	var nat_charge: float = float(((data.anim_events.get("natural_speeds", {}) as Dictionary).get("allosaurus", {}) as Dictionary).get("charge", 9.4))
+	var thrown_to := 0.0
+	var plant := {"drift": 0.0, "from": Vector3.INF, "clip": &""}
+	var charge_v: Array = []
+	var slide := 0.0
+	var air_low := INF
+	var knocked_after_leap := false
+	var hurt_at_leap := -1
+	var arc := {"frames": 0, "back": 0, "s": 0.0, "worst_dot": INF, "done_s": -1.0}
+	var step := TIME_SCALE / float(Engine.physics_ticks_per_second)
+	var repeat := false
+	for i in 1500:
+		await _sim(player, step)
+		var clip: StringName = c.anim.current_clip
+		if clips.is_empty() or clips[-1] != clip:
+			clips.append(clip)
+		# feet planted in the stomp and the windup: the left toe stays on its print
+		if clip in [&"spacing_stomp", &"bull_huff"]:
+			if plant["clip"] != clip:
+				plant["clip"] = clip
+				plant["from"] = _toe_l(c)
+			plant["drift"] = maxf(float(plant["drift"]), Vector2(_toe_l(c).x - plant["from"].x, _toe_l(c).z - plant["from"].z).length())
+		else:
+			plant["clip"] = &""
+		if clip == &"bull_huff" and thrown_to == 0.0:
+			thrown_to = b._flat_dist(player)
+		var v := Vector2(c.velocity.x, c.velocity.z)
+		if b.state == &"charge" and clip == &"charge" and not log.has(&"charge_leap"):
+			charge_v.append(v.length())
+			if v.length() > 1.0:
+				slide = maxf(slide, absf(v.length() - nat_charge * c.anim.cadence(&"charge")) / v.length())
+		if clip == &"charge_leap":
+			var a_t: float = c.anim._os_t / maxf(0.01, c.anim.player.get_animation(&"charge_leap").length)
+			if b._leap and a_t > 0.24 and a_t < 0.6:
+				air_low = minf(air_low, _toe_y(c))
+			if hurt_at_leap < 0:
+				hurt_at_leap = hurt[0]
+		if log.has(&"charge_leap") and player.sim.knock.active() and player.sim.knock.tier in [1, 2]:
+			knocked_after_leap = true
+		if b.state == &"charge_arc" and arc["done_s"] < 0.0:
+			arc["s"] = float(arc["s"]) + step
+			if v.length() > 0.3:
+				arc["frames"] += 1
+				var fwd := Vector2(-c.global_basis.z.x, -c.global_basis.z.z).normalized()
+				arc["worst_dot"] = minf(float(arc["worst_dot"]), v.normalized().dot(fwd))
+				if v.dot(fwd) <= 0.0:
+					arc["back"] += 1
+				var nat: float = float(((data.anim_events.get("natural_speeds", {}) as Dictionary).get("allosaurus", {}) as Dictionary).get(str(clip), 0.0))
+				if nat > 0.0:  # the gait it plays in the arc, at a matching stride (no moonwalk)
+					arc["slide"] = maxf(float(arc.get("slide", 0.0)), absf(v.length() - nat * c.anim.cadence(clip)) / v.length())
+					arc["clip"] = clip
+		elif log.has(&"charge_arc") and arc["done_s"] < 0.0:
+			arc["done_s"] = arc["s"]
+		if log.has(&"charge_arc") and log.count(&"display") >= 2 and clip == &"bull_huff":
+			repeat = true
+			break
+	var order := [clips.find(&"spacing_stomp"), clips.find(&"bull_huff"), clips.find(&"charge"), clips.find(&"charge_leap")]
+	print("[t_sp_allosaurus] info clips %s" % [clips])
+	_expect(order[0] >= 0 and order[0] < order[1] and order[1] < order[2] and order[2] < order[3],
+		"the sequence fires in order: stomp -> huff -> charge -> jump-bite (%s)" % [order])
+	_expect(b.spacing != null and b.spacing.stomps >= 1 and thrown_to >= 10.0, "the stomp throws her out to charge range (%.1f m at the windup)" % thrown_to)
+	_expect(float(plant["drift"]) < 0.12, "feet stay planted in the stomp and the windup (left toe drift %.2f m)" % plant["drift"])
+	var top := 0.0
+	for x in charge_v:
+		top = maxf(top, float(x))
+	_expect(top >= 1.5 * walk_v, "the charge runs at %.1f m/s, at least 1.5x its walk (%.1f m/s)" % [top, walk_v])
+	_expect(slide < 0.12, "no foot slide in the charge: the clip's stride speed matches the body's within %.0f %%" % (slide * 100.0))
+	_expect(air_low > 0.2 and air_low < INF, "the jump is airborne: both feet %.2f m off the ground mid-leap" % air_low)
+	_expect(log.has(&"leap_bite") and log.has(&"charge_hit") and log.find(&"charge_hit") > log.find(&"charge_leap") and hurt[0] > hurt_at_leap and knocked_after_leap,
+		"the jump-bite lands through its jaws hitbox and knocks her down (%s)" % [log])
+	_expect(not _bleeds(player), "the charge's bite does not bleed (Bleed rides on the hatchet and the slash only)")
+	_expect(int(arc["frames"]) > 5 and int(arc["back"]) == 0 and float(arc["worst_dot"]) > 0.0,
+		"in the arc it always moves forward along its facing (worst velocity . forward %.2f over %d frames)" % [arc["worst_dot"], arc["frames"]])
+	_expect(float(arc.get("slide", 1.0)) < 0.12, "the arc plays %s at a matching stride (off by %.0f %%)" % [arc.get("clip", "-"), float(arc.get("slide", 1.0)) * 100.0])
+	_expect(float(arc["done_s"]) > 0.0 and float(arc["done_s"]) <= ARC_BACK_S, "it is back round to her within %.1f s (%.2f s)" % [ARC_BACK_S, arc["done_s"]])
+	_expect(repeat, "then it winds up again: the charge repeats (%s)" % [log])
+	c.queue_free()
+	await physics_frame
+	await physics_frame
+	_expect(not player.get_collision_exceptions().any(func(x) -> bool: return is_instance_valid(x) and x.is_in_group(&"creatures")), "the pass-through exception is gone once the animal is")
 
 ## A pair (one pack) holds ring slots on opposite sides of the prey (tactics.surround), and both go for her.
 ## (The slot math, not a walk round the ring: with no navmesh in a test a goal past ~12 m is not steered to.)

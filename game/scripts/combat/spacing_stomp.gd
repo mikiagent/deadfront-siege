@@ -155,6 +155,8 @@ func _land() -> void:
 	if not is_instance_valid(victim) or not _standing(victim):
 		return
 	last_reach = bite_reach(victim)
+	if _num("push_to_m", 0.0) > 0.0:  # ALLOCHARGE (spacing_stomp.species.allosaurus): out to charge range, not bite range
+		last_reach = _num("push_to_m", 0.0) * creature.size_scale()
 	var o := local_offset(victim)
 	last_push = maxf(0.0, last_reach - o.x)
 	if not CreatureAttack._deal_damage(creature, victim, CLIP, _num("damage_mult", 0.15)):
@@ -180,6 +182,11 @@ func _follow_up(brain: CreatureBrain) -> void:
 	if brain is TyrantBrain:
 		(brain as TyrantBrain).follow_up_bite()
 		followed = (brain as TyrantBrain).windup_clip
+	elif brain is TacticalBrain and str(cfg.get("follow", "")) == "bull":
+		# ALLOCHARGE (owner 2026-10-31: "stomp throw back, huff huff, charge ... jump and bite"): the bull reset, the windup
+		# (its display_clip) and the charge
+		(brain as TacticalBrain)._start_bull_reset()
+		followed = creature.anim.current_clip
 	elif brain is TacticalBrain:
 		var tb := brain as TacticalBrain
 		tb._beat_since_basic = true  # the stomp was the beat between basics

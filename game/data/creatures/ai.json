@@ -18,7 +18,7 @@
     "shake_mult": 1.0,
     "damage_mult": 0.15,
     "cooldown_s": 4.0,
-    "species": {}
+    "species": {"allosaurus": {"push_to_m": 14.0, "follow": "bull", "_about": "ALLOCHARGE: the stomp throws her out to charge range and leads into the bull windup and charge (# ASSUMPTION 14 m asked; the throw tier caps the flight, she lands ~12 m out)"}}
   },
   "default": {
     "cornered": {

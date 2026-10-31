@@ -215,6 +215,8 @@ func _moves_of(c) -> Array:
 						out.append([clip, 0, false, at])
 			elif ap.has_animation(StringName(str(r.get("clip", "")))):
 				out.append([StringName(str(r["clip"])), 0, false, [(lo + hi) * 0.5, hi]])
+	if tac.has("charge_leap_m") and ap.has_animation(&"charge_leap"):
+		out.append([&"charge_leap", 0, false, [reach]])  # ALLOCHARGE: the jump-bite closes its jaws at its reach
 	if club_tail:
 		out.clear()  # its club moves sweep the club live (t_ankyloai); only the close moves are clip strikes
 	# ClubTailBrain's close moves (ANKYLOCLOSE): judged with her on each move's aim spot.
