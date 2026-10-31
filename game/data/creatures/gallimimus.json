@@ -33,6 +33,7 @@
     "alert": "Long-legged dinosaur raises its long neck and looks around"
   },
   "pipeline": {
+    "coelomoves": "COELOMOVES 2026-10-31: attack_primary (peck step), attack_heavy (spring-and-rake kick), bite_combo (peck flurry), charge, hop_back, leap_back, dodge_left, dodge_right are the deinonychus clips moved onto this rig (tools/gait/transfer_clips.py --floor-feet --pin-toes; leg ratio 1.31); the old attack_primary slid its stance foot 7.8 cm. check_leap.py PASS",
     "route": "skeleton_transplant_v3",
     "forward_axis": "+Z",
     "version": 1,
@@ -161,5 +162,92 @@
         "weight": 3.0
       }
     ]
+  },
+  "tactics": {
+    "base": "pack_flanker",
+    "_about": "GALLIMIMUS (owner 2026-10-31: 'give it patched deinonychus's brain as a template and we will tune after'). ASSUMPTION, an ostrich-like omnivore: no pounce-and-pin and no ambush (pounce_max_m 0); fast kicks (heavy = the spring-and-rake attack_heavy, heavy_cd 3, only inside heavy_reach_m where the feet reach), a peck (bite = attack_primary) and a peck flurry (combo = bite_combo), power strafes and back-hops (dodge-and-flee). Skittish-territorial (territorial block). Open Questions CM2. the deinonychus brain (ai.json pack_flanker tactics) as one shared profile: TacticalBrain.resolve starts from 'base', multiplies its distances by 'scale', then applies these overrides.",
+    "sequences": [
+      {
+        "name": "backstep_strafe_left_charge",
+        "steps": [
+          "backstep",
+          "strafe_left",
+          "charge"
+        ],
+        "weight": 2.0
+      },
+      {
+        "name": "backstep_strafe_right_charge",
+        "steps": [
+          "backstep",
+          "strafe_right",
+          "charge"
+        ],
+        "weight": 2.0
+      },
+      {
+        "name": "strafe_left_combo",
+        "steps": [
+          "strafe_left",
+          "combo"
+        ],
+        "weight": 2.0
+      },
+      {
+        "name": "strafe_right_combo",
+        "steps": [
+          "strafe_right",
+          "combo"
+        ],
+        "weight": 2.0
+      },
+      {
+        "name": "strafe_right_charge",
+        "steps": [
+          "strafe_right",
+          "charge"
+        ],
+        "weight": 1.0
+      }
+    ],
+    "point_blank": [
+      "heavy",
+      "combo",
+      "bite"
+    ],
+    "bite_cd": 4.0,
+    "pounce_cd": 999.0,
+    "pounce_max_m": 0.0,
+    "combo_cd": 8.0,
+    "combo_mults": [
+      0.8,
+      1.0,
+      1.3
+    ],
+    "retreat_frac": 0.3,
+    "w_hop": 0.3,
+    "w_dodge": 0.5,
+    "chase_pounce_max_m": 0.0,
+    "attack_priority": [
+      "heavy",
+      "combo",
+      "bite"
+    ],
+    "heavy_cd": 3.0,
+    "heavy_mult": 1.4,
+    "heavy_reach_m": 1.8,
+    "retreat_mode": "flee",
+    "flee_s": 5.0,
+    "flee_natures": [
+      "timid"
+    ],
+    "territorial": {
+      "_about": "SKITTISH-TERRITORIAL (owner 2026-10-31: 'engage the player after running away once ... run away when its weak'). ASSUMPTION: the first flight lasts flee_once_s (or until it outruns the leash), then it turns on the threat if it is within leash_m and is provoked while the threat stays; under weak_frac HP (0.3) it runs again; with the threat gone (leash) it grazes and the cycle resets. TacticalBrain._territorial_tick.",
+      "flee_once_s": 3.0,
+      "leash_m": 30.0,
+      "weak_frac": 0.3
+    },
+    "ambush": false,
+    "approach_pounce": false
   }
 }
