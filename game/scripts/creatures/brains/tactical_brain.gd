@@ -904,7 +904,9 @@ func _charge_impact() -> void:
 		pl.receive_creature_hit(creature, &"attack_heavy")
 		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
 		if pl.sim:
-			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
+			# SP-TRIKEALPHA: a toss with toss_side_m throws her sideways, to the animal's right (the clip's twist).
+			var side := Vector3(-_charge_dir.z, 0.0, _charge_dir.x) * (_t("toss_side_m", 0.0) if tossing else 0.0)
+			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0) + side, _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).

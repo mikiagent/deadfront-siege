@@ -467,3 +467,16 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM5** | Alpha skin = the brown sheet as a recolour of the regular texture (same mesh, mane shape unchanged); the alpha's eyeshine stays blue (the eyes block has one colour). | `smilodon_alpha_albedo.jpg`, `Creature.spawn` | A separate alpha mesh or amber alpha eyes would need more work. |
 | **SM6** | Saddle: the shared builder, no neck strap (the mane lets its rays out), seat behind the mane. Rideable (back 1.6 m clears the 1.78/1.6 rule). | `saddles.json`, `mount/` | Riding a sabre cat was in its data (`tamed_role` mount); the owner may prefer combat-only. |
 
+
+### SP-TRIKEALPHA (2026-10-31) — the Alpha triceratops gets its own bull-horned body (claude/mmo-sp-trikealpha)
+
+Owner: "whatever happened to that bulky triceratops with the bull horns, is that in?". Report `docs/orchestration/reports/claude-sp-trikealpha.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TA1** | The Alpha body is a separate model (`model_variants.alpha`) worn by every alpha triceratops (wild rolled alphas, the lab's Alpha toggle, tamed alphas); regular triceratops keep the regular body. | `triceratops.json`, `Creature.spawn` | The owner may want it as its own rarer morph instead of every alpha. |
+| **TA2** | Tripo views were made with the beak closed (the sheet's open mouth would bake an open jaw into the rest pose); the jaw bone opens it in the roar, attacks and feed. | `alpha/ref/` | If the gaping mouth is the look he wants, the idle needs a held jaw-open pose. |
+| **TA3** | Same 4.645 m height as the regular, so the Alpha is 10.9 m beak to tail (longer, lower, wider); alpha genetics then scale it up 1.1-1.3x like any alpha. | `prep.py` scale, `height_meters` | Could be made taller. |
+| **TA4** | Signature: a landed charge ends in the bull-horn toss: head driven low, then a twist to its right that throws the survivor 5 m sideways (toss_side_m), 1.5 m along the line, lifted 4.5 m/s, 1.2 s stagger; charge cooldown 6 s (regular 8). | `model_variants.alpha.tactics`, `TacticalBrain._charge_impact` | Balance and feel. |
+| **TA5** | The Alpha's horn hits are judged at the Head bone with 2.4-2.6 m radii (no horn bones on the regular's rig layout; hitboxes not on canon). | `model_variants.alpha.hit_parts`, `Creature.part_hit` | Move to the hitbox system when it lands. |
+| **TA6** | A ridden mount never plays its strafe clips (it turns into its heading); the slow-turning Alpha played strafes under the rider. | `PlayerPets.mounted_move` | Affects every mount with strafe clips (megaloceros, rhino, smilodon...). |

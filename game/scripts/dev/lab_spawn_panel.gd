@@ -238,9 +238,10 @@ static func variants_of(id: StringName) -> Array:
 	if def == null:
 		return []
 	var rows := CreatureView.model_variants(def)
-	if not rows.values().any(func(r: Variant) -> bool: return r is Dictionary and (r as Dictionary).has("model")):
+	if not rows.keys().any(func(k: Variant) -> bool: return str(k) != "alpha" and rows[k] is Dictionary and (rows[k] as Dictionary).has("model")):
 		return []
 	var ids: Array = rows.keys()
+	ids.erase("alpha")  # SP-TRIKEALPHA: the Alpha's body comes with the Alpha toggle (Creature.spawn), not the Body pick
 	ids.sort()
 	ids.reverse()
 	return ids

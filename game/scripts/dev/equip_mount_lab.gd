@@ -24,11 +24,15 @@ const KITS := {
 	"hide_bone": [&"hide_bone_helm", &"hide_bone_cuirass", &"hide_bone_bracers", &"hide_bone_greaves"],
 }
 
+var alpha_body := false
+
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--species="):
 			only = StringName(a.substr(10))
 			all_mounts = true
+		elif a == "--alpha":
+			alpha_body = true  # SP-TRIKEALPHA: ride the species' Alpha body (its own model and saddle)
 		elif a == "--all-mounts":
 			all_mounts = true
 		elif a.begins_with("--shot-dir="):
@@ -138,7 +142,11 @@ func _spawn(def: CreatureDef) -> Creature:
 	player.get_parent().add_child(c)
 	c.is_pet = true
 	c.pet_record = rec
+	c.alpha_spawn = alpha_body
 	c.spawn(def, rec.variant)
+	if alpha_body:  # judge the Alpha's saddle at its authored size (the lab's numbers are for size 1)
+		c.genetics.size = 1.0
+		c.view.apply_genome(1.0)
 	c.global_position = player.global_position + Vector3(6, 0, 0)
 	return c
 
@@ -250,7 +258,7 @@ func _check_saddle(id: StringName, c: Creature) -> bool:
 	var view := c.view
 	var sk := view.rig.skeleton
 	var idx := sk.find_bone(_socket_name(id))
-	var mj := _mount_json(id)
+	var mj := view._mount_json() if alpha_body else _mount_json(id)  # the Alpha body has its own saddle (alpha/mount)
 	if idx < 0:
 		print("[mountlab] FAIL species=%s socket %s missing from the skeleton" % [id, _socket_name(id)])
 		return false

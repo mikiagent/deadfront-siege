@@ -919,7 +919,9 @@ func _on_hit(clip: StringName) -> void:
 ## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical
 ## segment from its feet to its height. True when the species lists no parts for the clip or the rig lacks them.
 func part_hit(clip: StringName, target: Node3D) -> bool:
-	var row: Variant = (def.pipeline.get("hit_parts", {}) as Dictionary).get(str(clip)) if def and def.pipeline.get("hit_parts") is Dictionary else null
+	# A body variant may judge its hits at its own parts (SP-TRIKEALPHA: model_variants.alpha.hit_parts).
+	var parts: Variant = CreatureView.variant_row(def, variant).get("hit_parts", def.pipeline.get("hit_parts")) if def else null
+	var row: Variant = (parts as Dictionary).get(str(clip)) if parts is Dictionary else null
 	var sk: Skeleton3D = view.rig.skeleton if view and view.rig else null
 	if not (row is Dictionary) or sk == null or target == null:
 		return true
