@@ -9,7 +9,8 @@
       "hit_frac": 0.72,
       "windup": true,
       "windup_hold": 0.6,
-      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R"
+      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
+      "note_spinosaurus": "spinosaurus (make_spino_moves.py): forearm claw rake, 1.6 s: rears up with both claws cocked (held to windup_hold 0.6), drops forward and rakes both claws down at 0.72; hits from the hands"
     },
     "hit_react": {
       "speed": 2.0
@@ -115,7 +116,9 @@
     "bite_shake": {
       "hit_frac": 0.3,
       "windup": true,
-      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
+      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab.",
+      "release_frac": 0.78,
+      "note_spinosaurus": "spinosaurus (SP-SPINOSAURUS, make_spino_moves.py bite_shake): snap-and-shake, 2.5 s: draws back (telegraph), clamps at 0.30, lifts and thrashes three times, whips to its left and opens at release_frac 0.78 (TacticalBrain tactics.grab carries her until release_frac and flings her)."
     },
     "toss": {
       "hit_frac": 0.3,
@@ -203,6 +206,17 @@
       "strafe_right_len": 1.0,
       "walk_back": 1.941,
       "walk_back_len": 1.0
+    },
+    "spinosaurus": {
+      "height_m": 9.0,
+      "run_l": 14.355,
+      "run_len": 0.667,
+      "run_r": 14.337,
+      "walk_l": 4.653,
+      "walk_len": 1.208,
+      "walk_r": 4.655,
+      "walk": 4.654,
+      "run": 14.346
     },
     "coelophysis": {
       "height_m": 2.0,
