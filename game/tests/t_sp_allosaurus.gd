@@ -10,7 +10,17 @@ const ID := &"allosaurus"
 const TOES := ["Toe.L", "Toe.R"]  ## Toe head = the heel/ball on the floor (rig_biped: the whole sole is Toe)
 const GROUND_TOL := 0.12  ## m on a 6.5 m animal: the lowest Toe head stays this close to its rest height
 ## clip -> [hit frac, bone, min metres ahead of the centre]: anim_events hit fracs and pipeline.hit_parts
-const HITS := {&"attack_primary": [0.42, "Jaw", 6.0], &"attack_heavy": [0.72, "Head", 5.0], &"grab_bite": [0.3, "Hand.R", 4.5], &"kick": [0.45, "Chest", 2.5]}
+const HITS := {&"attack_primary": [0.42, "Jaw", 6.0], &"attack_heavy": [0.72, "Head", 5.0], &"grab_bite": [0.3, "Hand.R", 4.5], &"kick": [0.45, "Chest", 2.5],
+	&"claw_rake": [0.5, "Hand.L", 3.5], &"slash_bite": [0.42, "Jaw", 5.0]}
+## ALLOFEEL (owner 2026-10-31: "the arms should be moving as part of the attack animation and add more attacks"): every
+## attack clip -> its hit frac. From the clip's first frame to its hit frame the leading claw tip (the Hand bone's tip, in
+## the Chest bone's frame: the arm's own motion, not the body carrying it) travels more than ARM_TRAVEL_M, the other more
+## than 0.4 of that, and the elbow and the wrist each bend through more than ARM_BEND_DEG.
+const ARM_HITS := {&"attack_primary": 0.42, &"attack_heavy": 0.72, &"grab_bite": 0.3, &"kick": 0.45, &"claw_rake": 0.5,
+	&"slash_bite": 0.42, &"check_left": 0.45, &"check_right": 0.45}
+const ARM_TRAVEL_M := 1.0
+const ARM_BEND_DEG := 25.0
+const HAND_M := 0.64  ## the Hand bone's length at size 1: hitboxes.json's ClawTip offset
 
 var failures: Array[String] = []
 var _started := false
@@ -34,12 +44,14 @@ func _expect(ok: bool, what: String) -> void:
 
 func _run() -> void:
 	_test_view()
+	_test_arms()
 	_test_spawns()
 	await _test_choice()
 	await _test_hatchet()
 	await _test_grab()
 	await _test_ram()
 	await _test_pair()
+	await _test_new_moves()
 	if failures.is_empty():
 		print("[t_sp_allosaurus] PASS")
 		quit(0)
@@ -126,6 +138,66 @@ func _test_view() -> void:
 		_expect(ahead > float(HITS[clip][2]), "%s: %s %.2f m ahead of the body centre at the hit frame" % [clip, HITS[clip][1], ahead])
 		if clip == &"attack_heavy":
 			_expect(p.y < head_rest.y - 2.5, "hatchet: the skull is chopped down (head %.2f m, rest %.2f m)" % [p.y, head_rest.y])
+	view.free()
+
+## ALLOFEEL: the arms move in every attack (see ARM_HITS), and the ClawTip offset is the claw tip (along the hand).
+func _test_arms() -> void:
+	var view = CV.new()
+	root.add_child(view)
+	view.setup(data.creature(ID))
+	var sk: Skeleton3D = view.rig.skeleton
+	var ap: AnimationPlayer = view.rig.anim_player
+	var s := sk.global_basis.get_scale().x
+	sk.reset_bone_poses()
+	var hand := sk.get_bone_global_rest(sk.find_bone("Hand.L"))
+	var fore := sk.get_bone_global_rest(sk.find_bone("Forearm.L"))
+	var tip := hand.origin + hand.basis.orthonormalized() * Vector3(0, HAND_M / s, 0)
+	_expect(tip.distance_to(fore.origin) > hand.origin.distance_to(fore.origin) + 0.1 / s and tip.y < hand.origin.y,
+		"ClawTip offset runs out along the hand, down from the wrist (tip %.2f m from the wrist)" % ((tip - hand.origin).length() * s))
+	for clip in ARM_HITS:
+		if not ap.has_animation(clip):
+			_expect(false, "%s clip loaded" % clip)
+			continue
+		var a := ap.get_animation(clip)
+		var n := 24
+		var hit_k := int(round(float(ARM_HITS[clip]) * n))
+		var tips := {"L": [], "R": []}
+		var el := {"L": [], "R": []}
+		var wr := {"L": [], "R": []}
+		for k in hit_k + 1:
+			sk.reset_bone_poses()
+			ap.play(clip)
+			ap.seek(a.length * float(k) / n, true)
+			var chest := sk.get_bone_global_pose(sk.find_bone("Chest")).affine_inverse()
+			for sd in ["L", "R"]:
+				var up := sk.get_bone_global_pose(sk.find_bone("Arm." + sd))
+				var fo := sk.get_bone_global_pose(sk.find_bone("Forearm." + sd))
+				var ha := sk.get_bone_global_pose(sk.find_bone("Hand." + sd))
+				tips[sd].append(chest * (ha.origin + ha.basis.orthonormalized() * Vector3(0, HAND_M / s, 0)) * s)
+				el[sd].append(rad_to_deg(up.basis.y.angle_to(fo.basis.y)))
+				wr[sd].append(rad_to_deg(fo.basis.y.angle_to(ha.basis.y)))
+		var trav := []
+		var bend := []
+		for sd in ["L", "R"]:
+			var t := 0.0
+			for p in tips[sd]:
+				t = maxf(t, (p as Vector3).distance_to(tips[sd][0]))
+			trav.append(t)
+			bend.append([(el[sd] as Array).max() - (el[sd] as Array).min(), (wr[sd] as Array).max() - (wr[sd] as Array).min()])
+		var lead := 0 if trav[0] >= trav[1] else 1
+		_expect(trav[lead] > ARM_TRAVEL_M and trav[1 - lead] > ARM_TRAVEL_M * 0.4,
+			"%s: the claw tips travel %.2f / %.2f m against the chest from the start to the hit" % [clip, trav[0], trav[1]])
+		_expect(bend[lead][0] > ARM_BEND_DEG and bend[lead][1] > ARM_BEND_DEG,
+			"%s: the leading elbow bends %.0f deg and the wrist %.0f deg (claws spread and curl)" % [clip, bend[lead][0], bend[lead][1]])
+		# where the claws are at the hit (for the hitbox ranges in tactics.moves)
+		sk.reset_bone_poses()
+		ap.play(clip)
+		ap.seek(a.length * float(ARM_HITS[clip]), true)
+		var line := ""
+		for sd in ["L", "R"]:
+			var ha := sk.get_bone_global_pose(sk.find_bone("Hand." + sd))
+			line += " %s %s" % [sd, sk.global_transform * (ha.origin + ha.basis.orthonormalized() * Vector3(0, HAND_M / s, 0))]
+		print("[t_sp_allosaurus] info %s claw tips at the hit:%s" % [clip, line])
 	view.free()
 
 ## islands.json rows: pairs, on its own islands; the model means nothing falls through to another species.
@@ -276,6 +348,68 @@ func _test_ram() -> void:
 	_expect(d1 > d0 + 2.5, "she is thrown back (%.1f -> %.1f m)" % [d0, d1])
 	root.get_node("Game").god_mode = false
 	host.free()
+
+## ALLOFEEL: the three new moves (tactics.moves). Each is picked only where it reaches (the rake under its chest, the
+## slash at jaw range, the shoulder-check at its flank, by side), shows its ring where it lands, and lands: the slash
+## bleeds, the rake does not, and the check throws her sideways off its flank.
+func _test_new_moves() -> void:
+	var a := await _arena()
+	var host: Node3D = a[0]
+	var player = a[1]
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	var c = _allo(host, Vector3(0, 0.1, -4.6))
+	var b = c.brain
+	b.attack_target = player
+	_expect(b.attack_available(&"rake", 4.6) and not b.attack_available(&"slash", 4.6), "4.6 m in front: the arm rake (not the slash)")
+	c.global_position = Vector3(0, 0.1, -6.2)
+	_expect(b.attack_available(&"slash", 6.2) and not b.attack_available(&"rake", 6.2), "6.2 m in front: the hatchet slash (not the rake)")
+	_expect(not b.attack_available(&"check", 6.2), "no shoulder-check at prey in front")
+	c.global_position = Vector3(-2.5, 0.1, 0)
+	c.look_at(Vector3(-2.5, 0.1, -10), Vector3.UP)  # she is at its right flank
+	_expect(b.attack_available(&"check", 2.5) and b._move_clip(b._move_row(&"check")) == &"check_right", "at its right flank: the shoulder-check to its right")
+	_expect(not b.attack_available(&"rake", 2.5) and not b.attack_available(&"grab", 2.5), "at its flank: no rake or grab")
+	c.global_position = Vector3(2.5, 0.1, 0)
+	_expect(b._move_clip(b._move_row(&"check")) == &"check_left", "at its left flank: the shoulder-check to its left")
+	host.free()
+	root.get_node("Game").god_mode = true
+	# [move, creature spot, look-at, clip]
+	for row in [[&"rake", Vector3(0, 0.1, -4.6), Vector3.ZERO, &"claw_rake"], [&"slash", Vector3(0, 0.1, -6.2), Vector3.ZERO, &"slash_bite"],
+			[&"check", Vector3(-2.5, 0.1, 0), Vector3(-2.5, 0.1, -10), &"check_right"], [&"check", Vector3(2.5, 0.1, 0), Vector3(2.5, 0.1, -10), &"check_left"]]:
+		a = await _arena()
+		host = a[0]
+		player = a[1]
+		c = _allo(host, row[1])
+		if row[2] != Vector3.ZERO:
+			c.look_at(row[2], Vector3.UP)
+		b = c.brain
+		b.attack_target = player
+		var hits := []
+		b.tactic_hit.connect(func(clip: StringName, _i: int, _m: float) -> void: hits.append(clip))
+		var seen := {}
+		b.tactic.connect(func(k: StringName) -> void: seen[k] = true)
+		var p0: Vector3 = player.global_position
+		var d0: float = Vector2(p0.x - c.global_position.x, p0.z - c.global_position.z).length()
+		_expect(b._strike(d0, [str(row[0])]), "%s picked at %.1f m" % [row[0], d0])
+		_expect(c.anim.current_clip == row[3], "%s plays %s (%s)" % [row[0], row[3], c.anim.current_clip])
+		var ring := false
+		var TG: GDScript = load("res://scripts/combat/telegraph.gd")  # not the class name: --script compiles before the autoloads
+		for _f in 90:
+			await physics_frame
+			for t in TG.get("_active"):
+				if is_instance_valid(t) and t.attacker == c and t.covers(player.global_position):
+					ring = true
+		_expect(ring, "%s: its ground ring covers her before the hit" % row[3])
+		_expect(row[3] in hits, "%s lands (%s)" % [row[3], hits])
+		if row[0] == &"slash":
+			_expect(_bleeds(player), "the hatchet slash applies Bleed")
+		elif row[0] == &"rake":
+			_expect(not _bleeds(player), "the arm rake applies no bleed")
+		else:
+			var p1: Vector3 = player.global_position
+			var side: float = (p1 - p0).dot(c.global_basis.x.normalized()) * (1.0 if row[3] == &"check_right" else -1.0)
+			_expect(seen.has(&"move_shove") and side > 1.5, "%s throws her off its flank (%.1f m sideways)" % [row[3], side])
+		host.free()
+	root.get_node("Game").god_mode = false
 
 ## A pair (one pack) holds ring slots on opposite sides of the prey (tactics.surround), and both go for her.
 ## (The slot math, not a walk round the ring: with no navmesh in a test a goal past ~12 m is not steered to.)

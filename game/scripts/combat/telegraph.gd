@@ -19,6 +19,14 @@ static func show_for(creature: Creature, clip: StringName) -> void:
 		ahead = creature.body_radius() + 1.0
 		radius = 1.4
 	var impact := creature.global_position + -creature.global_transform.basis.z * ahead
+	# ALLOFEEL: tactics.rings {clip: [right m, ahead m, radius m]} at body size 1: the ring where that move lands
+	var rings: Variant = creature.def.tactics.get("rings") if creature.def else null
+	var ring: Variant = (rings as Dictionary).get(str(clip)) if rings is Dictionary else null
+	if ring is Array and (ring as Array).size() >= 3:
+		var k := creature.size_scale()
+		impact = creature.global_position + creature.global_transform.basis.x.normalized() * float(ring[0]) * k \
+			- creature.global_transform.basis.z.normalized() * float(ring[1]) * k
+		radius = float(ring[2]) * k
 	t.global_position = impact
 	t._build(radius, creature)
 	t.visible = not (player and player.statuses.has_flag(&"hide_telegraphs"))

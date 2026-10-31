@@ -456,6 +456,8 @@ func hit_damage_mult(clip: StringName, hit_index: int) -> float:
 		# ASSUMPTION (horned_charger): the sweeping horn swipe, x heavy_mult (2.2). Only the
 		# anim-driven attack_heavy reads this (the charge and the pounce pass their own mult).
 		mult = _t("heavy_mult", 1.0)
+	elif not _move_of_clip(clip).is_empty():
+		mult = float(_move_of_clip(clip).get("mult", 1.0))  # ALLOFEEL
 	tactic_hit.emit(clip, hit_index, mult)
 	return mult
 
@@ -843,6 +845,12 @@ func attack_available(move: StringName, d: float) -> bool:
 			if not _beat_since_basic or _basic_streak >= int(tac.get("max_basic_streak", 2)):
 				return false
 			return in_reach or creature.can_sprint()
+	# ALLOFEEL: a tactics.moves row (the allosaurus' arm rake, hatchet slash, shoulder-check)
+	var row := _move_row(move)
+	if not row.is_empty():
+		var clip := _move_clip(row)
+		return clip != &"" and creature.anim.has_state(clip) and d >= float(row.get("min_m", 0.0)) \
+			and d <= float(row.get("max_m", 1e9)) + _size_excess(attack_target)
 	return false
 
 ## The strongest available attack, or false when everything is cooling down.
@@ -887,6 +895,8 @@ func _strike(d: float, only: Array = []) -> bool:
 					_grab_hands()  # SP-ALLOSAURUS
 				else:
 					_start_grab()  # SP-SPINOSAURUS snap-and-shake
+			_:
+				_play_move(move)  # ALLOFEEL: a tactics.moves row
 		return true
 	return false
 
@@ -1422,6 +1432,10 @@ func landed(clip: StringName, target: Node) -> void:
 		if pull0 > 0.05:
 			pl.sim.shove(-away.normalized() * pull0, _t("primary_pull_stagger_s", 0.5))
 			tactic.emit(&"hook_pull")
+	elif float(_move_of_clip(clip).get("shove_m", 0.0)) > 0.0:
+		var row := _move_of_clip(clip)  # ALLOFEEL: the shoulder-check throws her off its flank
+		pl.sim.shove(away.normalized() * float(row["shove_m"]), float(row.get("shove_stagger_s", 0.6)), 0.0, creature)
+		tactic.emit(&"move_shove")
 	elif clip == &"kick" and _t("kick_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("kick_shove_m", 0.0), _t("kick_shove_stagger_s", 0.6), 0.0, creature)
 		tactic.emit(&"kick_shove")
@@ -1531,6 +1545,50 @@ func _charge_turn(delta: float) -> void:
 	_jump_end()
 	_start_charge(true)
 	tactic.emit(&"charge_return")
+
+## ALLOFEEL: tactics.moves, point-blank moves as data: {clip | clip_left + clip_right, arc, front_deg | side_from_deg +
+## side_to_deg, min_m, max_m, mult, shove_m, shove_stagger_s}; the cooldown is <move>_cd as for every move.
+func _move_row(move: StringName) -> Dictionary:
+	var rows: Variant = tac.get("moves")
+	var row: Variant = (rows as Dictionary).get(str(move)) if rows is Dictionary else null
+	return row if row is Dictionary else {}
+
+func _move_of_clip(clip: StringName) -> Dictionary:
+	var rows: Variant = tac.get("moves")
+	if clip == &"" or not (rows is Dictionary):
+		return {}
+	for k in rows:
+		var row: Variant = rows[k]
+		if row is Dictionary and str(clip) in [str(row.get("clip", "")), str(row.get("clip_left", "")), str(row.get("clip_right", ""))]:
+			return row
+	return {}
+
+## The clip a move plays at the prey where she stands now, &"" outside its arc. arc "front": within front_deg of its
+## facing; "side": side_from_deg..side_to_deg off it, clip_left or clip_right by her side.
+func _move_clip(row: Dictionary) -> StringName:
+	var fwd := -creature.global_basis.z
+	var to := attack_target.global_position - creature.global_position
+	fwd.y = 0.0
+	to.y = 0.0
+	if fwd.length_squared() < 0.01 or to.length_squared() < 0.01:
+		return &""
+	var off := rad_to_deg(fwd.angle_to(to))
+	if str(row.get("arc", "front")) == "side":
+		if off < float(row.get("side_from_deg", 35.0)) or off > float(row.get("side_to_deg", 120.0)):
+			return &""
+		var right := creature.global_basis.x.dot(to) > 0.0
+		return StringName(str(row.get("clip_right" if right else "clip_left", "")))
+	return StringName(str(row.get("clip", ""))) if off <= float(row.get("front_deg", 45.0)) else &""
+
+func _play_move(move: StringName) -> void:
+	_just_disengaged = false
+	_basic_streak = 0
+	creature.stop_move()
+	creature.anim.play_clip(_move_clip(_move_row(move)))
+	_set_state(&"attack")
+	_mark_pack()
+	tactic.emit(move)
+	_log("[ai] %s %s" % [creature.def.id, move])
 
 ## The prey is in its rear arc (the hind kick's side).
 func _prey_behind() -> bool:
@@ -1796,7 +1854,8 @@ func _bite_reach() -> float:
 ## Standing in a bite or the combo: face the prey, leap back out when the clip ends.
 func _swing(delta: float) -> void:
 	creature.stop_move()  # the bite plays in place (no glide): bite_track leads it instead (_bite_reach)
-	if creature.anim.current_clip != &"kick":  # a hind kick keeps its back to the prey
+	# a hind kick keeps its back to the prey; a side move (ALLOFEEL shoulder-check) its flank
+	if creature.anim.current_clip != &"kick" and str(_move_of_clip(creature.anim.current_clip).get("arc", "")) != "side":
 		creature.face_towards(attack_target.global_position, delta)
 	if not creature.anim._busy:
 		_back_off()

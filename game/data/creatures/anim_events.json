@@ -232,6 +232,38 @@
       "hit_frac": 0.56,
       "windup": false,
       "note": "raptor (RAPTORFLANK, owner 2026-10-31: 'run past, turn, strafe, attack from behind'; make_raptor_moves.py flank_rake, 1.0 s): from behind the prey a short leap onto its back (the brain carries the arc inside airborne), both sickle feet swung forward and cocked, arms thrown forward with the hand claws spread, jaws wide; at 0.56 both feet and hands rake down through it and the jaws bite (TacticalBrain flank, x flank_mult); it rakes back and drops into its stance"
+    },
+    "claw_rake": {
+      "hit_frac": 0.5,
+      "windup": true,
+      "tell_fracs": [
+        0.18
+      ],
+      "note": "allosaurus arm rake (ALLOFEEL, make_allo_moves.py), 1.1 s: rears with both arms raised high, claws spread and trembling, jaws open (the tell at 0.18, held to 0.36), then pitches forward with a step and both arms rake down and back through the prey under its chest, the left a beat ahead; hit at 0.5 from the claw tips (hitboxes.json Hand + offset rows)"
+    },
+    "slash_bite": {
+      "hit_frac": 0.42,
+      "windup": true,
+      "tell_fracs": [
+        0.16
+      ],
+      "note": "allosaurus hatchet slash (ALLOFEEL), 1.3 s: head cocked high and to its left, jaws gaping, arms raised (the tell at 0.16, held to 0.3), a quick step in and the OPEN upper jaw slashes down and across to its right at 0.42, the arms raking with it; the jaws shut and it pulls back off the prey (slash and retreat; Bleed rides on it, tactics.status_clips)"
+    },
+    "check_left": {
+      "hit_frac": 0.45,
+      "windup": true,
+      "tell_fracs": [
+        0.18
+      ],
+      "note": "allosaurus shoulder-check to its left (ALLOFEEL), 1.0 s: for prey beside its flank; leans away with the arms tucked (the tell at 0.18, held to 0.32), then slams chest, shoulder and hip sideways into her, the near arm lashing out and raking; hit at 0.45, shoves her sideways (tactics.moves.check.shove_m); both feet stay planted"
+    },
+    "check_right": {
+      "hit_frac": 0.45,
+      "windup": true,
+      "tell_fracs": [
+        0.18
+      ],
+      "note": "allosaurus shoulder-check to its right (ALLOFEEL), 1.0 s: for prey beside its flank; leans away with the arms tucked (the tell at 0.18, held to 0.32), then slams chest, shoulder and hip sideways into her, the near arm lashing out and raking; hit at 0.45, shoves her sideways (tactics.moves.check.shove_m); both feet stay planted"
     }
   },
   "natural_speeds": {

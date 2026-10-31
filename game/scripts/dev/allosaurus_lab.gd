@@ -6,10 +6,12 @@ extends Node3D
 ## Godot --path game --position 6000,3000 -- --skip-charcreate --lab=allosaurus_lab --out=DIR [--clips=a,b]
 
 const CLIPS: Array[StringName] = [&"idle", &"walk", &"run", &"walk_back", &"strafe_left", &"strafe_right",
-	&"attack_primary", &"attack_heavy", &"grab_bite", &"kick", &"hit_react", &"alert", &"feed", &"sleep", &"knockdown", &"death"]
+	&"attack_primary", &"attack_heavy", &"grab_bite", &"kick", &"hit_react", &"alert", &"feed", &"sleep", &"knockdown", &"death",
+	&"claw_rake", &"slash_bite", &"check_left", &"check_right"]
 ## anim_events.json hit fractions: the snap bite, the hatchet chop (and its held gape at 50), the grab's clamp and two
 ## bites, the shoulder ram.
-const HIT := {&"attack_primary": [42], &"attack_heavy": [50, 72], &"grab_bite": [30, 55, 80], &"kick": [45]}
+const HIT := {&"attack_primary": [42], &"attack_heavy": [50, 72], &"grab_bite": [30, 55, 80], &"kick": [45],
+	&"claw_rake": [27, 50], &"slash_bite": [23, 42], &"check_left": [25, 45], &"check_right": [25, 45]}  # ALLOFEEL: the held tell, then the hit
 
 var _out := ""
 var _caption: Label
@@ -67,6 +69,18 @@ func _sheet() -> void:
 	add_child(tq)
 	tq.look_at_from_position(Vector3(-17.0, 10.0, 15.0), Vector3(-3.0, 2.5, 0.0))
 	_cams = {"side": side, "tq": tq}
+	if "--close" in OS.get_cmdline_user_args():  # ALLOFEEL: the chest and arms up close, from the front left
+		var close := Camera3D.new()
+		close.fov = 40.0
+		add_child(close)
+		close.look_at_from_position(Vector3(-15.5, 6.0, 12.0), Vector3(-4.6, 3.6, 0.0))
+		_cams["close"] = close
+	if "--hits-only" in OS.get_cmdline_user_args():
+		var keep: Array[StringName] = []
+		for c in want:
+			if HIT.has(c):
+				keep.append(c)
+		want = keep
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_caption = Label.new()
@@ -82,7 +96,7 @@ func _sheet() -> void:
 		if not ap.has_animation(clip):
 			print("[allosaurus] MISSING clip %s" % clip)
 			continue
-		var pcts: Array = [30, 60]
+		var pcts: Array = [] if "--hits-only" in OS.get_cmdline_user_args() else [30, 60]
 		if HIT.has(clip):
 			pcts.append_array(HIT[clip])
 		for pct in pcts:

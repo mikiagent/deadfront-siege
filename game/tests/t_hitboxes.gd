@@ -185,6 +185,27 @@ func _moves_of(c) -> Array:
 			out.append([&"pin_stab", i, false, [float(tac.get("pin_reach_m", 1.5)) * c.size_scale()]])
 	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)):
 		out.append([&"kick", 0, true, [reach]])  # the hind kick at prey behind it (after a charge, or point blank)
+	# ALLOFEEL: tactics.moves rows (the allosaurus' arm rake, hatchet slash, shoulder-checks). A front move at the middle and
+	# the far end of its min_m..max_m; a side move with her beside its flank, 60 and 90 deg off its facing, at 0.8 max_m.
+	var mvs: Variant = tac.get("moves")
+	if mvs is Dictionary:
+		var sz: float = c.size_scale()
+		for k in mvs:
+			var r: Variant = mvs[k]
+			if not (r is Dictionary):
+				continue
+			var lo := float(r.get("min_m", 0.0)) * sz
+			var hi := float(r.get("max_m", reach)) * sz
+			if str(r.get("arc", "front")) == "side":
+				for sd in [["clip_right", 1.0], ["clip_left", -1.0]]:
+					var clip := StringName(str(r.get(sd[0], "")))
+					if ap.has_animation(clip):
+						var at := []
+						for deg in [60.0, 90.0]:
+							at.append(Vector3(float(sd[1]) * sin(deg_to_rad(deg)), 0.0, -cos(deg_to_rad(deg))) * hi * 0.8)
+						out.append([clip, 0, false, at])
+			elif ap.has_animation(StringName(str(r.get("clip", "")))):
+				out.append([StringName(str(r["clip"])), 0, false, [(lo + hi) * 0.5, hi]])
 	if club_tail:
 		out.clear()  # its club moves sweep the club live (t_ankyloai); only the close moves are clip strikes
 	# ClubTailBrain's close moves (ANKYLOCLOSE): judged with her on each move's aim spot.
