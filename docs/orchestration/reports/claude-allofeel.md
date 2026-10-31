@@ -1,6 +1,6 @@
 # ALLOFEEL: allosaurus arms in every attack, three new moves, the carnotaurus kit
 
-Branch `claude/mmo-allofeel`, from `origin/claude/mmo-overhaul`, with canon merged back in (bigstomp 2eecfc3e, megajoust f1b73788, then carnofeel c8a64c14; every gate rerun after the last merge). Pushed, not merged to canon.
+Branch `claude/mmo-allofeel`, from `origin/claude/mmo-overhaul`, with canon merged back in (bigstomp 2eecfc3e, megajoust f1b73788, carnofeel c8a64c14, critspots e46a62d3, then ankynoteleport f802ee15; every gate rerun after the last merge). Pushed, not merged to canon.
 Credits: Tripo 0, Meshy 0, Higgsfield 0. The model and rig (`allosaurus.glb`) are untouched; only clips, data and code changed.
 
 What the owner said: "Alosaurus model turned out great! the arms should be moving as part of the attack animation and add more attacks generally. Carnotaurus attacks are welcome on this".
@@ -93,7 +93,8 @@ No roar and no spacing stomp (claude/mmo-theroroar owns those).
 - t_sp_carnotaurus: PASS. t_styraco: PASS.
 - `check_allo.py` also gates `bite_combo`: each chomp is at least 1.5 m down and never pulled back, and the arms move.
 - Shots: `carnokit_chomp_combo_sheet.jpg` shows chomp left, chomp right, the rear-up tell and the MEGA chomp; the frames are in `hit_frames/bite_combo_*`.
-- t_knockdown, t_combat, t_tactical, t_canim, t_raptorflank: PASS.
+- t_knockdown, t_combat, t_tactical, t_raptorflank: PASS.
+- **t_canim FAILS on canon itself** ("carnotaurus _on_damaged starts hit_react (got idle)"; on a clean origin/claude/mmo-overhaul f802ee15 worktree it also fails for the utahraptor). It came in with the critspots/carnofeel merges; nothing here touches it.
 - `run_all.gd`: **[tests] PASS**. `tools/audit_gaits.py --gate`: **GATE PASS**. `tools/smoke.sh --no-import`: **SMOKE PASS**.
 
 ## Shots (`docs/orchestration/reports/allofeel/`)
