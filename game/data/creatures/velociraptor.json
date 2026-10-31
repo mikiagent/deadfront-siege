@@ -228,5 +228,17 @@
       1.0,
       0.2
     ]
+  },
+  "tactics": {
+    "base": "pack_flanker",
+    "scale": 0.75,
+    "_about": "COELOMOVES (owner 2026-10-31: 'Velociraptor has the gliding problem, honestly also give it the deinonychus brain'): the deinonychus brain (ai.json pack_flanker tactics) as one shared profile: TacticalBrain.resolve starts from 'base', multiplies its distances by 'scale', then applies these overrides. ASSUMPTION: distances x0.75 for a 2.9 m animal; pounce x2.0, combo x0.8; no tree ambush, so its RAPTORFEEL sniff and investigate hold still open every fight. Open Questions CM4.",
+    "ambush": false,
+    "pounce_mult": 2.0,
+    "combo_mults": [
+      0.8,
+      1.04,
+      1.44
+    ]
   }
 }
