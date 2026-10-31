@@ -2,8 +2,8 @@
   "species": "Styracosaurus",
   "clade": "Ceratopsia",
   "period": "Late Cretaceous",
-  "real_length_m": 11.0,
-  "height_meters": 2.25,
+  "real_length_m": 19.0,
+  "height_meters": 6.75,
   "rig": "quadruped",
   "tier": 45,
   "climate": "savannah",
@@ -21,7 +21,30 @@
     "speed": 470,
     "bag_slots": 110
   },
-  "turn_rate": 2.5,
+  "turn_rate": 1.4,
+  "tactics": {
+    "_about": "STYRAFIX (owner 2026-10-31: 'make styracosaurus bigger by like 3x'): the horned_charger knobs that are distances, scaled to the 15 m body (its horn tip is ~6.8 m ahead of its centre), plus the impale charge. Every number an ASSUMPTION.",
+    "attack_range": 6.0,
+    "ring_m": 16.0,
+    "display_charge_m": 9.0,
+    "charge_through_m": 6.0,
+    "charge_max_s": 3.5,
+    "strafe_m": 3.0,
+    "hop_m": 3.0,
+    "leap_back_m": 3.0,
+    "max_retreat_m": 24.0,
+    "guard_m": 45.0,
+    "charge_impale": true,
+    "charge_min_m": 10.0,
+    "charge_aim_deg": 12.0,
+    "charge_ramp_s": 0.5,
+    "charge_brake_s": 0.6,
+    "charge_recover_s": 2.0,
+    "impale_r_m": 1.2,
+    "impale_reach_m": 6.7,
+    "toss_up_mps": 4.0,
+    "charge_shove_m": 4.0
+  },
   "tamed_role": [
     "bag",
     "mount",
@@ -219,6 +242,6 @@
       }
     },
     "credits_spent": 50,
-    "size_assumption": "# ASSUMPTION: height_meters 2.25 (frill-spike top) gives about 5.1 m nose to tail and a 1.5 m back, from the owner note \"shoulder about chest-high on a person, ~5 m\""
+    "size_assumption": "# ASSUMPTION (STYRAFIX, owner 2026-10-31 'bigger by like 3x'): height_meters 2.25 -> 6.75 (3x), about 15.2 m nose to tail and 4.7 m wide on screen; real_length_m 11 -> 19 by the roster rule (2x true length, on screen 1.6x true: 15.2 / 1.6 x 2), so the capsule (0.12 x L = 2.3 m radius) matches the 4.7 m wide body; 3x of 11 (33) would give an 8 m wide capsule. Apex pen (over 18 m)."
   }
 }

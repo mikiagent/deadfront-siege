@@ -11,7 +11,7 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"charge_windup", &"impale", &"charge_recover", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff"]
 const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
 const XFADE := 0.08
@@ -331,7 +331,12 @@ func _build_tree() -> void:
 		for hub in HUBS:
 			if _param.has(hub):
 				_trans(sm, hub, clip, xf)
-		_trans(sm, clip, &"idle", xf)
+				_trans(sm, clip, hub, xf)  # STYRAFIX: out to walk/run directly too, not through idle
+		# STYRAFIX: straight from any other non-hub clip too (strafe -> walk_back, charge -> impale, windup ->
+		# charge). Without it travel() routed through idle and the idle pose blinked in between.
+		for other in _param:
+			if other != clip and not other in HUBS:
+				_trans(sm, other, clip, xf)
 		# A self-transition (attack -> attack) would fade a back-to-back replay, but Godot's state
 		# machine made the node report a zero length and broke hit/done timing, so the one-frame
 		# replay pop stays (accepted polish in the report; attacks are gated by _busy anyway).

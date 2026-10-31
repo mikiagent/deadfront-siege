@@ -100,6 +100,17 @@
     },
     "charge": {
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run"
+    },
+    "charge_windup": {
+      "note": "STYRAFIX telegraph before a horned charge (styracosaurus): horns lowered, a fore-foot paws twice, a snort; the body stands still (tools/jaw/make_styra_impale.py)"
+    },
+    "impale": {
+      "hit_frac": 0.26,
+      "release_frac": 0.46,
+      "note": "STYRAFIX: horns dip to the ground and scoop up hard. The survivor is caught on the horn tip at hit_frac, carried up with it and flung at release_frac (TacticalBrain impale phase); feet planted"
+    },
+    "charge_recover": {
+      "note": "STYRAFIX: winded after a charge, head low with three decaying head shakes; the punish window (charge_recover_s)"
     }
   },
   "natural_speeds": {

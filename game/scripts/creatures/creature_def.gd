@@ -39,6 +39,9 @@ extends Resource
 @export var energy: Dictionary = {}
 ## GENETICS: optional per-species genome block {"size_range": [lo, hi]}; empty = ai.json "genetics".
 @export var genetics: Dictionary = {}
+## Optional per-species override of its archetype's ai.json tactics (TacticalBrain.setup merges it on top;
+## "attack_range" there sets the reach). Empty = the archetype's.
+@export var tactics: Dictionary = {}
 
 ## ASSUMPTION: Durango-scale speed 400–700 maps to metres per second as speed / 100.
 var move_speed_mps: float:
@@ -100,6 +103,8 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.variants = ItemDef._names(d.get("variants", []))
 	c.clips = d.get("clips", {})
 	c.pipeline = d.get("pipeline", {})
+	var tac: Variant = d.get("tactics", {})
+	c.tactics = tac if tac is Dictionary else {}
 	var colour: Variant = d.get("coloration", {})
 	c.coloration = colour if colour is Dictionary else {}
 	var en: Variant = d.get("energy", {})

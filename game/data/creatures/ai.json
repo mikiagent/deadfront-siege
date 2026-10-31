@@ -673,6 +673,9 @@
             "weight": 0.5
           }
         ],
+        "_no_pounce": "STYRAFIX: a ceratopsian never leaps; the chase rule tried the shared pounce (the styracosaurus hopped at the survivor with no pounce clip).",
+        "pounce_max_m": 0.0,
+        "chase_pounce_max_m": 0.0,
         "point_blank": [
           "heavy",
           "kick",
