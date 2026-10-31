@@ -11,7 +11,7 @@ func _ready() -> void:
 	World.pioneer_level = 7
 	for id in [&"work_axe", &"stone_knife_work", &"work_pick", &"berry", &"branch", &"stone", &"fibre_stalk"]:
 		LabKit.give(player, id, 2)
-	for id in [&"protoceratops", &"velociraptor", &"stegosaurus"]:
+	for id in [&"zebraceratops", &"velociraptor", &"stegosaurus"]:
 		var rec := PetRecord.from_def(Data.creature(id), &"B")
 		rec.level = player.bonded.size() * 4 + 3
 		rec.xp = 18

@@ -48,7 +48,7 @@ func _spawn_groups() -> void:
 	World.runtime.add_child(raptor_spawner)
 	_raptor_pack = raptor_spawner.spawn_now()
 	var herd_spawner := Spawner.new()
-	herd_spawner.species = &"protoceratops"
+	herd_spawner.species = &"zebraceratops"
 	herd_spawner.count = 3
 	herd_spawner.radius = 2.6
 	herd_spawner.as_pack = true

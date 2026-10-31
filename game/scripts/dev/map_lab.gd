@@ -615,7 +615,7 @@ static func build_sample() -> MapDoc:
 	d.add_marker("resource", d.cell_centre(40, 66).x, d.cell_centre(40, 66).y, {"resource": "clay", "count": 3, "radius_m": 8.0})
 	d.add_marker("spawn", d.cell_centre(44, 52).x, d.cell_centre(44, 52).y, {"species": "compsognathus", "level": 1, "count": 2, "radius_m": 16.0})
 	d.add_marker("spawn", d.cell_centre(72, 64).x, d.cell_centre(72, 64).y, {"species": "zebraceratops", "level": 3, "count": 3, "radius_m": 24.0})
-	d.add_marker("spawn", d.cell_centre(62, 26).x, d.cell_centre(62, 26).y, {"species": "protoceratops", "level": 5, "count": 2, "radius_m": 18.0})
+	d.add_marker("spawn", d.cell_centre(62, 26).x, d.cell_centre(62, 26).y, {"species": "gallimimus", "level": 5, "count": 2, "radius_m": 18.0})
 	return d
 
 func _make_sample() -> void:

@@ -1,5 +1,5 @@
 extends Node3D
-## --lab=colors_lab: eight wild individuals of two species (four velociraptors, four protoceratops)
+## --lab=colors_lab: eight wild individuals of two species (four velociraptors, four zebraceratops)
 ## lined up on flat ground in good light, each with its own natural colour profile and hide pattern,
 ## so the range can be judged by eye. One of them is the 1-in-50 rare morph and is labelled.
 ## Windowed: godot --path game -- resolution 1600x900 --rendering-method gl_compatibility
@@ -8,7 +8,7 @@ extends Node3D
 ## failure. Also checks that a walking animal's pattern does not slide: the same flank pixels keep
 ## their colour between two clip frames.
 
-const SPECIES: Array[StringName] = [&"velociraptor", &"protoceratops"]
+const SPECIES: Array[StringName] = [&"velociraptor", &"zebraceratops"]
 const PER_SPECIES := 4
 const SPACING := 6.2 # raptors are ~6 m long: anything tighter overlaps head to tail
 
@@ -58,10 +58,10 @@ func _spawn_lineup() -> void:
 		[&"velociraptor", "spots", "dark", 0],     # spots, darker tone
 		[&"velociraptor", "countershade", "pale", 0],
 		[&"velociraptor", "stripes", "rufous", 1], # the rare morph: wider hue, bolder stripes
-		[&"protoceratops", "saddle", "dark", 0],
-		[&"protoceratops", "countershade", "pale", 0],
-		[&"protoceratops", "", "pale", 0],         # plain hide
-		[&"protoceratops", "stripes", "dark", 0],
+		[&"zebraceratops", "saddle", "dark", 0],
+		[&"zebraceratops", "countershade", "pale", 0],
+		[&"zebraceratops", "", "pale", 0],         # plain hide
+		[&"zebraceratops", "stripes", "dark", 0],
 	]
 	var i := 0
 	for row in rows:

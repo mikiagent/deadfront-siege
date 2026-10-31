@@ -492,7 +492,7 @@ func _test_taming_numbers() -> void:
 	var out := {}
 	var nodes := {}
 	for n in [&"", &"stubborn", &"docile"]:
-		var c := _creature(&"protoceratops", Vector3(-100, 1, 0), n)
+		var c := _creature(&"zebraceratops", Vector3(-100, 1, 0), n)
 		nodes[str(n)] = c
 		out[str(n)] = [c.feeds_needed(), c.tame_window_seconds(), c.def.feeds_needed]
 	print("[t_natures] taming: default feeds=%.2f stubborn=%.2f docile=%.2f (species %.2f)" % [out[""][0], out["stubborn"][0], out["docile"][0], out[""][2]])
@@ -500,7 +500,7 @@ func _test_taming_numbers() -> void:
 	_expect(float(out["stubborn"][0]) > float(out[""][0]), "Stubborn needs %.2f feeds, default %.2f" % [out["stubborn"][0], out[""][0]])
 	_expect(float(out["docile"][0]) < float(out[""][0]), "Docile needs %.2f feeds, default %.2f" % [out["docile"][0], out[""][0]])
 	_expect(float(out["stubborn"][1]) < float(out[""][1]) and float(out["docile"][1]) > float(out[""][1]), "tame windows: stubborn %.1f s, default %.1f s, docile %.1f s" % [out["stubborn"][1], out[""][1], out["docile"][1]])
-	# FieldTame reads them: a Docile protoceratops finishes on the feeds Stubborn still wants.
+	# FieldTame reads them: a Docile zebraceratops finishes on the feeds Stubborn still wants.
 	var docile: Node = nodes["docile"]
 	var stubborn: Node = nodes["stubborn"]
 	var player: Node = load("res://scenes/player/player.tscn").instantiate()
@@ -518,7 +518,7 @@ func _test_taming_numbers() -> void:
 	var window: float = docile.tame_window_left
 	var okay: bool = FT.apply_feed(player, docile, &"berry")
 	_expect(is_equal_approx(window, docile.tame_window_seconds()), "the window opened at %.1f s, this animal's %.1f s" % [window, docile.tame_window_seconds()])
-	_expect(okay and docile.is_pet, "a Docile protoceratops did not tame on one preferred feed (needs %.2f)" % docile.feeds_needed())
+	_expect(okay and docile.is_pet, "a Docile zebraceratops did not tame on one preferred feed (needs %.2f)" % docile.feeds_needed())
 	_expect(docile.pet_record != null and str(docile.pet_record.nature) == "docile", "the tamed Docile animal became a pet with nature '%s'" % (docile.pet_record.nature if docile.pet_record else "no pet"))
 	FT.begin_window(stubborn)
 	var feeds := 0
@@ -549,13 +549,13 @@ func _test_pen_wait() -> void:
 	for n in [&"", &"stubborn", &"docile"]:
 		for i in player.inventory.slot_count:
 			player.inventory.slots[i] = null
-		var stack: RefCounted = load("res://scripts/items/item_stack.gd").make(&"captured_animal", 1, {"species": "protoceratops", "level": 1, "nature": str(n)})
+		var stack: RefCounted = load("res://scripts/items/item_stack.gd").make(&"captured_animal", 1, {"species": "zebraceratops", "level": 1, "nature": str(n)})
 		player.inventory.add(stack)
 		var pen = pen_s.make()
 		root.add_child(pen)
 		var took: bool = pen.try_insert(player)
 		waits[str(n)] = pen.remaining
-		_expect(took, "the pen refused a captured protoceratops (nature '%s')" % n)
+		_expect(took, "the pen refused a captured zebraceratops (nature '%s')" % n)
 		if took:
 			_expect(str(pen.occupant.attributes.get("nature", "")) == str(n), "the pen lost the animal's nature '%s'" % n)
 		pen.free()
@@ -610,7 +610,7 @@ func _test_pet_keeps_nature() -> void:
 	c.pet_record.nature = PR.from_dict({"uid": "p_0badf00d", "species": "velociraptor"}).nature
 	_expect(c.nature_id() == c.pet_record.nature and c.nature_id() != &"", "the pet's brain reads %s, its record %s" % [c.nature_id(), c.pet_record.nature])
 	# The tame itself carries it: FieldTame stamps the animal's nature onto the record it makes.
-	var fresh := _creature(&"protoceratops", Vector3(0, 1, -126), &"stubborn")
+	var fresh := _creature(&"zebraceratops", Vector3(0, 1, -126), &"stubborn")
 	fresh.health.hp = fresh.health.max_hp * 0.2
 	fresh.torpor = fresh.torpor_max()  # FOODTORPOR
 	var player: Node = load("res://scenes/player/player.tscn").instantiate()

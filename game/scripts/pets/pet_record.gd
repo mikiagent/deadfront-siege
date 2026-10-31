@@ -175,6 +175,9 @@ static func bag_slots_for(def: CreatureDef, saved: int = 0) -> int:
 
 ## _legacy_grade is ignored: the grade always derives from genetics (callers still pass one).
 static func from_def(def: CreatureDef, _legacy_grade: StringName = &"", variant: StringName = &"", p_genetics: CreatureGenetics = null, p_level: int = 1) -> PetRecord:
+	if def.retired_to != &"" and Data.creature(def.retired_to) != null:  # RETIREPROTO
+		def = Data.creature(def.retired_to)
+		variant = &""
 	var r := PetRecord.new()
 	r.uid = new_uid()
 	r.tamed_at = int(Time.get_unix_time_from_system())
@@ -287,6 +290,11 @@ static func from_dict(d: Dictionary) -> PetRecord:
 			r.parent_uids.append(str(p))
 	r.species = StringName(str(d.get("species", "")))
 	r.variant = StringName(str(d.get("variant", "")))
+	# RETIREPROTO: a pet of a species the owner removed loads as its stand-in (same roles, bag kept).
+	var old_def := Data.creature(r.species) if Data else null
+	if old_def != null and old_def.retired_to != &"" and Data.creature(old_def.retired_to) != null:
+		r.species = old_def.retired_to
+		r.variant = &""
 	# NATURES: additive optional field. A record saved before natures (or hand-built) has none: it
 	# gets the same nature its uid derives, so nothing is lost and every load agrees.
 	var nat := StringName(str(d.get("nature", "")))

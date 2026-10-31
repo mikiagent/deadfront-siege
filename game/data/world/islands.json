@@ -339,13 +339,7 @@
     "lifetime_hours": 12,
     "crater_type": "plant",
     "spawns": {
-      "gathering": [
-        {
-          "species": "protoceratops",
-          "count": 4,
-          "groups": 1
-        }
-      ],
+      "gathering": [],
       "working": [
         {
           "species": "deinonychus",
@@ -476,13 +470,7 @@
     "lifetime_hours": 12,
     "crater_type": "animal",
     "spawns": {
-      "gathering": [
-        {
-          "species": "protoceratops",
-          "count": 4,
-          "groups": 1
-        }
-      ],
+      "gathering": [],
       "working": [
         {
           "species": "stegosaurus",
