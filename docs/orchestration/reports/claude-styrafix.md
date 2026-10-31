@@ -137,21 +137,23 @@ the survivor. In the lab the horn tip was 1.27 m from her centre at the hit fram
 - `creature_brain.gd`:
   - `line_dir` and `super_armor()` added.
   - A creature that spots a threat now stops before its sniff/alert pose, instead of gliding along its roam path.
-- `tactical_brain.gd`: a playing `alert` pose is released once the brain is in approach, circle or retreat.
+- `tactical_brain.gd`: a playing `alert` pose is released once the brain is in approach, circle or retreat. This is
+  opt-in (`tactics.drop_pose_on_move`, the styracosaurus only). Applied to every tactical brain, it broke t_swarm:
+  the compsognathus surround depends on the pose holding a member in place.
 - I did **not** add a "play a run clip whenever the body moves" rule. That is claude/mmo-compyfeel's. The styracosaurus
   charge plays its own stride-matched `charge` clip.
 
 ## Gates
 
-- t_styrafix PASS: 5 of 6 runs over the session's final code. The run that failed had 2 frames of the
-  windup still playing as the run started; the fix is in (the windup is released when the run starts).
-  See "Not done" for the run-to-run spread.
+- t_styrafix PASS (5 runs in a row on the final code). Earlier runs failed on 2 frames at the start of the run: a
+  second paw was still playing, then the idle fallback showed for a frame. Fixed: the run plays the charge clip and is
+  on its line from its first frame.
 - t_styraco PASS. It was updated:
   - the sidestep comes after the paw;
   - the miss check waits for the recover;
   - the swipe test spawns the 3x body 5 m off, facing her.
 - t_combat, t_canim, t_mounts, t_saddles, t_godlab: PASS.
-- t_tactical, t_zebra, t_turnrate, t_natures, t_kicktackle, t_tame, t_noboxes: PASS.
+- t_tactical, t_zebra, t_turnrate, t_natures, t_kicktackle, t_tame, t_noboxes, t_swarm, t_raptorfeel: PASS.
 - run_all.gd `[tests] PASS`.
 - `tools/smoke.sh --no-import` SMOKE PASS.
 

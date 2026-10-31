@@ -325,8 +325,9 @@ func _think(delta: float) -> void:
 			_set_state(&"approach")
 			_just_disengaged = false  # chasing is a real action between back-jumps
 			tactic.emit(&"chase")
-	# A pose one-shot (the hold/display alert) must not keep playing once it walks off: the body would glide.
-	if state in [&"approach", &"circle", &"retreat"] and creature.anim.current_clip == &"alert":
+	# tactics.drop_pose_on_move (styracosaurus): a pose one-shot (the hold/display alert) ends once it walks off,
+	# else the body glides. Opt-in: the compsognathus swarm's surround depends on the pose holding it in place.
+	if tac.get("drop_pose_on_move", false) and state in [&"approach", &"circle", &"retreat"] and creature.anim.current_clip == &"alert":
 		creature.anim.release_oneshot()
 	match state:
 		&"approach": _approach_ring()
@@ -787,9 +788,10 @@ func _charge_impale(delta: float) -> void:
 			_charge_to = creature.global_position + _charge_dir * (_flat_dist(attack_target) + _t("charge_through_m", 2.5))
 			_left = _t("charge_max_s", 1.6)
 			_run_v = 0.0
-			creature.anim.release_oneshot()  # a second paw may still be playing: the run clip takes over now
+			creature.anim.play_clip(&"charge")  # a second paw may still be playing: the run clip takes over now, not idle
 			_charge_phase = &"run"
 			_phase_t = 0.0
+			_drive(0.05)  # on the line this frame: Creature keeps the charge clip instead of falling back to idle
 			tactic.emit(&"charge")
 		&"run":
 			_left -= delta
