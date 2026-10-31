@@ -52,15 +52,14 @@ The legs could not be fixed cleanly on the old model.
 | Stomp | `attack_heavy` | point blank otherwise (7 s cooldown) | rears, right foot held high (telegraph), slams down at 0.72, x1.4 |
 | Dome butt | `attack_primary` | point blank, both above cooling | chin tucked, dome is the front-most point at 0.42, 2.18 m ahead of centre |
 
-- **Wiring.** A new optional species `tactics{}` block is merged over the archetype's ai.json tactics.
-  - Code: `CreatureDef.tactics`, plus two lines in `TacticalBrain.setup`. Documented in SCHEMA.md.
-  - The pachy keeps `pack_mule`'s herd and grazer rules.
-  - Its point-blank order is `kick, heavy, bite`. The hip check comes first because it only fires when the survivor is
-    behind; otherwise the stomp runs.
+- **Wiring.** Through COELOMOVES' per-species hook (`CreatureDef.tactics`, `TacticalBrain.tactics_for_def`):
+  `pachycephalosaurus.json` `"tactics": {"base": "pack_mule", ...overrides}`. My own duplicate hook was dropped in the
+  canon merge. The pachy keeps pack_mule's herd and grazer rules. Its point-blank order is `kick, heavy, bite`: the hip
+  check comes first because it only fires when the survivor is behind; otherwise the stomp runs.
 - **Reach.** The dome reaches 2.18 m at the hit. The contact reach is 2.1 m, and a hit is accepted up to 2.4 m, so hits
   land where the dome is.
 
-## Gates (after merging origin/claude/mmo-overhaul)
+## Gates (after merging origin/claude/mmo-overhaul incl. COELOMOVES 4d460989)
 - `tools/gait/check_pachy.py --height 1.8` (new; check_ankylo adapted): **PACHY_CHECK PASS**, 16 clips. It checks:
   - stretch at most 7.1 (gate 8; the worst edges are 7 mm mouth corners);
   - no sinking;
@@ -78,7 +77,7 @@ The legs could not be fixed cleanly on the old model.
   - hue roll within ±10°;
   - in a live fight: stomp picked in front and lands, hip check picked behind and lands, the charge connects with the
     charge clip.
-- t_noboxes, t_combat, t_canim, t_data, t_mounts, t_saddles, t_zebra, t_styraco, t_ai, t_godlab: PASS.
+- t_coelomoves, t_noboxes, t_combat, t_canim, t_data, t_mounts, t_saddles, t_zebra, t_styraco, t_ai, t_godlab: PASS.
 - `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: SMOKE PASS.
 
 ## Shots (`docs/orchestration/reports/sp-pachycephalosaurus/`)
@@ -101,4 +100,3 @@ Taken from self-quitting off-screen windowed runs of the new `pachy_lab`
 - **Lying clips.** The knockdown and death show the folded legs pointing out of the belly side; the sleep sits
   belly-low on folded legs rather than flat.
 - **Shared code.** `tools/gait/rig_biped.py` and `make_pachy_moves.py` take any Tripo biped that has a spec JSON.
-  `CreatureDef.tactics` is a shared hook; merge with any branch that also edits `creature_def.gd`.
