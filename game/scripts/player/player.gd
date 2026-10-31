@@ -152,6 +152,9 @@ func _ready() -> void:
 	view.setup_ui()
 	vitals.damaged.connect(_on_vitals_damaged)
 	vitals.died.connect(_on_vitals_died)
+	statuses.applied.connect(func(id: StringName, _stacks: int) -> void:
+		if id == &"knockdown":
+			sim.knock.on_knockdown_status())
 	tribe = _child(TribeDirector.new(), "Tribe")
 	tribe.setup(self)
 
@@ -516,6 +519,7 @@ func _on_vitals_died() -> void:
 	if dead:
 		return
 	dead = true
+	sim.knock.cancel()
 	sim.interrupt_sleep()
 	clear_nav()
 	view.clear_ground_marker()
