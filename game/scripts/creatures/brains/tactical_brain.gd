@@ -265,6 +265,8 @@ func _stands_ground() -> bool:
 ## not hunt), and a flee nature is never provoked.
 func _provoked() -> bool:
 	if _is_herbivore() and not tac.is_empty():
+		if cornered.fighting() and _valid_target():
+			return true  # chased into a fight: it holds it past guard_m and its flee nature (BrainCornered)
 		if _flee_nature():
 			return false
 		if territorial and _valid_target():

@@ -16,6 +16,18 @@ TAIL SMASH attack_heavy 3.0 s: the front feet step out into a wide brace, the ta
 CLUB SWEEP tail_swipe 2.6 s: the tail drawn far left and low, a stamp, then one long low sweep from the left through
            straight behind to the right (0.44-0.74) while all four feet step round a pivot; steps back in the recovery.
 alert 1.6 s and sleep 2.5 s (not looped) are unchanged from ANKYLO3D.
+
+ANKYLOCLOSE (owner 2026-10-31: "ankylosaurus is hardly fighting back ... stomp, shove, tackle"): the front and side arcs.
+STOMP       stomp 1.5 s: the front rears up off the left forefoot (weight back and right), the foot hauled high and
+            forward, held trembling, then slammed down in front (impact 0.55) with the front dropping and a crouch.
+SHOVE       shove_left / shove_right 1.2 s: cocks away (head and shoulders turned off, body leaning off), then the head
+            and shoulders swing hard into that side (impact 0.48) while the body lurches over and the near forefoot steps
+            out into it; steps back in.
+TACKLE      tackle 0.9 s: the coil before the body check: crouch, front low, weight back over the hind feet, head down, a
+            forefoot paws once; the brain then lunges it 2-3 m at a run into her (ClubTailBrain).
+Extra curves: pitch (deg, + = front up, about the hind feet), shift (mesh units, + = body to its right), back (mesh
+units, + = body back toward the tail). A step may carry (foot, u0, u1, yaw, out, fwd, lift, "stomp"): fwd moves its plant
+forward (mesh units), lift is the arc height, "stomp" rises fast, holds high and slams (accelerating) down.
 (The ANKYLO3D attack_primary 1.25 s / attack_heavy 2.0 s side whips were replaced: their feet followed the body yaw and
 slid, which read as gliding.)
 
@@ -30,7 +42,7 @@ from mathutils import Matrix, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 BASE, OUT = argv[:2]
-WANT = argv[2:] or ["attack_primary", "attack_heavy", "tail_swipe", "alert", "sleep"]
+WANT = argv[2:] or ["attack_primary", "attack_heavy", "tail_swipe", "alert", "sleep", "stomp", "shove_left", "shove_right", "tackle"]
 FPS = 24
 TAILS = ["Tail1", "Tail2", "Tail3", "Tail4", "Tail5"]
 LEGS = [(f"{e}UpLeg.{s}", f"{e}LowLeg.{s}", f"{e}Foot.{s}") for e in ("Back", "Front") for s in ("L", "R")]
@@ -126,7 +138,52 @@ CLIPS = {
         splay=[(0, 0), (0.15, 0), (0.55, 0.035), (1.0, 0.035)],
         reach=[(0, 0), (0.15, 0), (0.55, 0.03), (1.0, 0.03)],  # front paws forward, hind paws back: legs lie out flat
         tremble=None),
+    # ANKYLOCLOSE. Feet: L is +X (the animal's left), the rig faces -Y (fwd < 0 is forward).
+    "stomp": dict(
+        n=36, lag=0.04,
+        yaw=Z0,
+        tail=[(0, 0), (0.2, 6), (0.55, 6), (0.7, -4), (1.0, 0)],
+        lift=[(0, 0), (0.2, 6), (0.5, 8), (0.58, -2), (1.0, 0)],
+        crouch=[(0, 0), (0.12, 0.004), (0.5, 0.0), (0.56, 0.016), (0.68, 0.012), (1.0, 0)],
+        roll=[(0, 0), (0.2, 5), (0.5, 6), (0.58, -2), (0.75, 0), (1.0, 0)],
+        pitch=[(0, 0), (0.12, -1), (0.3, 11), (0.5, 12), (0.56, -3), (0.68, -2), (1.0, 0)],
+        back=[(0, 0), (0.3, 0.012), (0.5, 0.012), (0.56, -0.006), (0.7, -0.004), (1.0, 0)],
+        head=[(0, 0), (0.3, 14), (0.5, 16), (0.56, -14), (0.72, -10), (1.0, 0)],
+        look=Z0,
+        tremble=None,
+        steps=[("FrontFoot.L", 0.12, 0.56, 0, 0.004, -0.025, 0.1, "stomp"), ("FrontFoot.L", 0.76, 0.94, 0, 0, 0, 0.02)]),
+    "shove_right": dict(
+        n=29, lag=0.04,
+        yaw=[(0, 0), (0.4, 4), (0.5, -6), (0.7, -6), (1.0, 0)],
+        tail=[(0, 0), (0.4, -8), (0.55, 10), (0.75, 6), (1.0, 0)],
+        lift=Z0,
+        crouch=[(0, 0), (0.4, 0.008), (0.5, 0.004), (0.7, 0.006), (1.0, 0)],
+        roll=[(0, 0), (0.4, 6), (0.5, -9), (0.7, -7), (1.0, 0)],
+        shift=[(0, 0), (0.4, -0.012), (0.5, 0.03), (0.7, 0.026), (1.0, 0)],
+        head=[(0, 0), (0.4, 4), (0.5, -10), (0.7, -6), (1.0, 0)],
+        look=[(0, 0), (0.4, -30), (0.5, 45), (0.7, 35), (1.0, 0)],
+        tremble=None,
+        steps=[("FrontFoot.R", 0.38, 0.52, -4, 0.03), ("FrontFoot.R", 0.78, 0.95, 0, 0)]),
+    "tackle": dict(
+        n=22, lag=0.04,
+        yaw=Z0,
+        tail=Z0,
+        lift=[(0, 0), (0.5, 8), (1.0, 4)],
+        crouch=[(0, 0), (0.5, 0.016), (0.85, 0.018), (1.0, 0.008)],
+        roll=Z0,
+        pitch=[(0, 0), (0.5, -4), (0.85, -5), (1.0, -2)],
+        back=[(0, 0), (0.5, 0.016), (0.85, 0.018), (1.0, -0.006)],
+        head=[(0, 0), (0.4, -18), (1.0, -22)],
+        look=Z0,
+        tremble=(0.45, 0.85, 3.0, 2.0),
+        stamps=[("FrontFoot.R", 0.18, 0.4, 0.025)]),
 }
+# shove_left: shove_right mirrored (curves that point sideways flip sign, feet swap side).
+_m = dict(CLIPS["shove_right"])
+for k in ("yaw", "tail", "roll", "shift", "look"):
+    _m[k] = [(u, -v) for u, v in _m[k]]
+_m["steps"] = [("FrontFoot.L",) + tuple(-x if i == 2 else x for i, x in enumerate(s[1:])) for s in _m["steps"]]
+CLIPS["shove_left"] = _m
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.render.fps = FPS
@@ -182,24 +239,41 @@ def solve_leg(up, low, foot):  # same analytic two-bone solve as transfer_clips.
         upd()
 
 
-def plant(foot, yaw, out):
+def plant(foot, yaw, out, fwd=0.0):
     m = Matrix.Translation(PIVOT) @ Matrix.Rotation(math.radians(yaw), 4, Z) @ Matrix.Translation(-PIVOT) @ REST_FOOT[foot]
     m.translation.x += out * (1 if foot.endswith("L") else -1)
+    m.translation.y += fwd
     return m
+
+
+def stomp_arc(t):
+    """A stomp's lift: up fast, held high, then slammed down (accelerating, no ease into the ground)."""
+    if t < 0.35:
+        return smooth(t / 0.35)
+    if t < 0.8:
+        return 1.0
+    return 1.0 - ((t - 0.8) / 0.2) ** 2
 
 
 def foot_at(c, foot, u):
     """The foot's matrix at u: planted on its latest landed step, or lifted on the arc of the step in progress."""
-    cur = (0.0, 0.0)
+    cur = (0.0, 0.0, 0.0)
     m, lift = None, 0.0
-    for f, u0, u1, yaw, out in sorted((s for s in c.get("steps", []) if s[0] == foot), key=lambda s: s[1]):
+    for st in sorted((s for s in c.get("steps", []) if s[0] == foot), key=lambda s: s[1]):
+        f, u0, u1, yaw, out = st[:5]
+        fwd = st[5] if len(st) > 5 else 0.0
         if u >= u1:
-            cur = (yaw, out)
+            cur = (yaw, out, fwd)
             continue
         if u > u0:
             t = (u - u0) / (u1 - u0)
-            m = plant(foot, *cur).lerp(plant(foot, yaw, out), smooth(t))
-            lift = 0.022 * math.sin(math.pi * t)
+            h = st[6] if len(st) > 6 else 0.022
+            if len(st) > 7 and st[7] == "stomp":  # the foot travels while it rises, then comes straight down
+                m = plant(foot, *cur).lerp(plant(foot, yaw, out, fwd), smooth(min(1.0, t / 0.35)))
+                lift = h * stomp_arc(t)
+            else:
+                m = plant(foot, *cur).lerp(plant(foot, yaw, out, fwd), smooth(t))
+                lift = h * math.sin(math.pi * t)
         break
     if m is None:
         m = plant(foot, *cur)
@@ -235,8 +309,12 @@ def pose(c, u):
         upd()
     R = Matrix.Translation(PIVOT) @ Matrix.Rotation(math.radians(yaw), 4, Z) @ Matrix.Translation(-PIVOT)
     body = pbs["Body"]
-    body.matrix = Matrix.Translation((0, 0, -keys(u, c["crouch"]))) @ R @ body.matrix
+    # shift: + = to its right (-X); back: + = toward the tail (+Y)
+    body.matrix = Matrix.Translation((-keys(u, c.get("shift")), keys(u, c.get("back")), -keys(u, c["crouch"]))) @ R @ body.matrix
     upd()
+    pitch = keys(u, c.get("pitch"))
+    if pitch:  # + = front up: rotate about the hind feet's line (about +X lifts the tail end, so the sign flips)
+        about(body, X, -pitch, Vector((0.0, bl.y, bl.z)))
     fwd = (Matrix.Rotation(math.radians(yaw), 3, Z) @ Y)
     about(body, fwd, keys(u, c["roll"]), body.matrix.translation.copy())
     # head counter-turns against the body yaw and looks toward the swing side (+look = right, a negative Z turn)
