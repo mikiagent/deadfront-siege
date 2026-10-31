@@ -1668,6 +1668,8 @@
         "heavy_shove_stagger_s": 0.7,
         "charge_cd": 7.0,
         "charge_straight": true,
+        "charge_min_m": 6.0,
+        "_charge_min_m": "# ASSUMPTION (STUNLOCK 2026-10-31): no straight charge from inside 6 m. From point blank (her at its chest, punching) the locked line ran its horns past her and stood pushing for the whole charge_max_s, so it never hit back; up close it now uses point_blank (horn ram, bite).",
         "charge_speed_mult": 1.7,
         "charge_max_s": 2.6,
         "charge_through_m": 9.0,

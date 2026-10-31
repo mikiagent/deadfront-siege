@@ -10,7 +10,14 @@
   attack_primary 0.42: the jaw tip drives forward (>= 0.6 m past rest) and down (>= 2 m),
   attack_heavy 0.72 (hatchet): the upper jaw (front Head skin) chops down at >= 4 m/s, from >= 1.5 m higher at 0.55,
   grab_bite 0.3: the hands reach >= 0.8 m further forward than at rest; 0.55 and 0.8: the jaw tip is <= 1.2 m up,
-  kick 0.45 (shoulder ram): the chest/shoulder skin moves at >= 2.5 m/s.
+  kick 0.45 (shoulder ram): the chest/shoulder skin moves at >= 2.5 m/s,
+  ALLOFEEL: claw_rake 0.5: the hand skin rakes down at >= 3 m/s and is >= 0.5 m lower than at rest; slash_bite 0.42: the
+  upper jaw slashes down at >= 4 m/s from >= 1 m higher at 0.3; check_left/right 0.45: the chest/shoulder skin moves
+  sideways toward that flank at >= 2.5 m/s,
+- ALLOFEEL arms in every attack (owner 2026-10-31: "the arms should be moving as part of the attack animation"): from the
+  first frame to the hit frame the leading claw tip (Hand bone tail, in the Chest bone's frame: the arm's own motion, not
+  the body carrying it) travels >= 1.0 m and the other >= 0.4 m, the elbow bends through >= 30 deg and the wrist (the
+  claws spreading and curling) through >= 30 deg.
 usage: Blender -b -P tools/gait/check_allo.py -- <base.glb> <anim_dir> --height 6.5   (exit 1 on any FAIL)
 """
 import os
@@ -25,7 +32,9 @@ H = float(a[a.index("--height") + 1]) if "--height" in a else 6.5
 STRETCH = float(a[a.index("--stretch") + 1]) if "--stretch" in a else 10.0
 ONLY = a[a.index("--only") + 1].split(",") if "--only" in a else None
 FPS = 24
-HIT = {"attack_primary": 0.42, "attack_heavy": 0.72, "kick": 0.45, "grab_bite": 0.3}
+HIT = {"attack_primary": 0.42, "attack_heavy": 0.72, "kick": 0.45, "grab_bite": 0.3,
+       "bite_combo": 0.815, "claw_rake": 0.5, "slash_bite": 0.42, "check_left": 0.45, "check_right": 0.45}
+ARMS = list(HIT)  # every attack moves its arms
 GAITS = {"walk": 1, "run": 1, "walk_back": -1}  # sign of the planted foot's y drift (+y = backwards)
 STRAFE = {"strafe_left": -1, "strafe_right": 1}  # sign of x drift of a planted foot (+x = the animal's left)
 LYING = {"knockdown", "death", "sleep"}
@@ -99,6 +108,7 @@ for f in sorted(os.listdir(anim_dir)):
         pass
     f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
     lows, stretch, where = [], 1.0, {}
+    armrow = []  # per frame, per side: (claw tip in the Chest frame, elbow deg, wrist deg)
     toe, sole, dome, hips, front, jaw, hands = {s: [] for s in "LR"}, {s: [] for s in "LR"}, [], [], [], [], []
     for fr in range(f0, f1 + 1):
         sc.frame_set(fr)
@@ -118,6 +128,13 @@ for f in sorted(os.listdir(anim_dir)):
         hands.append(p[HANDS].mean(axis=0))
         hips.append(p[HIPS].mean(axis=0))
         front.append(p[:, 1].min())
+        pb = arm.pose.bones
+        ch = pb["Chest"].matrix.inverted()
+        # the claw tip = the Hand head + 0.045 rig units along it (allosaurus_rig.json's hand; the glTF importer guesses
+        # bone tails, so .tail would overstate it); hitboxes.json's ClawTip offset is the same 0.64 m
+        armrow.append([(ch @ (pb["Hand." + s].head + (pb["Hand." + s].tail - pb["Hand." + s].head).normalized() * 0.045) * K,
+                        np.degrees(pb["Arm." + s].vector.angle(pb["Forearm." + s].vector)),
+                        np.degrees(pb["Forearm." + s].vector.angle(pb["Hand." + s].vector))) for s in "LR"])
     lo, hi_low = min(lows), max(lows)
     bad, extra = [], ""
     if stretch > STRETCH:
@@ -158,7 +175,7 @@ for f in sorted(os.listdir(anim_dir)):
         # the left foot is the planted one in every standing one-shot but hit_react's stagger step: it never leaves the
         # floor (an over-reached leg lifts it off its print)
         lmax = max(z for z, _ in sole["L"])
-        if clip != "hit_react" and lmax > 0.04:
+        if clip not in ("hit_react", "check_left") and lmax > 0.04:  # ALLOFEEL: check_left steps its left foot out
             bad.append(f"left foot lifts {lmax:.2f} m")
     if clip in HIT:
         n = f1 - f0
@@ -181,11 +198,42 @@ for f in sorted(os.listdir(anim_dir)):
             extra = f" hands@grab reach={-hands[i][1]:.2f} m height={hands[i][2]:.2f} m (+{fwd:.2f}); bites jaw at ({-b1[1]:.2f}, {b1[2]:.2f}) ({-b2[1]:.2f}, {b2[2]:.2f})"
             if fwd < 0.8 or b1[2] > 1.2 or b2[2] > 1.2:
                 bad.append("grab does not reach or bites do not come down")
+        elif clip == "bite_combo":  # ALLOFEEL x CARNOFEEL: each chomp's jaw tip forward and down, the jaws shut on it
+            hs = [at(f) for f in (0.092, 0.338, 0.815)]
+            extra = " chomps jaw at " + " ".join(f"({-jaw[k][1]:.2f}, {jaw[k][2]:.2f})" for k in hs)
+            if any(jaw[k][2] > jaw[0][2] - 1.5 or jaw[0][1] - jaw[k][1] < -0.3 for k in hs):  # down >= 1.5 m, never pulled back
+                bad.append("a chomp does not drive the jaws forward and down")
+        elif clip == "claw_rake":
+            hd = (hands[i - 2][2] - hands[i][2]) / (2.0 / FPS)
+            extra = f" hands@hit reach={-hands[i][1]:.2f} m height={hands[i][2]:.2f} m (rest {hands[0][2]:.2f}) down-speed={hd:.1f} m/s"
+            if hd < 3.0 or hands[i][2] > hands[0][2] - 0.5:
+                bad.append("rake does not drive the claws down")
+        elif clip == "slash_bite":
+            v = (dome[i - 2][2] - dome[i][2]) / (2.0 / FPS)
+            drop = dome[at(0.3)][2] - dome[i][2]
+            extra = f" upper-jaw@hit reach={-dome[i][1]:.2f} m side={-dome[i][0]:+.2f} m height={dome[i][2]:.2f} m down-speed={v:.1f} m/s drop={drop:.2f} m"
+            if v < 4.0 or drop < 1.0:
+                bad.append("slash does not cut down on the hit")
+        elif clip in ("check_left", "check_right"):
+            sgn = 1.0 if clip == "check_left" else -1.0  # +x is the animal's left
+            sp = sgn * float(hips[i][0] - hips[max(0, i - 3)][0]) / (3.0 / FPS)
+            extra = f" shoulder@hit sideways speed={sp:.1f} m/s at side {hips[i][0]:+.2f} m"
+            if sp < 2.5:
+                bad.append(f"shoulder-check only {sp:.1f} m/s sideways")
         elif clip == "kick":
             sp = float(np.linalg.norm((hips[i] - hips[max(0, i - 3)])[:2])) / (3.0 / FPS)
             extra = f" shoulder@hit speed={sp:.1f} m/s at ({hips[i][0]:+.2f}, {-hips[i][1]:.2f}) m"
             if sp < 2.5:
                 bad.append(f"shoulder ram only {sp:.1f} m/s")
+    if clip in ARMS:
+        n = f1 - f0
+        i = int(round(HIT[clip] * n))
+        tr = [max(float(np.linalg.norm(np.array(r[k][0] - armrow[0][k][0]))) for r in armrow[:i + 1]) for k in (0, 1)]
+        el = [max(r[k][1] for r in armrow[:i + 1]) - min(r[k][1] for r in armrow[:i + 1]) for k in (0, 1)]
+        wr = [max(r[k][2] for r in armrow[:i + 1]) - min(r[k][2] for r in armrow[:i + 1]) for k in (0, 1)]
+        extra += f" arms: tip travel L {tr[0]:.2f} R {tr[1]:.2f} m, elbow {el[0]:.0f}/{el[1]:.0f} deg, wrist {wr[0]:.0f}/{wr[1]:.0f} deg"
+        if max(tr) < 1.0 or min(tr) < 0.4 or max(el) < 30 or max(wr) < 30:
+            bad.append("arms do not move in the attack")
     print(f"CLIP {clip} {'FAIL ' + '; '.join(bad) if bad else 'PASS'} frames={f1 - f0 + 1} stretch={stretch:.2f} low=[{lo:.3f},{hi_low:.3f}@{int(np.argmax(lows))} soles {sole["L"][int(np.argmax(lows))][0]:.3f},{sole["R"][int(np.argmax(lows))][0]:.3f}] feet={drift}{extra} at={where}")
     fails += bool(bad)
 print("ALLO_CHECK", "PASS" if fails == 0 else f"FAIL {fails}")

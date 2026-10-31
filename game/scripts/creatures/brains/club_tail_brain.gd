@@ -88,7 +88,7 @@ var _part_prev: Array = []  ## the leap's hit parts' world positions last frame
 var _turn_on := false
 var turn_applied := 0.0
 var _turn_pivot := Vector3.ZERO
-var _view_base := Transform3D.IDENTITY
+var _body_base := Transform3D.IDENTITY  ## the body's transform when the turn began
 var _clip_length := 1.0
 var _spun := 0  ## spins in the current chain (a spin repeats once while she stays in reach)
 var _still_t := 0.0  ## seconds since the last stepping clip: a move starts once its stance has blended in
@@ -444,12 +444,14 @@ func _turn_begin() -> void:
 	var pw := sk.global_transform * Vector3(float(pv[0]), 0.0, float(pv[1]))
 	_turn_pivot = creature.global_transform.affine_inverse() * pw
 	_turn_pivot.y = 0.0
-	_view_base = creature.view.transform
-	creature.view.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF  # turned with the pose, every frame
+	_body_base = creature.global_transform
+	creature.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF  # turned with the pose, every frame
 	turn_applied = 0.0
 	_turn_on = true
 
-## After every pose: the view turns with the clip, so the frame shows the planted feet where they were.
+## After every pose: the body turns with the clip about the pivot, so the frame shows the planted feet where they were.
+## ANKYNOTELEPORT (owner: animals never teleport): the body itself goes round the arc a frame at a time. It used to stay
+## put while only the view turned, then jump to the end of the arc at once (3.9 m on an ankylosaurus pivot).
 func _on_pose_applied() -> void:
 	if not _turn_on:
 		return
@@ -466,23 +468,21 @@ func _on_pose_applied() -> void:
 func _set_turn(deg: float) -> void:
 	turn_applied = deg
 	var b := Basis(Vector3.UP, deg_to_rad(deg))
-	creature.view.transform = Transform3D(b, _turn_pivot - b * _turn_pivot) * _view_base
+	var pw := _body_base * _turn_pivot
+	var gt := _body_base
+	gt.basis = b * _body_base.basis
+	gt.origin = pw + b * (_body_base.origin - pw)
+	gt.origin.y = creature.global_position.y  # the ground keeps the height
+	creature.global_transform = gt
 
-## Hand the view's turn to the body: same place on screen, the view back at rest.
+## The turn is over (played out or cut off): the body is already where the turn left it.
 func _turn_commit() -> void:
 	if not _turn_on:
 		return
 	_turn_on = false
-	if not is_instance_valid(creature) or creature.view == null:
+	if not is_instance_valid(creature):
 		return
-	var b := Basis(Vector3.UP, deg_to_rad(turn_applied))
-	var gt := creature.global_transform
-	var pw := gt * _turn_pivot
-	gt.basis = b * gt.basis
-	gt.origin = pw + b * (gt.origin - pw)
-	creature.global_transform = gt
-	creature.view.transform = _view_base
-	creature.view.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_INHERIT
+	creature.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_INHERIT
 	creature.reset_physics_interpolation()
 
 func _tick_move(delta: float) -> void:

@@ -38,6 +38,11 @@ static func _step_and_strike(h: Hunt, move: StringName, lunge_max_m: float) -> D
 		Hitbox.mark(target, hit)
 	return hit
 
+## WEAK SPOTS: a kick or tackle whose part passed through a crit spot hits at its multiplier (CritSpots.land).
+static func _spot_mult(target: Creature, hit: Dictionary, player: Player) -> float:
+	var m := CritSpots.land(target, hit.get("spot", {}), player)
+	return m if m > 0.0 else 1.0
+
 ## Body tackle: lunge into the target, groggy (then knockdown on the next hit), 6 damage.
 static func tackle(h: Hunt) -> void:
 	if h.target == null:
@@ -58,16 +63,17 @@ static func tackle(h: Hunt) -> void:
 		h.say("Out of stamina.")
 		return
 	h.last_auto_cast = &"tackle"
-	if _step_and_strike(h, &"tackle", float(tune.get("lunge_max_m", 1.0))).is_empty():
+	var hit := _step_and_strike(h, &"tackle", float(tune.get("lunge_max_m", 1.0)))
+	if hit.is_empty():
 		h.commit_tactic(&"tackle", float(tune.get("cooldown", 8.0)), float(tune.get("lock", 0.55)))
 		player.play_tactic(&"tackle", true)
 		print("[combat] body tackle %s missed: no hurtbox in the way" % target.def.id)
 		return
 	target.statuses.apply(&"groggy", player)
 	target.next_hit_kind = &"strong"
-	target.health.take_damage(float(tune.get("damage", 6.0)), player)
+	target.health.take_damage(float(tune.get("damage", 6.0)) * _spot_mult(target, hit, player), player)
 	target.status_float.emit(&"tackle")
-	target.stagger_left = maxf(target.stagger_left, float(tune.get("stagger_s", 0.8)))  # a short stagger on the target
+	target.stagger(float(tune.get("stagger_s", 0.8)))  # a short stagger, unless it is poised or just recovered from one
 	h.commit_tactic(&"tackle", float(tune.get("cooldown", 8.0)), float(tune.get("lock", 0.55)))
 	player.play_tactic(&"tackle", true)
 	print("[combat] body tackle %s" % target.def.id)
@@ -80,14 +86,19 @@ static func mass_proxy(c: Creature) -> float:
 		return 1.0
 	return maxf(0.1, c.def.real_length_m * c.def.height_meters)
 
-## Shove distance for this body: full push up to ref_mass, falling off with mass, 0 for giants.
+## Shove distance for this body: full push up to ref_mass, falling off with mass, 0 for giants and armour.
 static func kick_push(c: Creature) -> float:
 	var tune := CombatTuning.section("kick")
 	var mass := mass_proxy(c)
-	if mass >= float(tune.get("giant_mass", 60.0)):
+	if mass >= float(tune.get("giant_mass", 60.0)) or (c and c.def and tune.get("armoured", []).has(str(c.def.id))):
 		return 0.0
 	var push := float(tune.get("push_m", 3.5)) * clampf(float(tune.get("ref_mass", 8.0)) / mass, 0.0, 1.0)
 	return push if push >= float(tune.get("min_push_m", 0.3)) else 0.0
+
+## STUNLOCK: a body the kick cannot shove (a giant, or an armoured species in kick.armoured) shrugs off every
+## stagger from hits and tackles too (Creature.stagger), so it always fights back.
+static func poised(c: Creature) -> bool:
+	return kick_push(c) <= 0.0
 
 ## Kick: shove the target back (scaled by its mass; giants do not budge) with 4 damage.
 static func kick(h: Hunt) -> void:
@@ -124,8 +135,7 @@ static func kick(h: Hunt) -> void:
 		# Slid over the stagger (Creature.shove), never moved in one frame (it read as a teleport).
 		target.shove(away.normalized() * push, float(tune.get("stagger_s", 0.5)))
 	target.next_hit_kind = &"hit"
-	target.health.take_damage(float(tune.get("damage", 4.0)), player)
+	target.health.take_damage(float(tune.get("damage", 4.0)) * _spot_mult(target, hit, player), player)
 	target.status_float.emit(&"kick")
-	target.stagger_left = maxf(target.stagger_left, float(tune.get("stagger_s", 0.5)))
 	h.commit_tactic(&"kick", float(tune.get("cooldown", 6.0)), float(tune.get("lock", 0.45)))
 	print("[combat] kick %s push=%.2f" % [target.def.id, push])

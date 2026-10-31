@@ -11,5 +11,6 @@
   "front": {"fetlock_z": 0.065, "carpus_z": 0.215, "elbow_dz": 0.34, "elbow_back": 0.035, "shoulder_z": 0.46, "shoulder_fwd": 0.09, "scap_top_z": 0.60, "scap_back": 0.12, "scap_x": 0.05, "toe_fwd": 0.06},
   "hind": {"fetlock_z": 0.065, "hock_z": 0.20, "hock_back": 0.008, "stifle_z": 0.35, "stifle_fwd": 0.105, "hip": [0.37, 0.50], "hip_x": 0.075, "toe_fwd": 0.06},
   "ymid": 0.1,
-  "antlers": {"pedicle": [0.045, -0.31, 0.755], "span_m": 7.6}
+  "antlers": {"span_m": 7.6, "mesh": "antlers_tripo.glb", "seat_m": [0.27, -1.62, 3.74], "pedicle_m": [0.15, -1.64, 3.64], "pedicle_shrink": 0.8, "pitch_deg": 15, "roll_deg": [12, 0], "bend_raw": [0.05, 0.14], "fade_m": 0.15,
+    "_about": "MEGANTLERS: the Tripo image-to-model rack (task 48c4db1d-c6b8-40fb-a881-4cff854d7c78) cleaned by antler_prep.py. pitch_deg leans each side back about its burr, roll_deg [left, right] drops its outer end (the right palm hangs lower in the Tripo rack and brushed the neck ruff when grazing), both bent in along the beam between bend_raw (raw rack units from the burr) so the burr keeps its seat; the pair is scaled to span_m tip to tip. seat_m: the left burr centre (game metres, the right mirrored); pedicle_m: where its pedicle ends inside the skull (a hide-covered stalk from the burr down into the head), its ring shrunk by pedicle_shrink. fade_m: the burr base is baked toward the hide colour over this length above the cut."}
 }

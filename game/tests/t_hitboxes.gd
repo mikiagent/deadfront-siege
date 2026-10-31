@@ -90,6 +90,11 @@ func _run() -> void:
 			else:
 				for v in mv:
 					species.append(StringName("%s/%s" % [id, v]))
+	if "--bones" in OS.get_cmdline_user_args():
+		for id in species:
+			await _dump_bones(id)
+		quit(0)
+		return
 	if calibrate:
 		var only := Array(OS.get_cmdline_user_args()).filter(func(a: String) -> bool: return a.begins_with("--species="))
 		if not only.is_empty():  # -- --calibrate --species=carnotaurus: one species only
@@ -186,8 +191,30 @@ func _moves_of(c) -> Array:
 	if tac.get("pin", false) and ap.has_animation(&"pin_stab"):
 		for i in 2:  # the sabres stab twice into prey held pin_reach_m in front (TacticalBrain._pin)
 			out.append([&"pin_stab", i, false, [float(tac.get("pin_reach_m", 1.5)) * c.size_scale()]])
-	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)):
+	# (a forward shoulder ram, tactics.kick_max_m: the allosaurus, never kicks behind)
+	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)) and not tac.has("kick_max_m"):
 		out.append([&"kick", 0, true, [reach]])  # the hind kick at prey behind it (after a charge, or point blank)
+	# ALLOFEEL: tactics.moves rows (the allosaurus' arm rake, hatchet slash, shoulder-checks). A front move at the middle and
+	# the far end of its min_m..max_m; a side move with her beside its flank, 60 and 90 deg off its facing, at 0.8 max_m.
+	var mvs: Variant = tac.get("moves")
+	if mvs is Dictionary:
+		var sz: float = c.size_scale()
+		for k in mvs:
+			var r: Variant = mvs[k]
+			if not (r is Dictionary):
+				continue
+			var lo := float(r.get("min_m", 0.0)) * sz
+			var hi := float(r.get("max_m", reach)) * sz
+			if str(r.get("arc", "front")) == "side":
+				for sd in [["clip_right", 1.0], ["clip_left", -1.0]]:
+					var clip := StringName(str(r.get(sd[0], "")))
+					if ap.has_animation(clip):
+						var at := []
+						for deg in [60.0, 90.0]:
+							at.append(Vector3(float(sd[1]) * sin(deg_to_rad(deg)), 0.0, -cos(deg_to_rad(deg))) * hi * 0.8)
+						out.append([clip, 0, false, at])
+			elif ap.has_animation(StringName(str(r.get("clip", "")))):
+				out.append([StringName(str(r["clip"])), 0, false, [(lo + hi) * 0.5, hi]])
 	if club_tail:
 		out.clear()  # its club moves sweep the club live (t_ankyloai); only the close moves are clip strikes
 	# ClubTailBrain's close moves (ANKYLOCLOSE): judged with her on each move's aim spot.
@@ -487,6 +514,22 @@ func _calibrate_species(id: StringName) -> void:
 		await _frames(1)
 	for key in done:
 		_calib.append([str(id), "%s|%.2f" % [key, done[key][1]], snappedf(float(done[key][0]), 0.01)])
+
+## --bones (crit-spot placement, data/creatures/hitboxes.json crit_spots): every hurtbox and bone of the species at
+## size 1 in the REST pose, in its own frame (x right, y up, z forward, metres from its feet); one "BONE" line each.
+func _dump_bones(id: StringName) -> void:
+	var c = _spawn(id, Vector3.ZERO, false, 1.0)
+	await _frames(3)
+	var sk: Skeleton3D = HB.skeleton_of(c)
+	var to_body: Transform3D = c.global_transform.affine_inverse() * sk.global_transform
+	var flip := func(v: Vector3) -> String: return "%.3f %.3f %.3f" % [v.x, v.y, -v.z]
+	for cap in HB.of(c).caps:
+		var rest: Transform3D = sk.get_bone_global_rest(int(cap["bone"]))
+		print("[t_hitboxes] BONE %s cap %s %s %.3f" % [id, cap["part"], flip.call(to_body * (rest * ((cap["a"] + cap["b"]) * 0.5))), float(cap["r"]) * sk.global_basis.get_scale().x])
+	for b in sk.get_bone_count():
+		print("[t_hitboxes] BONE %s bone %s %s" % [id, sk.get_bone_name(b), flip.call(to_body * sk.get_bone_global_rest(b).origin)])
+	c.queue_free()
+	await _frames(1)
 
 ## Each part's closest pass to the survivor where she stands now, into done ("move|bone|radius" -> need, at size 1).
 func _calib_need(c, sk: Skeleton3D, row: Array, size: float, done: Dictionary) -> void:

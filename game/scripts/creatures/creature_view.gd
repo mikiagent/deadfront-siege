@@ -92,6 +92,7 @@ var _saddle: Array[MeshInstance3D] = []
 var _rider_bone: int = -1
 var _rider_offset: Transform3D = Transform3D.IDENTITY
 var _hit_flash_left: float = 0.0
+var _flash_col := Color(1.0, 0.2, 0.2)  ## red; gold for a weak-spot crit
 var _flinch_tw: Tween
 ## Keeps the feet on the ground through a hit (procedural rattle or an authored hit_react); null without a rig.
 var planted: PlantedFlinch
@@ -515,8 +516,9 @@ func set_status_fx(darken: float, tint: Color, wobble: float) -> void:
 	_wobble = wobble
 	_apply_fx()
 
-func flash_damage(seconds: float = 0.1) -> void:
+func flash_damage(seconds: float = 0.1, col: Color = Color(1.0, 0.2, 0.2)) -> void:
 	_hit_flash_left = maxf(_hit_flash_left, seconds)
+	_flash_col = col
 	_apply_fx()
 
 ## NOBOXES: the generic boxes only where a lab or test asked (CreatureDef.allow_placeholder); in
@@ -618,7 +620,7 @@ func _apply_fx() -> void:
 		c = c.darkened(_fx_darken)
 		c = c.lerp(_fx_tint, tint_amount)
 		if flash_amount > 0.0:
-			c = c.lerp(Color(1.0, 0.2, 0.2), flash_amount)
+			c = c.lerp(_flash_col, flash_amount)
 		mat.albedo_color = c
 	for sm in _skin_mats:
 		if not is_instance_valid(sm):
@@ -627,3 +629,4 @@ func _apply_fx() -> void:
 		sm.set_shader_parameter("tint_color", _fx_tint)
 		sm.set_shader_parameter("tint_amount", tint_amount)
 		sm.set_shader_parameter("flash_amount", flash_amount)
+		sm.set_shader_parameter("flash_color", _flash_col)

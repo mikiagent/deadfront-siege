@@ -731,6 +731,10 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 			col = Color(1.0, 0.18, 0.12)
 			fs = 24
 			shown += "!"
+		&"weakspot":  # CritSpots.KIND, WEAK SPOTS: a sure crit in a crit spot, gold like its burst
+			col = CritSpots.BURST
+			fs = 26
+			shown = "WEAK SPOT %s!" % shown
 	label.text = shown
 	label.position = Vector2(70 + randf_range(-16.0, 16.0), 12)
 	label.add_theme_font_size_override("font_size", fs)

@@ -1,11 +1,12 @@
 class_name HitboxDebug
 extends MeshInstance3D
-## HITBOXES debug draw: every hurtbox green, each hitbox sweep red for a moment after it is judged
-## (bright where it touched). On while Hitbox.debug_draw is (debug toggle, fight lab key H).
+## HITBOXES debug draw: every hurtbox green, each animal's crit spots magenta (CritSpots), each hitbox sweep red
+## for a moment after it is judged (bright where it touched). On while Hitbox.debug_draw is (debug toggle, fight lab key H).
 
 const GREEN := Color(0.2, 1.0, 0.35)
 const RED := Color(1.0, 0.15, 0.1)
 const HIT := Color(1.0, 0.9, 0.1)
+const SPOT := Color(1.0, 0.2, 1.0)  ## WEAK SPOTS: crit spots, magenta
 const RING := 10
 
 static var _inst: HitboxDebug
@@ -44,8 +45,13 @@ func _process(_d: float) -> void:
 	Hitbox.recent = Hitbox.recent.filter(func(r: Array) -> bool: return int(r[0]) > now)
 	im.surface_begin(Mesh.PRIMITIVE_LINES)
 	for body in get_tree().get_nodes_in_group(&"creatures") + get_tree().get_nodes_in_group(PlayerRegistry.GROUP):
+		if body is Creature and (body as Creature).health.dead:
+			continue
+		if body is Creature:
+			for s in CritSpots.world(body as Creature):
+				_capsule(im, s["centre"], s["centre"], float(s["radius"]), SPOT)
 		var hb := Hurtboxes.of(body as Node)
-		if hb == null or ((body as Creature).health.dead if body is Creature else false):
+		if hb == null:
 			continue
 		for c in hb.world_capsules():
 			_capsule(im, c[0], c[1], float(c[2]), GREEN)
