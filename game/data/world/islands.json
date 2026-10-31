@@ -400,6 +400,12 @@
       ],
       "working": [
         {
+          "species": "ceratosaurus",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.6
+        },
+        {
           "species": "dilophosaurus",
           "count": 2,
           "groups": 1
@@ -599,6 +605,11 @@
         }
       ],
       "working": [
+        {
+          "species": "ceratosaurus",
+          "count": 1,
+          "groups": 1
+        },
         {
           "species": "triceratops",
           "count": 3,
