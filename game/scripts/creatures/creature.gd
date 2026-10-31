@@ -853,9 +853,17 @@ func _on_hit(clip: StringName) -> void:
 	if brain is TyrantBrain: return
 	var target := brain.attack_target if brain else null
 	if target:
-		# A contact attack lands at impact, not anywhere the target ran during windup.
+		# A contact attack lands at impact, not anywhere the target ran during windup. HITBOXES: the
+		# clip's attacking part (jaw, club, horns, feet) must have swept through one of its hurtboxes.
 		var offset := global_position - target.global_position
-		if brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
+		if Hitbox.applies(self, target):
+			var hit := Hitbox.strike(self, clip, target as Node3D, anim.hit_index)
+			if hit.is_empty():
+				if target is Player or target is Creature:
+					CombatAvoid.avoided(target, self, &"miss")  # the jaws closed on air
+				return
+			Hitbox.mark(target, hit)
+		elif brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
 			if target is Player or target is Creature:
 				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
