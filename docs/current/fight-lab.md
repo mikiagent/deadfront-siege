@@ -34,6 +34,7 @@ It runs the canon worktree (`mmo-overhaul`), windowed.
 | F, 1-4, Q, Shift | Attack, tactics, roll, sprint (as in play, see [controls.md](controls.md)) |
 | 1-9 outside a fight | Force the nearest creature's clips |
 | N | Enrage the nearest creature (enraged cooldowns are shorter than normal play) |
+| H (or `--hitboxes`) | Hitbox debug draw: every hurtbox green, each attack's swept hitbox red, yellow where it touched ([hitboxes.md](hitboxes.md)) |
 | 0 | Play bite_combo on the nearest creature that has one |
 
 Buttons are 64 px tap targets; mouse, keyboard and touch all work.

@@ -7,8 +7,8 @@ extends RefCounted
 ## (default: the lead_frac of the clip before its hit frame from anim_events.json, up to the hit frame).
 ## The window is baked once per animal and move from the clip's own tracks (skeleton space), then at the
 ## hit the parts' path through the window is swept frame to frame (capsules between samples ~1/60 s of
-## clip apart, so a fast swing cannot tunnel) against the target's hurtboxes (Hurtboxes, physics layer
-## 20). The first hurtbox the sweep touches is the hit location, handed to damage as health/vitals
+## clip apart, so a fast swing cannot tunnel) against the target's hurtbox capsules (Hurtboxes; the same
+## capsules sit on physics layer 20 for queries by other systems). The first hurtbox the sweep touches is the hit location, handed to damage as health/vitals
 ## last_hit_part. Bodies without a skeleton (box stand-ins, structures) keep the old reach rule.
 # ASSUMPTION: the hit is judged at the hit frame over the whole window behind it (the clip's sweep with
 # the body where it stands at the hit), not at the first contact mid-window: the roll, telegraph and
@@ -18,6 +18,7 @@ const DATA_PATH := "res://data/creatures/hitboxes.json"
 const STEP_S := 1.0 / 60.0  ## clip seconds between sweep samples
 const MAX_SAMPLES := 48
 const DEBUG_LINGER_MS := 450
+const AIM_STEP_M := 0.3
 
 ## The debug draw (hitboxes red after they swing, hurtboxes green). Toggled with the debug toggle and
 ## the fight lab's H key; HitboxDebug draws it.
@@ -32,7 +33,6 @@ static var spent_usec := 0
 static var strikes := 0
 
 static var _data: Dictionary = {}
-static var _shape := CapsuleShape3D.new()
 
 static func data() -> Dictionary:
 	if _data.is_empty():
@@ -72,14 +72,54 @@ static func move_spec(attacker: Node, move: StringName, hit_index: int = 0, weap
 	return row
 
 ## Judge one move against one target: {} when no part touched it, else {part, region, at}.
-static func strike(attacker: Node3D, move: StringName, target: Node3D, hit_index: int = 0, weapon: StringName = &"") -> Dictionary:
+## preview: a reach test (the survivor's approach), not a swing: it is not drawn.
+## face (world, flat): judge it as if the attacker had turned to face that way (the approach's reach test).
+static func strike(attacker: Node3D, move: StringName, target: Node3D, hit_index: int = 0, weapon: StringName = &"", preview: bool = false, face: Vector3 = Vector3.ZERO) -> Dictionary:
 	var t0 := Time.get_ticks_usec()
-	var out := _strike(attacker, move, target, hit_index, weapon)
+	var out := _strike(attacker, move, target, hit_index, weapon, preview, face)
 	spent_usec += Time.get_ticks_usec() - t0
 	strikes += 1
 	return out
 
-static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_index: int, weapon: StringName) -> Dictionary:
+## For a brain that runs its own strike window frame by frame (ClubTailBrain): one part's path from last
+## frame to now (world points, radius in metres) against the target's hurtboxes.
+static func touch(attacker: Node3D, from: Vector3, to: Vector3, radius: float, target: Node3D) -> Dictionary:
+	var hurt := Hurtboxes.of(target)
+	if hurt == null:
+		return {}
+	hurt.sync(true)
+	var found := _touch(from, to, radius, hurt)
+	if debug_draw:
+		recent.append([Time.get_ticks_msec() + DEBUG_LINGER_MS, from, to, radius, not found.is_empty()])
+	return found
+
+## aim_down_m / aim_up_m (a move's data): when the sweep where it plays misses, it is tried lower (higher) in
+## AIM_STEP_M steps up to that far, as a swing bends into a low animal or reaches for a leg. Only the height
+## changes: a target beside or behind the sweep is still missed.
+static func _aim_offsets(spec: Dictionary) -> Array[float]:
+	var out: Array[float] = [0.0]
+	var down := float(spec.get("aim_down_m", 0.0))
+	var up := float(spec.get("aim_up_m", 0.0))
+	var k := 1
+	while float(k) * AIM_STEP_M <= maxf(down, up) + 0.001:
+		if float(k) * AIM_STEP_M <= down + 0.001:
+			out.append(-float(k) * AIM_STEP_M)
+		if float(k) * AIM_STEP_M <= up + 0.001:
+			out.append(float(k) * AIM_STEP_M)
+		k += 1
+	return out
+
+## A part's radius in metres (data radius x body size, or the attacker's own hurtbox there).
+static func part_radius(attacker: Node3D, move: StringName, part_index: int = 0) -> float:
+	var smp := baked(attacker, move)
+	return float(smp[0][part_index][2]) if not smp.is_empty() and part_index < (smp[0] as Array).size() else 0.3
+
+## The basis whose -Z is where the body faces (the survivor turns her Visual, a creature its body).
+static func facing_basis(n: Node3D) -> Basis:
+	var v: Variant = n.get(&"visual")
+	return (v as Node3D).global_basis if v is Node3D else n.global_basis
+
+static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_index: int, weapon: StringName, preview: bool, face: Vector3) -> Dictionary:
 	var hurt := Hurtboxes.of(target)
 	var sk := Hurtboxes.skeleton_of(attacker)
 	if hurt == null or sk == null:
@@ -89,16 +129,37 @@ static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_inde
 		return {}
 	hurt.sync(true)
 	var xf := sk.global_transform
-	var space := attacker.get_world_3d().direct_space_state
-	var q := PhysicsShapeQueryParameters3D.new()
-	q.shape = _shape
-	q.collide_with_areas = true
-	q.collide_with_bodies = false
-	q.collision_mask = Hurtboxes.LAYER
-	var own := attacker.get_node_or_null(NodePath(Hurtboxes.NAME)) as Hurtboxes
-	if own:
-		q.exclude = [own.get_rid()]
-	var draw := debug_draw
+	face.y = 0.0
+	if face.length_squared() > 0.0001:
+		var fwd := -facing_basis(attacker).z
+		fwd.y = 0.0
+		var turn := Transform3D(Basis(Vector3.UP, fwd.signed_angle_to(face, Vector3.UP)), Vector3.ZERO)
+		var pivot := Transform3D(Basis.IDENTITY, attacker.global_position)
+		xf = pivot * turn * pivot.affine_inverse() * xf
+	var draw := debug_draw and not preview
+	# Bounds first: most checks (a preview while she walks up, a bite at a dodging target) end here.
+	var sweep_box := AABB(xf * (samples[0][0][0] as Vector3), Vector3.ZERO)
+	var grow := 0.0
+	for row in samples:
+		for p in row as Array:
+			sweep_box = sweep_box.expand(xf * (p[0] as Vector3)).expand(xf * (p[1] as Vector3))
+			grow = maxf(grow, float(p[2]))
+	var hurt_box := AABB(hurt.caps[0]["wa"], Vector3.ZERO) if not hurt.caps.is_empty() else AABB()
+	for c in hurt.caps:
+		hurt_box = hurt_box.expand(c["wa"]).expand(c["wb"])
+		grow = maxf(grow, float(c["wr"]) * 2.0)
+	sweep_box = sweep_box.grow(grow)
+	for dy in _aim_offsets(move_spec(attacker, move, hit_index, weapon)):
+		if not draw and not sweep_box.intersects(AABB(hurt_box.position + Vector3(0.0, -dy, 0.0), hurt_box.size)):
+			continue
+		var found := _sweep(samples, Transform3D(Basis.IDENTITY, Vector3(0.0, dy, 0.0)) * xf, hurt, draw)
+		if not found.is_empty():
+			return found
+	return {}
+
+## One sweep of the baked samples placed by xf: the part where it is at each sample, and each end's path
+## since the last sample (no tunnelling). The first hurtbox touched, or {}.
+static func _sweep(samples: Array, xf: Transform3D, hurt: Hurtboxes, draw: bool) -> Dictionary:
 	var found := {}
 	for k in samples.size():
 		var cur: Array = samples[k]
@@ -109,32 +170,36 @@ static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_inde
 			var r := float(p[2])
 			var a: Vector3 = xf * (p[0] as Vector3)
 			var b: Vector3 = xf * (p[1] as Vector3)
-			# The part where it is now, and each end's path since the last sample (no tunnelling).
 			var segs := [[a, b]]
 			if k > 0:
 				segs.append([xf * (pp[0] as Vector3), a])
 				if (p[1] as Vector3) != (p[0] as Vector3):
 					segs.append([xf * (pp[1] as Vector3), b])
 					segs.append([xf * ((pp[0] as Vector3) + (pp[1] as Vector3)) * 0.5, (a + b) * 0.5])
-			for s in segs:
+			for sg in segs:
+				var touched := false
 				if found.is_empty():
-					found = _touch(space, q, s[0], s[1], r, hurt)
+					found = _touch(sg[0], sg[1], r, hurt)
+					touched = not found.is_empty()
 				if draw:
-					recent.append([Time.get_ticks_msec() + DEBUG_LINGER_MS, s[0], s[1], r, not found.is_empty()])
+					recent.append([Time.get_ticks_msec() + DEBUG_LINGER_MS, sg[0], sg[1], r, touched])
 			if not found.is_empty() and not draw:
 				return found
 	return found
 
-static func _touch(space: PhysicsDirectSpaceState3D, q: PhysicsShapeQueryParameters3D, a: Vector3, b: Vector3, r: float, hurt: Hurtboxes) -> Dictionary:
-	_shape.radius = maxf(0.01, r)
-	_shape.height = a.distance_to(b) + 2.0 * _shape.radius
-	q.transform = Transform3D(Hurtboxes._basis_along(b - a), (a + b) * 0.5)
-	for res in space.intersect_shape(q, 32):
-		if res.get("collider") == hurt:
-			var row := hurt.part_of(int(res.get("shape", 0)))
-			if not row.is_empty():
-				return {"part": row["part"], "region": row["region"], "at": (a + b) * 0.5}
-	return {}
+## One swept capsule (a -> b, radius r) against the target's hurtbox capsules, as exact capsule-capsule
+## distance on the live (just synced) capsules. The physics server's broadphase only moves a shape on the
+## next physics step, so an intersect_shape right after a sync misses a body that moved or was just built.
+static func _touch(a: Vector3, b: Vector3, r: float, hurt: Hurtboxes) -> Dictionary:
+	var best := {}
+	var best_d := INF
+	for c in hurt.caps:
+		var pts := Geometry3D.get_closest_points_between_segments(a, b, c["wa"], c["wb"])
+		var d := pts[0].distance_to(pts[1]) - r - float(c["wr"])
+		if d <= 0.0 and d < best_d:
+			best_d = d
+			best = {"part": c["part"], "region": c["region"], "at": pts[1]}
+	return best
 
 ## The move's parts through its window in skeleton space: one Array per sample of [a, b, radius_m]
 ## per part. Cached per animal, move, bite and body size.

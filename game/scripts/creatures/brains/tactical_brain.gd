@@ -742,6 +742,13 @@ func _charge(delta: float) -> void:
 		_enter_circle()
 
 func _charge_impact() -> void:
+	# HITBOXES: the ram lands when the head and horns (the charge part) reach her body, not at the reach ring.
+	var hit := {}
+	if Hitbox.applies(creature, attack_target):
+		hit = Hitbox.strike(creature, &"charge", attack_target)
+		if hit.is_empty():
+			return  # still closing: the next frame tries again
+		Hitbox.mark(attack_target, hit)
 	_charge_hit = true
 	var mult := _t("charge_mult", 1.8)
 	tactic_hit.emit(&"charge", 0, mult)
@@ -1092,14 +1099,24 @@ func _pounce_land() -> void:
 	_pounce_landed = false
 	var ahead := tgt.global_position - creature.global_position
 	ahead.y = 0.0
-	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close.
-	if _flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0:
+	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close. With hurtboxes the
+	# pounce clip's parts decide below instead.
+	if not Hitbox.applies(creature, tgt) and (_flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0):
 		_log("[ai] %s pounce missed" % creature.def.id)
 		if tgt is Player or tgt is Creature:
 			CombatAvoid.avoided(tgt, creature, &"miss")
 		return
 	if tgt is Player and (tgt as Player).dead:
 		return
+	# HITBOXES: the jaws and claws of the pounce clip must sweep through her hurtboxes.
+	if Hitbox.applies(creature, tgt):
+		var hit := Hitbox.strike(creature, &"pounce", tgt)
+		if hit.is_empty():
+			_log("[ai] %s pounce missed (no part touched)" % creature.def.id)
+			if tgt is Player or tgt is Creature:
+				CombatAvoid.avoided(tgt, creature, &"miss")
+			return
+		Hitbox.mark(tgt, hit)
 	# A roll is judged by CreatureAttack against the roll's opening window (RollRules), as for any bite.
 	var mult := _t("pounce_mult", 2.5)
 	_pounce_landed = true

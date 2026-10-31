@@ -6,8 +6,9 @@ extends Area3D
 ## remaining bone gets the capsule around its vertices (principal axis, trimmed ends, a high-percentile
 ## radius). data/creatures/hitboxes.json "hurtbox" tunes the fit and can scale a species or one bone.
 ## The capsules sit on their own physics layer (LAYER) on this Area3D: they never block movement,
-## and Hitbox queries read them with an intersect_shape on that layer. Built on first use (a hit or the
-## debug draw), synced from the live pose right before a query, so idle animals cost nothing.
+## and other systems can query that layer. Hitbox judges hits on the same capsules analytically (world_capsules
+## after a sync), because the physics broadphase moves a shape only on the next step. Built on first use (a
+## hit or the debug draw), synced from the live pose right before a check, so idle animals cost nothing.
 
 const LAYER := 1 << 19  ## physics layer 20: hurtboxes only
 const NAME := &"Hurtboxes"
@@ -61,6 +62,9 @@ static func _model_key(n: Node, sk: Skeleton3D) -> String:
 
 func _ready() -> void:
 	top_level = true  # capsules are placed in world space; the body's scale and turns never touch them
+	# A disabled body (a paused brain, a frozen test rig) still has a body to hit: a disabled
+	# CollisionObject3D would leave the physics space.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	global_transform = Transform3D.IDENTITY
 	collision_layer = LAYER
 	collision_mask = 0
@@ -113,14 +117,23 @@ func world_capsules() -> Array:
 		out.append([c["wa"], c["wb"], c["wr"], c["part"]])
 	return out
 
-## The capsule row behind a shape index an intersect_shape result reported.
-func part_of(shape_idx: int) -> Dictionary:
-	var owner_id := shape_find_owner(shape_idx)
-	var cs := shape_owner_get_owner(owner_id) as CollisionShape3D if owner_id >= 0 else null
-	for c in caps:
-		if c["shape"] == cs:
-			return c
-	return {}
+## The point on its hurtbox surfaces nearest `at`, among capsules reaching into the height band [y_lo, y_hi]
+## (world), or `at` itself when none does (the survivor's approach: the leg she can hit, not the belly overhead).
+func nearest_point(at: Vector3, y_lo: float, y_hi: float) -> Vector3:
+	var best := at
+	var best_d := INF
+	for c in world_capsules():
+		var a: Vector3 = c[0]
+		var b: Vector3 = c[1]
+		var r := float(c[2])
+		if minf(a.y, b.y) - r > y_hi or maxf(a.y, b.y) + r < y_lo:
+			continue
+		var q := Geometry3D.get_closest_point_to_segment(at, a, b)
+		var d := q.distance_to(at) - r
+		if d < best_d:
+			best_d = d
+			best = q + (at - q).normalized() * r if q.distance_to(at) > 0.0001 else q
+	return best
 
 static func region_of(bone_name: String) -> StringName:
 	var low := bone_name.to_lower()

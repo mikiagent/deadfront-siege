@@ -22,6 +22,7 @@ static func ensure() -> void:
 	tree.root.add_child.call_deferred(_inst)
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # a paused hit frame still shows its sweep
 	top_level = true
 	mesh = ImmediateMesh.new()
 	var m := StandardMaterial3D.new()
