@@ -16,7 +16,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 BL=${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}
-D=game/assets/creatures/raptor; W=$D/work; DE=game/assets/creatures/deinonychus; VR=game/assets/creatures/velociraptor
+D=game/assets/creatures/raptor; W=$D/work; DE=game/assets/creatures/deinonychus/work/v3;  # the v3 deinonychus clips (SP-DEINONYCHUS kept them as the source)
+ VR=game/assets/creatures/velociraptor
 T=$(mktemp -d)
 run() { "$BL" -b "$@" > "$T/log_$RANDOM.txt" 2>&1 || { echo "FAILED: $*"; exit 1; }; }
 if [[ "${1:-}" != "--clips-only" ]]; then

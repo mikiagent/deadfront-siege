@@ -91,6 +91,9 @@ func _run() -> void:
 				for v in mv:
 					species.append(StringName("%s/%s" % [id, v]))
 	if calibrate:
+		var only := Array(OS.get_cmdline_user_args()).filter(func(a: String) -> bool: return a.begins_with("--species="))
+		if not only.is_empty():  # -- --calibrate --species=carnotaurus: one species only
+			species = species.filter(func(id: StringName) -> bool: return str(id).get_slice("/", 0) == (only[0] as String).trim_prefix("--species="))
 		for id in species:
 			await _calibrate_species(id)
 		print("[t_hitboxes] CALIBRATE %s" % JSON.stringify(_calib))
