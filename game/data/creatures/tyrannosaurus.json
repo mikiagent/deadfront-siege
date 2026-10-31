@@ -29,6 +29,7 @@
   "look": "12 meter Tyrannosaurus rex, massive deep skull, tiny two-fingered arms, huge legs, thick tail, ash-dark scales with a rust-red back and pale belly,",
   "texture_prompt": "ash-dark scaly hide with rust-red dorsal colouring, pale belly, matte surface",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
     "attack_primary": "Giant tyrannosaur bites and tosses",
     "attack_heavy": "Giant tyrannosaur raises a foot, holds, then stomps down",
     "knockdown": "Giant tyrannosaur staggers and crashes down",
@@ -55,6 +56,7 @@
     "rig_and_animation": "DeepSeek V4.1 Flash via dsc harness in Blender, 30 bones incl. Jaw and Tail1-7, about $0.29",
     "accepted_mesh": "tyrannosaurus.glb",
     "clips": [
+      "big_stomp",
       "idle",
       "walk",
       "run",

@@ -805,7 +805,7 @@
       }
      ]
     },
-    "grab_bite": {
+    "arm_bite": {
      "parts": [
       {
        "bone": "Jaw"
@@ -816,7 +816,7 @@
        "calibrated": true
       }
      ],
-     "_note": "RAPTORFLANK x HITBOXES: the arms-and-jaws grab is the plain bite's timing and reach (utahraptor.json _bite_alt), so the bite's calibrated row"
+     "_note": "RAPTORFLANK x HITBOXES: the bite with arms is the plain bite's timing and reach (utahraptor.json _bite_alt), so the bite's calibrated row"
     }
    }
   },
@@ -1326,6 +1326,347 @@
        "bone": "ClawTip.R",
        "radius": 1.74,
        "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "allosaurus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "_note": "SP-ALLOSAURUS x HITBOXES (integrator): bite radii from t_hitboxes --calibrate; the grab and the shoulder ram use pipeline.hit_parts' bones; kick Chest 1.8 m = its old hit_parts radius (the test ram at 3.2 m)",
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 2.07,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.01,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "grab_bite": {
+     "parts": [
+      {
+       "bone": "Hand.L"
+      },
+      {
+       "bone": "Hand.R"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 2.07
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Chest",
+       "radius": 1.8
+      },
+      {
+       "bone": "Arm.R"
+      },
+      {
+       "bone": "Neck1"
+      }
+     ]
+    }
+   }
+  },
+  "dilophosaurus": {
+   "_note": "SP-DILOPHOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Toe.R",
+       "radius": 2.11,
+       "calibrated": true
+      },
+      {
+       "bone": "Metatarsal.R"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Toe.L"
+      },
+      {
+       "bone": "Toe.R"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.74,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "majungasaurus": {
+   "_note": "SP-MAJUNGASAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.22,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.75,
+       "calibrated": true
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.32,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail3"
+      },
+      {
+       "bone": "Tail4"
+      },
+      {
+       "bone": "Tail5"
+      }
+     ]
+    }
+   }
+  },
+  "spinosaurus": {
+   "_note": "SP-SPINOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.73,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Hand.L"
+      },
+      {
+       "bone": "Hand.R",
+       "radius": 3.22,
+       "calibrated": true
+      },
+      {
+       "bone": "Forearm.L"
+      },
+      {
+       "bone": "Forearm.R"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 3.03,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_shake": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.7,
+       "calibrated": true
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail4"
+      },
+      {
+       "bone": "Tail5"
+      },
+      {
+       "bone": "Tail6"
+      }
+     ]
+    }
+   }
+  },
+  "megatherium": {
+   "_note": "SP-MEGATHERIUM x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "ClawTip.L"
+    },
+    {
+     "bone": "ClawTip.R"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.5,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.95,
+       "calibrated": true
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 1.02,
+       "calibrated": true
+      }
+     ]
+    },
+    "charge": {
+     "parts": [
+      {
+       "bone": "ClawTip.L",
+       "radius": 2.68,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R"
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.69,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R"
       }
      ]
     }

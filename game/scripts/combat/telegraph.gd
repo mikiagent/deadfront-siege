@@ -111,7 +111,7 @@ func _exit_tree() -> void:
 
 ## TACTICS pounce: a ring on the prey for the windup and the leap (the brain moves it with the prey until
 ## take-off). Rolling inside it at the hit time is a dodge (player_dodged), like the heavy ring.
-static func show_pounce(creature: Creature, at: Vector3, radius: float, duration: float) -> Telegraph:
+static func show_pounce(creature: Creature, at: Vector3, radius: float, duration: float, text: String = "POUNCE - ROLL!") -> Telegraph:
 	var t := Telegraph.new()
 	t.name = "PounceTelegraph"
 	creature.get_parent().add_child(t)
@@ -123,7 +123,7 @@ static func show_pounce(creature: Creature, at: Vector3, radius: float, duration
 	var player := PlayerRegistry.local()
 	t.visible = not (player and player.statuses.has_flag(&"hide_telegraphs"))
 	var label := Label3D.new()
-	label.text = "POUNCE - ROLL!"
+	label.text = text
 	label.position.y = 2
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 32
@@ -150,4 +150,26 @@ static func show_club(creature: Creature, at: Vector3, radius: float, duration: 
 	label.font_size = 32
 	t.add_child(label)
 	_active.append(t)
+	return t
+
+## BIGSTOMP: the foot's shadow (the direct ring, where it pins) inside the yellow near ring (knockdown), with the name,
+## for the wind-up. Rolling inside it at the slam is a dodge (player_dodged), like the heavy ring.
+static func show_stomp(creature: Creature, at: Vector3, direct_r: float, near_r: float, duration: float) -> Telegraph:
+	var t := show_club(creature, at, near_r, duration, "STOMP - ROLL AWAY")
+	t.name = "StompTelegraph"
+	t.clip = BigStomp.CLIP
+	var shadow := MeshInstance3D.new()
+	var disc := CylinderMesh.new()
+	disc.top_radius = direct_r
+	disc.bottom_radius = direct_r
+	disc.height = 0.02
+	shadow.mesh = disc
+	shadow.position.y = 0.04
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.05, 0.03, 0.02, 0.55)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	shadow.material_override = mat
+	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	t.add_child(shadow)
 	return t

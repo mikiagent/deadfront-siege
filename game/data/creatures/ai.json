@@ -13,7 +13,12 @@
       "fight_s": 12.0,
       "weak_frac": 0.3,
       "display_s": 0.8,
-      "display_clips": ["roar", "crest_flare", "stomp", "alert"]
+      "display_clips": [
+        "roar",
+        "crest_flare",
+        "stomp",
+        "alert"
+      ]
     },
     "perception_base": 8.0,
     "perception_tier_mult": 0.15,
@@ -460,7 +465,8 @@
       "_attack_range": "ASSUMPTION (COELOMOVES 2026-10-31): attack_range set so the survivor's surface at contact reach (attack_range + 0.3 - 0.35) sits just inside where the snout is at the bite's hit frame (measured on the clip, game scale): coelophysis snout 2.28 m -> surface 2.15 m (was 1.6: 1.55 m, the head passed 0.7 m through her)."
     },
     "venom_ranged": {
-      "attack_range": 2.4,
+      "_attack_range_note": "# ASSUMPTION (SP-DILOPHOSAURUS): 2.4 -> 3.0. The only venom_ranged species is the dilophosaurus, whose snout is 3.2 m ahead of its origin at rest and 3.8 m at the snap; at 2.4 (contact 2.7 m) it bit the air short of her.",
+      "attack_range": 3.0,
       "weak_to": [
         "blunt"
       ],
@@ -618,6 +624,103 @@
         "bound_cd": 1.8,
         "coiled_s": 0.6,
         "chase_pounce_telegraph_s": 0.0
+      }
+    },
+    "opportunist": {
+      "attack_range": 4.2,
+      "_attack_range": "ASSUMPTION (majungasaurus): the jaws are ~4 m ahead of the body centre at its size; hits still need the named part (pipeline.hit_parts) on her at the hit frame.",
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": [],
+      "chase_speed_mult": 0.75,
+      "perception_base": 12.0,
+      "tactics": {
+        "_about": "OPPORTUNIST (majungasaurus, SP-MAJUNGASAURUS 2026-10-31, owner: 'be creative with what moves you think they should do'). A scavenger's patience: it keeps to a wide ring and circles, holds and roars while the prey is healthy, testing with a rare rush; once the prey is under weak_prey.hp_frac (50%) it commits: rushes (homing charge, the run with the jaws out) far more often and sooner, cooldowns and waits cut. The rush and the point-blank bite are the CRUSHING BITE: a bite that lands GRABS (bite_pin): the prey is held Pinned low in front of the chest while pin_stab shakes it twice (x pin_mult each), then it lets go and backs off. Point blank it also HEADBUTTS with the skull knob (attack_heavy: rears back, chin tucked, paws the ground = the telegraph). Prey behind it gets the LOW TAIL SWIPE (the kick clip, hit from the tail). Getting behind and to the side of its legs, or keeping your health up, keeps it circling. Backs off at a scurry (no hop clips). Every number is an ASSUMPTION (first pass, not balanced).",
+        "sequences": [
+          {
+            "name": "rush",
+            "steps": [
+              "charge"
+            ],
+            "weight": 0.3
+          },
+          {
+            "name": "roar_rush",
+            "steps": [
+              "display",
+              "charge"
+            ],
+            "weight": 0.3
+          }
+        ],
+        "point_blank": [
+          "heavy",
+          "kick",
+          "bite"
+        ],
+        "attack_priority": [
+          "heavy",
+          "kick",
+          "bite"
+        ],
+        "ring_m": 11.0,
+        "circle_speed_frac": 0.6,
+        "circle_step_deg": 22.0,
+        "circle_min_s": 1.6,
+        "circle_max_s": 3.0,
+        "contact_after_s": 1.2,
+        "flip_chance": 0.3,
+        "bite_cd": 3.0,
+        "bite_pin": true,
+        "healthy_commit_chance": 0.25,
+        "pin": true,
+        "pin_cd": 9.0,
+        "pin_mult": 1.1,
+        "pin_reach_m": 4.0,
+        "heavy_cd": 7.0,
+        "heavy_mult": 1.6,
+        "kick_cd": 4.0,
+        "kick_mult": 1.2,
+        "charge_cd": 9.0,
+        "charge_speed_mult": 1.35,
+        "charge_max_s": 2.4,
+        "display_s": 1.4,
+        "display_charge_m": 6.0,
+        "backoff": "scurry",
+        "scurry_s": 1.0,
+        "hop_m": 4.0,
+        "hop_cd": 4.0,
+        "max_retreat_m": 16.0,
+        "w_hold": 0.8,
+        "w_strafe": 0.7,
+        "w_dodge": 0.0,
+        "w_feint": 0.2,
+        "w_hop": 0.2,
+        "hold_min_s": 1.0,
+        "hold_max_s": 2.0,
+        "feint_s": 1.0,
+        "wait_max_s": 3.0,
+        "opening_swing_cd_s": 0.2,
+        "retreat_frac": 0.25,
+        "retreat_s": 3.0,
+        "retreat_cd": 14.0,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.3,
+        "weak_prey": {
+          "hp_frac": 0.5,
+          "w_charge": 8.0,
+          "cooldown_mult": 0.45,
+          "wait_mult": 0.25,
+          "beat_mult": 0.5,
+          "w_feint": 2.0
+        },
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_charge": 2.0,
+          "beat_mult": 0.7,
+          "wait_mult": 0.5
+        }
       }
     },
     "tyrant": {
@@ -946,7 +1049,8 @@
           "knockback_m": 2.5,
           "cooldown_s": 1.8
         }
-      }
+      },
+      "big_stomp": false
     },
     "horned_charger": {
       "is_herbivore": true,
@@ -1366,6 +1470,110 @@
     "loot": {
       "trophy": "alpha_trophy",
       "trophy_count": 1
+    }
+  },
+  "big_stomp": {
+    "_about": "BIGSTOMP (owner 2026-10-31: big dinosaurs stomp what is close under them; a stomp that lands on you hits very hard and pins you). game/scripts/combat/big_stomp.gd. Who: rig has big_stomp, height x size >= min_height_m, unless tactics/archetype says big_stomp false (true or a dict of these keys opts in or overrides). Sizes are fractions of body height: the near ring (near_frac, knockdown, near_mult x attack), the foot's shadow (direct_frac, damage_mult x attack, then Pinned under the foot). windup_s and shake run from their first to their second number over size_range_m. land: [across (+ right), ahead] of the centre in body heights, where big_stomp's foot comes down (measured in game by the lab's --stompprobe). pin_bone / pin_reach: the pinning foot for PinHold (reach along the bone, skeleton units). pin_reach_frac: a pin starts only on a victim whose chest is within this x body height of that foot (else it is a knockdown), and the victim is pressed under it at most pin_slide_mps. pin_bite_s / pin_bite_mult: the follow-up bite while it holds.",
+    "min_height_m": 2.9,
+    "size_range_m": [
+      3.0,
+      10.0
+    ],
+    "windup_s": [
+      0.6,
+      0.9
+    ],
+    "near_frac": 0.42,
+    "direct_frac": 0.16,
+    "damage_mult": 2.5,
+    "near_mult": 0.35,
+    "near_force": 3.0,
+    "cooldown_s": 3.5,
+    "shake": [
+      0.45,
+      0.9
+    ],
+    "shake_range": 3.0,
+    "pin": true,
+    "pin_reach_frac": 0.3,
+    "pin_slide_mps": 3.0,
+    "pin_bite_s": 1.5,
+    "pin_bite_mult": 0.6,
+    "species": {
+      "tyrannosaurus": {
+        "land": [
+          0.19,
+          0.357
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.85
+      },
+      "megarex": {
+        "land": [
+          0.27,
+          0.374
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.85
+      },
+      "tarbosaurus": {
+        "land": [
+          0.22,
+          0.337
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.85,
+        "pin_reach_frac": 0.8,
+        "pin_slide_mps": 6.0
+      },
+      "triceratops": {
+        "land": [
+          -0.086,
+          0.444
+        ],
+        "pin_bone": "Finger.L",
+        "pin_reach": 0.0
+      },
+      "styracosaurus": {
+        "land": [
+          -0.05,
+          0.492
+        ],
+        "pin_bone": "FrontFoot.L",
+        "pin_reach": 0.0
+      },
+      "woolly_rhino": {
+        "land": [
+          -0.058,
+          0.278
+        ],
+        "pin_bone": "FrontFoot.L",
+        "pin_reach": 0.0
+      },
+      "carnotaurus": {
+        "land": [
+          0.072,
+          0.361
+        ],
+        "pin_bone": "BackFoot.R",
+        "pin_reach": 0.0
+      },
+      "therizinosaurus": {
+        "land": [
+          0.052,
+          0.227
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.0
+      },
+      "ceratosaurus": {
+        "land": [
+          0.053,
+          0.32
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.0
+      }
     }
   }
 }
