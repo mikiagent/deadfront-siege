@@ -56,7 +56,7 @@ func _spot(spot: String) -> Vector3:
 		"guild":
 			for n in get_tree().get_nodes_in_group("town_building"):
 				if str(n.name) == "AdventurersGuild":
-					return (n as Node3D).global_position + Vector3(7.5, 1, 6.5)  # outside the south-east door
+					return (n as Node3D).global_position + Vector3(5.5, 1, 5.5)  # outside the south-east door
 	return Vector3.INF
 
 func _shot(path: String) -> void:

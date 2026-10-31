@@ -1,6 +1,6 @@
 # claude-isocam: isometric diagonal back, zoom-in tilts behind the survivor, a corner-door guild
 
-Branch `claude/mmo-isocam`, cut from `origin/claude/mmo-overhaul` (b68998e8). Not merged to canon.
+Branch `claude/mmo-isocam`, cut from `origin/claude/mmo-overhaul` (b68998e8), canon merged in again after the merge gate. Not merged to canon.
 
 Owner (2026-10-30, overrides NORTHUP's yaw 0): "if the buildings face south we dont have that isometric thing going on anymore. i like the isometric look better ... move the orientation such that the town is the same but north changes and the perspective is back to durango isometric. also make some buildings where the south corner is the door ... change the angle so it can go more horizontal so the camera looks like it's behind the player and slightly up, we can zoom out and get isometric".
 
@@ -24,9 +24,15 @@ Owner (2026-10-30, overrides NORTHUP's yaw 0): "if the buildings face south we d
 - The extra parallax lean and the tall-crown fade fade out with t (a wide lens already leans everything; crowns ahead of her are not over her).
 - The pose changes only on a zoom change (`_posed_size`), so labs that turn the camera themselves keep their angle.
 
-## 3. The Adventurer's Guild (corner door)
-- `TownDress._adventurers_guild`: a 10 x 8 m two-storey stone hall (timber upper floor, slate/tile roof from the town kit), on the grid west of the dock avenue just south of the square (first lot the player's build rules allow; it landed at x -61, z 227). `house(..., corner_door = true)` cuts its south-east corner on a 45 deg chamfer: the kit doorway, door leaf and awning on the ground floor, a window above, plain slivers either side, corner posts moved to the chamfer ends. A signpost stands by the door.
-- Interaction: one `TownBuilding` (`AdventurersGuild`, role `adventurers_guild`) carries the building's collision box, so a tap anywhere on it runs the Faction Hall desk's branch (tutorial orders while they run, then the Factions screen). Own role so the tutorial's "guild" order still points at the Faction Hall. No new mechanics, cards or credits.
+## 3. The Adventurer's Guild (corner door), reworked after the merge gate
+- First version (a separate 10x8 hall placed before the rows) shifted the town's random layout and added 7 batches (t_tutorial: 226 > 220) and broke tut_dagger / skip-tutorial via the changed layout.
+- Now: the first south-facing row house west of the dock avenue on the dock side becomes the guild (6 x 6 m at x -87, z 290, by the arrival). `house(..., corner_door = true)` cuts its south-east corner (nearest the camera) on a 45 deg chamfer: kit doorway, door leaf and awning on the ground floor, a window upstairs, plain slivers either side, corner posts at the chamfer ends. Every random draw a plain house would make is still made, so the rest of the town lays out exactly as canon (217 batches, same as canon; +20 instances).
+- Interaction: one `TownBuilding` (`AdventurersGuild`, role `adventurers_guild`) carries the building's collision box; a tap anywhere on it runs the Faction Hall desk's branch (tutorial orders while they run, then the Factions screen). Own role, so the tutorial's "guild" order still points at the Faction Hall.
+
+## 4. Town streaming (owner: "do perspective based loading and only load a certain radius around the player")
+- `TownDress.stream(at)`: the batches stay grouped by their 120 m chunk; a chunk is in the tree only while the player is within `STREAM_R` = 140 m of its square (# ASSUMPTION: widest game zoom's half-view + one chunk, open question IC6), checked every 0.5 s with the townsfolk. Batches that stream back in are re-filed with Occlusion (it forgets a node that leaves the tree). Detached batches are freed with the town.
+- t_tutorial's 220 budget now counts the batches loaded around the player (`loaded_batches()`), and checks they stream out 2 km away and back in.
+- With 120 m chunks the tutorial town is small enough that it is all loaded from the square; smaller chunks would load less but cost more draw calls. Island props (VegBatch, PropCards, ground cover) already cull per cell by visibility range and are unchanged.
 
 ## Shots (docs/orchestration/reports/isocam/)
 Off-screen windowed, self-quitting runs (`--position 6000,3000 ... -- --skip-charcreate --lab=tutorial --new-game --northup-shot=DIR --shot-sizes=... --shot-spots=...`; `northup_shot.gd` gained the two flags).

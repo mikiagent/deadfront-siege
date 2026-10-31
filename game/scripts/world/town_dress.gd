@@ -35,6 +35,12 @@ const HALF := 86  ## the square palisade, metres from the camp along each axis
 const WICKET_EVERY := 12  ## a 4 m wicket gap every 12 panels (~22 m) of palisade
 const PANEL_M := 1.84  ## fence and palisade modules have end posts 1.84 m apart: runs step by that, so joins share one post
 const NPC_RANGE_M := 60.0
+## ISOCAM streaming (owner 2026-10-30: "do perspective based loading and only load a certain radius
+## around the player"): a chunk's batches are in the tree only while the player is within this many
+## metres of the chunk's square; the rest wait detached and stream in as she walks (checked every
+## 0.5 s with the townsfolk). Frustum culling and visibility ranges still apply to what is loaded.
+# ASSUMPTION: 140 m, the widest game zoom's half-view (~20 m) plus one 120 m chunk (open question IC6).
+const STREAM_R := 140.0
 ## Visibility ranges, metres from the camera. TOWNPOLISH: the iso camera stands distance_for(size)
 ## back (186 m at the default zoom, 240 m at the widest game zoom), so the old 110 m prop range
 ## hid every crate, fence, field and the palisade in play, and the 220 m house range dropped houses
@@ -81,6 +87,8 @@ var _npc_left := 0.0
 var _plaza := false  ## FACTIONS: npc() is placing the plaza crowd (its own cap and RNG)
 var _plaza_folk := 0
 var _night_was := -1.0
+var _chunk_mmis: Dictionary = {}  ## Vector2i chunk -> Array of its MultiMeshInstance3D batches
+var _chunk_loaded: Dictionary = {}  ## Vector2i chunk -> in the tree now
 static var _parts: Dictionary = {}  ## glb name -> Array of [Mesh, Transform3D]
 static var _mats: Dictionary = {}
 static var _unit: Dictionary = {}
@@ -99,6 +107,11 @@ static func build(p_rt: IslandRuntime) -> TownDress:
 	return t
 
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		for ch: Vector2i in _chunk_mmis:  # streamed-out batches are not children: free them with the town
+			for m: Node in _chunk_mmis[ch]:
+				if is_instance_valid(m) and m.get_parent() == null:
+					m.free()
 	if what == NOTIFICATION_PREDELETE and _body.is_valid():
 		PhysicsServer3D.free_rid(_body)
 		for sh in _shapes:
@@ -132,7 +145,6 @@ func out_of(p: Vector3) -> float:
 func _lay_out() -> void:
 	var t0 := Time.get_ticks_msec()
 	_guild_hall()
-	_adventurers_guild()
 	_pit_shelter()
 	for key in rt._harvest_nodes.keys():
 		var node: Variant = rt._harvest_nodes[key]
@@ -261,7 +273,11 @@ func _row_lot(x: int, zs: int, hw: int, side: int) -> int:
 		"tent":
 			_tent_lot(lot)
 		_:
-			_house_lot(lot, w, d, style, 2 if near < 40.0 and _rng.randf() < 0.3 else 1)
+			var storeys := 2 if near < 40.0 and _rng.randf() < 0.3 else 1
+			# ISOCAM: the first south-facing house lot west of the dock avenue on the dock side becomes the
+			# Adventurer's Guild (same lot, same random draws, so the rest of the town lays out as before).
+			var guild := not _guild_done and side < 0 and zs > o.y and x < o.x and x + w > o.x - 48 and w >= 6 and d >= 4
+			_house_lot(lot, w, d, style, storeys, guild)
 	return w
 
 ## A w x d footprint with its NW tile column at x, one tile back from street zs on `side` (-1 north,
@@ -374,14 +390,17 @@ const ROOF_COLORS := {"timber": Color(0.78, 0.64, 0.36), "plain": Color(0.72, 0.
 const ROOFS := {"thatch": Color(0.80, 0.66, 0.38), "shingle": Color(0.45, 0.30, 0.20), "slate": Color(0.34, 0.37, 0.42), "tile": Color(0.66, 0.30, 0.20)}
 const ROOF_BY_STYLE := {"timber": ["thatch", "thatch", "shingle", "tile"], "plain": ["thatch", "tile", "shingle"], "stone": ["slate", "slate", "tile"]}
 
-func _house_lot(lot: Dictionary, w: int, d: int, style: String, storeys: int) -> void:
-	house(lot["c"], w, d, lot["yaw"], style, storeys)
+func _house_lot(lot: Dictionary, w: int, d: int, style: String, storeys: int, guild: bool = false) -> void:
+	house(lot["c"], w, d, lot["yaw"], style, storeys, guild)
+	if guild:
+		_adventurers_guild(lot["c"], w, d)
 	# Life at the door: a barrel, crates or a bench beside it.
 	var b: Basis = lot["b"]
 	var door: Vector3 = (lot["c"] as Vector3) + b * Vector3(float(w) * 0.5 - 0.6, 0.0, float(d) * 0.5 + 0.7)
 	var pick: String = ["barrel", "large_box", "basket", "bucket", "chest"][_rng.randi_range(0, 4)]
-	prop(pick, door, lot["yaw"])
-	_door_path(lot["c"], b, float(d))
+	if not guild:  # the guild's corner is its door: nothing stands in it (the draw above still happens)
+		prop(pick, door, lot["yaw"])
+		_door_path(lot["c"], b, float(d))
 	if _rng.randf() < 0.45:
 		_garden((lot["c"] as Vector3) + b * Vector3(0, 0, -float(d) * 0.5 - 3.0), float(w), lot["yaw"])
 	if district_of(_deg_of(lot["c"])) == &"market" and _rng.randf() < 0.5:
@@ -449,12 +468,17 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 			var sb := Basis(Vector3.UP, yaw + float(side) * PI * 0.5)
 			var n := along / 2
 			for i in n:
+				var front_door := side == 0 and st == 0 and i == n / 2
 				if corner_door and (side == 0 and i == n - 1 or side == 1 and i == 0):
+					if not front_door:
+						_rng.randf()  # the draw this panel made as a plain house: the town after it stays the same
 					continue  # the chamfer below stands in for these two panels
 				var off := Vector3(-float(along) * 0.5 + 1.0 + 2.0 * float(i), 0.0, float(across) * 0.5)
 				var at := Vector3(c.x, y, c.z) + sb * off
 				var part: String = wall_style[0]
-				if side == 0 and st == 0 and i == n / 2 and not corner_door:
+				if front_door and corner_door:
+					pass  # a plain wall where the front door would be, with no draw (a doorway panel makes none)
+				elif front_door:
 					part = "house_wall_doorway"
 					# The leaf's origin is its hinge (house kit): hang it on the doorway's left jamb.
 					part_at("house_door", Transform3D(sb, at + sb * Vector3(-0.475, 0, 0.0)), FAR_HOUSE)
@@ -514,38 +538,25 @@ func _chamfer(c: Vector3, b: Basis, y: float, w: int, d: int, yaw: float, wall_s
 # ---------------------------------------------------------------- the Adventurer's Guild
 
 ## ISOCAM (owner 2026-10-30: "make some buildings where the south corner is the door, we can interact
-## with it (Adventurer's Guild or whatever)"): a two-storey hall on the grid beside the dock avenue,
-## just south of the square, its door on the south-east corner (the one the iso camera looks at). The
-## whole building is one TownBuilding (role adventurers_guild): a tap anywhere on it does what the
-## Faction Hall's desk does. # ASSUMPTION: size, spot and style (open question ISOCAM).
-const ADV_W := 10
-const ADV_D := 8
-func _adventurers_guild() -> void:
-	var c := Vector3.INF
-	# West of the avenue (its door then faces the avenue), first lot the player's build rules allow.
-	for z in [31, 57, -21, -45]:
-		var q := Vector3(float(o.x - AVENUE_W / 2 - 2) - float(ADV_W) * 0.5, 0.0, float(o.y + z))
-		var base := lot_base(q, float(ADV_W), float(ADV_D), 0.0)
-		if not is_nan(base):
-			c = Vector3(q.x, base, q.z)
-			break
-	if c == Vector3.INF:
-		return
-	house(c, ADV_W, ADV_D, 0.0, "stone", 2, true)
+## with it (Adventurer's Guild or whatever)"): one house lot on the dock side of the square, south-facing,
+## west of the dock avenue, is built with its south-east corner (the one the iso camera looks at) cut on a
+## 45 deg chamfer holding the door (house(corner_door)). The whole building is one TownBuilding (role
+## adventurers_guild): a tap anywhere on it does what the Faction Hall's desk does. It reuses the lot's
+## own kit parts and batches (no new MultiMesh) and the lot's random draws (the town lays out as before).
+## # ASSUMPTION: which lot (open question IC5).
+var _guild_done := false
+func _adventurers_guild(c: Vector3, w: int, d: int) -> void:
+	_guild_done = true
 	_boxes.pop_back()  # the house's box: the TownBuilding below carries the same box and takes the taps
-	_pad_cells(c, float(ADV_W), float(ADV_D), 0.0)
 	var gb := TownBuilding.make(&"sign", &"adventurers_guild", "Adventurer's Guild")
 	rt._camp_place(gb, "AdventurersGuild", &"sign", BuildGrid.tile_of(c))
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	var h := 6.0
-	box.size = Vector3(float(ADV_W), h, float(ADV_D))
+	box.size = Vector3(float(w), 6.0, float(d))
 	shape.shape = box
 	gb.add_child(shape)
-	shape.global_position = c + Vector3(0, h * 0.5, 0)
-	var door := c + Vector3(float(ADV_W) * 0.5 - 0.6, 0.0, float(ADV_D) * 0.5 - 0.6)
-	prop("signpost", door + Vector3(1, 0, 1).normalized() * 2.0 + Vector3(-1, 0, 1).normalized() * 2.2, PI * 0.25)
-	stats["adventurers_guild"] = [c.x, c.z]
+	shape.global_position = c + Vector3(0, 3.0, 0)
+	stats["adventurers_guild"] = [c.x, c.z, w, d]
 
 # ---------------------------------------------------------------- the Faction Hall
 
@@ -1274,11 +1285,39 @@ func _process(delta: float) -> void:
 	var cam := get_viewport().get_camera_3d() if get_viewport() else null
 	var p := PlayerRegistry.local()
 	var focus: Vector3 = p.global_position if p else (cam.global_position if cam else camp)
+	stream(focus)
 	for n in npcs:
 		var near := n.global_position.distance_to(focus) < NPC_RANGE_M
 		if n.visible != near:
 			n.visible = near
 			n.process_mode = Node.PROCESS_MODE_INHERIT if near else Node.PROCESS_MODE_DISABLED
+
+## Loads the chunks within STREAM_R of `at` and unloads the rest (no-op when nothing changes).
+## Occlusion forgets a batch that leaves the tree, so one coming back is filed again.
+func stream(at: Vector3) -> void:
+	for ch: Vector2i in _chunk_mmis:
+		var r := Rect2(Vector2(ch) * CHUNK_M, Vector2.ONE * CHUNK_M)
+		var q := Vector2(clampf(at.x, r.position.x, r.end.x), clampf(at.z, r.position.y, r.end.y))
+		var want := q.distance_to(Vector2(at.x, at.z)) <= STREAM_R
+		if want == bool(_chunk_loaded[ch]):
+			continue
+		_chunk_loaded[ch] = want
+		for m: MultiMeshInstance3D in _chunk_mmis[ch]:
+			if want:
+				add_child(m)
+				if m.has_meta(&"occl_town"):
+					Occlusion.release(m)
+					Occlusion.make_occludable(m, Occlusion.BETWEEN)
+			else:
+				remove_child(m)
+
+## The batches in the tree now (t_tutorial's draw budget counts these).
+func loaded_batches() -> int:
+	var n := 0
+	for ch: Vector2i in _chunk_mmis:
+		if _chunk_loaded[ch]:
+			n += (_chunk_mmis[ch] as Array).size()
+	return n
 
 # ---------------------------------------------------------------- batching
 
@@ -1331,10 +1370,17 @@ func _flush() -> void:
 		if float(b["far"]) < FAR_HOUSE:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(mmi)
+		var kp := k.split(":")
+		var ch := Vector2i(int(kp[0]), int(kp[1]))
+		if not _chunk_mmis.has(ch):
+			_chunk_mmis[ch] = []
+			_chunk_loaded[ch] = true
+		(_chunk_mmis[ch] as Array).append(mmi)
 		if bool(b["occlude"]):
 			if not k.contains(":nature_"):
 				mmi.set_meta(&"occl_box", true)  # buildings fade only when in the sight line's box (Occlusion._instance_hit)
 			Occlusion.make_occludable(mmi, Occlusion.BETWEEN)
+			mmi.set_meta(&"occl_town", true)
 		stats["instances"] += xs.size()
 		stats["mmi"] += 1
 	_batches.clear()
