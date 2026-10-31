@@ -2,13 +2,13 @@
 skin, and where the lowest point is below 0 it raises the root by that much (a new LINEAR root translation track
 at the same rate; the root's parent must be an unrotated armature node so +Y is up). Everything else in the GLB is
 kept byte for byte (the new track is appended to the binary chunk).
-usage: Blender -b -P tools/gait/ground_clip.py -- <base.glb> <clip.glb> <out.glb>
+usage: Blender -b -P tools/gait/ground_clip.py -- <base.glb> <clip.glb> <out.glb> [--fps 30]
 """
 import bpy, sys, json, struct
 import numpy as np
 a = sys.argv[sys.argv.index("--") + 1:]
 base, clip, dst = a[:3]
-FPS = 30
+FPS = int(a[a.index("--fps") + 1]) if "--fps" in a else 30  # --fps 24: sample on a 24 fps clip's own keys (30 fps steps between them and missed a toe dip)
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.render.fps = FPS
 bpy.ops.import_scene.gltf(filepath=base)

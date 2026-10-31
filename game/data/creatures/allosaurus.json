@@ -3,7 +3,7 @@
   "clade": "Allosauridae",
   "period": "Late Jurassic",
   "real_length_m": 18.0,
-  "height_meters": 6.0,
+  "height_meters": 6.5,
   "rig": "biped",
   "tier": 50,
   "climate": "desert",
@@ -12,8 +12,7 @@
   "capture_tier": 0,
   "verb": "hatchet bite, arterial strike",
   "status_applied": [
-    "deep_bleed",
-    "fracture"
+    "deep_bleed"
   ],
   "stats": {
     "hp": 9000,
@@ -23,13 +22,15 @@
   },
   "turn_rate": 2.0,
   "tamed_role": [],
-  "look": "9 meter large theropod with a boxy skull bearing two small horns above the eyes, powerful jaws, three-fingered arms folded at the chest, thick tail, mottled ochre and brown scaly hide,",
-  "texture_prompt": "mottled ochre and dark brown scales, pale underside, dark eye horns, matte surface",
+  "look": "14 m mid-size theropod (twice the survivor's height at the hips), olive-green body with dark brown tiger streaks, cream belly and throat, bold black and cream bands down the tail, orange-yellow patch around the eye and snout with a small orange crest above each eye, black-tipped snout, three-fingered arms folded at the chest",
+  "texture_prompt": "olive green scales with dark brown streaks, cream underside, black and cream banded tail, orange eye patch and crest, matte surface",
   "clips": {
-    "attack_primary": "Large theropod bites down hard and shakes",
-    "attack_heavy": "Large theropod rears up, holds, then slams its head down in a hatchet bite",
-    "knockdown": "Large theropod staggers and crashes onto its side",
-    "alert": "Large theropod lifts its head and roars"
+    "attack_primary": "Snap bite: draws the head back, steps in and darts the jaws down to survivor height",
+    "attack_heavy": "Hatchet bite: rears back with the jaws gaping (held), then chops the open upper jaw down like an axe and drags back tearing",
+    "grab_bite": "Lunges low, the three-fingered hands clamp the prey, then two downward bites",
+    "kick": "Shoulder ram: crouches, winds, then drives the right shoulder forward into prey pressed under its chin",
+    "knockdown": "Buckles and falls onto its side",
+    "alert": "Head up, then a roar thrust forward with the jaws wide and a head shake"
   },
   "taming": {
     "preferred_food": [
@@ -69,12 +70,165 @@
         "id": "countershade",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "",
         "weight": 3.0
       }
     ]
+  },
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 0.455,
+    "source_length_m": 0.998,
+    "route": "rig_biped_v1",
+    "mesh": "Tripo P1 multiview, task d5b0362a-ca5a-46f2-9736-8d5c0efeaa73, 50 Tripo credits (2026-10-31). Views: Codex neutral left view of the owner sheet with the arms tucked (the sheet's raised arms could read as extra legs), Codex front and back from it, right = mirrored left",
+    "mesh_source": "res://assets/creatures/allosaurus/work/allosaurus_tripo_v1.glb",
+    "mesh_views": "ref/allosaurus_view_{front,left,back,right}.png",
+    "reference_sheet": "game/assets/creatures/allosaurus/ref/allosaurus_owner_sheet_1.png",
+    "rig": "tools/gait/rig_biped.py with tools/gait/allosaurus_rig.json (joints read off ortho renders; foot_level drops the right foot 5.6 cm onto the floor)",
+    "jaw": "tools/jaw/add_jaw.py --open --x-side --snout 0.135 --pivot 0.03 0.365 --blend 0.008",
+    "gaits": "tools/gait/make_gait.py tools/gait/allosaurus.json: walk, run; strafe_left/right and walk_back from the walk plan (stride 0.18)",
+    "clips_from": {
+      "idle,alert,attack_primary,attack_heavy,grab_bite,kick,hit_react,knockdown,death,sleep,feed": "tools/gait/make_allo_moves.py (feet IK-planted; lying clips rest on the floor)"
+    },
+    "build": "tools/gait/build_allosaurus.sh; gate tools/gait/check_allo.py --height 6.5",
+    "credits_spent": 50,
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "alert",
+      "attack_primary",
+      "attack_heavy",
+      "grab_bite",
+      "kick",
+      "hit_react",
+      "knockdown",
+      "death",
+      "sleep",
+      "feed"
+    ],
+    "hit_parts": {
+      "attack_primary": {
+        "bones": [
+          "Jaw",
+          "Head"
+        ],
+        "radius_m": 1.4
+      },
+      "attack_heavy": {
+        "bones": [
+          "Head",
+          "Jaw"
+        ],
+        "radius_m": 1.6
+      },
+      "grab_bite": {
+        "bones": [
+          "Hand.L",
+          "Hand.R",
+          "Jaw",
+          "Head"
+        ],
+        "radius_m": 1.4
+      },
+      "kick": {
+        "bones": [
+          "Chest",
+          "Arm.R",
+          "Neck1"
+        ],
+        "radius_m": 1.8
+      }
+    },
+    "hit_parts_note": "SP-ALLOSAURUS: each hit lands from its part (Creature.part_hit; the hitbox system is not on canon): the bites and the hatchet from the jaws/skull, the grab from the hands (then the jaws), the shoulder ram from the chest and right shoulder. # ASSUMPTION radii (metres at size 1, plus the target's radius)",
+    "assumptions": [
+      "# ASSUMPTION: height_meters 6.5 = 9 m real x the house 1.6 (14.3 m long); the owner's sheet draws it about twice human height (at the hips)",
+      "# ASSUMPTION: moves (hatchet bite with Bleed, grab-then-bite, shoulder ram) are the owner brief's; numbers in tactics are first guesses"
+    ]
+  },
+  "tactics": {
+    "base": "pack_flanker",
+    "scale": 1.8,
+    "_about": "# ASSUMPTION (SP-ALLOSAURUS, owner 2026-10-31 'yes allosaurus'): the deinonychus brain scaled to a 14 m animal, hunting in PAIRS (spawn rows count 2: surround puts the two on opposite sides of the prey). No ambush, no pounce or leaps (3 t animal): it opens with a run-in bite (charge), strafing first sometimes. Point blank: prey pressed under its chin gets the SHOULDER RAM (kick, shoves her 4 m); in front at jaw range the GRAB (hands clamp and pin, then two bites) or the HATCHET bite (attack_heavy: held gape telegraph, chop; the only move that applies Bleed: statuses_heavy_only) or the snap bite. reach_m: the jaws are ~7 m ahead of its centre at the bite.",
+    "reach_m": 7.0,
+    "ring_m": 13.0,
+    "ambush": false,
+    "surround": true,
+    "surround_turn_deg": 12.0,
+    "slot_tolerance_m": 2.5,
+    "sequences": [
+      {
+        "name": "charge",
+        "steps": [
+          "charge"
+        ],
+        "weight": 2.0
+      },
+      {
+        "name": "strafe_left_charge",
+        "steps": [
+          "strafe_left",
+          "charge"
+        ],
+        "weight": 1.5
+      },
+      {
+        "name": "strafe_right_charge",
+        "steps": [
+          "strafe_right",
+          "charge"
+        ],
+        "weight": 1.5
+      },
+      {
+        "name": "display_charge",
+        "steps": [
+          "display",
+          "charge"
+        ],
+        "weight": 1.0
+      }
+    ],
+    "point_blank": [
+      "kick",
+      "grab",
+      "heavy",
+      "bite"
+    ],
+    "kick_max_m": 4.0,
+    "kick_cd": 5.0,
+    "kick_mult": 1.0,
+    "kick_shove_m": 4.0,
+    "kick_shove_stagger_s": 0.8,
+    "grab": true,
+    "grab_cd": 14.0,
+    "grab_mult": 0.5,
+    "pin_mult": 1.3,
+    "pin_reach_m": 6.3,
+    "heavy_cd": 8.0,
+    "heavy_mult": 1.8,
+    "statuses_heavy_only": true,
+    "bite_cd": 5.0,
+    "charge_cd": 8.0,
+    "charge_speed_mult": 1.3,
+    "charge_max_s": 2.5,
+    "pounce_max_m": 0.0,
+    "chase_pounce_max_m": 0.0,
+    "leap_in_max_m": 0.0,
+    "w_dodge": 0.0,
+    "w_hop": 0.0,
+    "w_feint": 0.1,
+    "w_hold": 0.8,
+    "w_strafe": 0.6,
+    "hop_m": 3.0,
+    "leap_back_m": 4.0,
+    "hop_cd": 6.0,
+    "max_retreat_m": 20.0
   }
 }

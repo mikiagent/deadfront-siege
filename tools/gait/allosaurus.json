@@ -1,0 +1,150 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 1.2,
+  "view_centre": [
+    0.0,
+    0.25
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck1": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head_yaw",
+      "axis": "yaw"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.2
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "note": "SP-ALLOSAURUS 2026-10-31: rig_biped.py rig (Thigh/Shin/Metatarsal/Toe, faces -Y, hip 0.275 mesh units). The metatarsal is posed as the foot: IK solves thigh+shin to its head. A 14 m theropod: long, slow walk with the head carried level and the tail swinging; run with a forward lean; arms tucked.",
+  "clips": {
+    "walk": {
+      "cycle_s": 1.25,
+      "duty": 0.62,
+      "stride": 0.3,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.045,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 2.0,
+      "lean_deg": 2,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -6
+        ],
+        "Head": [
+          "pitch",
+          6
+        ],
+        "Arm.L": [
+          "pitch",
+          8
+        ],
+        "Arm.R": [
+          "pitch",
+          8
+        ]
+      },
+      "wiggle_head": 1.5,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 2.0,
+      "wiggle_tail": 3.0,
+      "sway": 0.006,
+      "crouch": 0.006
+    },
+    "run": {
+      "cycle_s": 0.72,
+      "duty": 0.4,
+      "stride": 0.62,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.08,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.009,
+      "bob_harmonic": 2,
+      "roll_deg": 2.5,
+      "lean_deg": 9,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -10
+        ],
+        "Neck2": [
+          "pitch",
+          -2
+        ],
+        "Head": [
+          "pitch",
+          10
+        ],
+        "Tail1": [
+          "pitch",
+          4
+        ],
+        "Tail2": [
+          "pitch",
+          2
+        ],
+        "Arm.L": [
+          "pitch",
+          15
+        ],
+        "Arm.R": [
+          "pitch",
+          15
+        ]
+      },
+      "wiggle_head": 2.5,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.2,
+      "wiggle_tail": 4.0,
+      "sway": 0.006,
+      "crouch": 0.025
+    }
+  }
+}

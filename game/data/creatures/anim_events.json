@@ -121,6 +121,17 @@
       ],
       "windup": false,
       "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)"
+    },
+    "grab_bite": {
+      "hit_frac": 0.3,
+      "hit_fracs": [
+        0.3,
+        0.55,
+        0.8
+      ],
+      "windup": true,
+      "windup_hold": 0.25,
+      "note": "SP-ALLOSAURUS: the hands clamp at 0.3 (TacticalBrain.landed pins the prey), bites at 0.55 and 0.8 (tools/gait/make_allo_moves.py)"
     }
   },
   "natural_speeds": {
@@ -357,6 +368,17 @@
       "strafe_right": 0.845,
       "walk_back": 0.845,
       "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684)"
+    },
+    "allosaurus": {
+      "height_m": 6.5,
+      "walk": 3.428,
+      "walk_len": 1.25,
+      "run": 12.502,
+      "run_len": 0.708,
+      "strafe_left": 2.057,
+      "strafe_right": 2.057,
+      "walk_back": 2.057,
+      "_note": "SP-ALLOSAURUS: make_gait stride / cycle x height_meters / source height (0.455), not a Godot bake"
     }
   }
 }
