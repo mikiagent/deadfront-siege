@@ -910,7 +910,7 @@ func landed(clip: StringName, target: Node) -> void:
 	var away := pl.global_position - creature.global_position
 	away.y = 0.0
 	if pl.sim and away.length_squared() > 0.0001:
-		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6))
+		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6), 0.0, creature)
 		tactic.emit(&"heavy_shove")
 
 func _charge_impact() -> void:
@@ -933,6 +933,7 @@ func _charge_impact() -> void:
 		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
 		# tactics.charge_toss_deg (carnotaurus): the horns hook her that far off the line, to the side she is on,
 		# so the runner can carry on through (straight ahead she stood in its path and stopped it dead).
+		# KNOCKDOWN: push x this animal's size picks the reaction (PlayerKnock): a light shove, knocked down, or thrown.
 		var push := _charge_dir
 		var toss := deg_to_rad(_t("charge_toss_deg", 0.0))
 		if toss != 0.0:
@@ -940,7 +941,7 @@ func _charge_impact() -> void:
 			var s := signf(side.dot(pl.global_position - creature.global_position))
 			push = _charge_dir.rotated(Vector3.UP, -toss * (s if s != 0.0 else 1.0))
 		if pl.sim:
-			pl.sim.shove(push * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
+			pl.sim.shove(push * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0, creature)
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).
