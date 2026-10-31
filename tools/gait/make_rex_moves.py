@@ -53,6 +53,11 @@ arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 pbs, bones = arm.pose.bones, arm.data.bones
 _shapes = {pb.custom_shape for pb in pbs if pb.custom_shape}
 SKIN = max((o for o in bpy.data.objects if o.type == "MESH" and o not in _shapes and o.vertex_groups), key=lambda o: len(o.data.vertices))
+# REXJAW: + jaw means open. The v1 rex's Jaw bone swings its tip UP about its own +X (megarex and tarbo swing it down),
+# so pick the sign that drops the tip; before this the v1 bite, stomp, alert and idle jaws went up through the skull.
+_jl = bones["Jaw"].matrix_local
+JAW_SIGN = 1.0 if (Matrix.Rotation(0.2, 3, _jl.to_3x3().col[0].normalized()) @ (bones["Jaw"].tail_local - bones["Jaw"].head_local)).z \
+    < (bones["Jaw"].tail_local - bones["Jaw"].head_local).z else -1.0
 
 
 def smooth(x):
@@ -143,7 +148,7 @@ def apply(p):
         turn(name, FWD, tr)
     jb = pbs["Jaw"]
     cur = jb.matrix.copy()
-    set_m("Jaw", rot_about(cur.translation, cur.to_3x3().col[0].normalized(), math.radians(JAW * p.get("jaw", 0.0))) @ cur)
+    set_m("Jaw", rot_about(cur.translation, cur.to_3x3().col[0].normalized(), math.radians(JAW_SIGN * JAW * p.get("jaw", 0.0))) @ cur)
     for sd, leg in LEGS.items():
         lift, fwd, side, heel = p.get("feet", {}).get(sd, (0.0, 0.0, 0.0, 0.0))
         ball = leg["ball0"] + FWD * fwd + SIDE * side
