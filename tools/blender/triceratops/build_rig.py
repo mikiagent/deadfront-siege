@@ -11,7 +11,8 @@ import bpy, sys, os, numpy as np, importlib
 from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import joints; importlib.reload(joints)
+joints = importlib.import_module(os.environ.get("TRIKE_JOINTS", "joints")); importlib.reload(joints)  # joints_alpha: the Alpha body
+G = lambda k, d: getattr(joints, k, d)  # per-body tunables; the defaults are the regular triceratops
 out = sys.argv[sys.argv.index("--") + 1]
 mesh = bpy.data.objects["SM_Triceratops"]; me = mesh.data
 for im in bpy.data.images:
@@ -57,8 +58,8 @@ for sd, sg in (("R", 1), ("L", -1)):
     for fr, (b0, b1, b2, b3) in LIMBS.items():
         ycol = ad.bones[f"{b2}.{sd}"].head_local.y  # ankle / wrist: the foot spans it +-0.65 m
         yknee = ad.bones[f"{b1}.{sd}"].head_local.y
-        EL[:, gi[f"{b0}.{sd}"]] = keep * soft(segd(f"{b0}.{sd}"), 0.70, 0.95) * (1 - ss(0.55, 0.85, abs(y - yknee)))
-        EL[:, gi[f"{b1}.{sd}"]] = keep * soft(segd(f"{b1}.{sd}"), 0.55, 0.70) * ss(0.05, 0.20, sg * x) * (1 - ss(1.45, 1.65, z))
+        EL[:, gi[f"{b0}.{sd}"]] = keep * soft(segd(f"{b0}.{sd}"), *G("UP_R", (0.70, 0.95))) * (1 - ss(*G("KNEE_DY", (0.55, 0.85)), abs(y - yknee)))
+        EL[:, gi[f"{b1}.{sd}"]] = keep * soft(segd(f"{b1}.{sd}"), *G("SHIN_R", (0.55, 0.70))) * ss(0.05, 0.20, sg * x) * (1 - ss(*G("SHIN_Z", (1.45, 1.65)), z))
         a_z = ad.bones[f"{b2}.{sd}"].head_local.z
         foot = keep * (z < a_z + 0.10) * (abs(y - ycol) < 0.80) * (sg * x > 0.0)
         EL[:, gi[f"{b2}.{sd}"]] = np.maximum(foot, keep * soft(segd(f"{b2}.{sd}"), 0.40, 0.55))
@@ -66,13 +67,13 @@ for sd, sg in (("R", 1), ("L", -1)):
 # leg columns: below the belly line a vertex inside a leg's column belongs to that leg, never to the trunk, neck or
 # tail (the walk stretched a Neck1-owned patch on the upper foreleg 5.8x, Tail1-owned thigh backs 5x)
 col_ = np.zeros(len(P))
-for (cx, cy, rx, ry) in ((0.77, 1.35, 0.45, 0.60), (0.63, -1.55, 0.50, 0.65)):
+for (cx, cy, rx, ry) in G("COLS", ((0.77, 1.35, 0.45, 0.60), (0.63, -1.55, 0.50, 0.65))):
     for sg in (1, -1):
         e = np.sqrt(((x - sg * cx) / rx) ** 2 + ((y - cy) / ry) ** 2)
-        col_ = np.maximum(col_, (1 - ss(0.85, 1.15, e)) * (1 - ss(1.55, 1.85, z)))
-tail_hw = np.interp(y, [-4.8, -3.0, -2.5, -2.25, -2.0], [0.25, 0.5, 0.65, 0.85, 1.0])
+        col_ = np.maximum(col_, (1 - ss(0.85, 1.15, e)) * (1 - ss(*G("COL_Z", (1.55, 1.85)), z)))
+tail_hw = np.interp(y, *G("TAIL_HW", ([-4.8, -3.0, -2.5, -2.25, -2.0], [0.25, 0.5, 0.65, 0.85, 1.0])))
 for n in ["Hips", "Spine1", "Spine2", "Chest", "Neck1", "Neck2", "Head"] + [f"Tail{i}" for i in range(1, 7)]:
-    EL[:, gi[n]] = soft(segd(n), 1.6, 2.1) * ss(0.85, 1.15, z) * (1 - col_)  # trunk bones never own a leg or a foot
+    EL[:, gi[n]] = soft(segd(n), 1.6, 2.1) * ss(*G("TRUNK_Z", (0.85, 1.15)), z) * (1 - col_)  # trunk bones never own a leg or a foot
     if n.startswith("Neck"): EL[:, gi[n]] *= soft(segd(n), 1.1, 1.5)
     if n.startswith("Tail"): EL[:, gi[n]] *= 1 - ss(0.0, 0.15, np.abs(x) - tail_hw)
 W *= EL
@@ -90,12 +91,16 @@ for sd, sg in (("R", 1), ("L", -1)):
         ycol = hb.head_local.y
         m = (sg * x > 0.0) & (abs(y - ycol) < 0.80) & (z < hb.head_local.z - 0.12)
         toe = ss(tb.head_local.y - 0.08, tb.head_local.y + 0.08, y) * (1 - ss(0.25, 0.40, z))
+        old = W[m].copy()
         W[m] = 0; W[m, gi[f"{b3}.{sd}"]] = toe[m]; W[m, gi[f"{b2}.{sd}"]] = 1 - toe[m]
+        if G("FOOT_BLEND", 0.0) > 0:  # the top of the rigid foot blends into the leg's weights (the Alpha's heel pad tore)
+            lo = hb.head_local.z - 0.12 - G("FOOT_BLEND", 0.0); s_ = ss(lo, hb.head_local.z - 0.12, z[m])[:, None]
+            W[m] = W[m] * (1 - s_) + old * s_
         print("FOOT", fr, sd, int(m.sum()), "verts, toes", int((toe[m] > 0.5).sum()))
 # Smooth the trunk / limb-root blend (body region only; feet and head untouched)
 Ev = np.array([e.vertices[:] for e in me.edges])
 # (6 passes left 4.7x stretch on the shoulder and behind the knee in the walk: a wide blend spreads the swing)
-body = (z > 0.75) & (y < 2.3) & (y > -2.8)
+BZ, BY1, BY0 = G("BODY", (0.75, 2.3, -2.8)); body = (z > BZ) & (y < BY1) & (y > BY0)
 for it in range(int(os.environ.get("TRIKE_SMOOTH", "30"))):
     acc = np.zeros_like(W); cnt = np.zeros(len(P))
     np.add.at(acc, Ev[:, 0], W[Ev[:, 1]]); np.add.at(acc, Ev[:, 1], W[Ev[:, 0]])
@@ -103,6 +108,14 @@ for it in range(int(os.environ.get("TRIKE_SMOOTH", "30"))):
     avg = acc / np.maximum(cnt, 1)[:, None]
     W[body] = 0.5 * W[body] + 0.5 * avg[body]
     W *= EL; W /= np.maximum(W.sum(1, keepdims=True), 1e-9)
+for (bx, by0, by1, bz0, bz1, n_) in G("SMOOTH_BOXES", ()):  # extra smoothing on thin skin webs (the Alpha's thigh web)
+    reg = (np.abs(x) > bx) & (y > by0) & (y < by1) & (z > bz0) & (z < bz1)
+    for it in range(n_):
+        acc = np.zeros_like(W); cnt = np.zeros(len(P))
+        np.add.at(acc, Ev[:, 0], W[Ev[:, 1]]); np.add.at(acc, Ev[:, 1], W[Ev[:, 0]])
+        np.add.at(cnt, Ev[:, 0], 1); np.add.at(cnt, Ev[:, 1], 1)
+        W[reg] = (acc / np.maximum(cnt, 1)[:, None])[reg]; W[reg] /= np.maximum(W[reg].sum(1, keepdims=True), 1e-9)
+    print("SMOOTH box", (bx, by0, by1, bz0, bz1), int(reg.sum()), "verts")
 # Head: rigid from just behind the skull (y 2.4) forward, plus the frill found by occlusion: a frill vertex cannot be
 # seen from the neck centre C nor from the chest centre C2 without crossing the skin (air lies between the frill and the
 # neck and shoulders); shoulder skin near the frill wings is visible from C2, so it stays on the trunk bones.
@@ -114,27 +127,32 @@ def occluded(c, sel):
         hit = bvh.ray_cast(c, d.normalized(), L)
         if hit[0] is not None and hit[3] < L - 0.04: o[i] = True
     return o
-cand = (y > 1.35) & (z > 2.4)
-frill = occluded((0.0, 2.30, 2.80), cand) & occluded((0.0, 1.35, 2.70), cand)
+cand = (y > G("FRILL_CAND", (1.35, 2.4))[0]) & (z > G("FRILL_CAND", (1.35, 2.4))[1])
+frill = occluded(G("C_NECK", (0.0, 2.30, 2.80)), cand) & occluded(G("C_CHEST", (0.0, 1.35, 2.70)), cand)
 # fill the few frill-wing patches the rays see through (where the wings meet the cheeks): a wing vertex whose
 # edge neighbours are mostly frill joins the frill (closing, wings only: |x| > 0.5, z > 3.0)
 Ev = np.array([e.vertices[:] for e in me.edges])
-wing = (np.abs(x) > 0.5) & (z > 3.0) & (y > 1.35)
+WX, WZ, WY = G("WING", (0.5, 3.0, 1.35)); wing = (np.abs(x) > WX) & (z > WZ) & (y > WY)
 for it in range(4):
     f = frill.astype(float); acc = np.zeros(len(P)); cnt = np.zeros(len(P))
     np.add.at(acc, Ev[:, 0], f[Ev[:, 1]]); np.add.at(acc, Ev[:, 1], f[Ev[:, 0]]); np.add.at(cnt, Ev[:, 0], 1); np.add.at(cnt, Ev[:, 1], 1)
     grow = wing & ~frill & (acc / np.maximum(cnt, 1) >= 0.5)
     frill |= grow
     print("FRILL closing pass", it, "added", int(grow.sum()))
-head_w = np.maximum(ss(2.28, 2.40, y), frill.astype(float))  # the frill base meets the neck at y 2.3-2.45
+box_w = np.zeros(len(P))
+for (fx, fy, fz) in G("FRILL_BOXES", ()):  # a solid frill fused to the shoulders (the Alpha): no air gap for the rays,
+    # so boxes, ramped over 15 cm on each face so the rigid frill blends into the shoulders
+    box_w = np.maximum(box_w, (ss(fx - 0.15, fx, np.abs(x)) if fx > 0 else 1.0) * ss(fy - 0.15, fy, y) * ss(fz - 0.15, fz, z))
+    print("FRILL box", (fx, fy, fz))
+head_w = np.maximum(np.maximum(ss(*G("HEAD_Y", (2.28, 2.40)), y), frill.astype(float)), box_w)  # the frill base meets the neck at y 2.3-2.45
 # the neck blend under the frill keeps its own (smoothed) weights scaled by 1 - head_w
 W = W * (1 - head_w)[:, None]; W[:, gi["Head"]] += head_w
 print("HEAD rigid verts", int((head_w > 0.99).sum()), "frill (occluded from the neck centre)", int(frill.sum()))
 # Jaw on the mouth line
-MY = [3.10, 3.35, 3.55, 3.75, 3.92, 4.02]; MZ = [2.40, 2.37, 2.33, 2.25, 2.17, 2.10]
+MY, MZ = G("MOUTH", ([3.10, 3.35, 3.55, 3.75, 3.92, 4.02], [2.40, 2.37, 2.33, 2.25, 2.17, 2.10]))
 below = np.interp(y, MY, MZ) - z
-rostral = y < 3.93 + 0.45 * np.clip(2.18 - z, 0, None)  # the hooked upper beak (rostral) stays on Head
-wj = ss(-0.005, 0.02, below) * ss(3.05, 3.25, y) * (1 - ss(0.50, 0.62, abs(x))) * (z > 1.80) * rostral
+RY, RK, RZ = G("ROSTRAL", (3.93, 0.45, 2.18)); rostral = y < RY + RK * np.clip(RZ - z, 0, None)  # the hooked upper beak (rostral) stays on Head
+wj = ss(-0.005, 0.02, below) * ss(*G("JAW_Y", (3.05, 3.25)), y) * (1 - ss(*G("JAW_X", (0.50, 0.62)), abs(x))) * (z > G("JAW_ZMIN", 1.80)) * rostral
 other = W / np.maximum(W.sum(1, keepdims=True), 1e-9)
 W = other * (1 - wj)[:, None]; W[:, gi["Jaw"]] = wj
 print("JAW verts>0.5", int((wj > 0.5).sum()), "blend", int(((wj > 0.02) & (wj < 0.98)).sum()))
