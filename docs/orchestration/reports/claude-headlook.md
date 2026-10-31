@@ -1,7 +1,7 @@
 # HEADLOOK: every rigged animal turns its neck and head toward the player
 
-Branch `claude/mmo-headlook`, from `origin/claude/mmo-overhaul` (fde2d334). Canon (e32ea4e2, allocharge) merged
-before the final gate run. Pushed, not merged to canon.
+Branch `claude/mmo-headlook`, from `origin/claude/mmo-overhaul` (fde2d334). Canon merged twice (e32ea4e2 allocharge,
+then 12f4ec9c partcombat: body sections, hurtboxes) and every gate rerun after the last merge. Pushed, not merged to canon.
 Owner: "Can you add head movement that tracks the player to every model by default?"
 
 ## Credits
@@ -44,7 +44,7 @@ smoothstep(0.07), about 1 %, which is under 0.5 deg at a 30 deg look. Every othe
 Hurtboxes and crit spots on the head follow the head where it is drawn, which is the point. t_hitboxes, t_critspots
 and t_combat pass.
 
-## Gates (after merging canon e32ea4e2)
+## Gates (after merging canon 12f4ec9c)
 - **t_headlook PASS**, 27 species. For each one:
   - with the survivor 30 deg to the left in idle, the head bone's added yaw is +29.7 to +31.0 deg (left), inside the clamp;
   - with her 30 deg to the right, the yaw is -29.3 to -30.0;
@@ -59,7 +59,9 @@ and t_combat pass.
   triceratops, utahraptor and carnotaurus. Canon e32ea4e2 run alone gives the same 5 lines.
 - **t_perfgates FAIL, same on canon, box under load:** `home_grassland builds in ~2.7 s (budget 2.5 s)` at load
   average 15-17. Canon e32ea4e2 run alone at the same moment failed the same way (2780 ms, savannah 3186 ms).
-  build_ms is island build time, and HeadLook adds nothing to it beyond one node per creature.
+  After the 12f4ec9c merge, at load 19: home 2792 ms, and the other islands are under budget. build_ms is island
+  build time, and HeadLook adds nothing to it beyond one node per creature. scene_nodes (5046-5423 of 6000) and creatures
+  (<= 24) are within budget.
 
 ## Shots
 `docs/orchestration/reports/headlook/`: velociraptor, tyrannosaurus, triceratops and gallimimus, with the survivor
