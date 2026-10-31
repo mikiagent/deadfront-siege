@@ -199,7 +199,8 @@ func _test_fight(sp: StringName, secs: float) -> void:
 		var lim: float = LAND_SLIDE_FRAC * c.def.height_meters * c.size_scale()
 		_expect(land_frames >= 3 and land_slide <= lim, "%s lands planted: toes move %.1f cm over %d landed frames (<= %.1f cm)" % [sp, land_slide * 100.0, land_frames, lim * 100.0])
 	elif sp == &"triceratops":
-		_expect(strafes >= 2 and hops == 0 and airborne == 0, "triceratops strafes, never bounds: %d strafes, %d hops, %d airborne frames" % [strafes, hops, airborne])
+		# MEGAJOUST: the triceratops runs the JoustBrain (wheels and charges, no strafes); it still never bounds.
+		_expect(hops == 0 and airborne == 0, "triceratops never bounds: %d strafes, %d hops, %d airborne frames" % [strafes, hops, airborne])
 	else:
 		_expect(hops == 0 and airborne == 0, "%s never leaves the ground: %d hops, %d airborne frames" % [sp, hops, airborne])
 	c.queue_free()

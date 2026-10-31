@@ -1395,7 +1395,8 @@ func _charge(delta: float) -> void:
 	if tac.get("charge_straight", false):
 		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # committed: no can_sprint gate mid-line
 		gait_clip = &"charge"
-		# CARNOFEEL: the locked line itself, not a nav path to a goal past her (the path ran into her body and stalled).
+		# CARNOFEEL: the locked line itself, not a nav path to a goal past her (the path ran into her body and stalled);
+		# also covers megajoust's long passes past 12 m, which got no nav steer.
 		creature.stop_move()
 		line_dir = _charge_dir
 		var to := attack_target.global_position - creature.global_position
