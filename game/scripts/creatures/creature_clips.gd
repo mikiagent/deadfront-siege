@@ -21,7 +21,7 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"
 ## (smilodon, SP-SMILODON). lope / sprint: extra gaits either side of the run (CreatureAnim._pick_gait's ladder), leap: the
 ## chase bound one-shot (airborne fracs in anim_events; smilodon, SMILORUN).
 ## bull_windup: head down, a foot pawing twice with snorts, before a charge (pachycephalosaurus, tactics.display_clip).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup"]
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120

@@ -804,6 +804,19 @@
        "calibrated": true
       }
      ]
+    },
+    "grab_bite": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.96,
+       "calibrated": true
+      }
+     ],
+     "_note": "RAPTORFLANK x HITBOXES: the arms-and-jaws grab is the plain bite's timing and reach (utahraptor.json _bite_alt), so the bite's calibrated row"
     }
    }
   },

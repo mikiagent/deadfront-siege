@@ -14,7 +14,7 @@ static func apply_for(attacker: Creature, clip: StringName, target: Node, mult: 
 		return false
 	if not _deal_damage(attacker, target, clip, mult):
 		return false
-	if (clip == &"attack_heavy" or clip == &"attack_primary") and not _target_dead(target):
+	if (clip == &"attack_heavy" or clip == &"attack_primary" or clip == &"grab_bite") and not _target_dead(target):  # grab_bite: the bite with arms (UTAHARMS)
 		for tok in attacker.def.status_applied:
 			_apply_token(tok, clip, target, attacker)
 	return true

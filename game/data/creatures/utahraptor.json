@@ -134,6 +134,7 @@
       "attack_heavy",
       "attack_primary",
       "death",
+      "grab_bite",
       "hit_react",
       "idle",
       "knockdown",
@@ -147,7 +148,8 @@
       "attack_heavy": "telegraph hold of 8 frames at 30%",
       "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
     },
-    "rig_revision": 3
+    "rig_revision": 3,
+    "utah_arms": "UTAHARMS 2026-10-31: anim/grab_bite.glb (new) and anim/bite_combo.glb (arm rakes added) from tools/gait/build_utah_arms.sh (transfer_clips.py from deinonychus + raptor_overlay.py --keep --arm-gain 0.6 --shoulder 0)"
   },
   "look": "5.5 meter heavy dromaeosaur, deep boxy skull, sickle claws, shaggy proto-feathers, rust brown with dark dorsal banding,",
   "taming": {
@@ -199,8 +201,16 @@
   "eyes": {
     "bone": "Head",
     "points": [
-      [0.1149, 0.0141, 0.1160],
-      [0.0373, 0.0137, 0.1591]
+      [
+        0.1149,
+        0.0141,
+        0.116
+      ],
+      [
+        0.0373,
+        0.0137,
+        0.1591
+      ]
     ],
     "radius": 0.011,
     "color": [
@@ -218,6 +228,9 @@
       1.2,
       1.5,
       2.0
-    ]
+    ],
+    "bite_alt": "grab_bite",
+    "bite_alt_chance": 0.5,
+    "_bite_alt": "UTAHARMS (owner 2026-10-31: 'it just needs to use its arms in the attacks too sometimes'): half its bites (bite_alt_chance, ASSUMPTION) are grab_bite: the hands reach forward with the claws spread and rake down clenched on the bite; its lunge combo has the arm rakes too (tools/gait/build_utah_arms.sh). Same timing and damage as the plain bite."
   }
 }
