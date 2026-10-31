@@ -80,6 +80,7 @@ func _run() -> void:
 	_free(brave)
 	# A clean slate for the direct-charge sections: clear the knockdown and the auto-retaliation
 	# the first fight left on her, so a charge starts from a known pose.
+	player.sim.knock.cancel()  # KNOCKDOWN: no knockdown or throw still running from the first fight
 	player.statuses.clear_all()
 	player.anim.release_knockdown()
 	if player.hunt:
@@ -131,18 +132,24 @@ func _run() -> void:
 	await physics_frame
 
 	# 3. A sidestepped charge misses and leaves it staggered.
+	# HITBOXES: she starts on the charge's line (where the ram above left her depends on which of its hits landed).
+	player.global_position = Vector3(0, 0.9, 0)
 	var miss = _herd(1, 0, &"brave", Vector3(0, 0.1, -12))[0]
 	var mlog := _listen([miss])
 	miss.brain.attack_target = player
 	miss.brain._provoked_until = miss.brain._now_s() + 30.0
 	miss.brain._start_charge()
-	await _sim(0.1)
+	# STYRAFIX: it paws and re-aims until the run starts; the sidestep only counts once the line is locked.
+	for i in 60:
+		if miss.brain._charge_phase == &"run":
+			break
+		await _sim(0.1)
 	player.global_position = Vector3(7, 0.9, 0)  # the sidestep
 	var staggered := false
-	for i in 40:
+	for i in 70:
 		await _sim(0.1)
 		staggered = staggered or miss.stagger_left > 0.5
-		if mlog.has(&"charge_miss"):
+		if mlog.has(&"charge_recover"):  # STYRAFIX: a miss brakes, then stands winded (staggered)
 			break
 	# The miss must come before any hit: a re-engage that later catches her at the new spot is not
 	# the sidestep dodge working, it is the charge being repeated. (The miss already staggered it.)
@@ -160,10 +167,10 @@ func _run() -> void:
 	player.anim.release_knockdown()
 	if player.hunt:
 		player.hunt.stop()
-	var swipe = _herd(1, 0, &"brave", Vector3(0, 0.1, -1.8))[0]  # well inside reach_to (2.4 m)
+	var swipe = _herd(1, 0, &"brave", Vector3(0, 0.1, -5.0))[0]  # inside reach_to (6.3 m at the 3x size), outside its capsule
 	swipe.brain.attack_target = player
 	swipe.brain._provoked_until = swipe.brain._now_s() + 30.0
-	swipe.look_at(Vector3(0, 0.1, -10), Vector3.UP)  # the survivor in front of it
+	swipe.look_at(Vector3(0, 0.1, 10), Vector3.UP)  # the survivor in front of it (bodies face -Z)
 	var heavy_hits := [0.0]
 	swipe.brain.tactic_hit.connect(func(clip: StringName, _i: int, m: float) -> void:
 		if clip == &"attack_heavy":

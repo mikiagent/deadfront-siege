@@ -76,6 +76,7 @@
   },
   "kick": {
     "surface_reach_m": 2.4,
+    "lunge_max_m": 0.8,
     "stamina": 10.0,
     "damage": 4.0,
     "cooldown": 6.0,

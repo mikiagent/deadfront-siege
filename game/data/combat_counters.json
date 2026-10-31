@@ -17,7 +17,8 @@
     "venom_ranged": "venom_hunter",
     "antlered": "antlered",
     "tyrant": "giant",
-    "titan": "giant"
+    "titan": "giant",
+    "claw_guardian": "giant"
   },
   "families": {
     "armored": {

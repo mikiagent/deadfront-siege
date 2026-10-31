@@ -91,6 +91,10 @@ var _fx_drip: GPUParticles3D
 var _aggro_ring: MeshInstance3D
 ## Stagger: 0.3 s frozen hurt window after a hit, at most once per second.
 var stagger_left: float = 0.0
+## Shove (the survivor's kick): slid along _shove_v, decaying to 0 over _shove_s, while staggered.
+var _shove_v := Vector3.ZERO
+var _shove_s: float = 0.0
+var _shove_left: float = 0.0
 var _stagger_immune_until: float = -1.0
 var _aggro_ring_r: float = -1.0
 var _aggro_ring_t: float = 0.0
@@ -577,9 +581,11 @@ func _physics_process(delta: float) -> void:
 	stagger_left = maxf(0.0, stagger_left - delta)
 	if pin_victim != null:
 		_tick_pin(delta)
+	_shove_left = maxf(0.0, _shove_left - delta)
 	if health.dead or pin_victim != null or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
-		velocity.x = 0.0
-		velocity.z = 0.0
+		var k := _shove_left / _shove_s if _shove_s > 0.0 and not health.dead else 0.0
+		velocity.x = _shove_v.x * k
+		velocity.z = _shove_v.z * k
 		_slide()
 		_update_label()
 		return
@@ -603,7 +609,9 @@ func _physics_process(delta: float) -> void:
 	elif sprint:
 		speed *= run_speed_mult()  # owner 2026-10-28: running is faster for every creature
 	var locomote := Vector3.ZERO
-	if _path_active:
+	if brain and not is_pet and brain.line_dir != Vector3.ZERO:
+		locomote = brain.line_dir
+	elif _path_active:
 		if _use_tile_path():
 			locomote = _tile_path_direction(delta)
 		else:
@@ -684,6 +692,18 @@ func _physics_process(delta: float) -> void:
 		hunger = maxf(0.0, hunger - drain)
 		pet_record.hunger = hunger
 
+## Shove the body `push` metres (flat) over `seconds`, staggered meanwhile; the slide respects walls and props.
+## TELEPORT FIX (owner 2026-10-31: "Pachy is teleporting", "Smilodon kind of teleports too"): the survivor's kick
+## moved the target its whole 3.5 m push in one physics frame (move_and_collide); now it slides there.
+func shove(push: Vector3, seconds: float) -> void:
+	push.y = 0.0
+	if seconds <= 0.0 or push.length_squared() <= 0.0:
+		return
+	_shove_s = seconds
+	_shove_left = seconds
+	_shove_v = push * (2.0 / seconds)  # linear decay from 2d/T to 0 covers d metres
+	stagger_left = maxf(stagger_left, seconds)
+
 ## An animal standing still on the ground has nothing to slide (most of the idle cost), so it
 ## slides only every IDLE_SLIDE_EVERY frames: often enough to notice a floor that went away. The
 ## dead always slide: the corpse teleports them and the cached is_on_floor() is stale.
@@ -719,6 +739,8 @@ func _size_collision() -> void:
 func _make_brain() -> void:
 	if is_pet:
 		brain = PetBrain.new()
+	elif def and def.id == &"megarex":
+		brain = MegaRexBrain.new()  # MEGAREX: the boss rex, three phases
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
 	elif def and def.archetype == &"club_tail":
@@ -902,11 +924,23 @@ func _on_windup(clip: StringName) -> void:
 
 func _on_hit(clip: StringName) -> void:
 	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
+	if clip == &"spit":  # SP-DILOPHOSAURUS: the spit's hit frame launches the venom glob; it lands its own hit
+		if brain is TacticalBrain:
+			(brain as TacticalBrain).launch_spit()
+		return
 	var target := brain.attack_target if brain else null
 	if target:
-		# A contact attack lands at impact, not anywhere the target ran during windup.
+		# A contact attack lands at impact, not anywhere the target ran during windup. HITBOXES: the
+		# clip's attacking part (jaw, club, horns, feet) must have swept through one of its hurtboxes.
 		var offset := global_position - target.global_position
-		if brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
+		if Hitbox.applies(self, target):
+			var hit := Hitbox.strike(self, clip, target as Node3D, anim.hit_index)
+			if hit.is_empty():
+				if target is Player or target is Creature:
+					CombatAvoid.avoided(target, self, &"miss")  # the jaws closed on air
+				return
+			Hitbox.mark(target, hit)
+		elif brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
 			if target is Player or target is Creature:
 				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
@@ -917,11 +951,14 @@ func _on_hit(clip: StringName) -> void:
 		if brain is TacticalBrain:
 			(brain as TacticalBrain).landed(clip, target)
 
-## Where a move hits (species JSON pipeline.hit_parts.<clip>: {bones, radius_m}; until the hitbox system lands): at
+## Where a move hits a body without hurtboxes (a structure; species JSON pipeline.hit_parts.<clip>: {bones,
+## radius_m}). HITBOXES: against hurtboxes those bones are the move's parts in hitboxes.json instead: at
 ## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical
 ## segment from its feet to its height. True when the species lists no parts for the clip or the rig lacks them.
 func part_hit(clip: StringName, target: Node3D) -> bool:
-	var row: Variant = (def.pipeline.get("hit_parts", {}) as Dictionary).get(str(clip)) if def and def.pipeline.get("hit_parts") is Dictionary else null
+	# A body variant may judge its hits at its own parts (SP-TRIKEALPHA: model_variants.alpha.hit_parts).
+	var parts: Variant = CreatureView.variant_row(def, variant).get("hit_parts", def.pipeline.get("hit_parts")) if def else null
+	var row: Variant = (parts as Dictionary).get(str(clip)) if parts is Dictionary else null
 	var sk: Skeleton3D = view.rig.skeleton if view and view.rig else null
 	if not (row is Dictionary) or sk == null or target == null:
 		return true
@@ -1049,16 +1086,19 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		anim.play_clip(&"knockdown")
 		return
 	var staggered := false
-	if not brain is TyrantBrain and _now_s() >= _stagger_immune_until:
+	var armored: bool = brain is TyrantBrain or (brain != null and brain.super_armor())  # a committed charge does not flinch
+	if not armored and _now_s() >= _stagger_immune_until:
 		stagger_left = 0.45 if kind == &"crit" else 0.3
 		_stagger_immune_until = _now_s() + 1.0
 		staggered = true
-	if not brain is TyrantBrain and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
+	if not armored and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
 		# stagger's once-a-second immunity so a pinned animal can still fight back.
 		if staggered and authored.has("hit_react") and view.using_glb and not anim._hold_knockdown:  # down (pin, knockdown): stays down
 			anim.play_clip(&"hit_react")
+			if view.planted:  # the clip may shove the body over its feet; hold them where they stand
+				view.planted.pin(1.5, func() -> bool: return anim.current_clip == &"hit_react")
 		else:
 			view.flinch(1.4 if kind == &"crit" else 1.0)  # no real hurt clip: shove + nod instead
 	if source:

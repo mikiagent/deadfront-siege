@@ -23,7 +23,7 @@ REACH = float(a[a.index("--reach") + 1]) if "--reach" in a else 1.2
 DROP = float(a[a.index("--drop") + 1]) if "--drop" in a else 0.2
 PLANT = 0.03  # m: a foot is planted while its lowest skin is this close to the floor
 HIT = {"attack_primary": ([0.42], "Head"), "bite_combo": ([0.092, 0.338, 0.815], "Head"), "attack_heavy": ([0.72], "BackFoot.R"),
-       "pounce": ([0.7], "Head"), "pin_stab": ([0.38, 0.74], "Head")}
+       "pounce": ([0.7], "Head"), "pin_stab": ([0.38, 0.74], "Head"), "flank_rake": ([0.56], "BackFoot.R")}
 DROP_CLIPS = {"pin_stab"}
 FPS = 24
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -66,7 +66,7 @@ LYING = {"knockdown", "death", "sleep"}
 LUNGE = {"attack_primary", "bite_combo"}
 LUNGE_FLOAT = 0.2
 STRETCH = 13.0
-AIR = {"run", "pounce", "hop_back", "leap_back", "dodge_left", "dodge_right", "charge"}  # flight phases: no float check
+AIR = {"run", "pounce", "hop_back", "leap_back", "dodge_left", "dodge_right", "charge", "charge_turn", "flank_rake"}  # flight phases: no float check
 for f in sorted(os.listdir(anim_dir)):
     if not f.endswith(".glb"): continue
     clip = f[:-4]

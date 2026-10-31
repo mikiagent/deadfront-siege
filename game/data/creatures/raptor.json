@@ -32,11 +32,15 @@
   "texture_prompt": "scaly black hide with fine gold flecks, golden-orange crest, quills and arm feathers, dark claws",
   "look": "big black dromaeosaur with a gold feather crest, gold spine quills and gold arm fans; also green, rust and slate morphs",
   "clips": {
-    "attack_primary": "steps in and bites, twisting the head as it pulls away (the deinonychus bite)",
+    "attack_primary": "steps in and bites, both hands reaching forward with the claws spread, then raking down clenched on the bite (RAPTORFLANK arms)",
     "attack_heavy": "sickle slash: rocks onto the left leg with the right foot hauled high and the sickle claw cocked (held telegraph), then drives the foot forward and down through the prey and rakes it back (hit 0.72)",
     "pin_stab": "pin and bite (RPR): the right foot stamps onto pounced prey and holds it with the sickle claw, the feathered arms flap for balance, the head rears jaws-wide and bites down twice (hits 0.38, 0.74)",
     "alert": "crest-flare display: rears, throws the feathered arms wide and the tail up, screeches with a head shake, drops into a hunting crouch",
-    "knockdown": "hit hard in the flank, skids and drops onto its side (the deinonychus clip)"
+    "knockdown": "hit hard in the flank, skids and drops onto its side (the deinonychus clip)",
+    "bite_combo": "three bites: the left hand rakes on the first, the right on the second, both on the third (RAPTORFLANK arms)",
+    "pounce": "crouch with the arms tucked, leap with the arms thrown forward and the claws spread, clamp the hands shut on the prey at the hit",
+    "charge_turn": "flank skid-turn: brakes leaning back, hops round with the arms flung wide and the tail up, lands crouched facing the prey",
+    "flank_rake": "from behind: a short leap onto the prey's back, both sickle feet and both hands rake down through it and the jaws bite (hit 0.56)"
   },
   "taming": {
     "preferred_food": [
@@ -96,6 +100,13 @@
         "weight": 2.0
       },
       {
+        "name": "flank",
+        "steps": [
+          "flank"
+        ],
+        "weight": 3.0
+      },
+      {
         "name": "backstep_strafe_right_pounce",
         "steps": [
           "backstep",
@@ -153,7 +164,27 @@
         ],
         "weight": 1.0
       }
-    ]
+    ],
+    "flank": true,
+    "flank_cd": 9.0,
+    "flank_mult": 2.0,
+    "flank_max_m": 16.0,
+    "flank_past_m": 1.5,
+    "flank_lane_m": 5.0,
+    "flank_pass_max_s": 3.0,
+    "flank_arrive_m": 1.5,
+    "flank_skid_m": 1.5,
+    "flank_ring_m": 5.5,
+    "flank_strafe_mps": 2.2,
+    "flank_strafe_min_s": 0.8,
+    "flank_strafe_max_s": 4.0,
+    "flank_behind_deg": 140.0,
+    "flank_rake_max_m": 7.5,
+    "flank_land_m": 2.4,
+    "flank_height_per_m": 0.15,
+    "flank_recover_s": 0.5,
+    "flank_miss_recover_s": 1.2,
+    "_flank": "RAPTORFLANK (owner 2026-10-31: 'There should be a move that's like run past, turn, strafe, attack from behind'): the flank sequence (TacticalBrain flank): runs past the prey at the charge gait (flank_past_m beyond its line, flank_lane_m out to the side its back is nearer), skid-turns (charge_turn clip, yaw swung only in the air), sidesteps round on flank_ring_m facing it (strafe clips, stride-matched at flank_strafe_mps) until it stands flank_behind_deg off the prey's facing, then leap-rakes its back (flank_rake: both sickle feet and the jaws, x flank_mult); gives up after flank_strafe_max_s if it never gets behind. Pick rate: weight 3 of 18 sequence weight, cooldown flank_cd. Every number an ASSUMPTION (balance pass)."
   },
   "pipeline": {
     "stage": "SP_RAPTOR",
@@ -209,6 +240,15 @@
           "Jaw"
         ],
         "radius_m": 1.4
+      },
+      "flank_rake": {
+        "bones": [
+          "BackFoot.R",
+          "BackFoot.L",
+          "Head",
+          "Jaw"
+        ],
+        "radius_m": 1.6
       }
     },
     "clips": [
@@ -217,10 +257,12 @@
       "attack_primary",
       "bite_combo",
       "charge",
+      "charge_turn",
       "death",
       "dodge_left",
       "dodge_right",
       "feed",
+      "flank_rake",
       "hit_react",
       "hop_back",
       "idle",
@@ -236,9 +278,10 @@
       "walk_back"
     ],
     "authored_clips": {
-      "from deinonychus (transfer_clips.py --floor-feet, --pin-toes on one-shots)": "idle walk run charge strafe_left strafe_right walk_back attack_primary bite_combo pounce hop_back leap_back dodge_left dodge_right hit_react knockdown death",
+      "from deinonychus (transfer_clips.py --floor-feet, --pin-toes on one-shots)": "idle attack_primary bite_combo pounce hop_back leap_back dodge_left dodge_right hit_react knockdown death (then raptor_overlay.py: arms glued to the chest and keyed with claw grabs/rakes/balance flares, the tail keyed level)",
       "from velociraptor": "feed",
-      "make_raptor_moves.py": "pin_stab attack_heavy alert sleep"
+      "make_raptor_moves.py": "pin_stab attack_heavy alert sleep charge_turn flank_rake",
+      "make_gait.py + tools/gait/raptor.json (RAPTORFLANK)": "walk run charge strafe_left strafe_right walk_back"
     },
     "gate": "Blender -b -P tools/gait/check_raptor.py -- raptor.glb anim --height 3.5 (RAPTOR_CHECK PASS)"
   }

@@ -95,7 +95,8 @@ static func show_tyrant(creature: Creature, radius: float, duration: float, clip
 	t._build(radius,creature)
 	t._life = duration + 0.15
 	var label := Label3D.new()
-	label.text = {&"attack_heavy": "STOMP - ROLL OR GET BEHIND", &"tail_swipe": "TAIL - ROLL OR GET CLEAR"}.get(clip, "BITE - ROLL OR GET BEHIND")
+	label.text = {&"attack_heavy": "STOMP - ROLL OR GET BEHIND", &"tail_swipe": "TAIL - ROLL OR GET CLEAR",
+			&"bite_shake": "BITE & SHAKE - ROLL OR GET BEHIND", &"alert": "ROAR - GET CLEAR"}.get(clip, "BITE - ROLL OR GET BEHIND")
 	label.position.y = 2
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 32
@@ -110,7 +111,7 @@ func _exit_tree() -> void:
 
 ## TACTICS pounce: a ring on the prey for the windup and the leap (the brain moves it with the prey until
 ## take-off). Rolling inside it at the hit time is a dodge (player_dodged), like the heavy ring.
-static func show_pounce(creature: Creature, at: Vector3, radius: float, duration: float) -> Telegraph:
+static func show_pounce(creature: Creature, at: Vector3, radius: float, duration: float, text: String = "POUNCE - ROLL!") -> Telegraph:
 	var t := Telegraph.new()
 	t.name = "PounceTelegraph"
 	creature.get_parent().add_child(t)
@@ -122,7 +123,7 @@ static func show_pounce(creature: Creature, at: Vector3, radius: float, duration
 	var player := PlayerRegistry.local()
 	t.visible = not (player and player.statuses.has_flag(&"hide_telegraphs"))
 	var label := Label3D.new()
-	label.text = "POUNCE - ROLL!"
+	label.text = text
 	label.position.y = 2
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.font_size = 32

@@ -1,0 +1,135 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 1.1,
+  "view_centre": [
+    0.0,
+    0.2
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck1": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head_yaw",
+      "axis": "yaw"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.2
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    },
+    "Tail7": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.45
+    }
+  },
+  "note": "SP-DILOPHOSAURUS 2026-10-31: rig_biped.py rig (Thigh/Shin/Metatarsal/Toe, faces -Y, hip 0.196 mesh units), the frill ribs stay at rest (folded) in every gait. Slender, long-tailed runner: longer strides for its hip height than the pachy, a whippy tail.",
+  "clips": {
+    "walk": {
+      "cycle_s": 0.9,
+      "duty": 0.62,
+      "stride": 0.24,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.032,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
+      "bob": 0.003,
+      "bob_harmonic": 2,
+      "roll_deg": 2.0,
+      "lean_deg": 2,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -3
+        ],
+        "Head": [
+          "pitch",
+          3
+        ]
+      },
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 2.5,
+      "wiggle_tail": 3.0,
+      "sway": 0.004,
+      "crouch": 0.003
+    },
+    "run": {
+      "cycle_s": 0.5,
+      "duty": 0.38,
+      "stride": 0.5,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.1,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.006,
+      "bob_harmonic": 2,
+      "roll_deg": 2.5,
+      "lean_deg": 9,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -10
+        ],
+        "Neck2": [
+          "pitch",
+          -4
+        ],
+        "Head": [
+          "pitch",
+          10
+        ],
+        "Tail1": [
+          "pitch",
+          3
+        ]
+      },
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.5,
+      "wiggle_tail": 4.0,
+      "sway": 0.004,
+      "crouch": 0.016
+    }
+  }
+}
