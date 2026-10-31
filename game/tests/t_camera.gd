@@ -1,6 +1,6 @@
 extends SceneTree
 ## CAMERA package (docs/orchestration/reports/claude-mmo-camera.md): the follow camera is the long-lens
-## perspective camera measured from Durango (pitch 38.7, FOV 4.3; yaw 0, north up: NORTHUP), `size` stays its zoom (metres
+## perspective camera measured from Durango (pitch 38.7, FOV 4.3, yaw 45: ISOCAM put the diagonal back), `size` stays its zoom (metres
 ## of view height at the focus) and the consumers line up with it.
 ## Usage: godot --headless --path game --script res://tests/t_camera.gd   -> "[t_camera] PASS", exit 0/1.
 
@@ -24,9 +24,19 @@ func _expect(ok: bool, msg: String) -> void:
 func _run() -> void:
 	var Iso: GDScript = load("res://scripts/camera/iso_camera.gd")
 	_expect(not Iso.ortho, "the run is not --cam-ortho")
-	_expect(Iso.PROJECTION == Camera3D.PROJECTION_PERSPECTIVE and is_equal_approx(Iso.PITCH_DEG, -38.7) and is_equal_approx(Iso.YAW_DEG, 0.0) and is_equal_approx(Iso.FOV_DEG, 4.3),
-		"constants: perspective, pitch -38.7, yaw 0, FOV 4.3")
-	_expect(Iso.view_basis().is_equal_approx(Basis.from_euler(Vector3(deg_to_rad(-38.7), 0.0, 0.0))), "view_basis() is the shipped angle")
+	_expect(Iso.PROJECTION == Camera3D.PROJECTION_PERSPECTIVE and is_equal_approx(Iso.PITCH_DEG, -38.7) and is_equal_approx(Iso.YAW_DEG, 45.0) and is_equal_approx(Iso.FOV_DEG, 4.3),
+		"constants: perspective, pitch -38.7, yaw 45, FOV 4.3")
+	_expect(Iso.view_basis().is_equal_approx(Basis.from_euler(Vector3(deg_to_rad(-38.7), deg_to_rad(45.0), 0.0))), "view_basis() is the shipped angle")
+	# ISOCAM: the iso range keeps the Durango lens; below ISO_MIN_SIZE pitch, lens and lift blend to the close view.
+	for s in [Iso.ISO_MIN_SIZE, Iso.DEFAULT_SIZE, Iso.MAX_SIZE]:
+		_expect(is_zero_approx(Iso.close_t(s)) and is_equal_approx(Iso.pitch_for(s), -38.7) and is_equal_approx(Iso.fov_for(s), 4.3), "zoom %.1f m is the iso view" % s)
+	_expect(is_equal_approx(Iso.close_t(Iso.MIN_SIZE), 1.0) and is_equal_approx(Iso.pitch_for(Iso.MIN_SIZE), Iso.CLOSE_PITCH_DEG) and is_equal_approx(Iso.fov_for(Iso.MIN_SIZE), Iso.CLOSE_FOV_DEG), "the closest zoom is the close view")
+	var prev := -90.0
+	for i in 11:
+		var p: float = Iso.pitch_for(lerpf(Iso.ISO_MIN_SIZE, Iso.MIN_SIZE, float(i) / 10.0))
+		_expect(p >= prev - 1e-4, "zooming in only ever tilts toward horizontal (%.2f deg)" % p)
+		prev = p
+	_expect(Iso.CLOSE_PITCH_DEG + Iso.CLOSE_FOV_DEG * 0.5 < 0.0, "the close view's top edge stays under the horizon (no sky band)")
 	_expect(absf(Iso.distance_for(11.0) - 11.0 / (2.0 * tan(deg_to_rad(2.15)))) < 0.01, "distance_for(11) = %.1f m" % Iso.distance_for(11.0))
 	_expect(Iso.cull_range(8.0) > Iso.distance_for(Iso.LAB_MAX_SIZE), "cull ranges reach past the farthest lab camera (%.0f m)" % Iso.cull_range(8.0))
 
@@ -42,7 +52,7 @@ func _run() -> void:
 	await process_frame
 	_expect(cam.projection == Camera3D.PROJECTION_PERSPECTIVE and is_equal_approx(cam.fov, 4.3), "the camera is perspective with a 4.3 deg lens")
 	_expect(is_equal_approx(cam.size, Iso.DEFAULT_SIZE) and is_equal_approx(cam.distance, Iso.distance_for(cam.size)), "default zoom %.1f m at %.1f m" % [cam.size, cam.distance])
-	_expect(cam.rotation_degrees.is_equal_approx(Vector3(-38.7, 0.0, 0.0)), "rotation %s" % cam.rotation_degrees)
+	_expect(cam.rotation_degrees.is_equal_approx(Vector3(-38.7, 45.0, 0.0)), "rotation %s" % cam.rotation_degrees)
 	_expect(cam.focus_point().distance_to(target.global_position) < 0.01, "it looks at its target (%.3f m off)" % cam.focus_point().distance_to(target.global_position))
 	_expect(Iso.focus.distance_to(target.global_position) < 0.01, "it publishes the focus it looks at")
 	var view: Vector2 = cam.get_viewport().get_visible_rect().size
@@ -67,14 +77,24 @@ func _run() -> void:
 	_expect(deg > 1.5 and deg < 5.0, "a 10 m pole at the right edge leans out %.2f deg" % deg)
 	_expect(absf(Iso.parallax - Iso.PARALLAX_GAIN * sin(deg_to_rad(38.7)) / cam.distance) < 1e-6, "parallax_strength = gain * sin(pitch) / distance (%.5f)" % Iso.parallax)
 	# Zoom: the distance and the depth band follow size; the wheel and pinch stay inside min..max.
-	for s in [Iso.MIN_SIZE, Iso.MAX_SIZE]:
+	for s in [Iso.MIN_SIZE, Iso.ISO_MIN_SIZE, Iso.MAX_SIZE, Iso.MIN_SIZE]:
 		cam.size = s
 		await process_frame
-		_expect(cam.focus_point().distance_to(target.global_position) < 0.01 and cam.global_position.distance_to(target.global_position) > Iso.distance_for(s) - 0.01,
-			"zoom %.0f m takes effect in one frame (the focus stays on the target, %.1f m back)" % [s, cam.global_position.distance_to(target.global_position)])
+		var lifted: Vector3 = target.global_position + Vector3.UP * Iso.CLOSE_LIFT_M * Iso.close_t(s)
+		_expect(cam.focus_point().distance_to(lifted) < 0.01 and absf(cam.global_position.distance_to(lifted) - Iso.distance_for(s)) < 0.01,
+			"zoom %.1f m takes effect in one frame (the focus stays on the target, %.1f m back)" % [s, cam.global_position.distance_to(lifted)])
+		_expect(absf(cam.rotation_degrees.x - Iso.pitch_for(s)) < 0.01 and is_equal_approx(cam.fov, Iso.fov_for(s)) and absf(cam.rotation_degrees.y - 45.0) < 0.01,
+			"zoom %.1f m: pitch %.1f, lens %.1f deg, yaw %.0f (fixed)" % [s, cam.rotation_degrees.x, cam.fov, cam.rotation_degrees.y])
 		var g: float = cam.ground_half_depth()
-		_expect(is_equal_approx(cam.distance, Iso.distance_for(s)) and cam.near < cam.distance - g - 20.0 and cam.far > cam.distance + g + 20.0,
-			"zoom %.0f m: %.0f m back, near %.0f far %.0f around the ground %.0f-%.0f m" % [s, cam.distance, cam.near, cam.far, cam.distance - g, cam.distance + g])
+		var close: bool = Iso.close_t(s) > 0.0
+		_expect(is_equal_approx(cam.distance, Iso.distance_for(s)) and (cam.near <= 0.5 if close else cam.near < cam.distance - g - 20.0) and cam.far > cam.distance + cam.view_depth() + 20.0,
+			"zoom %.1f m: %.0f m back, near %.1f far %.0f around the ground %.0f-%.0f m" % [s, cam.distance, cam.near, cam.far, cam.distance - g, cam.distance + cam.view_depth()])
+		# A tap at the centre still lands on her (player_input's ray), inside the far plane.
+		var vo: Vector3 = cam.project_ray_origin(view * 0.5)
+		var vn: Vector3 = cam.project_ray_normal(view * 0.5)
+		var vt := (lifted.y - vo.y) / vn.y
+		_expect(vt > 0.0 and vt < cam.far and (vo + vn * vt).distance_to(lifted) < 0.05, "zoom %.1f m: a centre tap ray reaches the focus" % s)
+	_expect(cam.ground_half_depth() <= Iso.SHADOW_DEPTH_MAX and cam.view_depth() > 50.0, "close up the far plane reaches %.0f m past her, the shadow band stops at %.0f m" % [cam.view_depth(), cam.ground_half_depth()])
 	var pinch := TouchGestures.new()
 	host.add_child(pinch)
 	cam.size = 11.0
