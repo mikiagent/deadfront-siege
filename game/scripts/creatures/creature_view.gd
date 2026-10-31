@@ -96,6 +96,8 @@ var _flash_col := Color(1.0, 0.2, 0.2)  ## red; gold for a weak-spot crit
 var _flinch_tw: Tween
 ## Keeps the feet on the ground through a hit (procedural rattle or an authored hit_react); null without a rig.
 var planted: PlantedFlinch
+## Holds a display structure (the dilophosaurus frill) open from combat state; null unless pipeline.display_flare.
+var flare: DisplayFlare
 ## Per-individual natural coloration (null = neutral, the species texture as authored).
 var coloration: CreatureColoration
 ## One shared shader for every individual; each individual gets its own ShaderMaterial per surface.
@@ -163,6 +165,14 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 				planted.view = self
 				planted.height_m = def.height_meters
 				rig.skeleton.add_child(planted)
+				if def.pipeline.has("display_flare"):
+					flare = DisplayFlare.new()
+					flare.name = "DisplayFlare"
+					flare.creature = get_parent() as Creature
+					rig.skeleton.add_child(flare)
+					if not flare.setup(def.pipeline["display_flare"], rig.anim_player):
+						flare.free()
+						flare = null
 			_apply_model_variant()
 		else:
 			push_error("CreatureView: %s has a model but it failed to load" % glb)
