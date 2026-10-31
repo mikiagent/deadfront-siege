@@ -135,3 +135,17 @@ Credits: none (Tripo 0, Meshy 0, Higgsfield 0).
 - Gates after the merge, all PASS: `t_compyfeel` (ankylosaurus fight under ClubTailBrain: 0 glide frames),
   `t_ankyloai`, `t_pinfeel`, `t_combat`, `t_canim`, `t_godlab`, `t_swarm`, `t_tactical`, `t_raptorfeel`, `run_all.gd`
   `[tests] PASS`, `tools/smoke.sh --no-import` SMOKE PASS.
+
+## Merge with canon 4d460989 (COELOMOVES, 2026-10-31)
+- `tactical_brain.gd`: both sides are kept. Canon's tactics profiles (`resolve` / `tactics_for_def`), the territorial
+  state and the RAPTORFEEL investigate hold (moved into TacticalBrain) sit beside the `charge_crouch` coil and the
+  `aware_idle()` combat idle.
+- One behaviour call: canon's spot hold triggered on any rig with an `investigate` clip, which after this branch
+  includes the compy. That would have made a swarm stand and wait 3 s on first sight. The hold now also needs a
+  `sniff` clip. That keeps the hold for the velociraptor (the only species with both), while the compy's
+  investigate stays its combat idle and it commits at once as before.
+- `fight-lab.md`: canon's Coelophysis, Gallimimus and Megaloceros rows and the profile and territorial notes are kept,
+  beside the compy and deinonychus rows and the no-glide note.
+- Gates after the merge, all PASS: `t_compyfeel`, `t_coelomoves`, `t_raptorfeel`, `t_ankyloai`, `t_pinfeel`,
+  `t_combat`, `t_canim`, `t_godlab`, `t_swarm`, `t_tactical`, `run_all.gd` `[tests] PASS`,
+  `tools/smoke.sh --no-import` SMOKE PASS.
