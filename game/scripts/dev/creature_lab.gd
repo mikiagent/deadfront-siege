@@ -21,6 +21,9 @@ extends Node3D
 ## --pinshots=DIR (with --species=tyrannosaurus, or tarbosaurus: its burst): PINFEEL. The brain's real stomp on the survivor (GOD on, hits
 ## forced): the windup, the impact, the foot pin held and the release, from a high three-quarter camera and the
 ## game camera, saved as DIR/pin_<k>_<what>.png; then the lab quits.
+## --stompshots=DIR (with --species=X, a big species with the shared stomp): BIGSTOMP. The brain's own stomp on the
+## survivor standing in the foot's shadow (GOD on, hits forced): the wind-up (ring + shadow) on the game camera and a
+## side camera, the slam (dust, shake) and the stomp-pin held from a low camera, saved as DIR/<species>_<k>_<what>.png.
 ## --knockshots=DIR (with --species=X, a TacticalBrain charger): KNOCKDOWN. The brain's real charge on the survivor (GOD
 ## on, hits forced) from 12 m: impact, airborne / fall, lying, getting up and Winded, from a side camera, saved as
 ## DIR/knock_<k>_<phase>.png (one shot as each PlayerKnock phase starts, plus the winded idle); then the lab quits.
@@ -86,6 +89,8 @@ func _ready() -> void:
 			_clipshots.call_deferred(a.substr(12), StringName(only.get_slice(",", 0)))
 		elif a.begins_with("--knockshots="):
 			_knockshots.call_deferred(a.substr(13), StringName(only.get_slice(",", 0)))
+		elif a.begins_with("--stompshots="):
+			_stompshots.call_deferred(a.substr(13), StringName(only.get_slice(",", 0)))
 		elif a.begins_with("--pinshots="):
 			_pinshots.call_deferred(a.substr(11), StringName(only.get_slice(",", 0)))
 		elif a == "--enrage":
@@ -345,6 +350,79 @@ func _pinshots(dir: String, id: StringName) -> void:
 	await _pinshot(dir, 5, "released", cam, c, 0.6)
 	print("[pinshots] wrote %s" % dir)
 	get_tree().quit()
+
+func _stompshots(dir: String, id: StringName) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	await get_tree().create_timer(1.5).timeout
+	var c: Creature = null
+	for n in get_tree().get_nodes_in_group("creatures"):
+		if n is Creature and (n as Creature).def.id == id and not (n as Creature).is_pet and (n as Creature).brain and (n as Creature).brain.stomp:
+			c = n
+	if c == null:
+		push_error("[stompshots] no wild %s with the shared stomp" % id)
+		get_tree().quit(1)
+		return
+	CombatTuning.force_accuracy = 1.0
+	CombatTuning.force_dodge = 0.0
+	c.global_position = Vector3(-30, 0, -40)  # clear of the lab crates
+	c.rotation.y = -PI / 2.0  # faces +X
+	var b := c.brain
+	var s := b.stomp
+	var h := s.height()
+	var waited := 0.0
+	while not b.stomp_ready() and waited < 8.0:  # done with its roar, ready to stomp; she waits well clear
+		if b.attack_target != _player:
+			b.attack_target = _player
+			if "_provoked_until" in b:
+				b.set("_provoked_until", b._now_s() + 60.0)
+			b._set_state(&"attack")
+		_player.global_position = c.global_position + Vector3(22.0, 0.9, 0.0)  # inside its leash, past a burst
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	_player.global_position = s.land_point() + Vector3(0, 0.9, 0)
+	_player.face_world(c.global_position)
+	var game_cam := get_viewport().get_camera_3d()
+	var side := Camera3D.new()
+	add_child(side)
+	side.fov = 45.0
+	# front three-quarter on the stomping foot's side, looking at where it comes down
+	var foot_side: Vector3 = c.global_basis.x.normalized() * signf(float((s.cfg.get("land", [1.0, 0.0]) as Array)[0]) + 0.001)
+	var fwd: Vector3 = -c.global_basis.z.normalized()
+	var spot0: Vector3 = s.land_point()
+	side.global_position = spot0 + fwd * h * 1.5 + foot_side * h * 1.3 + Vector3.UP * h * 0.6
+	side.look_at(spot0 + Vector3.UP * h * 0.35)
+	var low := Camera3D.new()
+	add_child(low)
+	low.fov = 45.0
+	while s.phase != &"windup" and waited < 10.0:
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	if s.phase != &"windup":  # still busy with its own move (the tarbosaurus' burst): start the same stomp by hand
+		c.stop_move()
+		_player.global_position = s.land_point() + Vector3(0, 0.9, 0)
+		s._start()
+	await get_tree().create_timer(s.windup * 0.7).timeout
+	await _stompshot(dir, id, 0, "windup_game", game_cam, c)
+	await _stompshot(dir, id, 1, "windup_side", side, c)
+	while s.phase == &"windup" and waited < 14.0:
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	await _stompshot(dir, id, 2, "slam_side", side, c)
+	await _stompshot(dir, id, 3, "slam_game", game_cam, c)
+	await get_tree().create_timer(1.2).timeout
+	var at := PinHold.chest_point(_player)
+	at.y = c.global_position.y
+	low.global_position = at + fwd * h * 0.9 + foot_side * h * 0.7 + Vector3.UP * h * 0.25
+	low.look_at(at + Vector3.UP * h * 0.15)
+	await _stompshot(dir, id, 4, "pinned_low", low, c)
+	print("[stompshots] %s last=%s pinned=%s shake=%.2f; wrote %s" % [id, s.last, _player.statuses.has(&"pinned"), s.last_shake, dir])
+	get_tree().quit()
+
+func _stompshot(dir: String, id: StringName, k: int, what: String, camera: Camera3D, c: Creature) -> void:
+	camera.current = true
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("%s/%s_%d_%s.png" % [dir, id, k, what])
+	print("[stompshots] %s %s clip=%s survivor=%s" % [id, what, c.anim.current_clip, _player.anim.current_clip])
 
 func _knockshots(dir: String, id: StringName) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
