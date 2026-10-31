@@ -11,7 +11,13 @@ of (u, value) keys eased with smoothstep between keys (holds at keys, snaps wher
 game/data/creatures/anim_events.json: attack_primary 0.42, attack_heavy 0.72, tail_swipe the default 0.55.
 
 usage: Blender -b -P tools/gait/make_rex_moves.py -- <base.glb> <clip> <out.glb>
-  clip: idle | alert | attack_primary | attack_heavy | tail_swipe
+  clip: idle | alert | attack_primary | attack_heavy | tail_swipe | bite_shake | hit_react | feed | knockdown | death | sleep
+
+SP-TYRANNOSAURUS (v2 open-mouth mesh): bite_shake (signature), hit_react, feed and the lying clips (knockdown, death,
+sleep) are authored here too. Lying clips go down on the belly with the feet planted and "settle" the skin onto the
+floor every frame (the lowest evaluated vertex is put at z 0), so nothing sinks or hovers. The v2 mesh is bound with
+the jaw shut and was modelled ~24 deg open, so every jaw key is scaled by JAW (0.7): the widest roar stays inside
+the modelled gape instead of stretching the lips.
 """
 import math
 import sys
@@ -29,11 +35,14 @@ TAILS = ["Tail%d" % i for i in range(1, 8)]
 # The stalking carriage (degrees; pitch + = nose up / tail down). Mirrored in tyrannosaurus.json walk/run "hold".
 LEAN = 5.0  # whole body tipped nose-down about the hips
 STALK = {"Chest": -2.0, "Neck1": -12.0, "Neck2": -5.0, "Head": 10.0, "Tail1": 3.0, "Tail2": 2.0}
+JAW = 0.7
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 pbs, bones = arm.pose.bones, arm.data.bones
+_shapes = {pb.custom_shape for pb in pbs if pb.custom_shape}
+SKIN = max((o for o in bpy.data.objects if o.type == "MESH" and o not in _shapes and o.vertex_groups), key=lambda o: len(o.data.vertices))
 
 
 def smooth(x):
@@ -124,7 +133,7 @@ def apply(p):
         turn(name, FWD, tr)
     jb = pbs["Jaw"]
     cur = jb.matrix.copy()
-    set_m("Jaw", rot_about(cur.translation, cur.to_3x3().col[0].normalized(), math.radians(p.get("jaw", 0.0))) @ cur)
+    set_m("Jaw", rot_about(cur.translation, cur.to_3x3().col[0].normalized(), math.radians(JAW * p.get("jaw", 0.0))) @ cur)
     for sd, leg in LEGS.items():
         lift, fwd, side, heel = p.get("feet", {}).get(sd, (0.0, 0.0, 0.0, 0.0))
         ball = leg["ball0"] + FWD * fwd + SIDE * side
@@ -140,6 +149,15 @@ def apply(p):
             tm = bones["Toe." + sd].matrix_local.copy()
             tm.translation = pbs[leg["foot"]].tail
             set_m("Toe." + sd, tm)
+    settle = p.get("settle", 0.0)
+    if settle > 0:  # put the lowest skin on the floor (lying clips): no sinking, no hovering
+        ev = SKIN.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        me = ev.to_mesh()
+        lo = min((SKIN.matrix_world @ v.co).z for v in me.vertices)
+        ev.to_mesh_clear()
+        m = pbs["Hips"].matrix.copy()
+        m.translation.z -= settle * lo
+        set_m("Hips", m)
 
 
 def tail_wave(u, amp_yaw, amp_pitch, delay=0.06, cycles=1.0, phase=0.0, env=1.0):
@@ -183,9 +201,9 @@ def idle(u):
 def alert(u):
     """Roar, 2.4 s: drop the head and load the chest, then heave up and throw the head skyward with the jaws wide,
     hold the bellow with the head shaking, tail lashing, then settle back to the stalk."""
-    dz = track(u, [(0, 0), (0.12, -0.55), (0.30, -0.65), (0.40, 0.25), (0.78, 0.15), (1, 0)])
+    dz = track(u, [(0, 0), (0.12, -0.5), (0.30, -0.58), (0.40, 0.25), (0.78, 0.15), (1, 0)])
     pitch = track(u, [(0, 0), (0.12, -6), (0.30, -8), (0.40, 9), (0.78, 7), (1, 0)])
-    n1 = track(u, [(0, 0), (0.12, -18), (0.30, -22), (0.42, 26), (0.78, 22), (1, 0)])
+    n1 = track(u, [(0, 0), (0.12, -15), (0.30, -18), (0.42, 26), (0.78, 22), (1, 0)])  # v2 skull: the chin hangs lower
     n2 = track(u, [(0, 0), (0.12, -8), (0.30, -10), (0.42, 14), (0.78, 12), (1, 0)])
     hd = track(u, [(0, 0), (0.12, -6), (0.30, -10), (0.42, 12), (0.78, 8), (1, 0)])
     jaw = track(u, [(0, 2), (0.30, 4), (0.40, 46), (0.78, 44), (0.92, 4), (1, 2)])
@@ -297,8 +315,133 @@ def tail_swipe(u):
     }
 
 
+def bite_shake(u):
+    """Signature: bite and shake, 2.5 s, clamp at 0.30. A short lunge with the jaws wide, they clamp on the hit, then
+    she plants both feet and thrashes the head side to side (the whole neck, the shoulders rolling with it) four
+    times, wrenches up and flings the catch to her left, jaws opening on the release, and settles back."""
+    H = 0.30
+    dy = track(u, [(0, 0), (0.14, -0.35), (0.2, -0.4), (H, 0.9), (0.72, 0.75), (0.82, 0.3), (1, 0)])
+    dz = track(u, [(0, 0), (0.14, 0.1), (H, -0.55), (0.7, -0.45), (0.8, 0.1), (0.9, 0), (1, 0)])
+    pitch = track(u, [(0, 0), (0.14, 7), (0.2, 8), (H, -7), (0.7, -5), (0.8, 6), (0.9, 1), (1, 0)])
+    n1 = track(u, [(0, 0), (0.14, 14), (0.2, 16), (H, -4), (0.7, -4), (0.78, 22), (0.88, 4), (1, 0)])
+    hd = track(u, [(0, 0), (0.2, 6), (H, -5), (0.7, -3), (0.78, 12), (1, 0)])
+    jaw = track(u, [(0, 2), (0.12, 30), (0.24, 48), (0.27, 48), (H, -2), (0.72, -2), (0.78, 36), (0.9, 6), (1, 2)])
+    env = track(u, [(0, 0), (0.32, 0), (0.36, 1), (0.66, 1), (0.72, 0), (1, 0)])
+    sh = env * wave(u, 6.5, 0.0)  # four thrashes across the hold
+    fling = track(u, [(0, 0), (0.7, 0), (0.78, 1), (0.88, 0.3), (1, 0)])
+    tail = env * wave(u, 6.5, 0.45)
+    arms = track(u, [(0, 0), (0.2, -10), (H, 26), (0.7, 22), (1, 0)])
+    rf = track(u, [(0, 0), (0.12, 0), (0.24, 1.2), (0.82, 1.2), (0.95, 0), (1, 0)])
+    rl = max(0.0, track(u, [(0, 0), (0.12, 0), (0.18, 0.6), (0.24, 0), (0.82, 0), (0.88, 0.5), (0.95, 0), (1, 0)]))
+    return {
+        "body": {"dy": dy, "dz": dz, "pitch": pitch, "yaw": 6 * sh - 8 * fling, "roll": 4 * sh},
+        "turns": {
+            "Spine2": (0, 4 * sh, 0), "Chest": (pitch * -0.2, 8 * sh, 3 * sh),
+            "Neck1": (n1, 20 * sh - 18 * fling, 6 * sh), "Neck2": (n1 * 0.4, 14 * sh - 10 * fling, 0),
+            "Head": (hd, 10 * sh - 8 * fling, 18 * sh + 10 * fling),
+            "Arm.L": (arms, 0, 0), "Arm.R": (arms, 0, 0), "Forearm.L": (arms * 0.5, 0, 0), "Forearm.R": (arms * 0.5, 0, 0),
+            **{t: (-6 * env if i < 2 else -2 * env, -12 * tail * (0.5 + 0.12 * i) + 10 * fling, 0) for i, t in enumerate(TAILS)},
+        },
+        "jaw": jaw,
+        "feet": {"L": (0, 0, 0, 0), "R": (rl, rf, 0, 0)},
+    }
+
+
+def hit_react(u):
+    """0.75 s flinch: the body jolts back and up off the blow, the head snaps up and away with a bellow, tail
+    lifts, and she drops back onto the stalk. Feet stay planted."""
+    k = track(u, [(0, 0), (0.18, 1), (0.45, 0.7), (1, 0)])
+    return {
+        "body": {"dy": -0.45 * k, "dz": 0.12 * k, "pitch": 7 * k, "roll": -3 * k, "yaw": 4 * k},
+        "turns": merge({"Chest": (3 * k, 0, 0), "Neck1": (14 * k, -10 * k, 0), "Neck2": (6 * k, -6 * k, 0), "Head": (8 * k, -6 * k, -8 * k),
+                        "Arm.L": (20 * k, 0, 0), "Arm.R": (20 * k, 0, 0)},
+                       {t: (-8 * k * (0.6 + 0.1 * i), 0, 0) for i, t in enumerate(TAILS)}),
+        "jaw": 2 + 34 * track(u, [(0, 0), (0.15, 1), (0.6, 0.8), (1, 0)]),
+        "feet": {"L": (0, 0, 0, 0), "R": (0, 0, 0, 0)},
+    }
+
+
+def feed(u):
+    """4 s: reach the head down to a carcass at her feet, clamp, tug back twice with the legs braced (the neck
+    stretching, a shake on the second tug), then lift the head and gulp twice, jaw working."""
+    down = track(u, [(0, 0), (0.15, 1), (0.6, 1), (0.72, 0.15), (1, 0)])
+    tug = track(u, [(0, 0), (0.2, 0), (0.28, 1), (0.34, 0.2), (0.42, 1), (0.5, 0.3), (0.6, 0), (1, 0)])
+    shake = track(u, [(0, 0), (0.4, 0), (0.43, 1), (0.52, 1), (0.56, 0), (1, 0)]) * wave(u, 12)
+    gulp = track(u, [(0, 0), (0.68, 0), (0.74, 1), (0.8, 0), (0.86, 1), (0.92, 0), (1, 0)])
+    jaw = track(u, [(0, 2), (0.12, 30), (0.17, 2), (0.6, 2), (0.66, 18), (0.7, 4), (0.76, 20), (0.82, 4), (0.88, 18), (0.94, 3), (1, 2)])
+    return {
+        "body": {"dy": 0.3 * down - 0.35 * tug, "dz": -0.38 * down, "pitch": -10 * down + 3 * tug},
+        "turns": {"Spine2": (-3 * down, 0, 0), "Chest": (-6 * down, 0, 0),
+                  "Neck1": (-20 * down + 10 * tug + 12 * gulp, 8 * shake, 0), "Neck2": (-14 * down + 4 * tug, 6 * shake, 0),
+                  "Head": (-8 * down - 6 * tug - 6 * gulp, 4 * shake, 10 * shake),
+                  "Tail1": (8 * down, 0, 0), "Tail2": (4 * down, 0, 0), "Tail3": (2 * down, 0, 0)},
+        "jaw": jaw,
+        "feet": {"L": (0, 0, 0, 0), "R": (0, 0, 0, 0)},
+    }
+
+
+def _belly_lie(k, roll=0.0, breath=0.0):
+    """Down on her belly, k = 0 (standing) .. 1 (down): the body dropped 3 m onto its belly and chest, legs folded
+    under with the metatarsals flat (heels down), the chin laid on the ground and the tail along it. A rex is too
+    tall and its legs too long to lie on its side without the thighs tearing, so it goes down sternal, the way birds
+    and big theropod mounts are shown resting; roll tips it onto its right flank (death)."""
+    return {
+        "body": {"dz": -3.0 * k, "pitch": -2 * k + 1.0 * breath, "roll": roll},
+        "turns": merge({"Spine2": (1.2 * breath, 0, 0), "Chest": (2.0 * breath, 0, 0),
+                        "Neck1": (-8 * k, 0, -roll * 0.3), "Neck2": (-4 * k, 0, 0), "Head": (2 * k, 0, -roll * 0.4),
+                        "Arm.L": (30 * k, 0, 0), "Arm.R": (30 * k, 0, 0)},
+                       {t: (6 * k if i < 2 else 2 * k, 0, 0) for i, t in enumerate(TAILS)}),
+        "feet": {"L": (0, 0.6 * k, 0, -30 * k), "R": (0, 0.6 * k, 0, -30 * k)},
+        "settle": 1.0,
+    }
+
+
+def knockdown(u):
+    """3.2 s: staggers back a step, the legs buckle and she crashes onto her belly and chest (a bounce, the head
+    slamming down), lies heaving, then shoves herself back up onto her feet."""
+    k = track(u, [(0, 0), (0.1, 0), (0.24, 1.05), (0.29, 0.92), (0.34, 1), (0.66, 1), (0.9, 0), (1, 0)])
+    st = track(u, [(0, 0), (0.1, 1), (0.26, 0), (1, 0)])
+    breath = 0.5 - 0.5 * math.cos(2 * math.pi * 3 * u) if 0.34 < u < 0.66 else 0.0
+    p = _belly_lie(k, track(u, [(0, 0), (0.24, 8), (0.66, 6), (0.9, 0), (1, 0)]), breath)
+    p["body"]["dy"] = -0.5 * st
+    p["body"]["pitch"] += 8 * st
+    p["feet"]["R"] = (0.5 * smooth(st) * (1 - st) * 4, p["feet"]["R"][1] - 0.5 * st, 0, p["feet"]["R"][3])
+    p["feet"]["L"] = (0, p["feet"]["L"][1] - 0.5 * st, 0, p["feet"]["L"][3])
+    p["jaw"] = 2 + 30 * track(u, [(0, 0), (0.2, 1), (0.28, 0.1), (0.4, 0.6), (0.6, 0.1), (0.78, 0.7), (0.92, 0), (1, 0)])
+    return p
+
+
+def death(u):
+    """3 s: a last bellow and stagger, the legs buckle and she crashes onto her belly, then sags over onto her right
+    flank with a final shudder and breath and goes still: jaw slack, tail flat. The game holds the last frame."""
+    k = track(u, [(0, 0), (0.14, 0), (0.36, 1), (1, 1)])
+    st = track(u, [(0, 0), (0.14, 1), (0.36, 0), (1, 0)])
+    roll = track(u, [(0, 0), (0.36, 6), (0.62, 30), (1, 30)])
+    breath = track(u, [(0, 0), (0.6, 0), (0.7, 1), (0.85, 0), (1, 0)])
+    p = _belly_lie(k, roll, breath)
+    p["body"]["dy"] = -0.4 * st
+    p["body"]["pitch"] += 10 * st
+    p["feet"]["R"] = (0.4 * smooth(st) * (1 - st) * 4, p["feet"]["R"][1] - 0.4 * st, 0, p["feet"]["R"][3])
+    p["feet"]["L"] = (0, p["feet"]["L"][1] - 0.4 * st, 0, p["feet"]["L"][3])
+    p["turns"] = merge(p["turns"], {"Neck1": (18 * st, 0, 0), "Head": (10 * st, 0, 0)})
+    p["jaw"] = track(u, [(0, 2), (0.12, 40), (0.3, 30), (0.45, 10), (0.7, 16), (1, 14)])
+    return p
+
+
+def sleep(u):
+    """6 s loop: belly-down with the legs folded under, the head laid on the ground turned a little aside, slow deep
+    breaths (chest and belly), jaw just parted."""
+    br = 0.5 - 0.5 * math.cos(2 * math.pi * 2 * u)
+    p = _belly_lie(1.0, 3.0, br)
+    p["turns"] = merge(p["turns"], {"Neck1": (0, -14, 0), "Neck2": (0, -12, 0), "Head": (0, -8, -10)},
+                       {t: (0, -3 * (i + 1), 0) for i, t in enumerate(TAILS)})
+    p["jaw"] = 2 + 3 * br
+    return p
+
 CLIPS = {"idle": (idle, 96), "alert": (alert, 58), "attack_primary": (attack_primary, 40),
-         "attack_heavy": (attack_heavy, 40), "tail_swipe": (tail_swipe, 48)}
+         "attack_heavy": (attack_heavy, 40), "tail_swipe": (tail_swipe, 48), "bite_shake": (bite_shake, 60),
+         "hit_react": (hit_react, 18), "feed": (feed, 96), "knockdown": (knockdown, 76), "death": (death, 72),
+         "sleep": (sleep, 144)}
 fn, N = CLIPS[CLIP]
 
 arm.animation_data_create()

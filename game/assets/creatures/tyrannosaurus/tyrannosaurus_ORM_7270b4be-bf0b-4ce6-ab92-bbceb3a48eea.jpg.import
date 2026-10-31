@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bda2vnhrgk2wg"
-path="res://.godot/imported/tyrannosaurus_NormalGL_c7aea80d-714b-49f6-b59b-645c87f8a6c9.png-590b993cfb69909c3dc12bba23306590.ctex"
+uid="uid://dcwfxeweb6ve3"
+path="res://.godot/imported/tyrannosaurus_ORM_7270b4be-bf0b-4ce6-ab92-bbceb3a48eea.jpg-b14e1e1f8b5a81ed37c99f972ce2c245.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "193930e09755d0cce73ba671453249fe"
+"md5": "f3534876a6e6f6bd02117d8b48036f69"
 }
 
 [deps]
 
-source_file="res://assets/creatures/tyrannosaurus/tyrannosaurus_NormalGL_c7aea80d-714b-49f6-b59b-645c87f8a6c9.png"
-dest_files=["res://.godot/imported/tyrannosaurus_NormalGL_c7aea80d-714b-49f6-b59b-645c87f8a6c9.png-590b993cfb69909c3dc12bba23306590.ctex"]
+source_file="res://assets/creatures/tyrannosaurus/tyrannosaurus_ORM_7270b4be-bf0b-4ce6-ab92-bbceb3a48eea.jpg"
+dest_files=["res://.godot/imported/tyrannosaurus_ORM_7270b4be-bf0b-4ce6-ab92-bbceb3a48eea.jpg-b14e1e1f8b5a81ed37c99f972ce2c245.ctex"]
 
 [params]
 

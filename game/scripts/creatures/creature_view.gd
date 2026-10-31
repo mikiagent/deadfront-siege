@@ -173,10 +173,29 @@ static func model_variants(p_def: CreatureDef) -> Dictionary:
 ## ASSUMPTION: a wild spawn picks its variant deterministically from its identity key (50/50 for two).
 static func pick_variant(p_def: CreatureDef, key: String) -> StringName:
 	var ids := model_variants(p_def).keys()
+	ids.erase("alpha")  # ALPHA SKIN: only an alpha wears it (Creature.spawn)
 	if ids.is_empty():
 		return &""
 	ids.sort()
 	return StringName(str(ids[absi(hash(key)) % ids.size()]))
+
+## ALPHA SKIN: a species whose model_variants has an "alpha" texture dresses its alphas in it (the T. rex's
+## armoured slate). Called after the alpha roll, before the coloration rebind copies the albedo.
+func use_variant(p_variant: StringName) -> void:
+	if variant == p_variant or not model_variants(def).has(str(p_variant)) or not (using_glb and rig):
+		return
+	variant = p_variant
+	# setup() already coloured the surfaces from the authored albedo: drop those and the cached originals so the
+	# variant's albedo is what the coloration copies.
+	_originals.clear()
+	for mi in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null or m.has_meta(&"creature_eyeshine") or m.has_meta(&"creature_gear"):
+			continue
+		for i in m.mesh.get_surface_count():
+			m.set_surface_override_material(i, null)
+	_apply_model_variant()
+	apply_coloration(coloration)
 
 func _apply_model_variant() -> void:
 	var tex_name := str(model_variants(def).get(str(variant), ""))

@@ -8,6 +8,9 @@ Per clip, every frame, measured on the toe tips (Toe.L/R tails) and the evaluate
   grounded  one-shots and idle: at least one foot on the ground in every frame.
   ends      one-shots and idle: both toe tips on their rest prints (3 cm) in the first and last frame, so
             crossfades to idle and the gaits never drag a foot.
+  lying     knockdown, death, sleep go down on the belly: instead of the foot checks, the lowest skin must rest on
+            the floor (within 3 cm) on every frame where the body is down (toes off their prints), and knockdown must
+            still start and end on the prints (it gets up again); death and sleep end lying down.
   moonwalk  gaits (walk, run, walk_back, strafe_*): planted toes must slide against the clip's travel
             (median planted velocity . travel < 0); a positive value is a moonwalk.
 Prints one REXCHECK line per clip and exits 1 on any failure.
@@ -23,6 +26,7 @@ from mathutils import Vector
 a = sys.argv[sys.argv.index("--") + 1:]
 base, clips = a[0], a[1:]
 TOL = 0.03
+LYING = {"knockdown", "death", "sleep"}
 TRAVEL = {"walk": (0, 1, 0), "run": (0, 1, 0), "walk_back": (0, -1, 0), "strafe_left": (-1, 0, 0), "strafe_right": (1, 0, 0)}
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -85,7 +89,7 @@ for path in clips:
             sink, sink_at = lz, (f - f0, tuple(round(x, 2) for x in LOW_AT[0]))
         t = toes()
         down = {s: t[s].z < rest[s].z + TOL for s in "LR"}
-        if any(down.values()):
+        if any(down.values()) or name in LYING:
             flo = max(flo, lz)
         else:
             airborne += 1
@@ -115,6 +119,10 @@ for path in clips:
         if not vels:
             bad.append("no_planted_foot")
         detail = f"planted_speed {-med:+.2f} m/s along travel ({len(vels)} planted samples)"
+    elif name in LYING:
+        if ends > TOL and name == "knockdown":
+            bad.append("ends")
+        detail = f"lying: rests on the floor every frame, ends {ends * 100:.1f} cm"
     else:
         if slip > TOL:
             bad.append("slip")

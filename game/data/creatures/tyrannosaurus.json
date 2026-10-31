@@ -26,13 +26,14 @@
   "tamed_role": [
     "mount"
   ],
-  "look": "12 meter Tyrannosaurus rex, massive deep skull, tiny two-fingered arms, huge legs, thick tail, ash-dark scales with a rust-red back and pale belly,",
-  "texture_prompt": "ash-dark scaly hide with rust-red dorsal colouring, pale belly, matte surface",
+  "look": "12 meter Tyrannosaurus rex, massive deep skull with heavy brow ridges, jaws modelled open with a separate lower jaw and big teeth, tiny two-fingered arms, huge legs, thick tail, olive-khaki mottled crocodile scales with dark bands, a row of pyramid scutes down the spine and tail, pale cracked belly,",
+  "texture_prompt": "olive-khaki mottled crocodile hide with dark dorsal banding and pyramid scutes, pale cracked belly, matte surface",
   "clips": {
-    "attack_primary": "Giant tyrannosaur bites and tosses",
+    "attack_primary": "Giant tyrannosaur lunges low and snaps its jaws",
     "attack_heavy": "Giant tyrannosaur raises a foot, holds, then stomps down",
-    "knockdown": "Giant tyrannosaur staggers and crashes down",
-    "alert": "Giant tyrannosaur rears its head and roars"
+    "knockdown": "Giant tyrannosaur staggers, crashes onto its belly and heaves itself back up",
+    "alert": "Giant tyrannosaur drops its head, then rears and roars; small creatures nearby stagger",
+    "bite_shake": "Signature: lunges, clamps its jaws on the prey and thrashes its head side to side, then flings it"
   },
   "taming": {
     "preferred_food": [
@@ -49,26 +50,34 @@
   "pipeline": {
     "forward_axis": "-Z",
     "source_height_m": 8.0,
-    "mesh": "Tripo P1 multiview, task c7aea80d-714b-49f6-b59b-645c87f8a6c9, 50 Tripo credits",
-    "mesh_views": "ref/tyrannosaurus_{front,back,left,right}.png (Codex, from the approved sheet)",
-    "reference_sheet": "ref/tyrannosaurus_sheet_v1.png (Codex, user-approved)",
-    "rig_and_animation": "DeepSeek V4.1 Flash via dsc harness in Blender, 30 bones incl. Jaw and Tail1-7, about $0.29",
+    "mesh": "Tripo P1 multiview, task 7270b4be-bf0b-4ce6-ab92-bbceb3a48eea, 50 Tripo credits (SP-TYRANNOSAURUS v2, mouth modelled open). The previous mesh was task c7aea80d (mouth shut).",
+    "mesh_views": "crops of the owner's sheet (ref/trex_owner_sheet_1.png): side panel as left, mirrored as right, front and back panels, padded square on the sheet grey",
+    "reference_sheet": "ref/trex_owner_sheet_1.png (owner); Alpha: ref/trex_owner_sheet_3_armoured.png",
+    "rig_and_animation": "tools/gait/build_tyrannosaurus.sh: fit_rex_rig.py (the 30-bone rig fitted to the left half mirrored, distance weights), add_jaw.py --open (real Jaw, bound shut), make_rex_moves.py + make_gait.py clips, ground_clip.py, check_rex_clips.py",
     "accepted_mesh": "tyrannosaurus.glb",
     "clips": [
       "idle",
       "walk",
       "run",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
       "attack_primary",
       "attack_heavy",
+      "bite_shake",
+      "tail_swipe",
       "hit_react",
       "knockdown",
       "death",
       "alert",
       "feed",
-      "tail_swipe",
       "sleep"
     ],
-    "provenance": "work/pipeline.json, work/REPORT.md"
+    "provenance": "docs/orchestration/reports/claude-sp-tyrannosaurus.md",
+    "model_variants": {
+      "alpha": "tyrannosaurus_alpha_albedo.jpg"
+    },
+    "model_variants_note": "alpha: the armoured slate skin from the owner's Alpha sheet (tools/gait/rex_alpha_skin.py), worn only by alphas; same mesh, so no horns or spike row (ASSUMPTION: a texture variant was asked for where possible)"
   },
   "coloration": {
     "hue_deg": 10,
@@ -107,8 +116,16 @@
   "eyes": {
     "bone": "Head",
     "points": [
-      [0.5237, 0.9718, 0.7639],
-      [-0.5237, 0.9718, 0.7639]
+      [
+        0.5237,
+        0.9718,
+        0.7639
+      ],
+      [
+        -0.5237,
+        0.9718,
+        0.7639
+      ]
     ],
     "radius": 0.065,
     "color": [

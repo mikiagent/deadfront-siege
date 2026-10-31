@@ -2,19 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dgwsy4tedximu"
-path="res://.godot/imported/tyrannosaurus_ORM_c7aea80d-714b-49f6-b59b-645c87f8a6c9.jpg-7a0b246014d28ee84a3f4a383cfe5cd7.ctex"
+uid="uid://bis0vsniafv83"
+path="res://.godot/imported/tyrannosaurus_alpha_albedo.jpg-93c4a8fc2c0d85c95098b56c6efebff4.ctex"
 metadata={
 "vram_texture": false
-}
-generator_parameters={
-"md5": "ed7f780fbc86c6d489ea05bddd94b2b2"
 }
 
 [deps]
 
-source_file="res://assets/creatures/tyrannosaurus/tyrannosaurus_ORM_c7aea80d-714b-49f6-b59b-645c87f8a6c9.jpg"
-dest_files=["res://.godot/imported/tyrannosaurus_ORM_c7aea80d-714b-49f6-b59b-645c87f8a6c9.jpg-7a0b246014d28ee84a3f4a383cfe5cd7.ctex"]
+source_file="res://assets/creatures/tyrannosaurus/tyrannosaurus_alpha_albedo.jpg"
+dest_files=["res://.godot/imported/tyrannosaurus_alpha_albedo.jpg-93c4a8fc2c0d85c95098b56c6efebff4.ctex"]
 
 [params]
 
@@ -26,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
