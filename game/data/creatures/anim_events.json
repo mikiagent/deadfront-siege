@@ -15,6 +15,7 @@
       "windup_hold": 0.6,
       "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
       "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (pipeline.status_clips)",
+      "note_deinonychus": "deinonychus (SP-DEINONYCHUS): the Raptor's sickle slash on the v4 rig, held at windup_hold 0.6 with the foot cocked, hit 0.72 from BackFoot.R",
       "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)",
       "note_spinosaurus": "spinosaurus (make_spino_moves.py): forearm claw rake, 1.6 s: rears up with both claws cocked (held to windup_hold 0.6), drops forward and rakes both claws down at 0.72; hits from the hands",
       "note_gallimimus": "gallimimus: spring-and-rake kick, 1.42 s: the right leg hauled high and held trembling through windup_hold 0.6, snapped forward through her on 0.72 and raked back; hits from Toe.R, a stagger shove and Winded (no knockdown)"
@@ -191,19 +192,58 @@
       "note": "ankylosaurus (ANKYLOCLOSE, tools/gait/make_tail_club.py stomp), 1.5 s: the front rears off the left forefoot, the foot hauled high and forward, held, then slammed down in front (impact 0.56); ClubTailBrain lands the hit (ai.json club_tail.close_moves.stomp: an area in front, knockdown)"
     },
     "shove_left": {
-      "hit_frac": 0.48,
+      "airborne": [
+        0.24,
+        0.42
+      ],
+      "hit_frac": 0.46,
       "windup": true,
-      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 1.2 s: cocks away, then head and shoulders swing hard to its left while the body lurches over and the left forefoot steps out (impact 0.48); ClubTailBrain lands the hit (close_moves.shove_left, knockback sideways)"
+      "note": "mirror of shove_right"
     },
     "shove_right": {
-      "hit_frac": 0.48,
+      "hit_frac": 0.46,
       "windup": true,
-      "note": "mirror of shove_left, to its right"
+      "note": "SHOULDER SLAM, ankylosaurus (STEGOSPIN port, owner 2026-10-31: 'use its momentum and drop its shoulder ... throw its body weight at the player ... and then steady itself after' / 'needs more range'; make_tail_club.py, 1.8 s): cocked off, a bound (airborne 0.24-0.42: ClubTailBrain throws the body up to close_moves.shove_right.carry_m at her in this window), it lands into her with the shoulder dropped (impact 0.46), holds, rocks back, re-plants and steadies; the hit is its shoulder / foreleg hitbox parts swept live (knockdown). The stegosaurus' shove_right (make_stego_moves.py, STEGOSLAM) is the same slam and bound with the same timing",
+      "airborne": [
+        0.24,
+        0.42
+      ]
     },
     "tackle": {
       "hit_frac": 1.0,
       "windup": true,
-      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up to close_moves.tackle.lunge_m into her and lands the hit on contact (knockdown)"
+      "note": "ankylosaurus / stegosaurus (make_tail_club.py, make_stego_moves.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up at the run gait and plays tackle_lunge"
+    },
+    "spin_right": {
+      "hit_frac": 1.0,
+      "windup": true,
+      "note": "STEGOSPIN TAIL SPIN, tools/gait/make_stego_moves.py (stegosaurus), make_tail_club.py (ankylosaurus): crouch, tail raised and cocked, trembling, then a turn to the right about the right front foot's ball (turn_deg / turn in ai.json, done by ClubTailBrain in code in step with the clip, which keys it counter-rotated so the feet stay planted) with the tail whipping round; the brain lands the hit from the swept rear body and tail (line_bone to the club) in the strike window"
+    },
+    "spin_left": {
+      "hit_frac": 1.0,
+      "windup": true,
+      "note": "mirror of spin_right, turning left about the left front foot"
+    },
+    "pivot_right": {
+      "note": "STEGOSPIN repositioning turn, 90 deg right about the right front foot (code turn as spin_right), no hit; tools/gait/make_stego_moves.py (stegosaurus), make_tail_club.py (ankylosaurus)"
+    },
+    "pivot_left": {
+      "note": "mirror of pivot_right"
+    },
+    "rear_slam": {
+      "hit_frac": 0.62,
+      "windup": true,
+      "note": "STEGOSPIN stegosaurus REAR SLAM (make_stego_moves.py), 2.2 s: rears up 25 deg on the hind legs, both forefeet high, held trembling, slammed down together ahead (impact 0.62); ClubTailBrain lands it on the frame front_foot_L is back down (close_moves.rear_slam, a wide area in front, knockdown)"
+    },
+    "hind_stomp_right": {
+      "hit_frac": 0.55,
+      "windup": true,
+      "note": "STEGOSPIN stegosaurus HIND STOMP (make_stego_moves.py), 1.4 s: the right hind foot hauled up and out, stamped down beside the flank (impact 0.55), body rolled into it, tail swung toward it; ClubTailBrain lands it (close_moves.hind_stomp_right)"
+    },
+    "hind_stomp_left": {
+      "hit_frac": 0.55,
+      "windup": true,
+      "note": "mirror of hind_stomp_right"
     },
     "big_stomp": {
       "hit_frac": 0.72,
@@ -244,6 +284,21 @@
       "hit_frac": 0.56,
       "windup": false,
       "note": "raptor (RAPTORFLANK, owner 2026-10-31: 'run past, turn, strafe, attack from behind'; make_raptor_moves.py flank_rake, 1.0 s): from behind the prey a short leap onto its back (the brain carries the arc inside airborne), both sickle feet swung forward and cocked, arms thrown forward with the hand claws spread, jaws wide; at 0.56 both feet and hands rake down through it and the jaws bite (TacticalBrain flank, x flank_mult); it rakes back and drops into its stance"
+    },
+    "tackle_lunge": {
+      "airborne": [
+        0.14,
+        0.52
+      ],
+      "hit_frac": 0.45,
+      "windup": false,
+      "note": "TACKLE leap (STEGOSPIN port, owner 2026-10-31: 'tackle should be legs moving fast, then a jump/lunge that goes kind of far'), 1.25 s: a short gather out of the run-up, airborne 0.14-0.52 (ClubTailBrain carries the body close_moves.tackle.lunge_m along the line in exactly this window, on an arc), head down and forefeet reaching; forefeet land at 0.52, hind at 0.56, it absorbs, steps the forefeet back in and steadies"
+    },
+    "about_right": {
+      "note": "ABOUT-FACE (STEGOSPIN port, owner 2026-10-31: 'when it gets to me it rotates 180 for a massive tail whip and tail smash'; make_tail_club.py, 1.5 s): a 180 deg turn right on the spot about a point 0.6 m ahead of its origin (code turn in step with the clip, every foot stepping round), the club swung wide; the tail moves follow"
+    },
+    "about_left": {
+      "note": "mirror of about_right"
     }
   },
   "natural_speeds": {
@@ -332,16 +387,24 @@
       "charge_len": 0.333
     },
     "deinonychus": {
-      "height_m": 2.0,
-      "run_l": 4.432,
+      "height_m": 2.87,
+      "run_l": 4.354,
       "run_len": 0.5,
-      "run_r": 4.432,
-      "walk_l": 0.94,
+      "run_r": 4.354,
+      "walk_l": 0.937,
       "walk_len": 1.0,
-      "walk_r": 0.94,
-      "walk": 0.94,
-      "run": 4.432,
-      "charge": 6.6
+      "walk_r": 0.937,
+      "walk": 0.937,
+      "run": 4.354,
+      "charge": 6.652,
+      "charge_len": 0.4167,
+      "strafe_left": 1.587,
+      "strafe_left_len": 0.7917,
+      "strafe_right": 1.587,
+      "strafe_right_len": 0.7917,
+      "walk_back": 0.937,
+      "walk_back_len": 1.0,
+      "_note": "SP-DEINONYCHUS 2026-10-31: the v4 model's own make_gait.py gaits (tools/gait/deinonychus.json): ground speed = planned stride / cycle x 6.047 (game m per mesh unit at 2.87 m); walk/run match bake_clip_speeds.py --dry-run. The strafe takes fewer, longer steps (1.59 m/s at 0.79 s a cycle)."
     },
     "gallimimus": {
       "height_m": 3.8,

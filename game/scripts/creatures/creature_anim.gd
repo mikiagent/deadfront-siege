@@ -11,8 +11,8 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"bite_shake", &"big_stomp"]
-const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"arm_bite", &"spit"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"bite_shake", &"big_stomp", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right"]
+const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"arm_bite", &"spit", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"tackle_lunge"]
 ## One-shots during which a brain moves the body itself on an arc (TacticalBrain._arc_step), not by walking.
 const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn", &"leap", &"flank_rake"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"]
@@ -366,6 +366,11 @@ func _oneshot_done(clip: StringName) -> void:
 
 func _effective(state: StringName) -> float:
 	return float(_scale.get(state, 1.0)) * _time_scale
+
+## Retime one clip's state while it plays (CARNOFEEL: the chomp combo's slowed coil); its next play_clip resets it.
+func set_clip_speed(clip: StringName, x: float) -> void:
+	_scale[clip] = x
+	_apply(clip)
 
 func _apply(state: StringName) -> void:
 	if tree and _param.has(state):

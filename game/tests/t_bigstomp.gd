@@ -12,7 +12,7 @@ extends SceneTree
 ##    moves more than MAX_STEP_M in one physics frame; a heavy that lands away from the foot knocks down, never pins.
 ## Run: Godot --headless --path game --script res://tests/t_bigstomp.gd  -> "[t_bigstomp] PASS", exit 0.
 
-const SPECIES: Array[StringName] = [&"tyrannosaurus", &"tarbosaurus", &"megarex", &"carnotaurus", &"triceratops", &"styracosaurus", &"woolly_rhino", &"therizinosaurus", &"ceratosaurus"]
+const SPECIES: Array[StringName] = [&"tyrannosaurus", &"tarbosaurus", &"megarex", &"carnotaurus", &"triceratops", &"styracosaurus", &"woolly_rhino", &"therizinosaurus", &"ceratosaurus", &"stegosaurus"]
 const STOMP_WAIT_S := 4.0
 const MAX_STEP_M := 0.5
 const DT := 1.0 / 60.0
@@ -140,7 +140,7 @@ func _ready_to_stomp(c) -> void:
 	await physics_frame
 
 func _test_roster() -> void:
-	for id in SPECIES + [&"ankylosaurus", &"stegosaurus", &"velociraptor"]:
+	for id in SPECIES + [&"ankylosaurus", &"velociraptor"]:
 		var c = _spawn(id)
 		var want: bool = id in SPECIES
 		_expect((c.brain.stomp != null) == want, "%s %s" % [id, "has the shared stomp" if want else "has no shared stomp"])

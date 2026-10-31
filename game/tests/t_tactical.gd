@@ -377,6 +377,7 @@ func _test_pounce_damage() -> void:
 	dino.look_at(Vector3(player.global_position.x, dino.global_position.y, player.global_position.z), Vector3.UP)
 	b.attack_target = player
 	b._pounce_dir = Vector3(0, 0, 1)  # landed facing her (HITBOXES: the body too, so its jaws and claws reach her)
+	dino.view.position.y = 0.0  # landed: the fight this interrupts may have left the body mid-arc (a real landing ends at 0)
 	_keep_player_alive()
 	var hp0: float = player.vitals.health
 	b._pounce_land()

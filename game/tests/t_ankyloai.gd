@@ -8,15 +8,14 @@ extends SceneTree
 ##    earlier than the wind-up (strike window start) and from the club (club sphere at the hit); a survivor at the snout
 ##    is never hit; the smash hits a survivor straight behind it and knocks her down;
 ## 3. a roll pressed just before the whip's hit (the telegraph) takes no hit;
-## 4. a 40 s fight from 9 m: it never runs or charges, never closes within 2 m, starts every move with the survivor on
-##    its tail side (near the move's aim bearing), and hits at most once every MIN_HIT_GAP_S.
+## 4. a 40 s fight from 9 m (STEGOSPIN: the ANKYLOAI "never runs, never closes, hits at most every 3 s" rules are gone: the
+##    owner asked for the close moves, the front tail spin and the joust): it never hops, never backs into her, fights,
+##    lands a hit, and starts every TAIL move with her on its tail side (near the move's aim bearing).
 ## Run: Godot --headless --path game --script res://tests/t_ankyloai.gd  -> "[t_ankyloai] PASS", exit 0.
 
 const ID := &"ankylosaurus"
 const MOVES: Array[StringName] = [&"whip", &"smash", &"sweep"]
 const SURVIVOR_R := 0.35
-## ASSUMPTION (Open Questions): at most one club hit every this many seconds on one survivor.
-const MIN_HIT_GAP_S := 3.0
 const DT := 1.0 / 60.0
 
 var failures: Array[String] = []
@@ -224,11 +223,9 @@ func _test_fight() -> void:
 	b._provoked_until = b._now_s() + 600.0
 	b._set_state(&"approach")
 	_hits.clear()
-	var walk: float = load("res://scripts/creatures/creature_clips.gd").natural_speed(c.def, &"walk")
-	var top_speed := 0.0
-	var top_at := -1
-	var ran := 0
-	var min_d := INF
+	var hopped := 0
+	var back_in := 0.0
+	var prev: Vector3 = c.global_position
 	var starts: Array = []
 	var was := &""
 	var hit_times: Array[float] = []
@@ -239,30 +236,27 @@ func _test_fight() -> void:
 		if b.move_id == &"":
 			player.global_position = Vector3(0, player.global_position.y, 0)  # she stands her ground
 		var p: Vector3 = c.global_position
-		# Its own locomotion (the survivor's auto-kick shoves it 0.8 m in a frame; that is not the ankylosaurus moving).
-		var v := Vector2(c.velocity.x, c.velocity.z).length()
-		if v > top_speed:
-			top_speed = v
-			top_at = f
-		if c.anim.current_clip in [&"run", &"charge"]:
-			ran += 1
-		min_d = minf(min_d, _flat(p, player.global_position))
+		var to: Vector3 = player.global_position - p
+		to.y = 0.0
+		# STEGOSPIN (owner: "don't have the ankylosaurus back himself into me"): never toward her while she is behind it.
+		if b.move_id == &"" and absf(b.bearing_of(player.global_position)) > 100.0 and to.length() > 0.1:
+			back_in += maxf(0.0, (p - prev).dot(to.normalized()))
+		prev = p
+		if c.anim.current_clip in [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right"]:
+			hopped += 1
 		if b.move_id != &"" and was == &"":
-			starts.append([b.move_id, b.bearing_of(player.global_position), float(b.moves[b.move_id]["target_bearing_deg"])])
+			starts.append([b.move_id, b.bearing_of(player.global_position), float(b.moves[b.move_id].get("target_bearing_deg", 0.0))])
 		was = b.move_id
 		while hit_times.size() < _hits.size():
 			hit_times.append(t)
-	_expect(ran == 0, "never runs or charges (%d frames on run/charge)" % ran)
-	_expect(top_speed <= maxf(walk, 1.0) * 1.6, "shuffles at a walk: top speed %.2f m/s at frame %d (walk %.2f)" % [top_speed, top_at, walk])
-	_expect(min_d >= 2.0, "never closes to tackle range: nearest %.2f m centre to centre" % min_d)
-	_expect(starts.size() >= 2, "it swings in a 40 s fight (%d moves: %s)" % [starts.size(), starts.map(func(s: Array) -> String: return str(s[0]))])
+	_expect(hopped == 0, "never hops (big and heavy: %d frames on hop clips)" % hopped)
+	_expect(back_in <= 0.3, "never backs into her: %.2f m toward her while she was behind it" % back_in)
+	_expect(starts.size() >= 2, "it fights in a 40 s fight (%d moves: %s)" % [starts.size(), starts.map(func(s: Array) -> String: return str(s[0]))])
 	for s in starts:
+		if not (b.profile.get("club_moves", {}) as Dictionary).has(s[0]):
+			continue  # close moves (front / beside) and pivots aim with the head and feet, not the tail
 		var err := absf(rad_to_deg(angle_difference(deg_to_rad(float(s[1])), deg_to_rad(float(s[2])))))
 		_expect(absf(float(s[1])) >= 90.0 and err <= 25.0, "%s starts with her on its tail side: bearing %+.0f deg (aim %+.0f)" % [s[0], s[1], s[2]])
-	_expect(hit_times.size() >= 1, "the club lands at least once (%d)" % hit_times.size())
-	var gap := INF
-	for i in range(1, hit_times.size()):
-		gap = minf(gap, hit_times[i] - hit_times[i - 1])
-	_expect(gap >= MIN_HIT_GAP_S, "at most one hit every %.0f s: %d hits in 40 s, closest %.2f s apart" % [MIN_HIT_GAP_S, hit_times.size(), gap])
+	_expect(hit_times.size() >= 1, "a hit lands at least once (%d)" % hit_times.size())
 	c.queue_free()
 	await physics_frame

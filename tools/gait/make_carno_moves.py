@@ -13,6 +13,9 @@ charge_turn's airborne window [0.2, 0.6] is where the game swings the body round
   charge_turn     the sharp turn at the end of a charge, 0.71 s: plant and crouch, hop with the body banked into the
                   turn and the tail flung wide as a counterweight, land squashed, recover. Turns to its left; the game
                   yaws the body only while it is airborne, so planted feet never skid.
+  bite_combo      CARNOFEEL chomp combo, 2.75 s (the deinonychus' timing, anim_events bite_combo hit_fracs 0.092 / 0.338 /
+                  0.815, tell 0.5-0.667): coil with the jaws gaping -> chomp to its left -> chomp to its right -> rears up
+                  with the jaws wide and trembling (the tell) -> MEGA chomp slammed down through the middle, a head shake
   alert           roar, 1.25 s: rear up, head high, then thrust the head forward with the jaws wide and shaking
   idle            3 s loop: breathing, a slow look around, tail sway
   hit_react       0.58 s recoil: head jerks back, body flinches, settles
@@ -31,7 +34,7 @@ from mathutils import Matrix, Vector
 argv = sys.argv[sys.argv.index("--") + 1:]
 BASE, CLIP, OUT = argv[:3]
 FPS = 24
-N = {"attack_primary": 18, "attack_heavy": 36, "charge_turn": 17, "alert": 30, "idle": 72, "hit_react": 14, "feed": 72}[CLIP]
+N = {"attack_primary": 18, "attack_heavy": 36, "bite_combo": 66, "charge_turn": 17, "alert": 30, "idle": 72, "hit_react": 14, "feed": 72}[CLIP]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -237,6 +240,31 @@ def pose(f):
         a = math.sin(math.pi * min(1.0, max(0.0, (u - 0.2) / 0.4))) if 0.2 <= u <= 0.6 else 0.0
         heel = 22 * track([(0, 0), (0.2, 1), (0.28, 0), (0.6, 0), (0.72, 1), (1, 0)], u)
         feet = {sd: (UP * 0.09 * S * a + (FWD * 0.02 * S * a if sd == "L" else -FWD * 0.02 * S * a), heel) for sd in "LR"}
+    elif CLIP == "bite_combo":  # three chomps, hits 0.092 (left), 0.338 (right), 0.815 (MEGA); tell 0.5-0.667
+        fwd = track([(0, 0), (0.06, -0.015), (0.092, 0.035), (0.16, 0.01), (0.27, -0.01), (0.338, 0.035), (0.42, 0.01),
+                     (0.5, -0.01), (0.667, -0.03), (0.815, 0.05), (0.88, 0.03), (1, 0)], u)
+        # the side chomps dip to her shoulders (~2 m), the MEGA chomp to her head: the snap bite closes higher
+        pitch = track([(0, 0), (0.06, 5), (0.092, -16), (0.16, -4), (0.27, 4), (0.338, -16), (0.42, -4), (0.5, 4),
+                       (0.6, 12), (0.667, 12), (0.835, -20), (0.89, -8), (1, 0)], u)  # still slamming down on the hit
+        neck = track([(0, 0), (0.06, 14), (0.092, -40), (0.16, -10), (0.27, 12), (0.338, -40), (0.42, -10), (0.5, 10),
+                      (0.6, 30), (0.667, 30), (0.835, -42), (0.89, -18), (1, 0)], u)
+        head = track([(0, 0), (0.06, 8), (0.092, -6), (0.27, 8), (0.338, -6), (0.5, 4), (0.6, 14), (0.667, 14),
+                      (0.815, -8), (0.88, -4), (1, 0)], u)
+        yaw = track([(0, 0), (0.06, 12), (0.092, 24), (0.16, 14), (0.27, -12), (0.338, -24), (0.42, -12), (0.5, 0), (1, 0)], u)  # + = its left
+        trem = 3.0 * math.sin(2 * math.pi * 14 * u) * (1 if 0.6 <= u <= 0.667 else 0)  # quivering on the tell
+        shake = 12 * math.sin(2 * math.pi * 2 * max(0.0, (u - 0.815) / 0.12)) * (1 if 0.815 <= u <= 0.935 else 0)
+        jaw_deg = track([(0, 2), (0.06, 36), (0.092, 0), (0.14, 8), (0.27, 38), (0.338, 0), (0.4, 8), (0.5, 14),
+                         (0.6, 44), (0.667, 44), (0.8, 40), (0.815, 0), (0.88, 4), (1, 2)], u)
+        body(fwd, 0.0, pitch, roll=shake * 0.15 - yaw * 0.15, yaw=yaw * 0.3)
+        turn("Torso", SIDE, -pitch * 0.2)
+        turn("Neck", SIDE, neck + trem)
+        turn("Neck", UP, yaw * 0.7 + shake)
+        turn("Head", SIDE, head)
+        turn("Head", FWD, shake * 0.8)
+        jaw(jaw_deg)
+        tail(track([(0, 0), (0.092, -10), (0.2, 0), (0.338, -10), (0.45, 0), (0.6, 10), (0.815, -14), (1, 0)], u),
+             -yaw * 0.6 - shake * 0.6)  # against the body pitch and the bite's side: the tip stays level
+        arms(track([(0, 0), (0.092, 20), (0.2, 5), (0.338, 20), (0.45, 5), (0.6, -15), (0.815, 25), (1, 0)], u))
     elif CLIP == "alert":  # roar
         pitch = track([(0, 0), (0.2, 14), (0.35, 6), (0.8, 2), (1, 0)], u)
         neck = track([(0, 0), (0.2, 28), (0.35, -4), (0.8, -8), (1, 0)], u)
