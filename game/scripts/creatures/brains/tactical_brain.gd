@@ -26,7 +26,7 @@ signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", StringName] = [&"circle", &"charge_turn"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
