@@ -131,6 +131,8 @@ func _run() -> void:
 	await physics_frame
 
 	# 3. A sidestepped charge misses and leaves it staggered.
+	# HITBOXES: she starts on the charge's line (where the ram above left her depends on which of its hits landed).
+	player.global_position = Vector3(0, 0.9, 0)
 	var miss = _herd(1, 0, &"brave", Vector3(0, 0.1, -12))[0]
 	var mlog := _listen([miss])
 	miss.brain.attack_target = player

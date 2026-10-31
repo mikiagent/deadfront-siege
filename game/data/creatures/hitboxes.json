@@ -71,7 +71,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.95,
+       "radius": 0.96,
        "calibrated": true
       },
       {
@@ -548,7 +548,7 @@
      "parts": [
       {
        "bone": "BackFoot.L",
-       "radius": 1.44,
+       "radius": 3.89,
        "calibrated": true
       },
       {
@@ -564,7 +564,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.13,
+       "radius": 2.77,
        "calibrated": true
       },
       {
@@ -572,11 +572,24 @@
       }
      ]
     },
+    "impale": {
+     "parts": [
+      {
+       "bone": "Head_end",
+       "radius": 1.36,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ],
+     "_note": "STYRAFIX impale: the nose horn (Head_end) and the head"
+    },
     "attack_primary": {
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.17,
+       "radius": 2.89,
        "calibrated": true
       },
       {
@@ -588,7 +601,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.17,
+       "radius": 2.86,
        "calibrated": true
       },
       {
@@ -730,7 +743,7 @@
       },
       {
        "bone": "Head",
-       "radius": 2.09,
+       "radius": 2.08,
        "calibrated": true
       }
      ]

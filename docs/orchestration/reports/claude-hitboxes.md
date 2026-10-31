@@ -131,3 +131,14 @@ overhaul twice more (sp-tarbosaurus, megaloceros stag and doe, compyfeel, sp-car
 - Each hurtbox capsule now gets a cheap bounding-box test before the exact distance check. The per-strike perf gate is
   3 ms; under load one MegaRex sweep ran 1.7 ms, and 20 creatures take 1.7-5 ms in all.
 - I checked every merged .gd file for duplicate function names: none.
+
+## Styrafix merge (same pass)
+- The STYRAFIX impale lands only when the horns (`styracosaurus.moves.impale`: Head_end, Head) reach her hurtboxes.
+  The flat horn-tip distance check stays for targets without hurtboxes. The body-check glance is unchanged: it is
+  body contact, not an attacking part.
+- `TacticalBrain`: the charge cooldown restarts when the recover ends (ASSUMPTION). With hitboxes, a missed charge
+  could paw into the next one in the same frame, and t_styrafix's A->B->A check failed.
+- `t_styraco`: the sidestep scenario now starts with her on the charge line. Where the earlier ram left her depends on
+  which of its hits landed.
+- `t_bigreach`: the AI-on approach gets 20 s instead of 10 s. Live, the animal charges, knocks her down and turns
+  away, and a swing at a part that moved misses. It failed about one run in three at 10 s.

@@ -183,6 +183,9 @@ func _moves_of(c) -> Array:
 			out.append([&"pin_stab", i, false, [float(tac.get("pin_reach_m", 1.5)) * c.size_scale()]])
 	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)):
 		out.append([&"kick", 0, true, [reach]])  # the hind kick at prey behind it (after a charge, or point blank)
+	if tac.get("charge_impale", false) and ap.has_animation(&"impale"):
+		# STYRAFIX: the impale's hit frame comes when she stands impale_reach_m ahead on the charge line.
+		out.append([&"impale", 0, false, [float(tac.get("impale_reach_m", reach)) * c.size_scale()]])
 	if ap.has_animation(&"bite_shake"):
 		out.append([&"bite_shake", 0, false, near])  # MegaRexBrain's grab
 	if ap.has_animation(&"tail_swipe"):

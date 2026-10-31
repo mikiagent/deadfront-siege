@@ -972,6 +972,9 @@ func _charge_impale(delta: float) -> void:
 			creature.stop_move()
 			if _phase_t >= _phase_len:
 				_charge_cleanup()
+				# ASSUMPTION (HITBOXES merge): the charge cooldown runs from the end of the recover, so a missed charge
+				# never paws into the next one the frame it stands up (t_styrafix's A->B->A check caught it).
+				_start_cd(&"charge")
 				if not _strike(_flat_dist(attack_target), ["kick"]):
 					_after_charge()
 
@@ -1013,7 +1016,15 @@ func _impale_contact() -> bool:
 func _impale_hit() -> void:
 	_charge_hit = true
 	impale_gap = _flat_between(horn_tip(), attack_target.global_position)
-	if impale_gap > _t("impale_r_m", 1.6) + 0.8:
+	var horned := {}
+	if Hitbox.applies(creature, attack_target):
+		# HITBOXES: the impale clip's horns (hitboxes.json <species>.moves.impale) must reach her hurtboxes.
+		horned = Hitbox.strike(creature, &"impale", attack_target)
+		if horned.is_empty():
+			tactic.emit(&"charge_miss")
+			return
+		Hitbox.mark(attack_target, horned)
+	elif impale_gap > _t("impale_r_m", 1.6) + 0.8:
 		tactic.emit(&"charge_miss")  # she got clear between contact and the hit frame
 		return
 	var mult := _t("charge_mult", 1.8)
