@@ -410,11 +410,14 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	if player.skills:
 		player.skills.from_dict(data.get("skills_v2", {}))
 	player.bonded.clear()
+	var moved: PackedStringArray = []
 	for row in data.get("pets", []):
 		if row is Dictionary:
 			var rec := PetRecord.from_dict(row)
 			if rec != null: # an aborted from_dict would otherwise break every later save_now
 				player.bonded.append(rec)
+				if str(row.get("species", "")) != str(rec.species):  # RETIREPROTO: a removed species
+					moved.append("%s is now a %s" % [str(row.get("species", "")).capitalize(), str(rec.species).capitalize()])
 	# W2-INV (spec 05:20/26): building contents and pet bags load on their own; a uid one of them
 	# repeats (an edited save) is reminted, so every instance has one location.
 	var held: Array = [World.cargo_home, player.inventory]
@@ -440,6 +443,8 @@ static func _apply(host: Node, data: Dictionary, source_schema: int, from_backup
 	World.creation_pending = false
 	print("[world] loaded island=%s terrain=%s pioneer=%d tutorial=%s" % [iid, World.home_terrain, World.pioneer_level, "running step %d" % (World.objective + 1) if Tutorial.active() else "done"])
 	Tutorial.resume(host)  # a tutorial whose orders are all done re-opens its Tamed Island grant
+	if not moved.is_empty():
+		player.notice("A species was removed from the game: %s (bag and saddle kept)" % ", ".join(moved))
 	if from_backup:
 		player.notice("Your last save was damaged; the backup before it was loaded")
 	blocked_reason = ""

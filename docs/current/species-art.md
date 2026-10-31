@@ -13,6 +13,9 @@ Milan's reference sheets, one section per species, saved as JPEG copies (about 1
 `claude/mmo-overhaul` (2026-10-30); *no model yet* = no GLB yet; *new species* = not in the
 current roster. Ankylosaurus is the only species here whose sheets were made by Codex rather than the owner.
 
+**Removed:** Protoceratops was removed by the owner on 2026-10-31 ("the animations suck and the model is
+unappealing"). It had no sheet here; its model is deleted and tamed ones load as zebraceratops.
+
 | Species | Status | Sheets |
 |---|---|---|
 | [Raptor (black/gold)](#raptor-blackgold) | New species, no model yet | 2 |

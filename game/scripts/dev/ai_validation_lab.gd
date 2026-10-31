@@ -115,7 +115,7 @@ func _after_idle() -> void:
 	if not post_kill_ok:
 		failures.append("player killer did not retreat beyond respawn")
 	await get_tree().create_timer(0.25).timeout
-	await _runtime_protoceratops_probe()
+	await _runtime_gallimimus_probe()
 	if failures.is_empty():
 		print("[aival] PASS")
 	else:
@@ -131,7 +131,7 @@ func _target_name(c: Creature) -> String:
 		return str((c.brain.attack_target as Creature).def.id)
 	return "none"
 
-func _runtime_protoceratops_probe() -> void:
+func _runtime_gallimimus_probe() -> void:
 	Game.max_creatures_per_island = 24
 	World.harvested.clear()
 	World.load_island(self, &"home_grassland", Vector3(0, 1, 18), false)
@@ -140,18 +140,18 @@ func _runtime_protoceratops_probe() -> void:
 	var proto: Creature
 	for node in get_tree().get_nodes_in_group("creatures"):
 		var c := node as Creature
-		if c and c.def and c.def.id == &"protoceratops" and c.get_parent() == World.runtime:
+		if c and c.def and c.def.id == &"gallimimus" and c.get_parent() == World.runtime:
 			proto = c
 			break
 	if proto == null:
-		failures.append("starter-island protoceratops missing")
-		print("[aival] runtime_proto missing=true")
+		failures.append("starter-island gallimimus missing")
+		print("[aival] runtime_galli missing=true")
 		return
 	var start := proto.global_position
 	await get_tree().create_timer(3.0).timeout
 	var moved := start.distance_to(proto.global_position)
 	if proto.level != 1:
-		failures.append("starter-island protoceratops level=%d, expected 1" % proto.level)
+		failures.append("starter-island gallimimus level=%d, expected 1" % proto.level)
 	if moved < 0.25:
-		failures.append("starter-island protoceratops stayed stationary (%.3fm in 3s)" % moved)
-	print("[aival] runtime_proto level=%d moved=%.3f state=%s active=%s target=%s path_points=%d path_index=%d pos=%s start=%s" % [proto.level, moved, proto.brain.state, proto._path_active, proto.brain._roam_target, proto._path_points.size(), proto._path_index, proto.global_position, start])
+		failures.append("starter-island gallimimus stayed stationary (%.3fm in 3s)" % moved)
+	print("[aival] runtime_galli level=%d moved=%.3f state=%s active=%s target=%s path_points=%d path_index=%d pos=%s start=%s" % [proto.level, moved, proto.brain.state, proto._path_active, proto.brain._roam_target, proto._path_points.size(), proto._path_index, proto.global_position, start])

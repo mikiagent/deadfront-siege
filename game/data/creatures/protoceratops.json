@@ -1,5 +1,7 @@
 {
   "species": "Protoceratops",
+  "retired": "Removed by owner 2026-10-31 ('the animations suck and the model is unappealing'). Model and clips deleted (git history keeps them); never spawns (CreatureDef.has_model is false, so spawn rows fall to the next modelled species). Kept so old saves, butchering, loot and docs still resolve; tamed ones become retired_to.",
+  "retired_to": "zebraceratops",
   "clade": "Ceratopsia",
   "period": "Late Cretaceous",
   "real_length_m": 4.0,
@@ -42,7 +44,7 @@
         "id": "saddle",
         "weight": 2.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "stripes",
@@ -54,7 +56,7 @@
         "id": "countershade",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "",
