@@ -31,6 +31,7 @@ ap.add_argument("--close", type=float, default=None, help="with --open: close th
 ap.add_argument("--blend", type=float, default=0.0, help="jaw skin fades in over +/- this many mesh units around the mouth corner instead of switching there (stops a crack behind the corner when --close is large)")
 ap.add_argument("--x-side", action="store_true", help="roll the new Jaw so its local X is the animal's left (+X): positive X opens on every rig. A jaw that points level or up (carnotaurus, ceratosaurus) came out with X flipped or pointing down, which the side check below cannot see (X is square to the side), so --open closed the mouth the wrong way, key_jaw's positive angles shut it, or a +X key yawed the jaw instead of opening it")
 ap.add_argument("--weld", action="store_true", help="weld the glTF's UV-seam vertex copies on import, so the rigid tooth/lip islands are real islands and coincident copies get the same weights (a split mesh cracks open along every seam at the lips)")
+ap.add_argument("--ramp", type=float, default=0.3, help="share of the snout over which head skin ramps from its old (neck) weights to rigid skull/jaw; wider is gentler at the mouth corner (gallimimus 0.8: a 0.3 ramp tore the corners when the head pitched against the neck)")
 ap.add_argument("--debug", action="store_true")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
@@ -137,7 +138,7 @@ bpy.ops.object.mode_set(mode="OBJECT")
 
 jaw_g = ob.vertex_groups.get("Jaw") or ob.vertex_groups.new(name="Jaw")
 names = {g.index: g.name for g in ob.vertex_groups}
-span = 0.3 * (t_tip - t_corner)
+span = a.ramp * (t_tip - t_corner)
 moved = 0
 for v in ob.data.vertices:
     p = mw @ v.co; t = (p - joint).dot(fwd)

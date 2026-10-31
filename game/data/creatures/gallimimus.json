@@ -228,7 +228,10 @@
         "alert"
       ],
       "weak_frac": 0.3,
-      "carry_s": 6.0
+      "carry_s": 6.0,
+      "hold_m": 25.0,
+      "hold_s": 4.0,
+      "_hold": "GALLIFIX (owner 2026-10-31: 'give it passive aggressive behavior like the compy'). ASSUMPTION GM6: once it has turned on a chaser it holds the fight while she stays within hold_m (25 m), so its back-offs (hop_back, leap_back, side bounds, then the sprint back in) are short set-ups, not long flights; hold_s (4 s) after she leaves that ring it lets her go and grazes. It still keeps away from a survivor who leaves it alone, and runs under weak_frac HP."
     }
   }
 }

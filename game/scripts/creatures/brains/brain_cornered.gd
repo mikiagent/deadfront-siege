@@ -48,6 +48,11 @@ func tick(dt: float) -> void:
 			_b._provoked_until = -1.0
 			if _b._valid_target():
 				_b._set_state(&"flee")
+		elif _f("hold_m", 0.0) > 0.0 and _b._valid_target() and _b._flat_dist(_b.attack_target) <= _f("hold_m", 0.0):
+			# hold_m (GALLIFIX, passive-aggressive): once engaged it keeps the fight while the threat stays within hold_m,
+			# so its back-offs are short set-ups, not long flights; hold_s after she leaves it, it lets her go
+			fight_until = maxf(fight_until, _b._now_s() + _f("hold_s", 4.0))
+			_b._provoked_until = maxf(_b._provoked_until, fight_until)
 		return
 	# Tactical flights (a swarm's hurt run, a packmate's death) and a Timid rage come back on their own.
 	if _b.state != &"flee" or not _b._valid_target() or _b._holds_flee() or _b._enrage_fled:

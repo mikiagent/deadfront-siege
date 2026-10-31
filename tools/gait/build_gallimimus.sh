@@ -15,7 +15,7 @@ D=game/assets/creatures/gallimimus; G=tools/gait/gallimimus.json
 T=$(mktemp -d)
 run() { "$BL" -b "$@" > "$T/log_$RANDOM.txt" 2>&1 || { echo "FAILED: $*"; exit 1; }; }
 run -P tools/gait/rig_biped.py -- $D/work/gallimimus_tripo_v1.glb tools/gait/gallimimus_rig.json $T/rig.glb
-run -P tools/jaw/add_jaw.py -- $T/rig.glb $D/gallimimus.glb --open --pivot 0.035 0.6 --split -12 --mid 0.3 --reach 1.0 --close 36
+run -P tools/jaw/add_jaw.py -- $T/rig.glb $D/gallimimus.glb --open --pivot 0.035 0.6 --split -12 --mid 0.3 --reach 1.0 --close 38 --x-side --ramp 0.6
 mkdir -p $T/x $T/g
 pids=()
 run -P tools/gait/make_gait.py -- $D/gallimimus.glb $G walk $T/x/walk.glb & pids+=($!)

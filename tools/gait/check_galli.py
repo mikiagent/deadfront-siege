@@ -10,6 +10,8 @@ Every clip in anim/ is checked for
   is within 0.2 m of the peck target in her chest (3.3 m ahead, 1.3 m up; contact reach 3.1 m) and drove there from at least 0.6 m away,
 - the kick is the hit (attack_heavy at 0.72, bite_combo at 0.815): the right toe tip is 2 m or more ahead at survivor
   height (0.3-1.4 m), moving at >= 3 m/s, after the telegraph raised it at least 1.0 m,
+- the face (GALLIFIX): head and jaw skin edges stretch at most --head-stretch (default 2.0) in every frame, and the lower
+  beak tip stays within 6 cm of the upper beak tip sideways (a skewed Jaw roll yawed it out of the side of the face),
 - hop_back, leap_back, dodge_left/right: frames inside the airborne window (0.2-0.65) are not held to the floor;
   the striking / stepping right foot of the attacks may leave its print.
 usage: Blender -b -P tools/gait/check_galli.py -- <base.glb> <anim_dir> --height 3.8   (exit 1 on any FAIL)
@@ -24,6 +26,7 @@ a = sys.argv[sys.argv.index("--") + 1:]
 base, anim_dir = a[0], a[1]
 H = float(a[a.index("--height") + 1]) if "--height" in a else 3.8
 STRETCH = float(a[a.index("--stretch") + 1]) if "--stretch" in a else 8.0
+HEAD_STRETCH = float(a[a.index("--head-stretch") + 1]) if "--head-stretch" in a else 2.0
 ONLY = a[a.index("--only") + 1].split(",") if "--only" in a else None
 FPS = 24
 PECK = {"attack_primary": [0.42], "bite_combo": [0.092, 0.338]}
@@ -67,12 +70,19 @@ print(f"scale {K:.3f} (rest height {rest[:, 2].max():.2f} m, length {np.ptp(rest
 edges = np.array([e.vertices[:] for e in body.data.edges])
 rl = np.linalg.norm(rest[edges[:, 0]] - rest[edges[:, 1]], axis=1)
 ok = rl > 2e-3 * H
+gi0 = {g.index: g.name for g in body.vertex_groups}
+_dom0 = np.array([gi0[max(v.groups, key=lambda g: g.weight).group] if v.groups else "" for v in body.data.vertices])
+FACE = ok & (np.isin(_dom0[edges[:, 0]], ["Head", "Jaw"]) | np.isin(_dom0[edges[:, 1]], ["Head", "Jaw"]))
 gi = {g.index: g.name for g in body.vertex_groups}
 dom = np.array([gi[max(v.groups, key=lambda g: g.weight).group] if v.groups else "" for v in body.data.vertices])
 TOES = {s: np.where(dom == "Toe." + s)[0] for s in "LR"}
 SOLES = {s: np.where(np.isin(dom, ["Toe." + s, "Metatarsal." + s]))[0] for s in "LR"}
 HEAD = np.where(np.isin(dom, ["Head", "Jaw"]))[0]
 BEAK = HEAD[np.argsort(rest[HEAD, 1])[:8]]  # the beak tip: the front-most head skin at rest
+UPPER = np.where(dom == "Head")[0]
+UPPER = UPPER[np.argsort(rest[UPPER, 1])[:6]]
+LOWER = np.where(dom == "Jaw")[0]
+LOWER = LOWER[np.argsort(rest[LOWER, 1])[:6]]
 TOER = TOES["R"][np.argsort(rest[TOES["R"], 1])[:8]]  # the right claws' tips
 assert all(len(v) > 20 for v in TOES.values()) and len(HEAD) > 20, ({s: len(v) for s, v in TOES.items()}, len(HEAD))
 fails = 0
@@ -101,6 +111,7 @@ for f in sorted(os.listdir(anim_dir)):
         pass
     f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
     lows, stretch, where = [], 1.0, {}
+    face_st, skew = 1.0, 0.0
     toe, sole, beak, toer, front = {s: [] for s in "LR"}, {s: [] for s in "LR"}, [], [], []
     air = AIR.get(clip)
     for fr in range(f0, f1 + 1):
@@ -110,6 +121,13 @@ for f in sorted(os.listdir(anim_dir)):
         lows.append(p[:, 2].min() if not (air and air[0] < u < air[1]) else 0.0)
         l = np.linalg.norm(p[edges[:, 0]] - p[edges[:, 1]], axis=1)
         r = np.where(ok, l / np.maximum(rl, 1e-9), 1.0)
+        fr_face = float(r[FACE].max())
+        if fr_face > face_st:
+            face_st = fr_face
+            k = int(np.argmax(np.where(FACE, r, 0.0)))
+            where["face"] = (fr, dom[edges[k, 0]], dom[edges[k, 1]], round(float(rl[k]), 3))
+        if clip not in LYING:  # skew is read along world x: a body lying on its side turns the head's side axis away
+            skew = max(skew, abs(float(p[LOWER, 0].mean() - p[UPPER, 0].mean())))
         if r.max() > stretch:
             stretch = float(r.max())
             k = int(r.argmax())
@@ -124,6 +142,9 @@ for f in sorted(os.listdir(anim_dir)):
     bad, extra = [], ""
     if stretch > STRETCH:
         bad.append(f"stretch {stretch:.2f}")
+    if face_st > HEAD_STRETCH or skew > 0.06:
+        bad.append(f"face stretch {face_st:.2f} / jaw skew {skew:.3f} m")
+    extra += f" face={face_st:.2f} skew={skew:.3f}"
     if lo < -0.03:
         bad.append(f"sinks {lo:.3f}")
     if clip not in LYING and clip not in ("run", "charge") and hi_low > 0.05:

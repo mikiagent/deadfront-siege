@@ -39,6 +39,7 @@ func _run() -> void:
 	_test_spawns()
 	await _test_fight()
 	await _test_chase()
+	await _test_engaged()
 	if failures.is_empty():
 		print("[t_sp_galli] PASS")
 		quit(0)
@@ -316,6 +317,63 @@ func _test_chase() -> void:
 	c.health.hp = c.health.max_hp * 0.2
 	r = await _run_for(c, player, 2.0, 0.0, seen)
 	_expect(was_fighting and r["states"].has(&"flee") and not c.brain.cornered.fighting(), "under 30 %% HP it runs again (fighting before: %s, states %s)" % [was_fighting, r["states"].keys()])
+	root.get_node("Game").god_mode = false
+	host.free()
+	await physics_frame
+
+## GALLIFIX (owner 2026-10-31: "give it passive aggressive behavior like the compy"): once it has turned on a chaser it
+## stays in the fight, darting back a short way to set up the next peck or kick and coming straight back, instead of
+## long flights. Measured over a 60 s engaged fight against a survivor who stands her ground (GOD on): the share of
+## time spent fleeing and the attack starts per minute.
+const ENGAGED_S := 60.0
+## ASSUMPTION (GALLIFIX): at most 10 % of an engaged minute fleeing (before the fix 1-2 %: it walked off rather than fled).
+const MAX_FLEE_SHARE := 0.10
+## ASSUMPTION (GALLIFIX): out of the fight (the cornered fight over: grazing, wandering off) at most 10 % of the minute.
+const MAX_OUT_SHARE := 0.10
+## ASSUMPTION (GALLIFIX): at least 6 attack starts a minute (before the fix: 1-2, it let her go after fight_s 14 s).
+const MIN_ATTACKS_PER_MIN := 6.0
+
+func _test_engaged() -> void:
+	root.get_node("Game").god_mode = true
+	var a: Array = await _arena()
+	var host: Node3D = a[0]
+	var player = a[1]
+	var c = _spawn(host, player, Vector3(0, 0.1, -12.0), Vector3(0, 0.1, -40.0), false)
+	var seen := {}
+	c.brain.tactic.connect(func(k: StringName) -> void: seen[k] = true)
+	var attacks := [0]
+	c.brain.attack_chosen.connect(func(_m: StringName, _d: float) -> void: attacks[0] += 1)
+	await physics_frame
+	c.brain._spot(player)
+	var r: Dictionary = await _run_for(c, player, 12.0, 7.0, seen)
+	_expect(r["turned"] > 0.0, "engaged: it turned on the chaser (%.1f s)" % r["turned"])
+	attacks[0] = 0
+	var dt := 1.0 / float(Engine.physics_ticks_per_second)
+	var t := 0.0
+	var flee_t := 0.0
+	var far := 0.0
+	var states := {}
+	var out_t := 0.0
+	while t < ENGAGED_S:
+		await physics_frame
+		t += dt
+		if c.brain.state == &"flee":
+			flee_t += dt
+		states[c.brain.state] = float(states.get(c.brain.state, 0.0)) + dt
+		if not c.brain.cornered.fighting():
+			out_t += dt
+		far = maxf(far, c.brain._flat_dist(player))
+	var share := flee_t / ENGAGED_S
+	var apm := float(attacks[0]) * 60.0 / ENGAGED_S
+	var out_share := out_t / ENGAGED_S
+	print("[t_sp_galli] ENGAGED flee_share=%.3f out_of_fight_share=%.3f attacks_per_min=%.1f farthest=%.1f m states %s" % [share, out_share, apm, far, states])
+	_expect(out_share <= MAX_OUT_SHARE, "engaged: out of the fight %.0f %% of the minute (cap %.0f %%)" % [out_share * 100.0, MAX_OUT_SHARE * 100.0])
+	_expect(share <= MAX_FLEE_SHARE, "engaged: fleeing %.0f %% of the minute (cap %.0f %%)" % [share * 100.0, MAX_FLEE_SHARE * 100.0])
+	_expect(apm >= MIN_ATTACKS_PER_MIN, "engaged: %.1f attack starts a minute (floor %.1f)" % [apm, MIN_ATTACKS_PER_MIN])
+	# She walks away out of its hold ring: it lets her go (no hunting her down).
+	player.global_position = c.global_position + Vector3(60, 0.8, 0)
+	var r2: Dictionary = await _run_for(c, player, 6.0, 0.0, seen)
+	_expect(not c.brain.cornered.fighting(), "she leaves its 25 m ring: it lets her go (states %s)" % [r2["states"].keys()])
 	root.get_node("Game").god_mode = false
 	host.free()
 	await physics_frame

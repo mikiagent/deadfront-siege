@@ -179,21 +179,24 @@ def apply(p):
         chain = ["Neck1", "Neck2", "Neck3", "Head"]
         J = [pbs[n].head.copy() for n in chain]
         L = [(J[k + 1] - J[k]).length for k in range(3)]
-        T = goal - want_dir * (beak_tip() - J[3]).length
+        LH = (beak_tip() - J[3]).length
+        dip_dir = want_dir.copy()
         base = J[0]
-        d = T - base
-        side = d.cross(UP).normalized()
-        bow = d.cross(side).normalized()  # up-ish, square to the reach
-        if bow.dot(UP) < 0:
-            bow = -bow
-        P = [base + d * (k / 3.0) + bow * (0.1 * sum(L)) * math.sin(math.pi * k / 3.0) for k in range(4)]
-        for _it in range(20):
-            P[3] = T.copy()
-            for k in (2, 1, 0):
-                P[k] = P[k + 1] + (P[k] - P[k + 1]).normalized() * L[k]
-            P[0] = base.copy()
-            for k in (1, 2, 3):
-                P[k] = P[k - 1] + (P[k] - P[k - 1]).normalized() * L[k - 1]
+        for _outer in range(1):
+            T = goal - want_dir * LH
+            d = T - base
+            side = d.cross(UP).normalized()
+            bow = d.cross(side).normalized()  # up-ish, square to the reach
+            if bow.dot(UP) < 0:
+                bow = -bow
+            P = [base + d * (k / 3.0) + bow * (0.1 * sum(L)) * math.sin(math.pi * k / 3.0) for k in range(4)]
+            for _it in range(20):
+                P[3] = T.copy()
+                for k in (2, 1, 0):
+                    P[k] = P[k + 1] + (P[k] - P[k + 1]).normalized() * L[k]
+                P[0] = base.copy()
+                for k in (1, 2, 3):
+                    P[k] = P[k - 1] + (P[k] - P[k - 1]).normalized() * L[k - 1]
         for k in range(3):  # pose each neck bone to point at its solved child joint (blended by w)
             cur = [pbs[n].head.copy() for n in chain]
             want = cur[k].lerp(cur[k] + (P[k + 1] - P[k]), 1.0)
@@ -205,7 +208,9 @@ def apply(p):
         set_m("Head", Matrix.Translation(hp) @ q.to_matrix().to_4x4() @ Matrix.Translation(-hp) @ pbs["Head"].matrix)
     jb = pbs["Jaw"]
     cur = jb.matrix.copy()
-    set_m("Jaw", rot_about(cur.translation, cur.to_3x3().col[0].normalized(), math.radians(-p.get("jaw", 0.0))) @ cur)
+    # GALLIFIX: the Jaw is rolled with add_jaw.py --x-side (local X = the animal's left), so + opens. Without it the
+    # roll came out skewed and every open key yawed the lower beak out of the side of the face ("face looks mangled").
+    set_m("Jaw", rot_about(cur.translation, cur.to_3x3().col[0].normalized(), math.radians(p.get("jaw", 0.0))) @ cur)
     feet = p.get("feet", {})
     for sd, leg in LEGS.items():
         f = feet.get(sd, (0.0, 0.0, 0.0, 0.0))
@@ -314,7 +319,7 @@ def alert(u):
             "Chest": (4 * up, 0, 0), "Neck1": (-6 * up - 10 * jab, 0, 0), "Neck2": (-8 * up, 0, 0), "Neck3": (6 * up, 3 * shake, 0),
             "Head": (-22 * up + 8 * shake - 6 * jab, 4 * shake, 0),
         }, arms(30 * up, 40 * up, -20 * up, 10 * up), tail_set(-6 * up), tail_wave(u, 6.0, 0.0, cycles=3, env=up)),
-        "jaw": 2 + 30 * hiss + 2 * wave(u, 11) * hiss,
+        "jaw": 2 + 24 * hiss + 2 * wave(u, 11) * hiss,
         "feet": {"L": (0, 0, 0, 0), "R": (stamp, 0.08 * smooth(stamp / 0.45), 0, 0)},
     }
 
@@ -372,7 +377,7 @@ def attack_heavy(u):
                         "Neck3": (0, 2 * tremble, 0), "Head": (-12 * max(0.0, lean) - 8 * min(0.0, lean) * -1, 0, 0)},
                        arms(-25 * abs(lean), 30 * abs(lean)), tail_set(-4 * max(0.0, -lean) + 3 * max(0.0, lean)),
                        tail_wave(u, 3.0, 0.0, cycles=4, env=abs(lean))),
-        "jaw": track(u, [(0, 1), (0.3, 16), (0.6, 22), (H, 30), (0.85, 10), (1, 1)]) + 2 * tremble,
+        "jaw": track(u, [(0, 1), (0.3, 14), (0.6, 18), (H, 24), (0.85, 10), (1, 1)]) + 2 * tremble,
         "feet": {"L": (0, 0, 0, 0), "R": (lift, fwd, 0.02, heel)},
     }
 
