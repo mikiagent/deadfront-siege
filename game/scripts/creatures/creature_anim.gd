@@ -69,6 +69,12 @@ func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 			var nat := CreatureClips.natural_speed(_def, gait, anim.length)
 			if nat > 0.0:
 				_natural[gait] = nat
+	# MEGARUN: a body variant with its own clips may stride its own length (model_variants.<v>.natural_speeds, m/s at
+	# the species' height): the megaloceros doe gallops in her own metres
+	var own: Dictionary = CreatureView.variant_row(_def, host.variant).get("natural_speeds", {}) if host and _def else {}
+	for gait in own:
+		if player.has_animation(StringName(gait)):
+			_natural[StringName(gait)] = float(own[gait])
 	_build_tree()
 	tree.anim_player = tree.get_path_to(player)
 	tree.active = true
@@ -103,6 +109,7 @@ func set_move_speed(mps: float) -> void:
 	if _natural.is_empty():
 		play_locomotion(mps / LEGACY_TOP_MPS)
 		return
+	mps /= _size()  # MEGARUN: a 1.3x body takes 1.3x strides, so it needs fewer per metre
 	var gait := _pick_gait(mps)
 	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
 	_travel(gait)
@@ -143,6 +150,7 @@ func set_move_velocity(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -
 	var nat := CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"walk", 0.0))
+	nat *= _size()
 	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
@@ -157,6 +165,7 @@ func set_gait_clip(clip: StringName, mps: float, vel: Vector3, basis: Basis) -> 
 	var nat := CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"run", 0.0))
+	nat *= _size()
 	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
@@ -282,6 +291,12 @@ func end_timed_attack() -> void:
 	_forced = false
 	if not _dead: play_idle()
 
+## MEGARUN: natural speeds are baked at the species' size; the model is scaled by the genetic body size (alphas
+## ~1.3x, normal 0.85-1.15x), and its strides with it.
+func _size() -> float:
+	var host := get_parent() as Creature
+	return maxf(0.01, host.size_scale()) if host else 1.0
+
 func _can_move() -> bool:
 	return not (_busy or _dead or _hold_knockdown or _forced or _pinning)
 
@@ -376,8 +391,10 @@ func has_state(clip: StringName) -> bool:
 
 func _build_tree() -> void:
 	var sm := AnimationNodeStateMachine.new()
+	# MEGARUN: a species may switch clips off (pipeline.disabled_clips); callers then fall back as for a rig without them
+	var off: Array = _def.pipeline.get("disabled_clips", []) if _def else []
 	for clip in CreatureClips.CONTRACT + CreatureClips.OPTIONAL:
-		if player.has_animation(clip):
+		if player.has_animation(clip) and not str(clip) in off:
 			sm.add_node(clip, _clip_node(clip))
 			_param[clip] = StringName("parameters/%s/ts/scale" % clip)
 	for a in HUBS:

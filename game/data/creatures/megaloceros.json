@@ -75,6 +75,11 @@
       "feed",
       "charge"
     ],
+    "disabled_clips": [
+      "strafe_left",
+      "strafe_right"
+    ],
+    "disabled_clips_note": "MEGARUN (owner 2026-10-31: 'megaloceros doe strafe left animation is cursed... strafe right too'): CreatureAnim builds no strafe states, so a sideways step plays the forward walk. The joust brain never strafes; the GLBs stay for the clip viewer.",
     "model_variants": {
       "stag": {
         "texture": ""
@@ -82,6 +87,10 @@
       "doe": {
         "model": "doe/megaloceros_doe.glb",
         "anim": "doe/anim",
+        "natural_speeds": {
+          "run": 8.539
+        },
+        "natural_speeds_note": "MEGARUN: her run strides 0.85x the stag's (tools/gait/megaloceros/clips.py DOE_STRIDE), and the game draws her GLB 1.069x (fitted to height_meters), so 0.85 x 1.069 x anim_events natural_speeds.megaloceros.run (9.406 -> 8.539; t_megarun checks it). Rebake both together.",
         "tactics": {
           "_about": "ASSUMPTION: the doe has no antlers, so no ram: she runs in to a forehoof strike (a homing charge into attack_primary) and at point blank rears up and stomps or kicks.",
           "charge_straight": false,
