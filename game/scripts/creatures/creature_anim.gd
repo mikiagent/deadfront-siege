@@ -69,6 +69,12 @@ func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 			var nat := CreatureClips.natural_speed(_def, gait, anim.length)
 			if nat > 0.0:
 				_natural[gait] = nat
+	# MEGARUN: a body variant with its own clips may stride its own length (model_variants.<v>.natural_speeds, m/s at
+	# the species' height): the megaloceros doe gallops in her own metres
+	var own: Dictionary = CreatureView.variant_row(_def, host.variant).get("natural_speeds", {}) if host and _def else {}
+	for gait in own:
+		if player.has_animation(StringName(gait)):
+			_natural[StringName(gait)] = float(own[gait])
 	_build_tree()
 	tree.anim_player = tree.get_path_to(player)
 	tree.active = true
@@ -103,8 +109,9 @@ func set_move_speed(mps: float) -> void:
 	if _natural.is_empty():
 		play_locomotion(mps / LEGACY_TOP_MPS)
 		return
-	var gait := _pick_gait(mps)
-	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
+	var m := mps / _body_size()
+	var gait := _pick_gait(m)
+	_scale[gait] = clampf(m / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
 	_travel(gait)
 
 ## Direction-aware locomotion (owner 2026-10-28, every species and ridden mounts): the clip follows
@@ -139,11 +146,11 @@ func set_move_velocity(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -
 	if not _can_move():
 		return
 	# Sidesteps and walk_back (the walk reversed) stride like the walk: natural_speeds.<id>.<clip> when
-	# baked, else the walk's natural speed (ASSUMPTION for the strafes).
-	var nat := CreatureClips.natural_speed(_def, clip)
+	# baked, else the walk's natural speed (ASSUMPTION for the strafes). A variant's own speed for the clip wins.
+	var nat: float = float(_natural[clip]) if _natural.has(clip) else CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"walk", 0.0))
-	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_scale[clip] = clampf(mps / (nat * _body_size()), CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
 ## A named loop (the charge) stride-matched at mps: natural_speeds.<id>.<clip>, else the run's. Falls
@@ -157,7 +164,7 @@ func set_gait_clip(clip: StringName, mps: float, vel: Vector3, basis: Basis) -> 
 	var nat := CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"run", 0.0))
-	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_scale[clip] = clampf(mps / (nat * _body_size()), CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
 ## Global retime on top of every state's own cadence. Each caller owns a named factor (the limp is
@@ -287,6 +294,13 @@ func end_timed_attack() -> void:
 	_forced = false
 	if not _dead: play_idle()
 
+## Natural speeds are baked at body size 1.0; a genome-sized animal (CreatureGenetics.size, 0.85-1.15; MEGARUN: alphas
+## ~1.3x) strides that much longer or shorter, so the cadence divides by it too, once (COMPYREVERT: a 0.91 compy slid
+## 9 % of every step; MEGARUN's alpha megaloceros slipped the same way).
+func _body_size() -> float:
+	var host := get_parent() as Creature
+	return maxf(0.01, host.size_scale()) if host else 1.0
+
 func _can_move() -> bool:
 	return not (_busy or _dead or _hold_knockdown or _forced or _pinning)
 
@@ -381,8 +395,10 @@ func has_state(clip: StringName) -> bool:
 
 func _build_tree() -> void:
 	var sm := AnimationNodeStateMachine.new()
+	# MEGARUN: a species may switch clips off (pipeline.disabled_clips); callers then fall back as for a rig without them
+	var off: Array = _def.pipeline.get("disabled_clips", []) if _def else []
 	for clip in CreatureClips.CONTRACT + CreatureClips.OPTIONAL:
-		if player.has_animation(clip):
+		if player.has_animation(clip) and not str(clip) in off:
 			sm.add_node(clip, _clip_node(clip))
 			_param[clip] = StringName("parameters/%s/ts/scale" % clip)
 	for a in HUBS:
