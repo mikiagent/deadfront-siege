@@ -20,6 +20,8 @@ stalk_idle      unused name; the stalk loop is make_gait.py's (smilodon.json).
 sleep           2.5 s  not looped (the game holds the last frame): lies down on its belly, forepaws out, chin on paws.
 feed            2.0 s  loop: head down to the carcass, jaw tearing and a yank back.
 idle            3.0 s  loop: breathing, a slow look round, tail sway, ear-to-ear head tilt.
+leap            0.75 s the chase bound (SMILORUN): coil, drive off, stretched flight 0.12-0.78, fronts then hinds land on
+                their prints, gathered to run on.
 hit_react       0.6 s  flinch back off the forepaws, head jerks away, jaw snarls.
 
 usage: Blender -b -P tools/gait/make_cat_moves.py -- <base.glb> <out_dir> [clip ...]
@@ -126,6 +128,31 @@ CLIPS = {
         head=dict(pitch=[(0, 4), (0.3, 4), (0.62, 10), (0.7, -22), (1, -10)]),
         jaw=[(0, 20), (0.3, 40), (0.6, 48), (0.69, 48), (0.73, 22), (0.85, 30), (1, 18)],
         tail=dict(lift=[(0, 0), (0.25, 18), (0.5, 8), (0.7, -6), (1, 4)], lash=(0.7, 1.0, 1.5, 10))),
+    # SMILORUN: the chase bound (ASSUMPTION shape). Out of the run: fronts lift as the hinds coil, the hinds drive off at 0.12,
+    # a stretched flight (forelegs reaching, hinds trailing then folding forward), the fronts land on their rest prints at
+    # 0.78 as the body stops, the hinds swing in under the chest (gathered) at 0.88, ready to run on. The game moves the
+    # body only inside airborne (0.12-0.78), so every planted foot sits on its rest print outside it.
+    "leap": dict(
+        n=18, airborne=(0.12, 0.78),
+        body=dict(dy=[(0, 0), (0.12, 0.02), (0.45, -0.02), (0.78, 0.0), (1, 0)],
+                  dz=[(0, -0.04), (0.12, -0.06), (0.3, 0.06), (0.5, 0.09), (0.7, 0.03), (0.8, -0.05), (0.9, -0.04), (1, 0)],
+                  pitch=[(0, -2), (0.12, 3), (0.25, 6), (0.5, 0), (0.72, -8), (0.82, -8), (0.92, 2), (1, 0)]),
+        feet=dict(FL=dict(dy=[(0, 0), (0.06, 0), (0.4, -0.20), (0.7, -0.08), (0.78, 0)], dz=[(0, 0), (0.06, 0), (0.25, 0.10), (0.6, 0.06), (0.78, 0)],
+                          pitch=[(0, 0), (0.06, 30), (0.3, 40), (0.5, -25), (0.72, -10), (0.78, 0)],
+                          follow=[(0, 0), (0.06, 0), (0.14, 1.0), (0.7, 1.0), (0.78, 0)]),
+                  FR=dict(dy=[(0, 0), (0.08, 0), (0.42, -0.22), (0.7, -0.08), (0.78, 0)], dz=[(0, 0), (0.08, 0), (0.27, 0.11), (0.6, 0.06), (0.78, 0)],
+                          pitch=[(0, 0), (0.08, 30), (0.32, 40), (0.52, -25), (0.72, -10), (0.78, 0)],
+                          follow=[(0, 0), (0.08, 0), (0.16, 1.0), (0.7, 1.0), (0.78, 0)]),
+                  HL=dict(dy=[(0, 0), (0.12, 0), (0.35, 0.14), (0.65, 0.04), (0.8, -0.04), (0.88, 0)], dz=[(0, 0), (0.12, 0), (0.35, 0.12), (0.7, 0.12), (0.8, 0.05), (0.88, 0)],
+                          pitch=[(0, 0), (0.1, 25), (0.3, 15), (0.6, 0), (0.8, 5), (0.88, 0)],
+                          follow=[(0, 0), (0.12, 0), (0.2, 1.0), (0.72, 1.0), (0.8, 0.4), (0.88, 0)]),
+                  HR=dict(dy=[(0, 0), (0.12, 0), (0.37, 0.16), (0.66, 0.05), (0.82, -0.03), (0.9, 0)], dz=[(0, 0), (0.12, 0), (0.37, 0.12), (0.7, 0.12), (0.82, 0.05), (0.9, 0)],
+                          pitch=[(0, 0), (0.1, 25), (0.3, 15), (0.6, 0), (0.82, 5), (0.9, 0)],
+                          follow=[(0, 0), (0.12, 0), (0.2, 0.8), (0.72, 0.8), (0.82, 0.3), (0.9, 0)])),
+        neck=dict(pitch=[(0, 0), (0.25, -8), (0.5, 0), (0.72, 10), (0.85, 6), (1, 0)]),
+        head=dict(pitch=[(0, 0), (0.25, -4), (0.72, 6), (1, 0)]),
+        jaw=[(0, 6), (0.3, 14), (0.8, 10), (1, 6)],
+        tail=dict(lift=[(0, 4), (0.25, 2), (0.55, 8), (0.8, 14), (1, 6)])),
     "pin_stab": dict(
         n=58,
         body=dict(dy=[(0, -0.04), (1, -0.04)], dz=[(0, -0.07), (0.3, -0.06), (0.38, -0.09), (0.6, -0.06), (0.74, -0.09), (1, -0.07)],

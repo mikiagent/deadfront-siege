@@ -457,9 +457,12 @@ func _spot(who: Node3D) -> void:
 	attack_target = who
 	_combat_memory_left = 4.0
 	_set_state(&"alert")
-	_alert_left = maxf(_alert_left, 0.6)
+	# spot_alert_s (SMILORUN, the saber cat: a burst hunter does not stop to roar at prey that is already running)
+	var look := float(profile.get("spot_alert_s", 0.6))
+	_alert_left = maxf(_alert_left, look)
 	creature.mark_aggro_now()
-	creature.anim.play_clip(&"sniff" if creature.anim.has_state(&"sniff") else &"alert")
+	if look >= 0.3:
+		creature.anim.play_clip(&"sniff" if creature.anim.has_state(&"sniff") else &"alert")
 	_propagate_alert(who)
 
 func _nearest_live_prey(radius: float) -> Node3D:

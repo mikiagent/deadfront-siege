@@ -137,6 +137,13 @@
         0.6
       ],
       "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn"
+    },
+    "leap": {
+      "airborne": [
+        0.12,
+        0.78
+      ],
+      "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
     }
   },
   "natural_speeds": {
@@ -396,19 +403,23 @@
     },
     "smilodon": {
       "height_m": 2.0,
-      "run_l": 6.096,
-      "run_len": 0.458,
-      "run_r": 6.142,
+      "run_l": 6.213,
+      "run_len": 0.583,
+      "run_r": 6.213,
       "walk_l": 1.182,
       "walk_len": 1.25,
       "walk_r": 1.182,
       "walk": 1.182,
-      "run": 6.119,
+      "run": 6.213,
       "stalk": 0.551,
       "strafe_left": 0.845,
       "strafe_right": 0.845,
       "walk_back": 0.845,
-      "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684)"
+      "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684); SMILORUN: run re-baked (bake_clip_speeds.py --dry-run) on the rotary bound; lope and sprint = make_gait stride / cycle x 2.0/0.5684 (0.77/0.75, 1.8/0.5 mesh units/s)",
+      "lope": 3.612,
+      "lope_len": 0.75,
+      "sprint": 12.667,
+      "sprint_len": 0.5
     },
     "tarbosaurus": {
       "height_m": 6.8,
