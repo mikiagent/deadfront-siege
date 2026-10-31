@@ -210,6 +210,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		Hitbox.debug_draw = not Hitbox.debug_draw  # HITBOXES: hurtboxes green, each swing's sweep red
 		print("[creature_lab] hitbox debug %s" % ("on" if Hitbox.debug_draw else "off"))
 		return
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_B:
+		spawn_panel.next_weapon()  # PARTCOMBAT: slab blade, greatblade, PRO bow, bare hands
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_N:
 		_enrage_nearest()
 		return

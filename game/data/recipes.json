@@ -3472,6 +3472,136 @@
       "requires_node": "iron_weapons"
     },
     {
+      "id": "iron_slab_blade",
+      "display_name": "Iron Slab Blade",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_iron",
+          "count": 5,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 2,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "iron_slab_blade",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 5.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons",
+      "_about": "ASSUMPTION: the iron rung (Improved tier), more metal than the Iron Sword."
+    },
+    {
+      "id": "steel_greatblade",
+      "display_name": "Steel Greatblade",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "tier_steel",
+          "count": 8,
+          "primary": true
+        },
+        {
+          "category": "handle",
+          "count": 2,
+          "primary": false
+        },
+        {
+          "category": "lashing",
+          "count": 3,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "steel_greatblade",
+        "count": 1
+      },
+      "station": "anvil",
+      "seconds": 6.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "iron_weapons",
+      "_about": "ASSUMPTION: the steel rung (PRO tier), one above the slab blade."
+    },
+    {
+      "id": "pro_bow",
+      "display_name": "PRO-Class Bow",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "bone",
+          "count": 3,
+          "primary": true
+        },
+        {
+          "category": "tier_steel",
+          "count": 1,
+          "primary": false
+        },
+        {
+          "category": "bowstring",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "pro_bow",
+        "count": 1
+      },
+      "station": "workbench",
+      "seconds": 5.0,
+      "process_step": "bind",
+      "process_add": 1,
+      "tree": "weapon_tools",
+      "requires_node": "bow_1",
+      "_about": "Catalog: Bow Limb + Tang + Durable Bowstring at a Weapon Workbench. ASSUMPTION until limbs and tangs exist: 3 bone (the limb), 1 steel (the tang), 1 bowstring, at the workbench."
+    },
+    {
+      "id": "arrow",
+      "display_name": "Arrow",
+      "skill": "weapon_tools",
+      "max_level": 60,
+      "slots": [
+        {
+          "category": "wood",
+          "count": 1,
+          "primary": true
+        },
+        {
+          "category": "stone",
+          "count": 1,
+          "primary": false
+        }
+      ],
+      "output": {
+        "id": "arrow",
+        "count": 5
+      },
+      "station": null,
+      "seconds": 1.5,
+      "process_step": "bind",
+      "process_add": 1,
+      "requires_node": "bow_1",
+      "_about": "ASSUMPTION: a wood shaft and a stone head make 5 arrows, by hand."
+    },
+    {
       "id": "leather_helm",
       "display_name": "Leather Helm",
       "skill": "tailoring",

@@ -25,6 +25,7 @@ static func attach(anchor: Node3D, def_id: StringName, hunting: bool) -> Node3D:
 			var length := float(row.get("length_m", 0.0))
 			if length > 0.0:
 				size = 0.9 / length
+			size = float(row.get("scale", size))  # PARTCOMBAT weapons are modelled at their real size
 	if path == "" or not ResourceLoader.exists(path):
 		var key := PropVisuals.tool_model_key(def_id)
 		path = "res://assets/props/kenney/%s.glb" % key if key != "" else ""
@@ -37,7 +38,8 @@ static func attach(anchor: Node3D, def_id: StringName, hunting: bool) -> Node3D:
 		return null
 	inst.name = "HeldWeapon" if hunting else "HeldTool"
 	anchor.add_child(inst)
-	grip(inst, anchor, size)
+	var row := weapon_row(def_id) if hunting else {}
+	grip(inst, anchor, size, float(row.get("grip_frac", GRIP_FROM_BUTT)), str(row.get("hand", "right")) == "left")
 	return inst
 
 ## props_manifest "weapons" row; blunt weapons without a row borrow the club's.
@@ -51,14 +53,17 @@ static func weapon_row(def_id: StringName) -> Dictionary:
 	return row if row is Dictionary else {}
 
 ## Handle through the palm, `size` metres per model unit, whatever the bone's own scale.
-static func grip(inst: Node3D, anchor: Node3D, size: float) -> void:
+## grip_frac: where the fist closes, as a share of the handle axis from the butt; left: the LeftHand frame (mirrored:
+## its palm is on -Z), the bow's hand.
+static func grip(inst: Node3D, anchor: Node3D, size: float, grip_frac: float = GRIP_FROM_BUTT, left: bool = false) -> void:
 	var s := anchor.global_basis.get_scale().x
 	s = s if s > 0.0001 else 1.0
 	var box := _bounds(inst, Transform3D.IDENTITY)
 	var b := GRIP.scaled(Vector3.ONE * (size / s))
 	# The handle runs up the model's own Y axis (x = z = 0) in every prop we ship.
-	var hold := Vector3(0.0, box.position.y + box.size.y * GRIP_FROM_BUTT, 0.0)
-	inst.transform = Transform3D(b, PALM / s - b * hold)
+	var hold := Vector3(0.0, box.position.y + box.size.y * grip_frac, 0.0)
+	var palm := Vector3(PALM.x, PALM.y, -PALM.z) if left else PALM
+	inst.transform = Transform3D(b, palm / s - b * hold)
 
 ## Mesh bounds in the model's own space.
 static func _bounds(n: Node, xf: Transform3D) -> AABB:

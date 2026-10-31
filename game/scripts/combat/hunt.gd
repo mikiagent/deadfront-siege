@@ -48,6 +48,9 @@ func setup(p: Player) -> void:
 func start(t: Creature) -> void:
 	if t == null or t.health.dead or t.is_pet:
 		return  # F / retaliation / taps never turn the survivor on his own pet
+	if t != target:
+		aim_section = &""
+		SectionHighlight.show_on(t, &"")
 	target = t
 	_resume_after_move = false
 	_attach_ring(t)
@@ -170,8 +173,29 @@ func swing_move(w: ItemStack) -> Array:
 	if w == null:
 		return [&"punch", &""]
 	var def := w.def()
+	var ch := chain_of(def)
+	if not ch.is_empty():
+		if Time.get_ticks_msec() * 0.001 - _chain_at > CHAIN_RESET_S:
+			_chain_i = 0  # a pause starts the combo again
+		return [StringName(str(ch[_chain_i % ch.size()])), weapon_class(def)]
 	var heavy := def != null and def.damage_type == &"blunt" and _swing_damage(w) > CombatTuning.num("player_melee", "heavy_swing_min_damage", 10.0)
 	return [&"heavy" if heavy else &"swing", weapon_class(def)]
+
+## HEAVY BLADES: a weapon row with a "chain" plays its own moves in order (hitboxes.json survivor.weapons.<class>.chain,
+## each a survivor.moves row with its clip, hit windows, channels and damage_mult): the one-hander's cross-slash
+## combo, impale and chop, the two-hander's overhead slam and bat sweep. [] for every other weapon.
+static func chain_of(def: ItemDef) -> Array:
+	if def == null:
+		return []
+	return ((Hitbox.data().get("survivor", {}) as Dictionary).get("weapons", {}).get(str(def.tool_class), {}) as Dictionary).get("chain", [])
+
+static func move_row(move: StringName) -> Dictionary:
+	return ((Hitbox.data().get("survivor", {}) as Dictionary).get("moves", {}) as Dictionary).get(str(move), {})
+
+## ASSUMPTION (PC9): a chain restarts at its first move after this long without a swing.
+const CHAIN_RESET_S := 2.5
+var _chain_i := 0
+var _chain_at := -99.0
 
 ## The weapons row the swing takes its blade from: the tool class when the data has one, else the damage type.
 static func weapon_class(def: ItemDef) -> StringName:
@@ -189,8 +213,39 @@ func aim_point(t: Creature) -> Vector3:
 	if hb:
 		var feet := MeleeQuery.feet_y(player)
 		p = hb.nearest_point(Vector3(player.global_position.x, feet + 1.0, player.global_position.z), feet - 0.1, feet + REACH_UP_M)
+		# PARTCOMBAT focus: she walks to and swings at the focused section when it comes into her reach band.
+		var focus := focus_point(t, feet)
+		if focus != Vector3.INF:
+			p = focus
 		p.y = t.global_position.y
 	return p if Vector2(p.x - player.global_position.x, p.z - player.global_position.z).length() > 0.3 else t.global_position
+
+## PARTCOMBAT: the body section the player picked (the target card's picker or a tap on the animal's body), "" = none.
+## Melee steers its swings at it where it can reach it; ranged shots aim at it (BodySections.aim_point).
+var aim_section: StringName = &""
+
+func set_aim_section(section: StringName) -> void:
+	aim_section = section
+	SectionHighlight.show_on(target, section)
+
+## The point of the focused section nearest her, among its capsules inside her reach band; INF when none reaches it.
+func focus_point(t: Creature, feet: float) -> Vector3:
+	if aim_section == &"" or t == null:
+		return Vector3.INF
+	var at := Vector3(player.global_position.x, feet + 1.0, player.global_position.z)
+	var best := Vector3.INF
+	var best_d := INF
+	for cap in BodySections.caps_of(t, aim_section):
+		var a: Vector3 = cap["wa"]
+		var b: Vector3 = cap["wb"]
+		var r := float(cap["wr"])
+		if minf(a.y, b.y) - r > feet + REACH_UP_M or maxf(a.y, b.y) + r < feet - 0.1:
+			continue
+		var q := Geometry3D.get_closest_point_to_segment(at, a, b)
+		if q.distance_to(at) < best_d:
+			best_d = q.distance_to(at)
+			best = q + (at - q).normalized() * r
+	return best
 
 func _auto_attack() -> void:
 	# A click-to-move order outranks the auto-attack: she keeps her own path to the clicked point.
@@ -250,14 +305,29 @@ func begin_swing() -> void:
 	var def := w.def() if w else null
 	var rate := def.attack_rate if def and def.attack_rate > 0.0 else 1.0
 	var mv := swing_move(w)
+	var row := move_row(mv[0]) if not chain_of(def).is_empty() else {}
+	var forward := aim_point(target) - player.global_position
+	forward.y = 0.0
+	if not row.is_empty():
+		# A chain move: its own clip at its own pace; each hit window lands at its end (the sweep's out and back).
+		var clip := StringName(str(row.get("clip", mv[0])))
+		player.anim.play_clip(clip)
+		var length := player.rig.anim_player.get_animation(clip).length if player.rig and player.rig.has_clip(clip) else 1.0
+		_swing_cd = maxf(length * float(row.get("recover", 1.0)), CombatTuning.num("player_melee", "basic_cooldown_s", 0.8))
+		_chain_i += 1
+		_chain_at = Time.get_ticks_msec() * 0.001 + length
+		_swing_pending = true
+		swing_started.emit()
+		var hits: Array = row.get("hits", [[0.4, 0.6]])
+		for i in hits.size():
+			get_tree().create_timer(float(hits[i][1]) * length, false).timeout.connect(_on_swing_hit.bind(weakref(target), w, forward.normalized(), mv, i, i == hits.size() - 1), CONNECT_ONE_SHOT)
+		return
 	if w == null:
 		player.play_punch()
 	else:
 		player.play_attack(mv[0] == &"heavy")
 	# Basic attack cooldown (owner: no basic spam): the weapon's cadence, never under basic_cooldown_s.
 	_swing_cd = maxf(1.0 / maxf(0.2, rate), CombatTuning.num("player_melee", "basic_cooldown_s", 0.8))
-	var forward := aim_point(target) - player.global_position
-	forward.y = 0.0
 	_swing_pending = true
 	swing_started.emit()
 	get_tree().create_timer(hit_delay(w), false).timeout.connect(_on_swing_hit.bind(weakref(target), w, forward.normalized(), mv), CONNECT_ONE_SHOT)
@@ -271,8 +341,9 @@ static func hit_delay(w: ItemStack) -> float:
 	var t := CombatTuning.section("player_melee")
 	return float(t.get("hit_frac", 0.6)) * float(t.get("swing_seconds", 0.65)) / maxf(0.2, rate)
 
-func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3, mv: Array = []) -> void:
-	_swing_pending = false
+func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3, mv: Array = [], hit_index: int = 0, last: bool = true) -> void:
+	if last:
+		_swing_pending = false
 	var t := ref.get_ref() as Creature
 	if t == null or t != target or t.health.dead or player == null or player.dead:
 		return  # hunt stopped or retargeted mid-swing: the swing is lost, not landed on the old target
@@ -284,16 +355,17 @@ func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3, mv: Array = [])
 			mv = swing_move(w)
 		# Judged facing where the swing was aimed when it started (the reach test's direction), else where
 		# she has turned since (PlayerSim.face_tick tracks the nearest part, which can flip mid-swing).
-		var hit := Hitbox.strike(player, mv[0], t, 0, mv[1], false, forward)
+		var hit := Hitbox.strike(player, mv[0], t, hit_index, mv[1], false, forward)
 		if hit.is_empty():
-			hit = Hitbox.strike(player, mv[0], t, 0, mv[1], false, aim_point(t) - player.global_position)
+			hit = Hitbox.strike(player, mv[0], t, hit_index, mv[1], false, aim_point(t) - player.global_position)
 		if hit.is_empty():
 			CombatAvoid.avoided(t, player, &"miss")
 			return  # it stepped out of the swing
 		if not MeleeQuery.clear(player, t):
 			return
 		Hitbox.mark(t, hit)
-		land_hit(t, w, hit.get("spot", {}))
+		hit["move"] = mv[0]
+		land_hit(t, w, hit.get("spot", {}), hit)
 		return
 	var offset := aim_point(t) - player.global_position
 	offset.y = 0.0
@@ -330,14 +402,15 @@ func _swing_damage(w: ItemStack) -> float:
 
 ## Resolve one swing that reached the target. Returns whether it landed. Statuses, wear, XP
 ## and the tyrant counter happen only on a landed hit. spot: the crit spot its hitbox passed through (Hitbox.strike).
-func land_hit(t: Creature, w: ItemStack, spot: Dictionary = {}) -> bool:
+## hit: the Hitbox.strike result ({part, surface}): its body section takes armour, Wounds and build-up (BodyWounds).
+func land_hit(t: Creature, w: ItemStack, spot: Dictionary = {}, hit: Dictionary = {}) -> bool:
 	var how := swing_outcome(t)
 	if how != &"":
 		CombatAvoid.avoided(t, player, how)
 		return false
 	var tune := CombatTuning.section("player_melee")
 	var def := w.def() if w else null
-	var dmg := _swing_damage(w)
+	var dmg := _swing_damage(w) * float(move_row(hit.get("move", &"")).get("damage_mult", 1.0))
 	var dtype := def.damage_type if def else &"blunt"
 	var defense := t.defense_for(false) * t.statuses.defense_mult()
 	var dealt: float = maxf(dmg * float(tune.get("min_damage_frac", 0.05)), dmg - defense * float(tune.get("defense_factor", 0.5)))
@@ -351,21 +424,35 @@ func land_hit(t: Creature, w: ItemStack, spot: Dictionary = {}) -> bool:
 	# +0.2 % per Melee level.
 	var kind := effectiveness(t, dtype)
 	dealt *= CombatCounters.multiplier(t.def.archetype, dtype)
+	# BODY SECTIONS: unbroken armour on the section takes a cut of the hit; a Wound there crits like a crit spot.
+	var section: StringName = BodySections.of_hit(t, hit["part"], hit.get("surface", hit.get("at", t.global_position))) if hit.has("part") else &""
+	var armour := BodyWounds.damage_mult(t, section)
+	dealt *= armour
+	if armour < 1.0:
+		kind = &"armoured"
+	var wound := BodyWounds.wound_spot(t, section, hit.get("surface", Vector3.ZERO)) if spot.is_empty() else {}
 	var crit_chance := float(tune.get("crit_base", 0.08)) + (float(tune.get("crit_behind", 0.2)) if behind else 0.0) + float(tune.get("crit_per_melee_level", 0.002)) * float(melee_lv)
 	# WEAK SPOTS: a hit in a crit spot is a sure crit at the spot's multiplier; any other hit rolls the chance crit.
 	var spot_mult := CritSpots.land(t, spot, player)
 	if spot_mult > 0.0:
 		dealt *= spot_mult
 		kind = CritSpots.KIND
+	elif not wound.is_empty():
+		dealt *= float(wound["mult"])
+		kind = &"wound"
+		t.hit_burst(BodyWounds.GASH, 0.18, 18, 0.4, wound["centre"])
 	elif CombatTuning.roll(crit_chance):
 		dealt *= float(tune.get("crit_mult", 1.75))
 		kind = &"crit"
 	t.next_hit_kind = kind
 	t.health.take_damage(dealt, player)
+	if section != &"":
+		var chans: Array = move_row(hit.get("move", &"")).get("channels", BodyWounds.channels(def))
+		BodyWounds.register(t, section, chans, hit.get("surface", hit.get("at", t.global_position)), hit["part"], player)
 	hit_landed.emit(t)
 	if player.skills:
 		player.skills.add_xp("melee", int(tune.get("xp_per_hit", 2)))
-	print("[combat] player hit %s dmg=%.1f type=%s kind=%s" % [t.def.id, dealt, dtype, kind])
+	print("[combat] player hit %s dmg=%.1f type=%s kind=%s section=%s" % [t.def.id, dealt, dtype, kind, section])
 	wear_weapon(w)
 	apply_counter_hit(w, t)
 	if dtype == &"blunt" and t.brain is TyrantBrain: (t.brain as TyrantBrain).blunt_counter()
@@ -419,7 +506,7 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 func can_start_tactic() -> bool:
 	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"):
 		return false
-	if player.anim and player.anim._busy and not player.anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
+	if player.anim and player.anim._busy and not (player.anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"] or PlayerAnim.is_weapon_move(player.anim.current_clip)):
 		return false
 	if player.sim and player.sim._stagger_left > 0.0:
 		return false

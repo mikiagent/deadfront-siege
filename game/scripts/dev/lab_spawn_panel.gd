@@ -112,6 +112,12 @@ func setup(p: Player) -> void:
 	nxt.position = Vector2(16, 96 + 2 * (SheetChrome.TAP + 8))
 	nxt.pressed.connect(next_species)
 	add_child(nxt)
+	_weapon_btn = SheetChrome.gold_button("WEAPON")
+	_weapon_btn.name = "WeaponCycle"
+	_weapon_btn.custom_minimum_size = Vector2(220, SheetChrome.TAP)
+	_weapon_btn.position = Vector2(16 + 140 + 8, 96 + 2 * (SheetChrome.TAP + 8))
+	_weapon_btn.pressed.connect(next_weapon)
+	add_child(_weapon_btn)
 	info = SheetChrome.label("", 16, UiTokens.TEXT, false)
 	info.name = "MovesInfo"
 	info.position = Vector2(16, 96 + 3 * (SheetChrome.TAP + 8))
@@ -193,6 +199,29 @@ func _fill_species() -> void:
 	if not _ids.has(species_id) and not _ids.is_empty():
 		species_id = _ids[0]
 	_refresh()
+
+## PARTCOMBAT: the WEAPON button (key B in the fight lab) puts the next test weapon in her hands: the one-handed Iron
+## Slab Blade, the two-handed Steel Greatblade, the PRO-Class Bow (with 200 arrows), then bare hands.
+const LAB_WEAPONS: Array[StringName] = [&"iron_slab_blade", &"steel_greatblade", &"pro_bow", &""]
+var _weapon_btn: Button
+var _weapon_i := -1
+
+func next_weapon() -> StringName:
+	_weapon_i = (_weapon_i + 1) % LAB_WEAPONS.size()
+	var id := LAB_WEAPONS[_weapon_i]
+	var cur := player.inventory.equipped_weapon()
+	if cur:
+		player.inventory.unequip(Inventory.slot_for(cur.def()))
+	if id != &"":
+		if player.inventory.count_of(id) < 1:
+			player.inventory.add(ItemStack.make(id, 1, {}, 30))
+		player.inventory.equip(Inventory.slot_for(Data.item(id)), id)
+		var ammo := Data.item(id).ammo_id
+		if ammo != &"" and player.inventory.count_of(ammo) < 50:
+			player.inventory.add(ItemStack.make(ammo, 200))
+	_weapon_btn.text = "WEAPON: %s" % (Data.item(id).display_name if id != &"" else "bare hands")
+	print("[fight_lab] weapon %s" % (id if id != &"" else &"none"))
+	return id
 
 func toggle_god() -> void:
 	Game.god_mode = not Game.god_mode

@@ -735,6 +735,22 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 			col = CritSpots.BURST
 			fs = 26
 			shown = "WEAK SPOT %s!" % shown
+		&"wound":  # PARTCOMBAT: a sure crit into a Wound
+			col = Color(1.0, 0.25, 0.25)
+			fs = 26
+			shown = "WOUND %s!" % shown
+		&"armoured":  # PARTCOMBAT: unbroken armour took the hit
+			col = Color(0.7, 0.72, 0.78)
+			fs = 15
+			shown = "%s ARMOUR" % shown
+		&"wound_formed":  # PARTCOMBAT: the first time a Wound opens on a section
+			col = BodyWounds.GASH.lightened(0.35)
+			fs = 28
+			shown = "WOUND!"
+		&"armor_break":  # PARTCOMBAT: the first time armour cracks on a section
+			col = BodyWounds.CRACK
+			fs = 28
+			shown = "ARMOR BREAK!"
 	label.text = shown
 	label.position = Vector2(70 + randf_range(-16.0, 16.0), 12)
 	label.add_theme_font_size_override("font_size", fs)

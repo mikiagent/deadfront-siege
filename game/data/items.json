@@ -3672,6 +3672,84 @@
       "market_category": "weapon"
     },
     {
+      "id": "iron_slab_blade",
+      "display_name": "Iron Slab Blade",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "drag_blade",
+      "attack_rate": 0.8,
+      "damage": 46,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 140,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "rare",
+      "market_category": "weapon",
+      "_about": "HEAVY BLADES (owner 2026-10-31): a one-handed slab of dark iron as long as the survivor, its tip dragging behind her. Moves: cross-slash 3-combo, impale, heavy chop (hitboxes.json survivor.weapons.drag_blade). ASSUMPTION numbers and tier (iron, the Improved rung)."
+    },
+    {
+      "id": "steel_greatblade",
+      "display_name": "Steel Greatblade",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "great_blade",
+      "attack_rate": 0.6,
+      "damage": 64,
+      "damage_type": "slashing",
+      "is_work_tool": false,
+      "max_durability": 180,
+      "stats_per_level": {
+        "damage": 0.02,
+        "max_durability": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "weapon",
+      "_about": "HEAVY BLADES (owner 2026-10-31): a massive two-handed blade twice a greatsword's width, dark mottled steel, blunt rounded tip; dragged behind her, lifted overhead and slammed down, or swung like a bat and back (survivor.weapons.great_blade). The strongest Armor-break tool. ASSUMPTION numbers and tier (steel, one rung above the slab blade)."
+    },
+    {
+      "id": "pro_bow",
+      "display_name": "PRO-Class Bow",
+      "categories": [
+        "weapon"
+      ],
+      "tool_class": "bow",
+      "damage": 40,
+      "damage_type": "piercing",
+      "attack_rate": 0.8,
+      "range_m": 30,
+      "ammo_id": "arrow",
+      "max_durability": 160,
+      "stats_per_level": {
+        "damage": 0.02
+      },
+      "stack_max": 1,
+      "base_level": 1,
+      "rarity": "epic",
+      "market_category": "weapon",
+      "_about": "PARTCOMBAT: the PRO-Class Bow of the Durango catalog (34_crafting_materials_catalog: Bow Limb + Tang + Durable Bowstring, Weapon Workbench Lv 50+), the bow on the same top rung as the Steel Greatblade. Aimed at a body section; arrows fly faster than stones (combat_tuning ranged.projectile_speed). ASSUMPTION numbers."
+    },
+    {
+      "id": "arrow",
+      "display_name": "Arrow",
+      "categories": [
+        "ammunition"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "weapon",
+      "rarity": "uncommon"
+    },
+    {
       "id": "leather_helm",
       "display_name": "Leather Helm",
       "categories": [

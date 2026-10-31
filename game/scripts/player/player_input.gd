@@ -295,6 +295,14 @@ func interact_tap_target(col: Object) -> void:
 			p.actions.begin_field_tame(c)
 		elif _fighting() and c != p.hunt.target and not c.health.dead:
 			p.actions.attack(c)  # [owner 2026-10-28] in combat a tap retargets at once (no swords step)
+		# PARTCOMBAT: a tap on the body of the animal she fights picks the section under the finger (ranged aim, melee focus).
+		if p.hunt and c == p.hunt.target and Hurtboxes.of(c):
+			var cam := p.get_viewport().get_camera_3d()
+			if cam:
+				var from := cam.project_ray_origin(Game.pointer)
+				var sec := BodySections.on_ray(c, from, from + cam.project_ray_normal(Game.pointer) * 300.0)
+				if sec != &"":
+					p.hunt.set_aim_section(sec)
 		# Out of combat any other wild animal stays selected only: the swords hex or E starts the fight.
 	elif col is ConstructionSite:
 		# Spec 30 §7: tapping a placed site opens its sheet (Deposit / Withdraw / Work / Cancel).

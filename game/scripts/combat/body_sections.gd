@@ -61,6 +61,9 @@ static func cap_section(c: Node, cap: Dictionary) -> StringName:
 		cap["section"] = base_of(c, str(cap["part"]))
 	return cap["section"]
 
+static func is_split(c: Node, section: StringName) -> bool:
+	return splits_of(c).any(func(sp: Dictionary) -> bool: return StringName(str(sp["to"])) == section)
+
 static func is_armoured(c: Node, section: StringName) -> bool:
 	return str(section) in (_species(c).get("armoured", []) as Array)
 
@@ -79,9 +82,15 @@ static func of_hit(c: Node, part: StringName, at: Vector3) -> StringName:
 
 ## The section of the capsule surface nearest a world point (crit spots, taps, ranged).
 static func section_at(c: Node, at: Vector3) -> StringName:
+	var cap := cap_at(c, at)
+	return _split(c, cap, at) if not cap.is_empty() else &""
+
+## The hurtbox capsule a world point belongs to: the one it is deepest inside (as a share of the radius), else the
+## nearest surface.
+static func cap_at(c: Node, at: Vector3) -> Dictionary:
 	var hb := Hurtboxes.of(c)
 	if hb == null:
-		return &""
+		return {}
 	hb.sync()
 	var best: Dictionary = {}
 	var best_d := INF
@@ -93,7 +102,7 @@ static func section_at(c: Node, at: Vector3) -> StringName:
 		if d < best_d:
 			best_d = d
 			best = cap
-	return _split(c, best, at) if not best.is_empty() else &""
+	return best
 
 static func _split(c: Node, cap: Dictionary, at: Vector3) -> StringName:
 	var sec := cap_section(c, cap)
@@ -115,6 +124,26 @@ static func _split(c: Node, cap: Dictionary, at: Vector3) -> StringName:
 			if share < float(sp["base_frac"]) and h > -0.2 * r:  # the back of the skull, not its underside
 				return StringName(str(sp["to"]))
 	return sec
+
+## The section a ray (a tap through the camera) meets first on this body, or "".
+static func on_ray(c: Node, from: Vector3, to: Vector3) -> StringName:
+	var hb := Hurtboxes.of(c)
+	if hb == null:
+		return &""
+	hb.sync(true)
+	var best := INF
+	var at := Vector3.INF
+	for cap in hb.caps:
+		var pts := Geometry3D.get_closest_points_between_segments(from, to, cap["wa"], cap["wb"])
+		if pts[0].distance_to(pts[1]) <= float(cap["wr"]):
+			var d := from.distance_to(pts[0])
+			if d < best:
+				best = d
+				# Back up along the ray to the capsule's surface: the point the finger is on.
+				var r := float(cap["wr"])
+				var off := pts[0].distance_to(pts[1])
+				at = pts[0] - (to - from).normalized() * sqrt(maxf(0.0, r * r - off * off))
+	return section_at(c, at) if at != Vector3.INF else &""
 
 ## The capsule end nearest the bone's own joint.
 static func _base_end(c: Node, cap: Dictionary) -> Vector3:
