@@ -15,7 +15,7 @@ func _ready() -> void:
 	World.occupation = "Gatherer"
 	World.pioneer_level = 100
 	LabKit.give(player, &"stone", 999)
-	for id in [&"stegosaurus", &"compsognathus", &"protoceratops"]:
+	for id in [&"stegosaurus", &"compsognathus", &"zebraceratops"]:
 		var rec := PetRecord.from_def(Data.creature(id), &"B")
 		rec.level = 100
 		rec.xp = 18

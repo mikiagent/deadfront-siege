@@ -335,28 +335,28 @@ func _test_pet_hp_and_summon() -> void:
 	block.queue_free()
 	await process_frame
 
-## tame-13, tame-16, build-storage-01: the pet radial offers Bag on a protoceratops (a mount with a
+## tame-13, tame-16, build-storage-01: the pet radial offers Bag on a zebraceratops (a mount with a
 ## bag), Bag opens that bag, Feed reaches the pet whose radial was opened (not just the first one),
 ## and a bag dump into full storage keeps what did not fit.
 func _test_pet_menu_bag_feed_dump() -> void:
 	await _reset_at(Vector3(0, 1.0, 0))
 	var raptor_rec = PetRecordS.from_def(data.creature(&"velociraptor"), &"A")
-	var proto_rec = PetRecordS.from_def(data.creature(&"protoceratops"), &"A")
+	var zebra_rec = PetRecordS.from_def(data.creature(&"zebraceratops"), &"A")
 	player.bonded.append(raptor_rec)
-	player.bonded.append(proto_rec)
-	player.summon_pet(player.bonded.size() - 1)  # the protoceratops is out first
+	player.bonded.append(zebra_rec)
+	player.summon_pet(player.bonded.size() - 1)  # the zebraceratops is out first
 	player.summon_pet(player.bonded.size() - 2)
 	await physics_frame
 	var raptor = _out_for(raptor_rec)
-	var proto = _out_for(proto_rec)
+	var proto = _out_for(zebra_rec)
 	var ids: Array = []
 	for e in player.pets.entries(proto):
 		ids.append(e["id"])
-	_expect(&"ride" in ids and &"bag" in ids and &"feed" in ids and &"dismiss" in ids, "protoceratops menu: %s" % [ids])
+	_expect(&"ride" in ids and &"bag" in ids and &"feed" in ids and &"dismiss" in ids, "zebraceratops menu: %s" % [ids])
 	player.pets.interact(proto)
 	_expect(player.pets.menu.visible and player.mounted_on == null, "tapping a mount pet opens its menu instead of mounting it")
 	player.pets._on_menu(proto, &"bag")
-	_expect(player.ui.visible and player.ui.pet_bag == proto_rec.bag, "Bag opens the protoceratops's bag")
+	_expect(player.ui.visible and player.ui.pet_bag == zebra_rec.bag, "Bag opens the zebraceratops's bag")
 	player.ui.visible = false
 	# Feed: the menu was opened on the raptor, the second pet out (the first, a herbivore, refuses meat).
 	player.inventory.add(ItemStackS.make(&"raw_meat", 1))
@@ -367,15 +367,15 @@ func _test_pet_menu_bag_feed_dump() -> void:
 	player.feed_summoned_pet_slot(slot)
 	_expect(raptor.hunger > 1.0, "feeding reaches the focused pet, not only the first summoned (hunger %.1f)" % raptor.hunger)
 	# Dump into a one-slot store: one stack moves, the other stays in the pet's bag.
-	proto_rec.bag.add(ItemStackS.make(&"stone", 1))
-	proto_rec.bag.add(ItemStackS.make(&"branch", 1))
+	zebra_rec.bag.add(ItemStackS.make(&"stone", 1))
+	zebra_rec.bag.add(ItemStackS.make(&"branch", 1))
 	var store = InventoryS.new(1)
 	var moved: int = player.pets.dump_bag_into(proto, store)
-	_expect(moved == 1 and proto_rec.bag.used_slots() == 1 and store.used_slots() == 1, "pet bag dump keeps the overflow (moved %d, kept %d)" % [moved, proto_rec.bag.used_slots()])
+	_expect(moved == 1 and zebra_rec.bag.used_slots() == 1 and store.used_slots() == 1, "pet bag dump keeps the overflow (moved %d, kept %d)" % [moved, zebra_rec.bag.used_slots()])
 	player.summon_pet(player.bonded.find(raptor_rec))
-	player.summon_pet(player.bonded.find(proto_rec))
+	player.summon_pet(player.bonded.find(zebra_rec))
 	player.bonded.erase(raptor_rec)
-	player.bonded.erase(proto_rec)
+	player.bonded.erase(zebra_rec)
 	await process_frame
 
 ## sec-loss-08 + sec-xpfarm-07: a radial take with a full bag leaves the stack in the corpse and

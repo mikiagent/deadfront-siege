@@ -141,7 +141,7 @@ func _swords_shown() -> bool:
 
 ## Owner: "You can tap on an animal, that selects it". The old tap started the hunt and swung.
 func _test_tap_selects() -> void:
-	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	var wild = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
 	await _frames(5)
 	var hp0: float = wild.health.hp
 	var swings := [0]
@@ -196,8 +196,8 @@ func _press(action: StringName) -> void:
 
 ## E (the key the swords hex shows) and F fight the selection, not the nearest animal.
 func _test_keys() -> void:
-	var near = _creature(&"protoceratops", Vector3(-2.0, 0, 0))
-	var picked = _creature(&"protoceratops", Vector3(4.0, 0, 1.0))
+	var near = _creature(&"zebraceratops", Vector3(-2.0, 0, 0))
+	var picked = _creature(&"zebraceratops", Vector3(4.0, 0, 1.0))
 	await _frames(5)
 	await _tap(picked.global_position + Vector3(0, 0.5, 0))
 	_expect(_selected() == picked and player.hunt.target == null, "keys: the far animal is selected, no fight yet")
@@ -211,8 +211,8 @@ func _test_keys() -> void:
 
 ## "deselect by tapping empty ground or another target".
 func _test_deselect() -> void:
-	var a = _creature(&"protoceratops", Vector3(3.5, 0, 0))
-	var b = _creature(&"protoceratops", Vector3(-3.5, 0, 0))
+	var a = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
+	var b = _creature(&"zebraceratops", Vector3(-3.5, 0, 0))
 	await _frames(5)
 	await _tap(a.global_position + Vector3(0, 0.5, 0))
 	await _tap(b.global_position + Vector3(0, 0.5, 0))
@@ -228,7 +228,7 @@ func _test_deselect() -> void:
 
 ## A creature that is already fighting you is engaged at once, selection or not.
 func _test_hostile_engaged() -> void:
-	var calm = _creature(&"protoceratops", Vector3(4.0, 0, 0))
+	var calm = _creature(&"zebraceratops", Vector3(4.0, 0, 0))
 	var raptor = _creature(&"velociraptor", Vector3(-1.2, 0, 0))
 	await _frames(5)
 	await _tap(calm.global_position + Vector3(0, 0.5, 0))
@@ -239,7 +239,7 @@ func _test_hostile_engaged() -> void:
 
 ## Pets: never selected, never the swords; a tap on your pet opens its menu and keeps the fight going.
 func _test_pets_excluded() -> void:
-	var wild = _creature(&"protoceratops", Vector3(4.0, 0, 0))
+	var wild = _creature(&"zebraceratops", Vector3(4.0, 0, 0))
 	var pet = _creature(&"zebraceratops", Vector3(-3.0, 0, 1.0))
 	pet.become_pet(PetRecordS.new())
 	await _frames(5)
@@ -291,7 +291,7 @@ func _sic_ran(pet) -> bool:
 ## hex pinned to the screen edge sat on SIC and took its tap, sending the survivor after it.
 func _test_offscreen() -> void:
 	var pet = await _summon_pet()
-	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	var wild = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
 	await _frames(5)
 	await _tap(wild.global_position + Vector3(0, 0.5, 0))
 	await _frames(3)
@@ -317,8 +317,8 @@ func _test_offscreen() -> void:
 ## added after them it took their taps. Now it keeps off every HUD hex, and the HUD wins a shared spot.
 func _test_hud_wins() -> void:
 	var pet = await _summon_pet()
-	var near = _creature(&"protoceratops", Vector3(-2.5, 0, 1.0))
-	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	var near = _creature(&"zebraceratops", Vector3(-2.5, 0, 1.0))
+	var wild = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
 	await _frames(5)
 	await _tap(wild.global_position + Vector3(0, 0.5, 0))
 	await _frames(3)
@@ -352,7 +352,7 @@ func _test_hud_wins() -> void:
 ## or E attacked it), and no E key cap while riding, where E dismounts.
 func _test_tame_and_mounted() -> void:
 	var pet = await _summon_pet()
-	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	var wild = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
 	await _frames(5)
 	await _tap(wild.global_position + Vector3(0, 0.5, 0))
 	await _frames(3)
@@ -379,7 +379,7 @@ func _test_tame_and_mounted() -> void:
 ## swords hex after the hex took the press, so the bench opened, the selection dropped and no fight
 ## started. Touch sends the same mouse press (emulate_mouse_from_touch).
 func _test_beside_station() -> void:
-	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	var wild = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
 	await _frames(5)
 	await _tap(wild.global_position + Vector3(0, 0.5, 0))
 	await _frames(3)
@@ -433,7 +433,7 @@ func _test_phone_coverage() -> void:
 	var boxed: Array[String] = []  # hidden, no clear spot touches the animal: the HUD covers it
 	var shown := 0
 	var cases := 0
-	for species: StringName in [&"protoceratops", &"tyrannosaurus"]:
+	for species: StringName in [&"zebraceratops", &"tyrannosaurus"]:
 		for dist: float in [6.0, 12.0]:
 			for i in 12:
 				var ang := TAU * float(i) / 12.0
@@ -545,7 +545,7 @@ func _test_herd() -> void:
 	var right := Vector3(cam.global_basis.x.x, 0.0, cam.global_basis.x.z).normalized()
 	var herd := []
 	for i in 5:
-		herd.append(_creature(&"protoceratops", Vector3(player.global_position.x, 0.0, player.global_position.z) + right * (3.2 + 1.6 * i)))
+		herd.append(_creature(&"zebraceratops", Vector3(player.global_position.x, 0.0, player.global_position.z) + right * (3.2 + 1.6 * i)))
 	await _frames(5)
 	var sel = player.controls.get("selection")
 	var wrong: Array[String] = []
@@ -569,7 +569,7 @@ func _test_herd() -> void:
 	for c in herd:
 		c.queue_free()
 	await _frames(3)
-	var wild = _creature(&"protoceratops", Vector3(3.0, 0, 0))
+	var wild = _creature(&"zebraceratops", Vector3(3.0, 0, 0))
 	await _frames(3)
 	sel.select(wild)
 	var fig: Rect2 = hud.figure_rect()
@@ -592,8 +592,8 @@ func _test_herd() -> void:
 ## fought an animal hidden behind the Animals screen and SIC still went for it.
 func _test_screens() -> void:
 	var pet = await _summon_pet()
-	var near = _creature(&"protoceratops", Vector3(-2.0, 0, 1.0))
-	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	var near = _creature(&"zebraceratops", Vector3(-2.0, 0, 1.0))
+	var wild = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
 	await _frames(5)
 	await _tap(wild.global_position + Vector3(0, 0.5, 0))
 	await _frames(3)
@@ -633,7 +633,7 @@ func _test_screens() -> void:
 ## past hunt range it held to 40 m. Now ~3 s hidden or past ATTACK_SEEK_RANGE drops it; the fight's own
 ## target stays selected so its swords return after End Combat.
 func _test_drop() -> void:
-	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	var wild = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
 	await _frames(5)
 	await _tap(wild.global_position + Vector3(0, 0.5, 0))
 	wild.global_position = Vector3(27.0, 0, 0)  # off screen, inside 28 m
@@ -660,7 +660,7 @@ func _test_drop() -> void:
 ## before any fight. A selection alone leaves the band to the quest card; the fight takes it.
 func _test_phone_quest() -> void:
 	await _phone(true)
-	var wild = _creature(&"protoceratops", Vector3(3.5, 0, 0))
+	var wild = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
 	await _frames(5)
 	player.controls.get("selection").select(wild)
 	await _frames(4)

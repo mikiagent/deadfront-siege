@@ -314,8 +314,7 @@ MODEL_MARK_SEEDS: tuple[tuple[str, str, str], ...] = (
      "Owner: rebuild from concept art — the model itself is bad and has a third leg."),
     ("game/assets/creatures/coelophysis/coelophysis.glb", "redo-animations",
      "Owner: walks and runs backwards, and never opens its mouth (the rig has no jaw bone). Corrupted keyframe times may read as the backwards gait — repair first, then judge."),
-    ("game/assets/creatures/protoceratops/protoceratops.glb", "redo-animations",
-     "Owner: the run is the walk animation — the run needs to be redone. (Data: the run clip is distinct but reads nearly in-place, same stance drift as the walk, so the redo verdict stands.)"),
+    # protoceratops: removed by owner 2026-10-31 (model deleted), its redo-animations mark with it.
     ("game/assets/creatures/tyrannosaurus/tyrannosaurus.glb", "review",
      "Owner: the mouth stretches when opened, as if taped to the snout — jaw weighting needs a look."),
     # Gait audit (tools/audit_gaits.py, 2026-10-27): stance-foot drift through the

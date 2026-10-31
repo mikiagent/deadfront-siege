@@ -267,7 +267,7 @@ func _test_fight_and_walk() -> void:
 	var wild = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	wild.position = Vector3(-4, 0, 0)
 	host.add_child(wild)
-	wild.spawn(data.creature(&"protoceratops"))
+	wild.spawn(data.creature(&"zebraceratops"))
 	wild.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	await _frames(5)
 	player.hunt.start(wild)

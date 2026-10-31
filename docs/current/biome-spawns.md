@@ -12,7 +12,7 @@ How to read it:
 - **alpha**: each group rolls 8% once; on a hit its first member is an alpha (`ai.json` `alpha.chance_per_group`). Islands with `no_alphas` never roll.
 - **tameable**: the written species' `tameable` flag. At most 24 creatures spawn per island (`Game.max_creatures_per_island`), so late rows on a crowded island can be cut.
 
-**Models:** 14 of 20 species have one. No model yet: Allosaurus (`allosaurus`), Brachiosaurus (`brachiosaurus`), Dilophosaurus (`dilophosaurus`), Smilodon (`smilodon`), Tarbosaurus (`tarbosaurus`), Triceratops (`triceratops`).
+**Models:** 14 of 20 species have one. No model yet: Allosaurus (`allosaurus`), Brachiosaurus (`brachiosaurus`), Dilophosaurus (`dilophosaurus`), Smilodon (`smilodon`), Tarbosaurus (`tarbosaurus`). Retired (model removed, never spawns): Protoceratops (`protoceratops`).
 
 ## Grassland
 
@@ -22,7 +22,7 @@ Islands: `home_grassland` (L10, private), `tutorial_isle` (L15, tutorial).
 |---|---|---|---|---|---|
 | **Zebraceratops** (`zebraceratops`) | `home_grassland`, `tutorial_isle` | L1 | 5 | yes | in game |
 | **Compsognathus** (`compsognathus`) | `home_grassland`, `tutorial_isle` | L1 | 9 | yes | in game |
-| **Protoceratops** (`protoceratops`) | `home_grassland` | L1 | 1 | yes | in game |
+| **Protoceratops** (`protoceratops`) | `home_grassland` | L1 | 1 | yes | retired: spawns fall through to gallimimus |
 | **Gallimimus** (`gallimimus`) | `home_grassland` | L1 | 1 | yes | in game |
 
 ### `home_grassland` (L10, private)
@@ -30,7 +30,7 @@ Islands: `home_grassland` (L10, private), `tutorial_isle` (L15, tutorial).
 | where | species | count × groups | chance | level | alpha | tameable | status |
 |---|---|---|---|---|---|---|---|
 | fixed spot | Compsognathus | 1 × 1 | 100% | L1 | 8%/group | yes | in game |
-| fixed spot | Protoceratops | 1 × 1 | 100% | L1 | 8%/group | yes | in game |
+| fixed spot | Protoceratops | 1 × 1 | 100% | L1 | 8%/group | yes | retired: spawns fall through to gallimimus |
 | fixed spot | Gallimimus | 1 × 1 | 100% | L1 | 8%/group | yes | in game |
 | gathering | Compsognathus | 2 × 1 | 100% | L1 | 8%/group | yes | in game |
 | gathering | Zebraceratops | 3 × 1 | 100% | L1 | 8%/group | yes | in game |
@@ -60,7 +60,7 @@ Islands: `savannah_15` (L15, unstable), `savannah_45` (L45, unstable).
 | **Zebraceratops** (`zebraceratops`) | `savannah_15` | L8 | 1 | yes | in game |
 | **Compsognathus** (`compsognathus`) | `savannah_15` | L10 | 2 | yes | in game |
 | **Coelophysis** (`coelophysis`) | `savannah_15`, `savannah_45` | L13-28 | 5 | yes | in game |
-| **Protoceratops** (`protoceratops`) | `savannah_15` | L20 | 1 | yes | in game |
+| **Protoceratops** (`protoceratops`) | `savannah_15` | L18 | 1 | yes | retired: spawns fall through to coelophysis |
 | **Deinonychus** (`deinonychus`) | `savannah_45` | L35 | 1 | yes | in game |
 | **Styracosaurus** (`styracosaurus`) | `savannah_45` | L45-53 | 2 | yes | in game |
 | **Utahraptor** (`utahraptor`) | `savannah_45` | L55 | 1 | yes | in game |
@@ -72,7 +72,7 @@ Islands: `savannah_15` (L15, unstable), `savannah_45` (L45, unstable).
 | gathering | Compsognathus | 6 × 2 | 100% | L10 | 8%/group | yes | in game |
 | gathering | Zebraceratops | 3 × 1 | 100% | L8 | 8%/group | yes | in game |
 | working | Coelophysis | 4 × 2 | 100% | L18 | 8%/group | yes | in game |
-| working | Protoceratops | 3 × 1 | 100% | L20 | 8%/group | yes | in game |
+| working | Protoceratops | 3 × 1 | 100% | L18 | 8%/group | yes | retired: spawns fall through to coelophysis |
 | crater | Coelophysis | 5 × 1 | 100% | L26 | 8%/group | yes | in game |
 | far_shore | Coelophysis | 1 × 1 | 100% | L28 | 8%/group | yes | in game |
 
@@ -94,7 +94,7 @@ Islands: `temperate_20` (L20, unstable), `temperate_25` (L25, unstable), `temper
 |---|---|---|---|---|---|
 | **Compsognathus** (`compsognathus`) | `temperate_20`, `temperate_25` | L10 | 2 | yes | in game |
 | **Coelophysis** (`coelophysis`) | `temperate_20` | L18 | 1 | yes | in game |
-| **Protoceratops** (`protoceratops`) | `temperate_20`, `temperate_25`, `temperate_35`, `temperate_45` | L15-28 | 5 | yes | in game |
+| **Protoceratops** (`protoceratops`) | `temperate_20`, `temperate_25` | L10-23 | 3 | yes | retired: spawns fall through to compsognathus |
 | **Velociraptor** (`velociraptor`) | `temperate_20`, `temperate_25` | L25-33 | 5 | yes | in game |
 | **Deinonychus** (`deinonychus`) | `temperate_25`, `temperate_35`, `temperate_45` | L35-43 | 6 | yes | in game |
 | **Stegosaurus** (`stegosaurus`) | `temperate_35`, `temperate_45` | L45-53 | 3 | yes | in game |
@@ -105,10 +105,10 @@ Islands: `temperate_20` (L20, unstable), `temperate_25` (L25, unstable), `temper
 | where | species | count × groups | chance | level | alpha | tameable | status |
 |---|---|---|---|---|---|---|---|
 | gathering | Compsognathus | 5 × 1 | 100% | L10 | 8%/group | yes | in game |
-| gathering | Protoceratops | 4 × 1 | 100% | L15 | 8%/group | yes | in game |
+| gathering | Protoceratops | 4 × 1 | 100% | L10 | 8%/group | yes | retired: spawns fall through to compsognathus |
 | working | Coelophysis | 4 × 1 | 100% | L18 | 8%/group | yes | in game |
 | working | Velociraptor | 2 × 1 | 100% | L25 | 8%/group | yes | in game |
-| crater | Protoceratops | 4 × 1 | 100% | L28 | 8%/group | yes | in game |
+| crater | Protoceratops | 4 × 1 | 100% | L23 | 8%/group | yes | retired: spawns fall through to compsognathus |
 | far_shore | Velociraptor | 3 × 1 | 100% | L30 | 8%/group | yes | in game |
 
 ### `temperate_25` (L25, unstable)
@@ -116,7 +116,7 @@ Islands: `temperate_20` (L20, unstable), `temperate_25` (L25, unstable), `temper
 | where | species | count × groups | chance | level | alpha | tameable | status |
 |---|---|---|---|---|---|---|---|
 | fixed spot | Utahraptor | 1 × 1 | 100% | L45-55 | 8%/group | yes | in game |
-| gathering | Protoceratops | 4 × 1 | 100% | L15 | 8%/group | yes | in game |
+| gathering | Protoceratops | 4 × 1 | 100% | L10 | 8%/group | yes | retired: spawns fall through to compsognathus |
 | gathering | Compsognathus | 4 × 1 | 100% | L10 | 8%/group | yes | in game |
 | working | Velociraptor | 3 × 2 | 100% | L25 | 8%/group | yes | in game |
 | crater | Velociraptor | 4 × 1 | 100% | L33 | 8%/group | yes | in game |
@@ -128,7 +128,6 @@ Islands: `temperate_20` (L20, unstable), `temperate_25` (L25, unstable), `temper
 
 | where | species | count × groups | chance | level | alpha | tameable | status |
 |---|---|---|---|---|---|---|---|
-| gathering | Protoceratops | 4 × 1 | 100% | L15 | 8%/group | yes | in game |
 | working | Deinonychus | 3 × 2 | 100% | L35 | 8%/group | yes | in game |
 | crater | Deinonychus | 4 × 1 | 100% | L43 | 8%/group | yes | in game |
 | far_shore | Stegosaurus | 1 × 1 | 100% | L50 | 8%/group | yes | in game |
@@ -137,7 +136,6 @@ Islands: `temperate_20` (L20, unstable), `temperate_25` (L25, unstable), `temper
 
 | where | species | count × groups | chance | level | alpha | tameable | status |
 |---|---|---|---|---|---|---|---|
-| gathering | Protoceratops | 4 × 1 | 100% | L15 | 8%/group | yes | in game |
 | working | Stegosaurus | 2 × 1 | 100% | L45 | 8%/group | yes | in game |
 | working | Deinonychus | 3 × 1 | 100% | L35 | 8%/group | yes | in game |
 | crater | Stegosaurus | 3 × 1 | 100% | L53 | 8%/group | yes | in game |
@@ -151,7 +149,7 @@ Islands: `tropical_25` (L25, unstable), `tropical_40` (L40, unstable).
 |---|---|---|---|---|---|
 | **Compsognathus** (`compsognathus`) | `tropical_25` | L10 | 1 | yes | in game |
 | **Coelophysis** (`coelophysis`) | `tropical_25` | L18 | 1 | yes | in game |
-| **Protoceratops** (`protoceratops`) | `tropical_25` | L20 | 1 | yes | in game |
+| **Protoceratops** (`protoceratops`) | `tropical_25` | L18 | 1 | yes | retired: spawns fall through to coelophysis |
 | **Deinonychus** (`deinonychus`) | `tropical_25`, `tropical_40` | L30-43 | 3 | yes | in game |
 | **Dilophosaurus** (`dilophosaurus`) | `tropical_25` | L20 | 1 | yes | no model yet: spawns fall through to compsognathus |
 | **Dilophosaurus** (`dilophosaurus`) | `tropical_40` | L35-43 | 2 | yes | no model yet: spawns fall through to deinonychus |
@@ -163,7 +161,7 @@ Islands: `tropical_25` (L25, unstable), `tropical_40` (L40, unstable).
 |---|---|---|---|---|---|---|---|
 | gathering | Compsognathus | 6 × 1 | 100% | L10 | 8%/group | yes | in game |
 | working | Coelophysis | 4 × 1 | 100% | L18 | 8%/group | yes | in game |
-| working | Protoceratops | 3 × 1 | 100% | L20 | 8%/group | yes | in game |
+| working | Protoceratops | 3 × 1 | 100% | L18 | 8%/group | yes | retired: spawns fall through to coelophysis |
 | crater | Deinonychus | 3 × 1 | 100% | L43 | 8%/group | yes | in game |
 | far_shore | Dilophosaurus | 1 × 1 | 100% | L20 | 8%/group | yes | no model yet: spawns fall through to compsognathus |
 
@@ -251,17 +249,16 @@ Islands: `swamp_55` (L55, unstable).
 | **Compsognathus** (`compsognathus`) | `swamp_55` | L10 | 1 | yes | in game |
 | **Deinonychus** (`deinonychus`) | `swamp_55` | L35 | 1 | yes | in game |
 | **Dilophosaurus** (`dilophosaurus`) | `swamp_55` | L20 | 1 | yes | no model yet: spawns fall through to compsognathus |
-| **Triceratops** (`triceratops`) | `swamp_55` | L35 | 1 | yes | no model yet: spawns fall through to deinonychus |
-| **Triceratops** (`triceratops`) | `swamp_55` | L23 | 1 | yes | no model yet: spawns fall through to compsognathus |
+| **Triceratops** (`triceratops`) | `swamp_55` | L55-60 | 2 | yes | in game |
 
 ### `swamp_55` (L55, unstable)
 
 | where | species | count × groups | chance | level | alpha | tameable | status |
 |---|---|---|---|---|---|---|---|
 | gathering | Compsognathus | 6 × 1 | 100% | L10 | 8%/group | yes | in game |
-| working | Triceratops | 3 × 1 | 100% | L35 | 8%/group | yes | no model yet: spawns fall through to deinonychus |
+| working | Triceratops | 3 × 1 | 100% | L55 | 8%/group | yes | in game |
 | working | Deinonychus | 4 × 1 | 100% | L35 | 8%/group | yes | in game |
-| crater | Triceratops | 3 × 1 | 100% | L23 | 8%/group | yes | no model yet: spawns fall through to compsognathus |
+| crater | Triceratops | 3 × 1 | 100% | L60 | 8%/group | yes | in game |
 | far_shore | Dilophosaurus | 3 × 1 | 100% | L20 | 8%/group | yes | no model yet: spawns fall through to compsognathus |
 
 ## Volcanic
@@ -292,7 +289,7 @@ The `climate` field in each creature JSON is the species' home biome; spawning i
 | Compsognathus (`compsognathus`) | 15 | savannah | yes | yes | yes |
 | Pachycephalosaurus (`pachycephalosaurus`) | 16 | grassland | yes | yes | no |
 | Coelophysis (`coelophysis`) | 18 | savannah | yes | yes | yes |
-| Protoceratops (`protoceratops`) | 20 | temperate | yes | yes | yes |
+| Protoceratops (`protoceratops`) | 20 | temperate | yes | no | yes |
 | Velociraptor (`velociraptor`) | 25 | temperate | yes | yes | yes |
 | Gallimimus (`gallimimus`) | 30 | desert | yes | yes | yes |
 | Megaloceros (`megaloceros`) | 30 | tundra | yes | yes | yes |
@@ -304,7 +301,7 @@ The `climate` field in each creature JSON is the species' home biome; spawning i
 | Allosaurus (`allosaurus`) | 50 | desert | no | no | yes |
 | Ankylosaurus (`ankylosaurus`) | 50 | desert | yes | yes | yes |
 | Utahraptor (`utahraptor`) | 50 | desert | yes | yes | yes |
-| Triceratops (`triceratops`) | 55 | swamp | yes | no | yes |
+| Triceratops (`triceratops`) | 55 | swamp | yes | yes | yes |
 | Brachiosaurus (`brachiosaurus`) | 60 | any | no | no | no |
 | Tarbosaurus (`tarbosaurus`) | 60 | tundra | yes | no | yes |
 | Tyrannosaurus rex (`tyrannosaurus`) | 60 | volcanic | yes | yes | yes |
