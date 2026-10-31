@@ -323,7 +323,12 @@ func _impact() -> void:
 
 ## TACKLE: after the coil, a run (the stride-matched gait, no glide) on a line locked now, up to lunge_m.
 func _start_lunge() -> void:
-	_lunge_left = float(move.get("lunge_m", 2.5)) * _close_scale(move_id)
+	var k := _close_scale(move_id)
+	_lunge_left = float(move.get("lunge_m", 2.5)) * k
+	# ASSUMPTION (KNOCKDOWN merge): the stomp now slides her back as it lays her down, so the tackle runs on to her,
+	# up to half again its lunge_m (it still runs its full lunge_m when she is closer).
+	if _valid_target():
+		_lunge_left = clampf(_flat_dist(attack_target) - float(move.get("contact_dist_m", 4.0)) * k, _lunge_left, _lunge_left * 1.5)
 	_lunge_from = creature.global_position
 	var f := -creature.global_basis.z
 	f.y = 0.0
@@ -347,7 +352,7 @@ func _tick_lunge(_delta: float) -> void:
 			_strike(t, float(move.get("damage_mult", 1.0)), float(move.get("knockback_m", 0.0)), bool(move.get("knockdown", false)), &"close")
 			hit = true
 	var ran := Vector2(creature.global_position.x - _lunge_from.x, creature.global_position.z - _lunge_from.z).length()
-	var limit_s := float(move.get("lunge_m", 2.5)) / maxf(0.1, float(move.get("lunge_mps", 5.0))) + 0.8
+	var limit_s := _lunge_left / k / maxf(0.1, float(move.get("lunge_mps", 5.0))) + 0.8
 	if hit or ran >= _lunge_left or move_t - move_len > limit_s or creature.health.dead:
 		creature.stop_move()
 		_end_move()
