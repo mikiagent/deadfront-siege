@@ -352,6 +352,17 @@ func cooldown_left(move: StringName) -> float:
 func _ready_to(move: StringName) -> bool:
 	return cooldown_left(move) <= 0.0
 
+## SP-TARBOSAURUS: a long-snouted body bites from its head, metres ahead of its middle (the tarbosaurus's jaws sit
+## ~8 m ahead of its centre), so tactics.reach_m (metres at size 1) replaces the centre reach. Each hit still needs its
+## part (pipeline.hit_parts): prey under the belly is out of the jaws' reach.
+func contact_reach() -> float:
+	return float(tac["reach_m"]) * creature.size_scale() if tac.has("reach_m") else super.contact_reach()
+
+## How far short of the prey a leap lands: just past the body's radius, or for a long-snouted body (tactics.reach_m)
+## with the jaws on the prey.
+func _land_short() -> float:
+	return contact_reach() - 0.8 if tac.has("reach_m") else creature.body_radius() + 0.2
+
 ## Stand-off radius, centre to centre: the archetype's ring, the nature's mult (Timid wider), the
 ## prey's extra size, and wider for a while after a retreat.
 func ring_m() -> float:
@@ -1466,7 +1477,7 @@ func _pounce(delta: float) -> void:
 				var from := creature.global_position
 				var dir := Vector3(aim.x - from.x, 0.0, aim.z - from.z)
 				dir = dir.normalized() if dir.length_squared() > 0.01 else -_to_me()
-				var land := aim - dir * (creature.body_radius() + 0.2)
+				var land := aim - dir * _land_short()
 				_overshot = rng.randf() < _t("pounce_overshoot_chance", 0.25) * creature.nature_knob("tactic_overshoot_mult", 1.0)
 				if _overshot:
 					land = aim + dir * _t("pounce_overshoot_m", 3.0)
