@@ -39,7 +39,8 @@
       ],
       "note": "0.46 s: crouch, backward leap, landing squash; in place, the game moves the creature back during it. tools/jaw/make_hop_back.py (deinonychus first).",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py hop_back, 0.458 s, IK-planted toes on the ground frames, jaw hisses open 10 deg",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_pachycephalosaurus": "pachycephalosaurus: tools/gait/make_pachy_moves.py hop_back, 0.583 s, crouch, feet tucked in the air, planted squash landing; played twice after every charge (PACHYBULL)"
     },
     "strafe_left": {
       "note": "sidestep loop for every species, body keeps facing; tools/gait/make_gait.py <species>.json walk --as strafe_left --travel 1,0,0"

@@ -98,8 +98,8 @@ static func kick(h: Hunt) -> void:
 	else:
 		var away := target.global_position - player.global_position
 		away.y = 0.0
-		# Respect walls, props and terrain instead of teleporting the target through geometry.
-		target.move_and_collide(away.normalized() * push)
+		# Slid over the stagger (Creature.shove), never moved in one frame (it read as a teleport).
+		target.shove(away.normalized() * push, float(tune.get("stagger_s", 0.5)))
 	target.next_hit_kind = &"hit"
 	target.health.take_damage(float(tune.get("damage", 4.0)), player)
 	target.status_float.emit(&"kick")
