@@ -247,8 +247,9 @@ def attack_primary(t, T):
     target at 0.42. Doe: forehoof strike: weight back, the right foreleg strikes out and down at 0.42."""
     s = St(); u = t / T; hit = 0.42
     if STAG:
-        down = smooth(u / 0.3) * (1 - smooth((u - hit) / 0.1))
-        rip = bump(u, 0.3, hit, 0.55, 0.9)
+        # at the hit the head is still low and the antlers sweep up and forward through the target
+        down = smooth(u / 0.28) * (1 - smooth((u - 0.36) / 0.14))
+        rip = bump(u, 0.3, 0.62, 0.7, 0.95)
         s.neck[0] = -34 * down + 22 * rip; s.neck[1] = -16 * down + 10 * rip; s.head = -22 * down + 16 * rip
         s.head_yaw = -14 * down + 22 * rip; s.neck_yaw[1] = 10 * rip; s.head_roll = -12 * rip
         s.off.y = -0.06 * H * rip; s.off.z = -0.03 * H * down; s.pitch = -3 * down + 2 * rip
