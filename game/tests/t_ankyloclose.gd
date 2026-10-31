@@ -5,7 +5,7 @@ extends SceneTree
 ## 1. in front of its head: it reacts within REACT_S of her first punch that lands, lands close hits (STOMP / TACKLE)
 ##    from the front, at least one knocks her down, and both front moves show within the fight;
 ## 2. beside its shoulder (right, then left): it shoves her to that side (SHOVE, knockback away from its flank);
-## 3. behind it: no close move (the tail is for behind).
+## 3. behind it, in the club's reach: the tail, and no back-in (STEGOSPIN).
 ## Run: Godot --headless --path game --script res://tests/t_ankyloclose.gd  -> "[t_ankyloclose] PASS", exit 0.
 
 const ID := &"ankylosaurus"
@@ -166,7 +166,10 @@ func _test_side(side: float) -> void:
 	c.queue_free()
 	await physics_frame
 
-## 3. Behind it (standing still 4.5 m behind where it started, not punching: her reach ends at its tail): the tail's side, no close move.
+## 3. Behind it, in the club's reach (standing still 3 m behind where it started, not punching): the tail's side, no close
+## move, and it swings the tail without moving. STEGOSPIN (owner 2026-10-31: "don't have the ankylosaurus back himself into me
+## for an attack"): at 4.5 m behind (past the club's reach) it used to walk backwards into her; it now never closes on her
+## tail first: it pivots and comes head first (t_stegospin covers that), so this case moved in to 3 m.
 func _test_behind() -> void:
 	var c = _spawn()
 	await physics_frame
@@ -176,14 +179,19 @@ func _test_behind() -> void:
 	b._set_state(&"approach")
 	var starts: Array = []
 	var was := &""
+	var start: Vector3 = c.global_position
+	var moved := 0.0
 	for f in 5 * 60:
-		if b.move_id == &"":
-			_place(Vector3(0, 0, 4.5))  # she stands her ground behind where it started
+		if b.move_id == &"" and starts.is_empty():
+			_place(Vector3(0, 0, 3.0))  # she stands her ground behind where it started
 		await physics_frame
 		if b.move_id != was and b.move_id != &"":
 			starts.append(b.move_id)
 		was = b.move_id
-	_expect(starts.filter(func(m: StringName) -> bool: return b.close_moves.has(m)).is_empty(), "no close move at a survivor behind it (%s)" % str(starts))
-	_expect(not starts.is_empty(), "it still swings its tail at her behind it (%s)" % str(starts))
+		if starts.is_empty():
+			moved = maxf(moved, (c.global_position - start).dot(Vector3(0, 0, 1)))  # toward her (she is at +z); a sidestep is fine
+	_expect(starts.filter(func(m: StringName) -> bool: return b.close_moves.has(m)).is_empty() or not b.close_moves.has(starts[0]), "no close move first at a survivor behind it (%s)" % str(starts))
+	_expect(not starts.is_empty() and not b.close_moves.has(starts[0]) and not b.pivots.has(starts[0]), "it swings its tail at her behind it, first (%s)" % str(starts))
+	_expect(moved <= 0.3, "it does not back into her before the swing (%.2f m toward her)" % moved)
 	c.queue_free()
 	await physics_frame

@@ -168,6 +168,37 @@
     },
     "charge_recover": {
       "note": "STYRAFIX: winded after a charge, head low with three decaying head shakes; the punish window (charge_recover_s)"
+    },
+    "spin_right": {
+      "hit_frac": 1.0,
+      "windup": true,
+      "note": "STEGOSPIN TAIL SPIN, tools/gait/make_stego_moves.py (stegosaurus), make_tail_club.py (ankylosaurus): crouch, tail raised and cocked, trembling, then a turn to the right about the right front foot's ball (turn_deg / turn in ai.json, done by ClubTailBrain in code in step with the clip, which keys it counter-rotated so the feet stay planted) with the tail whipping round; the brain lands the hit from the swept rear body and tail (line_bone to the club) in the strike window"
+    },
+    "spin_left": {
+      "hit_frac": 1.0,
+      "windup": true,
+      "note": "mirror of spin_right, turning left about the left front foot"
+    },
+    "pivot_right": {
+      "note": "STEGOSPIN repositioning turn, 90 deg right about the right front foot (code turn as spin_right), no hit; tools/gait/make_stego_moves.py (stegosaurus), make_tail_club.py (ankylosaurus)"
+    },
+    "pivot_left": {
+      "note": "mirror of pivot_right"
+    },
+    "rear_slam": {
+      "hit_frac": 0.62,
+      "windup": true,
+      "note": "STEGOSPIN stegosaurus REAR SLAM (make_stego_moves.py), 2.2 s: rears up 25 deg on the hind legs, both forefeet high, held trembling, slammed down together ahead (impact 0.62); ClubTailBrain lands it on the frame front_foot_L is back down (close_moves.rear_slam, a wide area in front, knockdown)"
+    },
+    "hind_stomp_right": {
+      "hit_frac": 0.55,
+      "windup": true,
+      "note": "STEGOSPIN stegosaurus HIND STOMP (make_stego_moves.py), 1.4 s: the right hind foot hauled up and out, stamped down beside the flank (impact 0.55), body rolled into it, tail swung toward it; ClubTailBrain lands it (close_moves.hind_stomp_right)"
+    },
+    "hind_stomp_left": {
+      "hit_frac": 0.55,
+      "windup": true,
+      "note": "mirror of hind_stomp_right"
     }
   },
   "natural_speeds": {

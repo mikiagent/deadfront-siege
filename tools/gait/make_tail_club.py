@@ -23,6 +23,14 @@ STOMP       stomp 1.5 s: the front rears up off the left forefoot (weight back a
 SHOVE       shove_left / shove_right 1.2 s: cocks away (head and shoulders turned off, body leaning off), then the head
             and shoulders swing hard into that side (impact 0.48) while the body lurches over and the near forefoot steps
             out into it; steps back in.
+STEGOSPIN (owner 2026-10-31: "don't have the ankylosaurus back himself into me for an attack, he should also joust and be
+able to hit you with his tail from the front by spinning and smacking you with the tail"): TURN clips. The animal turns
+turn_deg about the inner front foot (it twists on the spot; ClubTailBrain turns the body in code by exactly
+turn_deg * smoothstep((u - a) / (b - a)) about the same point, ai.json club_tail pivot_gltf), so the clip keys the world
+motion counter-rotated; the other three feet step round on a schedule made here and end on their rest spots.
+SPIN        spin_right / spin_left 3.6 s: crouch, the club raised and cocked, trembling, then a 200 deg turn about the inner
+            front foot (0.28-0.86) with the tail whipping round the outside: the club comes round through the front.
+PIVOT       pivot_right / pivot_left 1.6 s: a 90 deg repositioning turn on the inner front foot.
 TACKLE      tackle 0.9 s: the coil before the body check: crouch, front low, weight back over the hind feet, head down, a
             forefoot paws once; the brain then lunges it 2-3 m at a run into her (ClubTailBrain).
 Extra curves: pitch (deg, + = front up, about the hind feet), shift (mesh units, + = body to its right), back (mesh
@@ -42,7 +50,8 @@ from mathutils import Matrix, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 BASE, OUT = argv[:2]
-WANT = argv[2:] or ["attack_primary", "attack_heavy", "tail_swipe", "alert", "sleep", "stomp", "shove_left", "shove_right", "tackle"]
+WANT = argv[2:] or ["attack_primary", "attack_heavy", "tail_swipe", "alert", "sleep", "stomp", "shove_left", "shove_right", "tackle",
+                    "spin_right", "spin_left", "pivot_right", "pivot_left"]
 FPS = 24
 TAILS = ["Tail1", "Tail2", "Tail3", "Tail4", "Tail5"]
 LEGS = [(f"{e}UpLeg.{s}", f"{e}LowLeg.{s}", f"{e}Foot.{s}") for e in ("Back", "Front") for s in ("L", "R")]
@@ -184,6 +193,34 @@ for k in ("yaw", "tail", "roll", "shift", "look"):
     _m[k] = [(u, -v) for u, v in _m[k]]
 _m["steps"] = [("FrontFoot.L",) + tuple(-x if i == 2 else x for i, x in enumerate(s[1:])) for s in _m["steps"]]
 CLIPS["shove_left"] = _m
+# STEGOSPIN turn clips. Feet: L is +X; the rig faces -Y. turn_deg + = left (CCW from above).
+CLIPS["spin_right"] = dict(
+    n=86, lag=0.03, turn_deg=-200.0, turn=(0.28, 0.86), pivot="FrontFoot.R", gait=dict(hind=13, front=7),
+    yaw=Z0,
+    tail=[(0, 0), (0.20, 18), (0.28, 20), (0.42, -18), (0.74, -26), (0.88, -6), (1.0, 0)],
+    lift=[(0, 0), (0.20, 14), (0.28, 16), (0.45, 6), (0.86, 4), (1.0, 0)],
+    crouch=[(0, 0), (0.22, 0.012), (0.86, 0.014), (1.0, 0)],
+    roll=[(0, 0), (0.28, 3), (0.5, 5), (0.86, 4), (1.0, 0)],
+    head=[(0, 0), (0.22, -8), (0.86, -8), (1.0, 0)],
+    look=[(0, 0), (0.22, 20), (0.86, 20), (1.0, 0)],
+    tremble=(0.06, 0.27, 4.0, 3.0))
+CLIPS["pivot_right"] = dict(
+    n=38, lag=0.03, turn_deg=-90.0, turn=(0.10, 0.90), pivot="FrontFoot.R", gait=dict(hind=6, front=2),
+    yaw=Z0,
+    tail=[(0, 0), (0.3, -10), (0.8, -8), (1.0, 0)],
+    lift=[(0, 0), (0.3, 4), (1.0, 0)],
+    crouch=[(0, 0), (0.12, 0.01), (0.88, 0.01), (1.0, 0)],
+    roll=[(0, 0), (0.4, 3), (1.0, 0)],
+    head=[(0, 0), (0.3, -4), (1.0, 0)],
+    look=[(0, 0), (0.15, 15), (0.85, 12), (1.0, 0)],
+    tremble=None)
+for _r, _l in (("spin_right", "spin_left"), ("pivot_right", "pivot_left")):
+    _m = dict(CLIPS[_r])
+    for k in ("yaw", "tail", "roll", "look"):
+        _m[k] = [(u, -v) for u, v in _m[k]]
+    _m["turn_deg"] = -_m["turn_deg"]
+    _m["pivot"] = "FrontFoot.L"
+    CLIPS[_l] = _m
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.render.fps = FPS
@@ -239,8 +276,41 @@ def solve_leg(up, low, foot):  # same analytic two-bone solve as transfer_clips.
         upd()
 
 
+CUR = {"piv": PIVOT}  # the yaw pivot of the clip being made (a turn clip's pivot foot)
+
+
+def rot_about(p, deg):
+    return Matrix.Translation(Vector((p.x, p.y, 0))) @ Matrix.Rotation(math.radians(deg), 4, Z) @ Matrix.Translation(Vector((-p.x, -p.y, 0)))
+
+
+def turn_at(c, u):
+    if "turn_deg" not in c:
+        return 0.0
+    a, b = c["turn"]
+    return c["turn_deg"] * smooth((u - a) / (b - a))
+
+
+def turn_steps(c):
+    """A turn clip's steps: each non-pivot foot steps round the pivot, landing mid-stance ahead, the last on the end turn."""
+    a, b = c["turn"]
+    out = []
+    phases = {"BackFoot.L": 0.0, "BackFoot.R": 0.5, "FrontFoot.L": 0.25, "FrontFoot.R": 0.25}
+    sw = 0.55
+    for f in phases:
+        if f == c["pivot"]:
+            continue
+        n = c["gait"]["front" if f.startswith("Front") else "hind"]
+        p = (b - a) / (n - 1 + phases[f] + sw + 0.15)
+        for i in range(n):
+            u0 = a + p * (i + phases[f] + 0.15)
+            u1 = u0 + sw * p
+            yaw = c["turn_deg"] if i == n - 1 else turn_at(c, min(b, u1 + (1 - sw) * p * 0.5))
+            out.append((f, u0, u1, yaw, 0.0, 0.0, 0.02))
+    return out
+
+
 def plant(foot, yaw, out, fwd=0.0):
-    m = Matrix.Translation(PIVOT) @ Matrix.Rotation(math.radians(yaw), 4, Z) @ Matrix.Translation(-PIVOT) @ REST_FOOT[foot]
+    m = rot_about(CUR["piv"], yaw) @ REST_FOOT[foot]
     m.translation.x += out * (1 if foot.endswith("L") else -1)
     m.translation.y += fwd
     return m
@@ -257,9 +327,11 @@ def stomp_arc(t):
 
 def foot_at(c, foot, u):
     """The foot's matrix at u: planted on its latest landed step, or lifted on the arc of the step in progress."""
+    if foot == c.get("pivot"):
+        return rot_about(CUR["piv"], turn_at(c, u)) @ REST_FOOT[foot]  # it twists on the spot
     cur = (0.0, 0.0, 0.0)
     m, lift = None, 0.0
-    for st in sorted((s for s in c.get("steps", []) if s[0] == foot), key=lambda s: s[1]):
+    for st in sorted((s for s in c.get("steps", []) + c.get("_turn_steps", []) if s[0] == foot), key=lambda s: s[1]):
         f, u0, u1, yaw, out = st[:5]
         fwd = st[5] if len(st) > 5 else 0.0
         if u >= u1:
@@ -299,8 +371,9 @@ def pose(c, u):
         pb.matrix_basis.identity()
     upd()
     yaw = keys(u, c["yaw"])
+    C = rot_about(CUR["piv"], -turn_at(c, u))  # a turn clip: the brain turns the body by this in code; key it counter-rotated
     for _, _, foot in LEGS:
-        m = foot_at(c, foot, u)
+        m = C @ foot_at(c, foot, u)
         if "splay" in c:  # sleep: feet slide out to the sides as the body settles (legs fold out, not through the belly)
             m.translation.x += keys(u, c["splay"]) * (1 if foot.endswith("L") else -1)
         if "reach" in c:
@@ -359,7 +432,15 @@ def pose(c, u):
 os.makedirs(OUT, exist_ok=True)
 sc = bpy.context.scene
 for name in WANT:
-    c = CLIPS[name]
+    c = dict(CLIPS[name])
+    CUR["piv"] = PIVOT
+    if "turn_deg" in c:
+        # the pivot is the sole's centre (vertices weighted 0.9+ to the foot): a foot turned about its bone head swings its sole round
+        sole = [skin.matrix_world @ v.co for v in skin.data.vertices
+                if sum(g.weight for g in v.groups if gi[g.group] == c["pivot"]) > 0.9]
+        CUR["piv"] = sum(sole, Vector()) / len(sole)
+        c["_turn_steps"] = turn_steps(c)
+        print(f"PIVOT {name} blender=({CUR['piv'].x:.4f},{CUR['piv'].y:.4f}) gltf_xz=({CUR['piv'].x:.4f},{-CUR['piv'].y:.4f}) turn_deg={c['turn_deg']} turn={c['turn']}")
     n = c["n"]
     frames = []
     for f in range(n):

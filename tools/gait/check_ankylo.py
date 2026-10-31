@@ -14,6 +14,9 @@ height_meters, so the mesh is scaled by height / rest height). Every clip in ani
   within hit_radius_m - 0.35 (survivor radius) of that spot, move faster than --club-speed m/s there, and never come
   within hit_radius_m + 0.35 of a survivor standing at the snout (bearing 0, 1 m ahead of the head). The script prints
   the club's bearing/distance through the window: those are the numbers the move table is set from.
+- STEGOSPIN turn clips (spin_*, pivot_*: a move or pivot with turn_deg in club_tail): checked in the WORLD frame, i.e. with
+  the brain's code turn (turn_deg * smoothstep over turn [a, b] about pivot_gltf) put back on, and held to the planted-foot
+  rule like the tail moves (the pivot foot twists about its own centre, so its sole moves a little: SLIDE covers it).
 usage: Blender -b -P tools/gait/check_ankylo.py -- <base.glb> <anim_dir> --height 2.25   (exit 1 on any FAIL)
 """
 import bpy, sys, os
@@ -30,6 +33,8 @@ _CT = json.load(open(AI))["archetypes"]["club_tail"]
 MOVES = {m["clip"]: m for m in _CT["club_moves"].values()}
 # ANKYLOCLOSE: stomp / shove / tackle keep every foot planted except the one that steps or stomps
 PLANTED = set(MOVES) | {"alert"} | {m["clip"] for m in _CT.get("close_moves", {}).values()}
+TURNS = {m["clip"]: m for g in ("club_moves", "close_moves", "pivots") for m in _CT.get(g, {}).values() if "turn_deg" in m}
+PLANTED |= set(TURNS)
 SURVIVOR_R = 0.35
 FPS = 24
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -84,6 +89,16 @@ for f in sorted(os.listdir(anim_dir)):
     lows, stretch, feet, club, where = [], 1.0, {k: [] for k in FEET}, [], {}
     for fr in range(f0, f1 + 1):
         sc.frame_set(fr); p = pts()
+        if clip in TURNS:  # put the brain's code turn back on: the world view
+            tm = TURNS[clip]
+            uu = (fr - f0) / max(1, f1 - f0)
+            x = min(max((uu - tm["turn"][0]) / (tm["turn"][1] - tm["turn"][0]), 0.0), 1.0)
+            ang = math.radians(tm["turn_deg"] * x * x * (3 - 2 * x))
+            pv = np.array([tm["pivot_gltf"][0], -tm["pivot_gltf"][1]]) * K
+            q = p[:, :2] - pv
+            p = p.copy()
+            p[:, 0] = pv[0] + q[:, 0] * math.cos(ang) - q[:, 1] * math.sin(ang)
+            p[:, 1] = pv[1] + q[:, 0] * math.sin(ang) + q[:, 1] * math.cos(ang)
         lows.append(p[:, 2].min())
         if p[:, 2].min() <= min(lows): where["low"] = (fr, dom[int(p[:, 2].argmin())])
         l = np.linalg.norm(p[edges[:, 0]] - p[edges[:, 1]], axis=1)

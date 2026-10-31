@@ -725,8 +725,8 @@ func _make_brain() -> void:
 		brain = MegaRexBrain.new()  # MEGAREX: the boss rex, three phases
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
-	elif def and def.archetype == &"club_tail":
-		brain = ClubTailBrain.new()  # ANKYLOAI: tail toward the threat, rare hard club hits
+	elif def and def.archetype in [&"club_tail", &"spiked_tail"]:
+		brain = ClubTailBrain.new()  # ANKYLOAI: tail toward the threat, rare hard club hits; STEGOSPIN: the stegosaurus too
 	elif def and TacticalBrain.has_tactics(def):
 		brain = TacticalBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":

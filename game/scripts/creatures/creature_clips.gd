@@ -19,8 +19,9 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"straf
 ## toss: the woolly rhino's horn toss on a charge impact (TacticalBrain._charge_impact).
 ## stalk: the low hunting creep a tactics.stalk brain approaches in; pin_stab: the sabre stabs while it holds pinned prey
 ## (smilodon, SP-SMILODON). stomp / shove_left / shove_right / tackle (the coil before its body check): the ankylosaurus'
-## close-range moves (ClubTailBrain close_moves, ANKYLOCLOSE).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"stomp", &"shove_left", &"shove_right", &"tackle"]
+## close-range moves (ClubTailBrain close_moves, ANKYLOCLOSE). spin_* / pivot_* (a turn the brain does in code in step with the
+## clip), rear_slam, hind_stomp_*: the stegosaurus' and ankylosaurus' STEGOSPIN moves.
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"stomp", &"shove_left", &"shove_right", &"tackle", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
