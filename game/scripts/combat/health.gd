@@ -9,6 +9,8 @@ signal died(source: Node)
 var max_hp: float = 100.0
 var hp: float = 100.0
 var dead: bool = false
+## HITBOXES: the hurtbox (bone name) the last melee hit landed on, set before take_damage; &"" = not a melee hit.
+var last_hit_part: StringName = &""
 
 func setup(p_max: float) -> void:
 	max_hp = p_max

@@ -1,0 +1,220 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Body",
+  "view_size": 0.55,
+  "view_centre": [
+    0.0,
+    0.2
+  ],
+  "legs": {
+    "L": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind"
+    },
+    "R": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Tail1": {
+      "key": "tailp",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.25
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    },
+    "FrontLeg.L": {
+      "key": "arm",
+      "axis": "pitch",
+      "phase": 0.0
+    },
+    "FrontLeg.R": {
+      "key": "arm",
+      "axis": "pitch",
+      "phase": 0.5
+    },
+    "FrontFoot.L": {
+      "key": "hand",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "FrontFoot.R": {
+      "key": "hand",
+      "axis": "pitch",
+      "phase": 0.6
+    }
+  },
+  "clips": {
+    "walk": {
+      "lift_hind": 0.032,
+      "swing_curl_hind": 15,
+      "toe_roll": 25,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "cycle_s": 1.0,
+      "duty": 0.6,
+      "stride": 0.155,
+      "bob": 0.004,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5,
+      "sway": 0.003,
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 4.0,
+      "wiggle_tailp": 1.5,
+      "wiggle_harmonic_tailp": 2,
+      "wiggle_arm": 7.0,
+      "wiggle_hand": 6.0,
+      "swing_toe_pivot": 1
+    },
+    "run": {
+      "lift_hind": 0.06,
+      "swing_curl_hind": 15,
+      "toe_roll": 35,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "cycle_s": 0.5,
+      "duty": 0.34,
+      "stride": 0.36,
+      "crouch": 0.03,
+      "bob": 0.006,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5,
+      "sway": 0.003,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 3.0,
+      "wiggle_tailp": 2.0,
+      "wiggle_harmonic_tailp": 2,
+      "wiggle_arm": 10.0,
+      "wiggle_hand": 8.0,
+      "lean_deg": 10,
+      "hold": {
+        "FrontUpLeg.L": [
+          "pitch",
+          -25
+        ],
+        "FrontUpLeg.R": [
+          "pitch",
+          -25
+        ]
+      },
+      "swing_toe_pivot": 1
+    },
+    "charge": {
+      "lift_hind": 0.065,
+      "swing_curl_hind": 15,
+      "toe_roll": 0,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "cycle_s": 0.4,
+      "duty": 0.3,
+      "stride": 0.44,
+      "crouch": 0.045,
+      "bob": 0.007,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5,
+      "sway": 0.003,
+      "wiggle_head": 1.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 1.5,
+      "wiggle_tailp": 2.0,
+      "wiggle_harmonic_tailp": 2,
+      "wiggle_arm": 6.0,
+      "wiggle_hand": 6.0,
+      "lean_deg": 18,
+      "hold": {
+        "Neck": [
+          "pitch",
+          20
+        ],
+        "Head": [
+          "pitch",
+          8
+        ],
+        "FrontUpLeg.L": [
+          "pitch",
+          -45
+        ],
+        "FrontUpLeg.R": [
+          "pitch",
+          -45
+        ]
+      },
+      "swing_toe_pivot": 1
+    },
+    "strafe": {
+      "lift_hind": 0.04,
+      "swing_curl_hind": 15,
+      "toe_roll": 25,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "cycle_s": 0.6,
+      "duty": 0.55,
+      "stride": 0.13,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 3.0,
+      "sway": 0.0,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 5.0,
+      "wiggle_tailp": 1.5,
+      "wiggle_harmonic_tailp": 2,
+      "wiggle_arm": 6.0,
+      "wiggle_hand": 6.0,
+      "hold": {
+        "FrontLeg.L": [
+          "roll",
+          -14
+        ],
+        "FrontLeg.R": [
+          "roll",
+          14
+        ]
+      },
+      "swing_toe_pivot": 1,
+      "spread_hind": 0.015
+    }
+  },
+  "note": "RAPTORFLANK 2026-10-31 (owner: 'the animations are weird on this one'): the raptor's own gaits on its own rig. The deinonychus walk moved across never lifted a foot (toe clearance <= 3 cm in the swing: a shuffle) and its strafes were unbaked (played at the walk's 1.17 m/s natural speed while their foot covered ~0.95 m/s: slides). Lifts 22-49 cm at 3.5 m, arms and claws swinging against the legs, a tail and head that move. Strafes = the strafe plan along the side axis (make_gait --as strafe_left --travel 1,0,0; the body keeps facing -Y); walk_back = the walk plan along +Y. Natural speeds in anim_events.json natural_speeds.raptor come from the GAIT report (stride / cycle x game scale)."
+}

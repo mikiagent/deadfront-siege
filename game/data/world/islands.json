@@ -433,7 +433,7 @@
       "far_shore": [
         {
           "species": "allosaurus",
-          "count": 1,
+          "count": 2,
           "groups": 1,
           "chance": 0.3
         },
@@ -592,7 +592,7 @@
       "far_shore": [
         {
           "species": "allosaurus",
-          "count": 1,
+          "count": 2,
           "groups": 1
         }
       ]

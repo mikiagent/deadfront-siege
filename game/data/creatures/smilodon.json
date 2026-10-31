@@ -30,11 +30,14 @@
   "clips": {
     "idle": "Breathing, slow look round, tail sway",
     "walk": "Lateral-sequence cat walk, heel peels off the toes",
-    "run": "Rotary gallop with the back flexing",
+    "lope": "Unhurried cat canter between the walk and the bound",
+    "run": "Rotary bound: gathered (back arched, hinds landing ahead under the chest), drive off into a long stretched flight, fronts land reaching; hips rise and fall, head level, tail counterbalancing",
+    "sprint": "Burst bound: the run stretched out, longer flight and deeper flex (the 2-3 s chase bursts)",
     "stalk": "Low hunting creep: body flat, head low and level, slow placed steps (approach)",
     "attack_primary": "Forepaw swipe: rises on the left fore, right paw rakes down and across (hit from the paw)",
     "attack_heavy": "Pounce windup: sinks into a flat crouch, rump wiggles, jaws gape, then springs into a sabre lunge",
     "pounce": "Launches from the crouch, forelegs reaching, slams both paws on the prey and stabs",
+    "leap": "Chase bound: coils out of the stride, a long stretched leap, fronts then hinds land, straight back into the run (also the cut-off leap and the hop over steps)",
     "pin_stab": "Holds the prey under both forepaws, rears the head with jaws wide and drives the sabres down twice",
     "hit_react": "Flinches back off the forepaws, head jerks away, snarls",
     "knockdown": "Big cat is thrown onto its side",
@@ -99,9 +102,9 @@
     "reference_sheet": "game/assets/creatures/smilodon/ref/smilodon_sheet.png (owner sheet 1, regular) and smilodon_alpha_sheet.png (owner sheet 2, alpha); the four Tripo views were drawn by Codex from sheet 1 in a neutral standing pose (left), front (tail hidden) and back; right = left mirrored",
     "legs": "tools/gait/smilodon_rig.py: digitigrade cat legs (hip/shoulder -> knee/elbow -> hock/wrist, Foot = metatarsus+paw to the toe tips), leg skin re-weighted geometrically, the paw rigid on Foot",
     "jaw": "tools/jaw/add_jaw.py --pivot 0.03 0.393 --split -6 --chin-depth 0.35 --blend 0.008; tools/gait/smilodon_sabres.py keeps the sabre islands rigid on Head",
-    "gaits": "tools/gait/make_gait.py tools/gait/smilodon.json: walk, run (rotary gallop), stalk; strafe_left/right and walk_back from the walk plan (stride 0.3)",
+    "gaits": "tools/gait/make_gait.py tools/gait/smilodon.json: walk, lope (canter), run (rotary bound with a flight phase and spine flex, SMILORUN), sprint (the burst bound), stalk; strafe_left/right and walk_back from the walk plan (stride 0.3)",
     "clips_from": {
-      "attack_primary,attack_heavy,pounce,pin_stab,alert,sleep,feed,idle,hit_react": "tools/gait/make_cat_moves.py (keyed from rest, IK feet, floor pass)",
+      "attack_primary,attack_heavy,pounce,leap,pin_stab,alert,sleep,feed,idle,hit_react": "tools/gait/make_cat_moves.py (keyed from rest, IK feet, floor pass)",
       "knockdown,death": "the Triceratops donor transplant, moved onto the cat legs (transfer_clips.py)"
     },
     "grounding": "tools/gait/ground_clip.py on knockdown, death and the gaits",
@@ -129,9 +132,17 @@
           "Head"
         ],
         "radius_m": 1.2
+      },
+      "leap": {
+        "bones": [
+          "FrontFoot.L",
+          "FrontFoot.R",
+          "Head"
+        ],
+        "radius_m": 1.2
       }
     },
-    "hit_parts_note": "SP-SMILODON: each hit also needs its part (Creature.part_hit): the swipe the right forepaw, the lunge, pounce and pin stabs the sabres on Head; # ASSUMPTION radii (metres at size 1, plus the target's radius)",
+    "hit_parts_note": "SP-SMILODON: each hit also needs its part (Creature.part_hit): the swipe the right forepaw, the lunge, pounce and pin stabs the sabres on Head; # ASSUMPTION radii (metres at size 1, plus the target's radius); SMILORUN: a chase bound lands its strike from either forepaw or the sabres (leap, radius 1.2)",
     "model_variants": {
       "regular": "",
       "alpha": "smilodon_alpha_albedo.jpg"
@@ -140,7 +151,9 @@
     "clips": [
       "idle",
       "walk",
+      "lope",
       "run",
+      "sprint",
       "stalk",
       "strafe_left",
       "strafe_right",
@@ -148,6 +161,7 @@
       "attack_primary",
       "attack_heavy",
       "pounce",
+      "leap",
       "pin_stab",
       "hit_react",
       "knockdown",
@@ -178,5 +192,12 @@
       1.0
     ],
     "_note": "SP-SMILODON: the owner's glowing pale blue eyes; points = the painted eyes (Blender +-0.037, -0.449, 0.466 mesh units) in Head bone space"
+  },
+  "energy": {
+    "costs": {
+      "burst": 12.0,
+      "leap": 8.0
+    },
+    "_note": "SMILORUN ASSUMPTION: a burst costs 12 and a bound 8 of the ~106 pool (80 + 6 x 4.4 m), on top of the run drain (13/s): about three bursts and a few bounds, then it is winded and drops to a walk"
   }
 }

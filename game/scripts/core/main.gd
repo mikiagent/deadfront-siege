@@ -229,3 +229,4 @@ func _process(_delta: float) -> void:
 	debug_label.visible = false
 	if Input.is_action_just_pressed("debug_toggle"):
 		Game.debug_overlay = not Game.debug_overlay
+		Hitbox.debug_draw = Game.debug_overlay  # HITBOXES: the debug toggle shows hurt/hit boxes too
