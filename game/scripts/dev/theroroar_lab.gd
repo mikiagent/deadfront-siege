@@ -12,7 +12,7 @@ extends Node3D
 ## --stomp: SPACING STOMP live instead: each species fights the survivor tucked under its chest (the real brain, GOD on);
 ## saves <species>_stomp_hit.png just after the slam (dust ring) and <species>_stomp_bite.png at the follow-up bite's hit.
 
-const SPECIES: Array[String] = ["ceratosaurus", "tyrannosaurus", "megarex", "allosaurus", "majungasaurus", "tarbosaurus", "spinosaurus"]
+const SPECIES: Array[String] = ["ceratosaurus", "tyrannosaurus", "megarex", "allosaurus", "majungasaurus", "tarbosaurus", "spinosaurus", "carnotaurus"]
 
 var _out := ""
 var _species: Array[String] = SPECIES.duplicate()

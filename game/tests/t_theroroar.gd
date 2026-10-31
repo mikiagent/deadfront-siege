@@ -9,8 +9,9 @@ extends SceneTree
 ##  - MegaRex: a phase change opens with the roar (roar clip as the windup), and its impact fires the burst.
 ## Run: Godot --headless --path game --script res://tests/t_theroroar.gd  -> "[t_theroroar] PASS", exit 0.
 
-const SPECIES: Array[StringName] = [&"ceratosaurus", &"tyrannosaurus", &"megarex", &"allosaurus", &"majungasaurus", &"tarbosaurus", &"spinosaurus"]
+const SPECIES: Array[StringName] = [&"ceratosaurus", &"tyrannosaurus", &"megarex", &"allosaurus", &"majungasaurus", &"tarbosaurus", &"spinosaurus", &"carnotaurus"]
 const FEET := ["Metatarsal.L", "Metatarsal.R", "Toe.L", "Toe.R"]
+const CARNO_FEET := ["BackFoot.L", "BackFoot.R"]  ## the carnotaurus' transplant rig
 const FOOT_TOL := 0.05
 const STEPS := 48
 
@@ -76,6 +77,7 @@ func _test_clip(id: StringName) -> void:
 	var hip0 := 0.0
 	var rise := 0.0
 	var gape := 0.0
+	var jaw0 := Quaternion.IDENTITY
 	var head_i := sk.find_bone("Head")
 	var jaw_i := sk.find_bone("Jaw")
 	for i in STEPS + 1:
@@ -83,7 +85,7 @@ func _test_clip(id: StringName) -> void:
 		ap.play(&"roar")
 		ap.seek(length * i / STEPS, true)
 		ap.pause()
-		for f in FEET:
+		for f in (FEET if sk.find_bone("Toe.L") >= 0 else CARNO_FEET):
 			var p := _pos(sk, f)
 			if i == 0:
 				start[f] = p
@@ -91,11 +93,15 @@ func _test_clip(id: StringName) -> void:
 		var hb := sk.get_bone_global_pose(head_i).basis
 		var y := (sk.global_basis * hb.y)
 		headings.append(atan2(y.x, y.z))
-		var hip := _pos(sk, "Hips").y
+		var hip := _pos(sk, "Head").y  # the head lifted by the rear
 		if i == 0:
 			hip0 = hip
 		rise = maxf(rise, hip - hip0)
-		gape = maxf(gape, rad_to_deg(hb.y.angle_to(sk.get_bone_global_pose(jaw_i).basis.y)))
+		# the jaw's turn against the head since the first frame, whatever axis the rig opens it about
+		var rel := (hb.orthonormalized().inverse() * sk.get_bone_global_pose(jaw_i).basis.orthonormalized()).get_rotation_quaternion()
+		if i == 0:
+			jaw0 = rel
+		gape = maxf(gape, rad_to_deg(jaw0.angle_to(rel)))
 	# unwrap the heading and take its range
 	var lo := 0.0
 	var hi := 0.0
@@ -107,8 +113,8 @@ func _test_clip(id: StringName) -> void:
 	var sweep := rad_to_deg(hi - lo)
 	_expect(drift <= FOOT_TOL, "%s roar: feet stay planted (worst %.3f m, limit %.2f)" % [id, drift, FOOT_TOL])
 	_expect(sweep >= 180.0, "%s roar: the head sweeps %.0f deg (>= 180)" % [id, sweep])
-	_expect(rise > 0.0, "%s roar: it rears up (hips +%.2f m)" % [id, rise])
-	_expect(gape >= 25.0, "%s roar: the jaw opens wide (%.0f deg between head and jaw)" % [id, gape])
+	_expect(rise > 0.0, "%s roar: it rears up (head +%.2f m)" % [id, rise])
+	_expect(gape >= 25.0, "%s roar: the jaw opens wide (%.0f deg against the head)" % [id, gape])
 	if id == SPECIES[0]:
 		_expect(absf(CC._hit_frac(&"roar") - 0.34) < 0.001, "the roar's burst is at hit_frac 0.34")
 	view.free()

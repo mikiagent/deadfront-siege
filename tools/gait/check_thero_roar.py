@@ -57,6 +57,8 @@ f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
 mw = arm.matrix_world
 fwd = Vector((0, 1 if arm.data.bones["Head"].head_local.y > arm.data.bones["Hips"].head_local.y else -1, 0))
 JOINTS = [(n, end) for sd in "LR" for n, end in (("Metatarsal." + sd, "head"), ("Toe." + sd, "head"), ("Toe." + sd, "tail"))]
+if "Toe.L" not in pbs:  # the carnotaurus' transplant rig: the hind feet are BackFoot.L/R
+    JOINTS = [(n, end) for sd in "LR" for n, end in (("BackFoot." + sd, "head"), ("BackFoot." + sd, "tail"))]
 
 
 def joint(n, end):
@@ -68,16 +70,20 @@ def heading():
     return math.degrees(math.atan2(y.dot(fwd.cross(Vector((0, 0, 1)))), y.dot(fwd)))
 
 
+def jaw_rel():
+    return (pbs["Head"].matrix.to_3x3().normalized().inverted() @ pbs["Jaw"].matrix.to_3x3().normalized()).to_quaternion()
+
+
 def jaw_open():
-    h = pbs["Head"].matrix.to_3x3().col[1].normalized()
-    j = pbs["Jaw"].matrix.to_3x3().col[1].normalized()
-    return math.degrees(h.angle(j))
+    """The jaw's turn against the head since frame 0, whatever axis it opens about."""
+    return math.degrees(JAW0.rotation_difference(jaw_rel()).angle)
 
 
 bpy.context.scene.frame_set(f0)
 start = {k: joint(*k) for k in JOINTS}
-hip0 = (mw @ pbs["Hips"].head).z
-jaw0 = jaw_open()
+hip0 = (mw @ pbs["Head"].head).z
+JAW0 = jaw_rel()
+jaw0 = 0.0
 drift = sink = 0.0
 rise = 0.0
 heads, jaws = [], []
@@ -86,7 +92,7 @@ for f in range(f0, f1 + 1):
     for k in JOINTS:
         drift = max(drift, (joint(*k) - start[k]).length * SCALE)
     sink = max(sink, -float(skin()[:, 2].min()) * SCALE)
-    rise = max(rise, ((mw @ pbs["Hips"].head).z - hip0) * SCALE)
+    rise = max(rise, ((mw @ pbs["Head"].head).z - hip0) * SCALE)  # the head lifted by the rear
     heads.append(heading())
     jaws.append(jaw_open() - jaw0)
 if "spacing_stomp" in clip:
@@ -112,5 +118,5 @@ h = np.unwrap(np.radians(heads))
 sweep = math.degrees(h.max() - h.min())
 gape = max(jaws)
 ok = drift <= 0.05 and sink <= 0.02 and sweep >= 180.0 and gape >= 25.0 and rise > 0.0
-print("THEROROAR_CHECK %s %s frames %d: foot drift %.3f m, sink %.3f m, hip rise %.2f m, head sweep %.0f deg, jaw %.0f deg"
+print("THEROROAR_CHECK %s %s frames %d: foot drift %.3f m, sink %.3f m, head rise %.2f m, head sweep %.0f deg, jaw %.0f deg"
       % ("PASS" if ok else "FAIL", clip.split("/")[-1], f1 - f0 + 1, drift, sink, rise, sweep, gape))

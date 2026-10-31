@@ -7,8 +7,8 @@ extends SceneTree
 ##  - she is not stomped when she already stands at bite reach.
 ## Run: Godot --headless --path game --script res://tests/t_spacingstomp.gd  -> "[t_spacingstomp] PASS", exit 0.
 
-const SPECIES: Array[StringName] = [&"tyrannosaurus", &"megarex", &"allosaurus", &"majungasaurus", &"ceratosaurus", &"tarbosaurus", &"spinosaurus"]
-const LIVE: Array[StringName] = [&"ceratosaurus", &"tyrannosaurus", &"megarex", &"allosaurus", &"majungasaurus", &"tarbosaurus", &"spinosaurus"]
+const SPECIES: Array[StringName] = [&"tyrannosaurus", &"megarex", &"allosaurus", &"majungasaurus", &"ceratosaurus", &"tarbosaurus", &"spinosaurus", &"carnotaurus"]
+const LIVE: Array[StringName] = [&"ceratosaurus", &"tyrannosaurus", &"megarex", &"allosaurus", &"majungasaurus", &"tarbosaurus", &"spinosaurus", &"carnotaurus"]
 const REACH_TOL := 0.3
 const PlayerKnock_FALL := 2  ## PlayerKnock.Phase.FALL
 const PlayerKnock_LIE := 3  ## PlayerKnock.Phase.LIE

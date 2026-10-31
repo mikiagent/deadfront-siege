@@ -127,7 +127,9 @@
    "knockdown",
    "death",
    "sleep",
-   "feed"
+   "feed",
+   "roar",
+   "spacing_stomp"
   ],
   "authored_clips": {
    "idle": "transplant donor idle, tail damped to 35 % (stiffen_tail)",

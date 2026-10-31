@@ -158,6 +158,7 @@ func _spawn(at: Vector3, face: Vector3):
 	c.spawn(data.creature(ID), &"", 0, null, 0, &"aggressive")
 	c.anim.tree.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_PHYSICS
 	c.brain.rng.seed = 20261030
+	c.set_meta(&"thero_roar_at", Time.get_ticks_msec() * 0.001)  # THERO-ROAR: no spot roar; the moves under test come at once
 	c.look_at(Vector3(face.x, at.y, face.z), Vector3.UP)
 	c.brain.attack_target = player
 	return c
