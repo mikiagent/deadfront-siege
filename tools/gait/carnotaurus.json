@@ -1,0 +1,145 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Body",
+  "view_size": 1.1,
+  "view_centre": [
+    -0.05,
+    0.22
+  ],
+  "legs": {
+    "L": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind"
+    },
+    "R": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.25
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "clips": {
+    "walk": {
+      "cycle_s": 1.05,
+      "duty": 0.62,
+      "stride": 0.26,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.04,
+      "swing_curl_hind": 0,
+      "toe_roll": 0,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 2.0,
+      "sway": 0.006,
+      "wiggle_head": 2.5,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 2.0
+    },
+    "run": {
+      "cycle_s": 0.7,
+      "duty": 0.34,
+      "stride": 0.5,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.065,
+      "swing_curl_hind": 0,
+      "toe_roll": 0,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.01,
+      "bob": 0.008,
+      "bob_harmonic": 2,
+      "bob_phase": 0.0,
+      "roll_deg": 1.5,
+      "sway": 0.003,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 2.0,
+      "lean_deg": 6,
+      "hold": {
+        "Neck": [
+          "pitch",
+          2
+        ]
+      }
+    },
+    "charge": {
+      "cycle_s": 0.55,
+      "duty": 0.3,
+      "stride": 0.62,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.075,
+      "swing_curl_hind": 0,
+      "toe_roll": 0,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.02,
+      "bob": 0.01,
+      "bob_harmonic": 2,
+      "bob_phase": 0.0,
+      "roll_deg": 1.5,
+      "sway": 0.004,
+      "wiggle_head": 1.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 1.5,
+      "lean_deg": 12,
+      "hold": {
+        "Neck": [
+          "pitch",
+          -6
+        ],
+        "Head": [
+          "pitch",
+          -22
+        ],
+        "Tail1": [
+          "pitch",
+          8
+        ],
+        "FrontUpLeg.L": [
+          "pitch",
+          -40
+        ],
+        "FrontUpLeg.R": [
+          "pitch",
+          -40
+        ]
+      }
+    }
+  },
+  "note": "2026-10-30 carnotaurus (Tripo mesh 1.0 units long, hip 0.235): long-legged fast biped. charge = the head-low horn sprint (horns forward, body near level, arms tucked) the TacticalBrain plays on its straight ram line. Cycles sized so the natural speeds sit near the game's (run 9.2 m/s, charge 14.5 m/s at 12.8 m long): the stride-matched gait then plays near cadence 1.. The foot bone runs heel to toe (the ankle is the heel), so there is no swing curl and no toe roll (the roll's pivot snapped the toes 0.45 m under the floor at lift-off): a positive curl swung the long foot's toes 0.4 m under the floor and a negative one the heel."
+}

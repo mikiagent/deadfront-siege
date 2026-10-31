@@ -477,6 +477,18 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM5** | Alpha skin = the brown sheet as a recolour of the regular texture (same mesh, mane shape unchanged); the alpha's eyeshine stays blue (the eyes block has one colour). | `smilodon_alpha_albedo.jpg`, `Creature.spawn` | A separate alpha mesh or amber alpha eyes would need more work. |
 | **SM6** | Saddle: the shared builder, no neck strap (the mane lets its rays out), seat behind the mane. Rideable (back 1.6 m clears the 1.78/1.6 rule). | `saddles.json`, `mount/` | Riding a sabre cat was in its data (`tamed_role` mount); the owner may prefer combat-only. |
 
+### SP-CARNOTAURUS (2026-10-30) — new species (claude/mmo-sp-carnotaurus)
+
+Owner: "fast bull-like predator: horn ram that knocks the target back, sprint charge with a sharp turn, snap bite". The PRDs say nothing about the Carnotaurus. Report `docs/orchestration/reports/claude-sp-carnotaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **CA1** | Stats sit between the utahraptor and the allosaurus: tier 48, hp 6000, atk 360, def 150, speed 640, capture tier 4. It is tameable and its tamed role is combat only (no saddle was built). Taming food is the same as the other big carnivores. | `carnotaurus.json` | A fast predator mount is an obvious ask. It needs a saddle (saddles.json + build) and `mount` in `tamed_role`. |
+| **CA2** | Size follows RS1/RS2: 8 m real is 12.8 m on screen, `height_meters` 5.74 (head top), `real_length_m` 16. | `carnotaurus.json` | It dwarfs the survivor: the head is about 5 m ahead of its body centre. |
+| **CA3** | New archetype `horned_hunter` (TacticalBrain). It roars, then charges on a straight line. A hit hooks her 60 deg off the line and throws her 3.5 m. It runs 9 m past her, hops round to its LEFT and charges back once. Up close it uses the horn ram (x1.8, throws her 4 m) or the snap bite. `turn_rate` is 2.0, so its flank is the safe side. Every number is a first pass. | `ai.json` archetypes.horned_hunter | This is pacing and difficulty. The return pass can catch a survivor who is still staggered from the first hit. |
+| **CA4** | Hits are checked from the attacking bone at the hit frame (`pipeline.hit_parts`: Jaw 1.6 m, Head 1.9 m) with canon's `Creature.part_hit`, until claude/mmo-hitboxes lands. `attack_range` 4.6, because the jaws are about 5 m ahead of its centre. Under its chest or at its flank it misses. | `Creature.part_hit`, `carnotaurus.json` | Once the hitbox system lands, move these to hitboxes.json and drop the shortcut. |
+| **CA5** | Spawns: one on desert_35's far shore (next to the utahraptor) and one in desert_50's working ring. Climate is desert. | `world/islands.json` | Savannah would also fit (the brief says "dry/savannah or desert"). |
+| **CA6** | The alpha skin is baked from the regular colour map: rust, black mottling, near-black horns. The sheet's heavier osteoderms are texture only; the alpha uses the same mesh. | `carnotaurus_alpha_albedo.jpg` (`pipeline.model_variants.alpha`) | A real alpha mesh would cost another Tripo generation. |
 
 ### SP-TARBOSAURUS (2026-10-31) — the tarbosaurus gets a model, a stalk, a burst that foot-pins, a head-whip bite and a tail whip (claude/mmo-sp-tarbosaurus)
 
@@ -490,3 +502,16 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **TB4** | Pin: the burst and the point-blank lunge are attack_heavy hits, so (PINFEEL rule) they apply Pinned and it plants its right foot on the victim (`pin_foot`); the bite never pins. Pinned length and damage are the status data. | `tarbosaurus.json` status_applied, PINFEEL | Pin frequency is a balance call. |
 | **TB5** | Tail whip uses the TacticalBrain's `kick` slot (point blank, prey behind); the clip is named `kick` and its hit part radius is 2.0 m (the tail sweeps metres between frames). | `tarbosaurus.json` hit_parts | Swap for the hitbox system's swept volumes when it lands. |
 | **TB6** | No alpha skin: no alpha sheet was given, so alphas get the genetics recolour only (`model_variants.alpha` not set). No eye glow block (eyes not measured). No saddle (`tamed_role` is combat only). | `tarbosaurus.json` | Give an alpha sheet to get a skin. |
+
+### SP-RAPTOR (2026-10-31) — the Raptor, a new rideable dromaeosaur with colour morphs (claude/mmo-sp-raptor)
+
+Owner: "black and gold is the original raptor (idk just call it Raptor)", "raptor is big enough though" (to ride), "it comes in different colors including green and different feathers". Report `docs/orchestration/reports/claude-sp-raptor.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **RP1** | Size: `height_meters` 3.5 (back over the hips ~2.4 m, 7.5 m long on screen = 4.7 m true at the house 1.6x, between deinonychus 4.8 m and utahraptor 11.2 m on screen); `real_length_m` 9.4 (the roster's 2x). | `raptor.json` | Size sets reach, pen tier, mount height. |
+| **RP2** | Stats between deinonychus and utahraptor: hp 2400, attack 230, defense 90, speed 650; tier 42, capture tier 4, 4 feeds in a pen; `deep_bleed`. A landed sickle slash (x2.0) or pounce (x2.5) kills a fresh 100 HP survivor. | `raptor.json` | Balance pass. |
+| **RP3** | AI: the deinonychus pack_flanker profile x1.25 distances, plus a pin (a landed pounce pins prey no bigger than itself under the right foot; two pin bites x1.0, held 3.2 m out), a point-blank sickle slash (heavy, cd 6 s, x2.0, from the right foot) and a crest-flare display that leads into a pounce. `attack_range` 2.9 (a species override, new in CreatureBrain.setup) so the bite meets her. | `raptor.json` tactics | Move mix, damage and the pin length are design calls. |
+| **RP4** | Colour morphs: five textures on one mesh with equal odds per wild spawn: black_gold (the sheet), black_crimson (the feather morph), green (olive hide, amber feathers), rust (rust hide, cream feathers), slate (blue-grey hide, ice-blue feathers). Recoloured from the Tripo albedo, so every morph has the same crest and quill shapes; no crest on/off. Alphas wear their rolled morph. | `pipeline.model_variants`, `tools/gait/raptor_palettes.py` | Which morphs exist, their odds, and whether colour ties to island/biome are the owner's. |
+| **RP5** | Spawns: a pair (chance 0.7) on the far shore of `temperate_35` and `tropical_40`; home climate tropical. | `islands.json` | Where it lives. |
+| **RP6** | Clips: the deinonychus set moved onto its body (bites step in with a short hop, both feet up to 0.18 m for a frame), the velociraptor's feed; pin_stab, the sickle slash, the crest-flare alert and sleep are new. Its arm feathers are part of the arm skin (no separate wing fans like the deinonychus), so the arm spread reads small. | `anim/`, `tools/gait/make_raptor_moves.py` | Clip asks go to the owner's review. |

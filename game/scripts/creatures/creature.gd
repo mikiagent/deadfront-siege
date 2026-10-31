@@ -916,6 +916,8 @@ func _on_hit(clip: StringName) -> void:
 			return
 		if target is Player:
 			(target as Player).receive_creature_hit(self, clip)
+		if brain is TacticalBrain:
+			(brain as TacticalBrain).landed(clip, target)
 
 ## Where a move hits (species JSON pipeline.hit_parts.<clip>: {bones, radius_m}; until the hitbox system lands): at
 ## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical

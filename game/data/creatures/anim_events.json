@@ -8,7 +8,8 @@
     "attack_heavy": {
       "hit_frac": 0.72,
       "windup": true,
-      "windup_hold": 0.6
+      "windup_hold": 0.6,
+      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R"
     },
     "hit_react": {
       "speed": 2.0
@@ -133,10 +134,37 @@
         0.74
       ],
       "windup": false,
-      "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)"
+      "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)",
+      "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)"
+    },
+    "charge_turn": {
+      "airborne": [
+        0.2,
+        0.6
+      ],
+      "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn"
     }
   },
   "natural_speeds": {
+    "carnotaurus": {
+      "height_m": 5.74,
+      "walk": 3.203,
+      "walk_l": 3.203,
+      "walk_r": 3.203,
+      "walk_len": 1.042,
+      "run": 9.058,
+      "run_l": 9.058,
+      "run_r": 9.058,
+      "run_len": 0.708,
+      "charge": 14.688,
+      "charge_len": 0.542,
+      "strafe_left": 3.203,
+      "strafe_left_len": 1.042,
+      "strafe_right": 3.203,
+      "strafe_right_len": 1.042,
+      "walk_back": 1.725,
+      "walk_back_len": 1.042
+    },
     "ankylosaurus": {
       "height_m": 2.25,
       "run_l": 2.06,
@@ -390,6 +418,19 @@
       "walk_back": 1.711,
       "walk_back_len": 1.292,
       "_note": "SP-TARBOSAURUS: walk/run from tools/bake_clip_speeds.py --dry-run; stalk = make_gait stride / cycle (1.6 / 2.2 rig m/s) x 6.8 / 8; strafes and walk_back reuse the walk plan"
+    },
+    "raptor": {
+      "height_m": 3.5,
+      "run_l": 5.515,
+      "run_len": 0.5,
+      "run_r": 5.515,
+      "walk_l": 1.17,
+      "walk_len": 1.0,
+      "walk_r": 1.17,
+      "walk": 1.17,
+      "run": 5.515,
+      "charge": 8.21,
+      "_note": "SP-RAPTOR: walk/run from tools/bake_clip_speeds.py --dry-run (the deinonychus gaits moved onto the raptor); charge = run x the deinonychus charge/run ratio (6.6/4.432)"
     }
   }
 }

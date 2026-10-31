@@ -8,6 +8,7 @@ const PARTS := {
 	"velociraptor": ["raptor_bone", "raptor_talon"],
 	"deinonychus": ["raptor_bone", "raptor_talon"],
 	"utahraptor": ["raptor_bone", "raptor_talon"],
+	"raptor": ["raptor_bone", "raptor_talon"],
 	"compsognathus": ["hollow_bone"],
 	"coelophysis": ["hollow_bone"],
 	"gallimimus": ["hollow_bone"],
