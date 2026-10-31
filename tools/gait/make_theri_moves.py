@@ -353,16 +353,15 @@ def bite_combo(u):
 
 
 def hit_react(u):
-    """0.6 s: the head and chest jerk back and up from the blow, the arms flinch up, a stagger step back."""
+    """0.6 s: the head and chest jerk back and up from the blow, the arms flinch up; both feet stay planted
+    (PLANTEDFLINCH, owner 2026-10-31: "rattled but the feet stay planted"; the old stagger step lifted a foot 42 cm)."""
     j = track(u, [(0, 0), (0.15, 1), (0.45, 0.7), (1, 0)])
-    lf = track(u, [(0, 0), (0.1, 0), (0.36, -0.14), (0.62, -0.14), (0.9, 0), (1, 0)])
-    ll = max(0.0, track(u, [(0, 0), (0.06, 0), (0.22, 0.12), (0.38, 0), (0.6, 0), (0.75, 0.1), (0.92, 0), (1, 0)]))
     return {
         "body": {"dy": -0.07 * j, "pitch": 8 * j, "roll": -3 * j, "dz": -0.02 * j},
         "turns": merge(CARRY_ARMS, arms(25 * j, 15 * j, 0, -10 * j, 0, 10 * j),
                        {"Neck1": (12 * j, 6 * j, 0), "Neck2": (8 * j, 0, 0), "Head": (14 * j, 0, -8 * j)}, tail_set(-6 * j)),
         "jaw": 16 * j,
-        "feet": {"L": (ll, lf, 0, 0), "R": (0, 0, 0, 0)},
+        "feet": {"L": (0, 0, 0, 0), "R": (0, 0, 0, 0)},
     }
 
 

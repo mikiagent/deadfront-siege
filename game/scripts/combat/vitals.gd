@@ -31,6 +31,8 @@ var food_max_energy: float = 0.0
 var exhausted: bool = false
 ## Set on death: no regen, no further damage until revive().
 var dead: bool = false
+## HITBOXES: the hurtbox (bone name) the last creature hit landed on, set before take_damage.
+var last_hit_part: StringName = &""
 var blocks_regen: bool = false
 ## Well Rested (a no_fatigue_gain status, StatusEffects._sync_vitals): exhaustion gains of every source are
 ## dropped; reductions (rest, meals, sleep) still apply. Owner 2026-10-28.

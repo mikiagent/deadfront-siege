@@ -439,7 +439,7 @@
         },
         {
           "species": "allosaurus",
-          "count": 1,
+          "count": 2,
           "groups": 1,
           "chance": 0.3
         },
@@ -472,6 +472,11 @@
       ],
       "working": [
         {
+          "species": "majungasaurus",
+          "count": 1,
+          "groups": 1
+        },
+        {
           "species": "styracosaurus",
           "count": 3,
           "groups": 1
@@ -491,6 +496,11 @@
         }
       ],
       "far_shore": [
+        {
+          "species": "majungasaurus",
+          "count": 1,
+          "groups": 1
+        },
         {
           "species": "utahraptor",
           "count": 2,
@@ -598,7 +608,7 @@
       "far_shore": [
         {
           "species": "allosaurus",
-          "count": 1,
+          "count": 2,
           "groups": 1
         }
       ]

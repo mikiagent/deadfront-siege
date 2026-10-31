@@ -106,10 +106,17 @@ func _impact_special() -> bool:
 		return true
 	if locked_target is Player and (locked_target as Player).dead:
 		return true
-	var offset := locked_target.global_position - creature.global_position
-	offset.y = 0.0
-	if offset.length() > reach_to(locked_target) + 0.3 or offset.normalized().dot(locked_forward) < 0.15:
-		return true
+	if Hitbox.applies(creature, locked_target):
+		# HITBOXES: the jaws (hitboxes.json megarex bite_shake) must close on her hurtboxes.
+		var hit := Hitbox.strike(creature, windup_clip, locked_target)
+		if hit.is_empty():
+			return true
+		Hitbox.mark(locked_target, hit)
+	else:
+		var offset := locked_target.global_position - creature.global_position
+		offset.y = 0.0
+		if offset.length() > reach_to(locked_target) + 0.3 or offset.normalized().dot(locked_forward) < 0.15:
+			return true
 	if not CreatureAttack.apply_for(creature, windup_clip, locked_target, SHAKE_MULT):
 		return true
 	if not CreatureAttack._target_dead(locked_target):
