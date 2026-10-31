@@ -35,7 +35,7 @@ Small and medium animals (compy, raptors, pachycephalosaurus, deer) keep the sam
 
 The survivor in GOD mode, Hunt with Auto and Auto-ability on, against each species spawned as the lab's NEXT does (one Aggressive animal 8 m ahead, on her). Species: the owner's seven plus every modelled species with mass_proxy >= giant_mass. Its HP is held full (no capture knockdown). Per species: her hits land; a poised body spends <= 1 % of the fight staggered by her or in hit_react (others <= 35 %); it starts 2+ attacks with no 16 s of her up-time between them; something it does lands on her. About 300 s.
 
-Before and after (canon 2eecfc3e without the fix, then the merged head with it; "staggered" = staggered by her or in hit_react, share of the fight):
+Before and after (canon 2eecfc3e without the fix, then the head with canon 38ad8b87 merged; "staggered" = staggered by her or in hit_react, share of the fight):
 
 | Species | Poised | Before: staggered / its attack starts / hits on her | After |
 |---|---|---|---|
@@ -60,17 +60,17 @@ Before and after (canon 2eecfc3e without the fix, then the merged head with it; 
 
 On canon the test fails on 16 of the 18 (17 failures); with the fix it passes. The fight lengths differ run to run (the fight runs 14 s from her first hit, up to 30 s until it has hit back), and single runs are not deterministic, so compare the staggered column, not the counts.
 
-## Gates (merged head d9e4eebc, canon 91010e7f merged)
+## Gates (merged head, canon a0d9bf1d merged)
 
 | Gate | Result |
 |---|---|
-| t_stunlock | PASS (310 s) |
+| t_stunlock | PASS (333 s) |
 | t_ankyloclose | PASS |
 | t_combat | PASS |
 | t_knockdown | PASS |
 | t_hitboxes | PASS |
 | t_plantedflinch | PASS (poised species now flinch instead of hit_react; feet still planted) |
-| t_noteleport | PASS on this head. **Flaky, also on canon**: in earlier runs one to four random small species' kick missed ("kick X missed: no hurtbox in the way", slides 0 m) and the gallimimus leap_back stepped 2.5-8 m in a frame; three runs on canon without this branch failed the same way (velociraptor, megaloceros, gallimimus). Not caused here; the kick's hitbox placement in that test needs its own look. |
+| t_noteleport | **FAIL, and canon a0d9bf1d fails it the same way without this branch** (two canon runs): "ankylosaurus: worst frame step 4.32 m at f138 approach/idle", new with the stegospin merge (ankylosaurus rush/about-face). Plus the old flake: one to four random small species' kick misses ("kick X missed: no hurtbox in the way", slides 0 m), seen on every canon since 1066e9c9. On the previous canon (91010e7f) merged here it passed. |
 | run_all.gd | `[tests] PASS` |
 | `tools/smoke.sh --no-import` | SMOKE PASS |
 
@@ -86,6 +86,6 @@ Also passed on the first merged head: t_styrafix, t_sp_trikealpha, t_sp_woolly_r
 ## For the next agent
 
 - The triceratops and styracosaurus can still stall a straight charge against a survivor standing at their face (the triceratops now jousts, which mostly avoids it). Needs a point-blank shove or a back-off before the charge.
-- t_noteleport is flaky on canon (see above).
+- t_noteleport is red on canon a0d9bf1d: the ankylosaurus moves 4.32 m in one frame in approach/idle (stegospin), and the kick-miss flake (see above). Whoever owns stegospin should look at the first.
 - The test spawns the animal with `position` set before `add_child`: added at the origin, its body carried the survivor 8 m along as a moving platform on its first frame. Any lab or test that adds a creature and then moves it can hit the same thing.
 - The fight lab itself was not run windowed; the owner should re-test the ankylosaurus, stegosaurus and carnotaurus there.

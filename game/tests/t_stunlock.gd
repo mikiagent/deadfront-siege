@@ -16,8 +16,9 @@ extends SceneTree
 const NAMED: Array[StringName] = [&"ankylosaurus", &"stegosaurus", &"triceratops", &"styracosaurus", &"pachycephalosaurus", &"carnotaurus", &"tyrannosaurus"]
 ## The owner's armoured species, poised whatever its mass.
 const ARMOURED: Array[StringName] = [&"ankylosaurus"]
-## Its own attacks: every melee clip (CreatureAnim.ATTACKS) plus the charge and leap starts (and the brain's charge state).
-const OWN_ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"charge", &"charge_crouch", &"charge_windup", &"bull_windup", &"pounce", &"leap", &"flank_rake", &"impale", &"toss"]
+## Its own attacks: every melee clip (CreatureAnim.ATTACKS, read at run time so new moves count) plus these starts
+## (a charger's ram, a leap) and the brain's charge state.
+const MORE_ATTACKS: Array[StringName] = [&"charge", &"charge_crouch", &"charge_windup", &"bull_windup", &"pounce", &"leap", &"flank_rake", &"impale", &"toss"]
 ## The fight runs FIGHT_S from her first landed hit, longer (up to MAX_FIGHT_S) while it has not yet hit her back or
 ## started MIN_STARTS attacks: a hop-back fighter (majungasaurus) can miss for a while without being locked.
 const FIGHT_S := 14.0
@@ -38,6 +39,7 @@ var host: Node3D
 var player: Node3D
 var _only: PackedStringArray = []
 var _trace := false
+var _attacks: Array = []
 var _casts := 0  ## frames the auto-cast fired Tackle or Kick, all fights
 
 func _process(delta: float) -> bool:
@@ -76,6 +78,7 @@ func species() -> Array[StringName]:
 
 func _run() -> void:
 	data = root.get_node("Data")
+	_attacks = load("res://scripts/creatures/creature_anim.gd").ATTACKS + MORE_ATTACKS
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--only="):
 			_only = a.substr(7).split(",")
@@ -164,7 +167,7 @@ func _fight(id: StringName) -> void:
 		was_knocked = knocked
 		# A charge runs on its run clip; a new attack clip straight after another is a new start (combo, then rake).
 		var clip: StringName = &"charge" if c.brain.state == &"charge" else c.anim.current_clip
-		var attacking: bool = clip in OWN_ATTACKS
+		var attacking: bool = clip in _attacks
 		var up: bool = not (knocked or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"))
 		if engaged >= 0.0:
 			if up:
