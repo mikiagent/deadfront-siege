@@ -616,6 +616,24 @@ Owner: "call that monstrosity MegaRex ... make it a boss fight". Report `docs/or
 | **MR4** | Loot: every MegaRex carcass rolls as an alpha's (the guaranteed rare rows, the trophy, the alpha pool: alpha_hide 3-4, alpha_fang 3); butchering = the T. rex rows x~1.5. Not tameable. | `corpse.gd`, `loot_tables.json`, `butchering.json` | Boss rewards. |
 | **MR5** | Look: the olive v2 hide the owner saw. The armoured slate recolour from the Alpha sheet (`megarex/ref/megarex_armoured_albedo.jpg`, `tools/gait/rex_alpha_skin.py`) is not used; the sheet's horns and spike row would need another Tripo mesh. Lying clips go down on the belly (side-lying tore the thigh skin on this rig). The mesh is its left half mirrored (Tripo modelled a mid-stride pose). The plate shows "Mega Rex" (the game capitalises species names). | `megarex.json`, `make_rex_moves.py --v2` | Cosmetic choices the owner may want changed. |
 
+### BIGSTOMP (2026-10-31) — big dinosaurs stomp what is under them; pins only from a visible stomp or grab (claude/mmo-bigstomp)
+
+Owner: "the bigger dinosaurs all need a stomp mechanic where if you get close they will stomp the ground, shake the
+screen, and if you get stomped you probably take a lot of damage or die. Maybe you get pinned by the stomp attack --
+... the trexes would pin me and it would teleport me under their feet". Numbers in `ai.json big_stomp` unless noted.
+Report: `claude-bigstomp.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **BS1** | Who: species JSON height_meters >= 2.9 m with a `big_stomp` clip (tyrannosaurus, tarbosaurus, megarex, carnotaurus, triceratops, styracosaurus, woolly rhino, therizinosaurus, ceratosaurus; not the agile runners gallimimus, megaloceros, raptor, utahraptor, which have no clip); `"big_stomp": false` in a tactics profile or archetype row opts out (club_tail: the ankylosaurus keeps its own stomp), true or a dict opts in. Pets never stomp. | `min_height_m`, `BigStomp.for_creature` | Which animals stomp. |
+| **BS2** | When: its target stands (not knocked down, not pinned) inside the near ring round where the foot lands; cooldown 3.5 s. It never stomps someone already down. | `cooldown_s`, `BigStomp._standing` | How relentless it is; no stomp-lock on a downed survivor. |
+| **BS3** | Sizes in body heights: near ring 0.42 (rex 3.4 m), foot's shadow 0.16 (rex 1.3 m). Wind-up 0.6 s (3 m animal) to 0.9 s (10 m), linear. | `near_frac`, `direct_frac`, `windup_s`, `size_range_m` | Readability vs threat. |
+| **BS4** | Damage: in the shadow 2.5 x attack (a T. rex kills a fresh survivor outside GOD), then Pinned under the foot; in the ring 0.35 x attack and a knockdown (PlayerKnock force 3). The usual accuracy roll applies (tests force accuracy 1). | `damage_mult`, `near_mult`, `near_force` | Balance (pc-balance). |
+| **BS5** | The stomp-pin is the existing PINFEEL pin: pin_foot clip, Pinned 4 s on its timer (no struggle input exists yet; `statuses.json` lists struggle/pet_aggro but nothing fires them), plus one bite at 1.5 s for 0.6 x attack. The raid kit stops the T. rex's stomp-pin (as it does its heavy's). | `pin_bite_s`, `pin_bite_mult` | Lethality of a pin; break-free is a design call. |
+| **BS6** | Camera shake 0.45 (3 m) to 0.9 (10 m) trauma, falling off to 0 at 3 x the near ring; `--reduce-shake` turns it off (IsoCamera). Dust: one CPU particle burst. | `shake`, `shake_range` | Feel; motion sickness setting. |
+| **BS7** | Pin fix: a foot pin starts only on a victim within 0.3 x body height of the pinning foot (the tarbosaurus' burst: 0.8, its jaws carry her); otherwise the hit knocks her down with no pin. She is pressed under the claws at most 3 m/s (tarbosaurus 6 m/s). Pinner and victim stop colliding for the pin and again once she is clear. TacticalBrain pins (raptor, smilodon) are capped at 3 m/s too. | `pin_reach_frac`, `pin_slide_mps`, `PinHold` | The old exponential snap moved her up to ~1 m a frame from anywhere the heavy reached. |
+| **BS8** | Clips: one foot per species (biped right, quadruped left fore), landing a little ahead of and inside its print; the ring is placed from measured `land` offsets. The tyrannosaurs' big_stomp is their attack_heavy stomp; the tarbosaurus' pin_foot now starts from that stomp (its burst pin crossfades from the lunge). Allosaurus and brachiosaurus have no model yet: they get the stomp when a rig with a big_stomp clip lands. | `make_big_stomp.py`, `make_rex_moves.py big_stomp`, `land` | A mirrored clip would let it stomp with the nearer foot. |
+
 ### CORNERED (2026-10-31) — fleeing animals fight back when chased (claude/mmo-cornered)
 
 Owner: "Animals that run away from you should get territorial and attack you if you chase them". Report `docs/orchestration/reports/claude-cornered.md`.
