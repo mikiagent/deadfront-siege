@@ -879,6 +879,11 @@ func _start_sequence(d: float) -> bool:
 	var row := pick_sequence(d)
 	if row.is_empty():
 		return false
+	# tactics.healthy_commit_chance (opportunist, majungasaurus): above the weak_prey HP line a ready pick only goes
+	# this often (a test rush); otherwise its cooldown is spent and it keeps circling the prey.
+	if tac.has("healthy_commit_chance") and not "weak_prey" in _active_mods() and rng.randf() >= _t("healthy_commit_chance", 1.0):
+		_start_cd(StringName((row.get("steps", []) as Array)[-1]))
+		return false
 	_seq = (row.get("steps", []) as Array).duplicate()
 	_seq_i = 0
 	var last := StringName(_seq[-1])
@@ -1277,7 +1282,13 @@ func _charge(delta: float) -> void:
 ## (attack_primary) pushes her back to claw's length; tactics.hook_pull_m, the combo's first hit (the claw hook) drags her
 ## in toward it, never closer than hook_stop_m. SP-ALLOSAURUS (tactics.grab): the grab_bite's first hit (the hands' clamp)
 ## pins her for the bites that follow (the utahraptor's bite with arms is its own clip, arm_bite).
+## tactics.bite_pin (majungasaurus): a landed crushing bite (attack_primary) holds on: the grab (_start_pin;
+## pin_stab shakes the held prey), off pin_cd.
 func landed(clip: StringName, target: Node) -> void:
+	if clip == &"attack_primary" and tac.get("bite_pin", false) and target == attack_target and _ready_to(&"pin"):
+		_start_cd(&"pin")
+		_start_pin.call_deferred()  # after the bite's attack_hit returns: started inside it, pin_stab skipped its first hit
+		return
 	if clip == &"grab_bite" and tac.get("grab", false) and creature.anim.hit_index == 0:
 		if _hold_victim(target as Node3D, &"grab_bite"):
 			tactic.emit(&"grabbed")

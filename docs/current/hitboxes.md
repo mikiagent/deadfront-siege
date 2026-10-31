@@ -93,6 +93,7 @@ part that needs the least. Shrink a radius when the clip or the AI spacing is fi
 | compsognathus | pounce Jaw 0.97; attack_primary Jaw 0.85; attack_heavy Jaw 0.62 |
 | deinonychus | pounce Head 0.97; attack_primary Head 0.78; attack_heavy Jaw 0.82; bite_combo Jaw 0.70 |
 | gallimimus | attack_heavy BackFoot.R 1.27; attack_primary Head 1.04; bite_combo Head 1.10 |
+| majungasaurus | attack_primary Jaw 1.22; attack_heavy (headbutt) Head 1.75; pin_stab Jaw 1.32 |
 | megaloceros | kick BackFoot.R 0.89; charge Head 2.01; attack_primary Head 2.01; attack_heavy Head 2.02 |
 | megaloceros (doe) | attack_primary FrontFoot.R 3.09; attack_heavy Head 2.36 |
 | megarex | attack_heavy Toe.R 2.67; tail_swipe Tail5 4.59; attack_primary Head 7.20; bite_shake Head 7.00 |

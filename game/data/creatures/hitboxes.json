@@ -1438,6 +1438,65 @@
      ]
     }
    }
+  },
+  "majungasaurus": {
+   "_note": "SP-MAJUNGASAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.22,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.75,
+       "calibrated": true
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.32,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail3"
+      },
+      {
+       "bone": "Tail4"
+      },
+      {
+       "bone": "Tail5"
+      }
+     ]
+    }
+   }
   }
  },
  "survivor": {

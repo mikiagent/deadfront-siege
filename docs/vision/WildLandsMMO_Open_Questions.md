@@ -526,6 +526,18 @@ Owner: "fast bull-like predator: horn ram that knocks the target back, sprint ch
 | **CA5** | Spawns: one on desert_35's far shore (next to the utahraptor) and one in desert_50's working ring. Climate is desert. | `world/islands.json` | Savannah would also fit (the brief says "dry/savannah or desert"). |
 | **CA6** | The alpha skin is baked from the regular colour map: rust, black mottling, near-black horns. The sheet's heavier osteoderms are texture only; the alpha uses the same mesh. | `carnotaurus_alpha_albedo.jpg` (`pipeline.model_variants.alpha`) | A real alpha mesh would cost another Tripo generation. |
 
+### SP-MAJUNGASAURUS (2026-10-31) — the majungasaurus, a new savannah species (claude/mmo-sp-majungasaurus)
+
+Owner approved the sheet and asked for a name; it is Majungasaurus. "Be creative with what moves you think they should do when they fight". Report `docs/orchestration/reports/claude-sp-majungasaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **MJ1** | Size: ~6.5 m real -> 10.3 m on screen (house 1.6x), `height_meters` 5.0 (head top), `real_length_m` 13 (roster 2x). | `majungasaurus.json` | Smaller than the carnotaurus (12.9 m) and the allosaurus. |
+| **MJ2** | Stats: tier 45, hp 5600, atk 330, def 170, speed 500, turn 2.5, capture tier 4, tamed role combat only (no saddle), carnivore taming food. Climate savannah; spawns 1 on savannah_45's working ring and 1 on its far shore. | `majungasaurus.json`, `islands.json` | Balance and placement. A fresh 100 HP survivor dies to one bite (same as every L45 predator). |
+| **MJ3** | Brain `opportunist`: wide 11 m ring, circles and holds; on a healthy survivor a ready rush goes only 25 % of the time (`healthy_commit_chance`); under 50 % health (`weak_prey.hp_frac`) every ready pick commits, rush weight x8, cooldowns x0.45, waits x0.25. | `ai.json` opportunist, `TacticalBrain._start_sequence` | The "scavenger" feel; the 50 % line and 25 % are guesses. |
+| **MJ4** | Crushing bite grabs: a landed bite holds her Pinned at the jaws while `pin_stab` shakes twice (x1.1 each), then lets go; grab cooldown 9 s. Nothing breaks it early (struggle is not implemented). | `TacticalBrain.landed`, `pin_stab` | Grab length and damage are balance calls; the survivor's auto-tackle still fires while Pinned (canon gap) and staggers it out of the grab. |
+| **MJ5** | Skull-knob headbutt = `attack_heavy` (x1.6, point blank in front); low tail swipe = the `kick` clip (x1.2, prey in the rear arc), hit from Tail3-5. | `ai.json`, `pipeline.hit_parts` | Move into hitboxes.json when claude/mmo-hitboxes lands. |
+| **MJ6** | No alpha sheet: alphas use the genetics recolour only. In the lab's lighting the Tripo hide reads more orange than the sheet's warm brown. | `majungasaurus.json` | An alpha skin or a hide tint needs the owner's call. |
 ### SP-TARBOSAURUS (2026-10-31) — the tarbosaurus gets a model, a stalk, a burst that foot-pins, a head-whip bite and a tail whip (claude/mmo-sp-tarbosaurus)
 
 Owner: "build some of the models ... Be creative with what moves you think they should do when they fight"; "keep cooking". Report `docs/orchestration/reports/claude-sp-tarbosaurus.md`.
