@@ -1,6 +1,6 @@
 # STUNLOCK: heavy and armoured species shrug off her staggers
 
-Branch `claude/mmo-stunlock` (from `origin/claude/mmo-overhaul` 1066e9c9; canon merged back in twice, last at 38ad8b87). Not merged to canon.
+Branch `claude/mmo-stunlock` (from `origin/claude/mmo-overhaul` 1066e9c9; canon merged back in three times, last at 91010e7f). Not merged to canon.
 
 Owner, fight lab (`tools/fight_lab.command`, `--lab=creature_lab --god`): "ankylosaurus is getting stunlocked and not fighting back"; earlier "I should not be able to punch it over and over up close without consequence".
 
@@ -60,17 +60,17 @@ Before and after (canon 2eecfc3e without the fix, then the merged head with it; 
 
 On canon the test fails on 16 of the 18 (17 failures); with the fix it passes. The fight lengths differ run to run (the fight runs 14 s from her first hit, up to 30 s until it has hit back), and single runs are not deterministic, so compare the staggered column, not the counts.
 
-## Gates (code at 5eb10b21, canon 38ad8b87 merged; t_stunlock and t_noteleport rerun at ff02995a, a test-only change)
+## Gates (merged head d9e4eebc, canon 91010e7f merged)
 
 | Gate | Result |
 |---|---|
-| t_stunlock | PASS (299 s) |
+| t_stunlock | PASS (310 s) |
 | t_ankyloclose | PASS |
 | t_combat | PASS |
 | t_knockdown | PASS |
 | t_hitboxes | PASS |
 | t_plantedflinch | PASS (poised species now flinch instead of hit_react; feet still planted) |
-| t_noteleport | **FAIL, also on canon**: in every run one to four random small species' kick misses ("kick X missed: no hurtbox in the way", slides 0 m) and on newer canon the gallimimus leap_back steps 2.5-8 m. Three canon runs without this branch failed the same way (velociraptor, megaloceros, gallimimus). Not caused here; needs its own look at the kick's hitbox placement in that test. |
+| t_noteleport | PASS on this head. **Flaky, also on canon**: in earlier runs one to four random small species' kick missed ("kick X missed: no hurtbox in the way", slides 0 m) and the gallimimus leap_back stepped 2.5-8 m in a frame; three runs on canon without this branch failed the same way (velociraptor, megaloceros, gallimimus). Not caused here; the kick's hitbox placement in that test needs its own look. |
 | run_all.gd | `[tests] PASS` |
 | `tools/smoke.sh --no-import` | SMOKE PASS |
 
@@ -86,6 +86,6 @@ Also passed on the first merged head: t_styrafix, t_sp_trikealpha, t_sp_woolly_r
 ## For the next agent
 
 - The triceratops and styracosaurus can still stall a straight charge against a survivor standing at their face (the triceratops now jousts, which mostly avoids it). Needs a point-blank shove or a back-off before the charge.
-- t_noteleport is red on canon (see above).
+- t_noteleport is flaky on canon (see above).
 - The test spawns the animal with `position` set before `add_child`: added at the origin, its body carried the survivor 8 m along as a moving platform on its first frame. Any lab or test that adds a creature and then moves it can hit the same thing.
 - The fight lab itself was not run windowed; the owner should re-test the ankylosaurus, stegosaurus and carnotaurus there.
