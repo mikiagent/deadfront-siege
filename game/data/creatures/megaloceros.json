@@ -32,7 +32,10 @@
     "attack_primary": "stag: antler hook, head drops then rips up and sideways through the target (hit 0.42); doe: forehoof strike",
     "attack_heavy": "rear-up stomp: rises ~40 deg on the hocks, forelegs folded and pawing (the tell), crashes forward, both forehooves slam down (hit 0.72)",
     "kick": "rear kick: weight onto the forelegs, both hind hooves fire straight back and up (hit 0.45)",
-    "charge": "stag only: gallop with the head down and the antlers forward like a ram",
+    "charge": "stag: gallop with the head down and the antlers forward like a ram; doe: the low all-out tackle run, chest dropped, head and neck thrust out (MEGAJOUST)",
+    "charge_crouch": "the joust tell before every pass: stag lowers the antlers level and scrapes a forehoof twice; doe drops her chest and gathers her hind legs (MEGAJOUST)",
+    "run_turn_left": "the gallop on a 9 m arc to the left, planted hooves following the arc, banked into the turn (doe unbanked); the joust wheel (MEGAJOUST)",
+    "run_turn_right": "mirror of run_turn_left",
     "alert": "stag: rut roar, then antlers lowered at the threat and shaken (charge telegraph); doe: head high, two warning stamps",
     "knockdown": "forelegs buckle, rolls onto the right side",
     "death": "forelegs buckle, rolls onto the right side, head down",
@@ -73,7 +76,10 @@
       "death",
       "sleep",
       "feed",
-      "charge"
+      "charge",
+      "charge_crouch",
+      "run_turn_left",
+      "run_turn_right"
     ],
     "disabled_clips": [
       "strafe_left",
@@ -94,8 +100,21 @@
         },
         "natural_speeds_note": "MEGARUN: her run strides 0.85x the stag's (tools/gait/megaloceros/clips.py DOE_STRIDE), and the game draws her GLB 1.069x (fitted to height_meters), so 0.85 x 1.069 x anim_events natural_speeds.megaloceros.run (9.406 -> 8.539; t_megarun checks it). Her walk is in stag metres, so only the 1.069: 2.295 -> 2.452. Rebake both together.",
         "tactics": {
-          "_about": "ASSUMPTION: the doe has no antlers, so no ram: she runs in to a forehoof strike (a homing charge into attack_primary) and at point blank rears up and stomps or kicks.",
-          "charge_straight": false,
+          "_about": "ASSUMPTION: the doe has no antlers, so no ram. MEGAJOUST (owner 2026-10-31: 'have the doe tackle mainly, like a give it your all tackle, low center of gravity, and have it joust like the male ... scared and desperate, running away and then charging/tackling but more running than charging'): her charge clip is the low tackle run, her pass a straight tackle through the threat (a lighter hit and shove than the stag's ram); after every pass she runs straight on away for joust.run_off_s before she wheels round (JoustBrain), her first flight is longer (territorial.flee_once_s) and she opens without a display. Point blank she still strikes, stomps or kicks. ASSUMPTION numbers: Open Questions MJ2.",
+          "charge_straight": true,
+          "joust": {
+            "display": false,
+            "run_off_s": 3.5,
+            "overshoot_m": 6.0,
+            "min_run_m": 10.0,
+            "hit_mult": 1.6,
+            "shove_m": 3.5
+          },
+          "territorial": {
+            "flee_once_s": 5.0,
+            "leash_m": 30.0,
+            "weak_frac": 0.3
+          },
           "point_blank": [
             "heavy",
             "kick",

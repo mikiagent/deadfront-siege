@@ -31,6 +31,8 @@
   "look": "9 meter Triceratops with two long brow horns, a short nose horn, a broad solid frill, beaked head, massive body on four legs, short tail, dark olive hide with a rust frill,",
   "texture_prompt": "dark olive pebbled hide, rust-coloured frill, pale belly, ivory horns, matte surface",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
+    "pin_foot": "BIGSTOMP: the stomping foot pressed down on a pinned victim, held until the pin ends",
     "attack_primary": "Triceratops tosses its head upward",
     "attack_heavy": "Triceratops lowers its horns, holds, then charges forward",
     "knockdown": "Triceratops collapses onto its side",
@@ -46,6 +48,7 @@
     "mesh": "Tripo P1-20260311 multiview, PBR, face_limit 20000, task 555e7332-ddd8-4583-b714-b98b6464aa24, 50 Tripo credits; rotated to face -Z, scaled to 9.0 m beak tip to tail tip (4.645 m to the frill top, back 3.92 m over the hips), feet on z=0, UV seams welded (23387 -> 9517 verts, one island, 19053 faces); 135 faces (0.7 %) re-wound to match Tripo's normals and Tripo's shading normals kept as split normals",
     "rig_and_animation": "Opus builder in headless Blender: 31 bones (root, Hips, Spine1-2, Chest, Neck1-2, Head, Jaw, UpperArm/Forearm/Hand/Finger and Thigh/Shin/Metatarsal/Toe per side, Tail1-6); heat weights cleaned by region: face, horns and frill rigid on Head (frill found by occlusion from the neck and chest), jaw split on the measured mouth line, legs own their columns, feet rigid below the wrist/ankle; clips from analytic four-leg IK (knees forward, elbows back, feet planted) baked to FK at 30 fps",
     "clips": [
+      "big_stomp", "pin_foot",
       "idle",
       "walk",
       "run",
@@ -186,5 +189,18 @@
         "weight": 3.0
       }
     ]
+  },
+  "tactics": {
+    "base": "horned_charger",
+    "joust": {
+      "_about": "MEGAJOUST (owner 2026-10-31: 'the jousting brain is good for many of the four legged animals'): JoustBrain, charge through, wheel wide, charge again; no strafe or hop. ASSUMPTION numbers (Open Questions MJ3). The biggest and slowest: the widest wheel; no charge clip, so its pass runs on the run.",
+      "turn_radius_m": 10.0,
+      "overshoot_m": 7.0,
+      "min_run_m": 10.0,
+      "align_deg": 25.0,
+      "wheel_max_s": 12.0,
+      "charge_max_s": 4.0,
+      "display": true
+    }
   }
 }

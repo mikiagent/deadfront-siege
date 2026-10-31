@@ -28,6 +28,8 @@
   "texture_prompt": "dark slate and blue-purple feathers, lavender scaly belly and legs with violet streaks, pale pink-orange scaly arm and foot skin, grey beak with a red-pink wattle and throat, glossy black claws, matte surface",
   "look": "10 meter Therizinosaurus standing about 5 m tall, long feathered neck held high, small grey beak and a pink wattle, pot belly, long arms with three huge black sickle claws per hand, feathered tail fan, dark slate-blue feathers over lavender scaly skin,",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
+    "pin_foot": "BIGSTOMP: the stomping foot pressed down on a pinned victim, held until the pin ends",
     "attack_primary": "Claw sweep: the right arm cocks out to its right, then the sickle claws sweep low across its front at survivor height; a landed sweep shoves the target back to claw's length",
     "attack_heavy": "Overhead rake: rears up hissing, both arms raised high with the claws fanned and trembling (the telegraph), then drives both down through the target and rakes them back to its chest; bleeds",
     "bite_combo": "Hook and rake: the right claws reach out and hook the target, dragging it in to the chest, a left backhand slash, then it rears with both arms cocked at the shoulders and thrusts both claw sets forward and down",
@@ -103,6 +105,7 @@
       }
     },
     "clips": [
+      "big_stomp", "pin_foot",
       "idle",
       "walk",
       "run",

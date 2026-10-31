@@ -165,22 +165,31 @@ def key(f):
 
 
 # ---------------------------------------------------------------- gaits
-def gait(t, cyc, duty, stride, phases, lift, travel=-Y, curl=55, tilt_f=40, tilt_h=30, roll_toe=0.15):
+def ground(home, d, turn):
+    """Where a ground point that sits under `home` at mid-stance is after the body has travelled d metres forward.
+    turn = 0: straight (it slides back by d). turn = +-R: the body runs an arc of radius R to its left (+) or right
+    (-), so the ground turns about the arc centre and planted hooves follow the arc (MEGAJOUST: no slide in a turn)."""
+    if not turn: return home + Y * d
+    c = Vector((turn, 0, home.z)); ang = -d / turn
+    return c + R(Z, math.degrees(ang)).to_3x3() @ (home - c)
+
+
+def gait(t, cyc, duty, stride, phases, lift, travel=-Y, curl=55, tilt_f=40, tilt_h=30, roll_toe=0.15, turn=0.0):
     """Feet for one instant of a footfall plan. Stance: glued to the ground, sliding against travel. Swing: lifted
-    and carried forward with the carpus/hock folded."""
+    and carried forward with the carpus/hock folded. turn: arc radius (m, + = to the left) for the turning gallop."""
     s = St()
     for k, L in LEGS.items():
         ph = (t / cyc + phases[k]) % 1.0
         st = stride[0] if L["front"] else stride[1]
         if ph < duty:
             u = ph / duty
-            p = L["home"] + travel * (st * (0.5 - u))
+            p = ground(L["home"], st * (u - 0.5), turn) if turn else L["home"] + travel * (st * (0.5 - u))
             # heel off at the end of stance: the fetlock rises while the toe stays
             r = smooth((u - (1 - roll_toe)) / roll_toe) if roll_toe > 0 else 0
             p.z += r * 0.06 * H; s.curl[k] = -r * 18
         else:
             u = (ph - duty) / (1 - duty)
-            p = L["home"] + travel * (st * (-0.5 + smooth(u)))
+            p = ground(L["home"], st * (0.5 - smooth(u)), turn) if turn else L["home"] + travel * (st * (-0.5 + smooth(u)))
             p.z += lift[0 if L["front"] else 1] * H * math.sin(math.pi * u) ** 0.8
             b = math.sin(math.pi * min(1, u * 1.15)) ** 1.2
             s.curl[k] = curl * b
@@ -225,7 +234,9 @@ TOE_PIVOT = 1.45
 RETRACT = {True: 0.6, False: 0.9}  # touchdown speed back toward the body, x ground speed: front / hind
 
 
-def gallop(t, T, head_low=0.0):
+def gallop(t, T, head_low=0.0, turn=0.0):
+    """MEGARUN gallop; turn: arc radius (m, + = to the left) for MEGAJOUST's turning gallop (planted hooves follow
+    the arc through ground(), the swing hoof is carried along it the same way)."""
     s = St()
     for k, L in LEGS.items():
         ph = (t / T + PH_GALLOP[k]) % 1.0
@@ -256,6 +267,11 @@ def gallop(t, T, head_low=0.0):
             b = math.sin(math.pi * min(1.0, v * (1.3 if front else 1.12))) ** 1.1  # a fore unfolds early to reach
             s.curl[k] = (85 if front else 70) * b
             s.tilt[k] = (70 if front else -48) * b
+        if turn:
+            # MEGAJOUST x MEGARUN: the straight foot's travel along y, bent onto the arc about its centre (ground())
+            q = L["home"].copy(); q.y = y0
+            d = p.y - y0
+            p = ground(q, d, turn) + (p - (q + Y * d))
         s.feet[k] = p
     w = 2 * math.pi * t / T
     # one bounce per stride: lowest over the overlapping stances, highest in the gathered suspension (~0.89)
@@ -273,6 +289,53 @@ def charge(t, T):
     # head down, antlers forward like a battering ram; the body lower and the neck stretched out
     s.neck[0] -= 18; s.neck[1] -= 26; s.head -= 22; s.off.z -= 0.03 * H; s.pitch -= 2  # MEGARUN: 18/26 (was 30/18): the new gallop's forelegs reach further under the neck (skin stretch)
     s.jaw = 6
+    return s
+
+
+# MEGAJOUST: the joust's wheel round between passes. The arc radius is the brain's (ai.json megaloceros_joust
+# tactics joust_turn_radius_m, stag metres like the strides); the run's stride and cycle, so its natural speed is the run's.
+TURN_R = 9.0
+
+
+def run_turn(t, T, sgn):
+    """Turning gallop, sgn +1 = to the left: planted hooves follow the arc (ground() about the arc centre), the body
+    banks into the turn and the spine and head look round it."""
+    s = gallop(t, T, turn=sgn * TURN_R)
+    bank = 1.0 if STAG else 0.0  # the doe's run already sits at the stretch limit (11.8 of 12) at the hips: no bank
+    s.roll += 9 * sgn * bank; s.spine_yaw = 5 * sgn * bank; s.head_yaw = 9 * sgn
+    s.tail_yaw[0] = -6 * sgn
+    return s
+
+
+def tackle(t, T):
+    """Doe: the all-out tackle run (owner 2026-10-31: 'give it your all tackle, low center of gravity'): the gallop
+    with the chest dropped, the head and neck thrust out low like a ram, ears back, the legs driving."""
+    s = gallop(t, T)
+    s.off.z -= 0.07 * H; s.pitch -= 4; s.chest = 4 + 3 * math.sin(2 * math.pi * t / T)
+    s.neck[0] -= 16; s.neck[1] -= 12; s.head -= 4; s.jaw = 4  # deeper and the brisket tears against the forelegs
+    s.tail[0] = 20
+    return s
+
+
+def charge_crouch(t, T):
+    """The joust's tell, body still, before every pass. Stag: the antlers come down level at the threat, a forehoof
+    scrapes the ground twice and the weight sinks back onto the hocks. Doe: she drops her chest and head low and
+    gathers her hind legs under her for the tackle (the brain turns her to the threat meanwhile)."""
+    s = St(); u = t / T
+    low = smooth(u / 0.45)
+    if STAG:
+        s.neck[0] = -30 * low; s.neck[1] = -18 * low; s.head = -22 * low  # the charge's head carriage
+        s.off.z = -0.03 * H * low; s.pitch = -2 * low
+        for i, c in enumerate((0.42, 0.72)):  # two scrapes with the right forehoof: forward, then raked back
+            sc = bump(u, c - 0.14, c - 0.06, c + 0.02, c + 0.1)
+            f = s.feet["FR"]; f.z += 0.10 * H * sc; f.y += -0.08 * H * sc + 0.10 * H * bump(u, c - 0.04, c, c + 0.06, c + 0.1)
+            s.curl["FR"] = 55 * sc; s.tilt["FR"] = 45 * sc
+        s.head_roll = 4 * math.sin(2 * math.pi * 2 * u) * low
+    else:
+        s.off.z = -0.08 * H * low; s.pitch = -5 * low; s.hips = -4 * low
+        s.neck[0] = -26 * low; s.neck[1] = -10 * low; s.head = -6 * low; s.tail[0] = 18 * low
+        for k in ("HL", "HR"):  # hind feet step in under her
+            s.feet[k] = LEGS[k]["home"] + Vector((0, -0.07 * H * low, 0))
     return s
 
 
@@ -474,7 +537,11 @@ CLIPS = {
     "knockdown": (1.6, lambda t, T: collapse(t, T, False), False), "death": (2.2, lambda t, T: collapse(t, T, True), False),
     "sleep": (3.0, sleep, False), "feed": (3.0, feed, False),
 }
-if STAG: CLIPS["charge"] = (0.66, charge, True)
+# MEGAJOUST: the stag's charge is the antler ram, the doe's the low tackle; both get the joust's tell and turns.
+CLIPS["charge"] = (0.66, charge if STAG else tackle, True)
+CLIPS["charge_crouch"] = (1.0 if STAG else 0.7, charge_crouch, False)
+CLIPS["run_turn_left"] = (0.66, lambda t, T: run_turn(t, T, 1), True)
+CLIPS["run_turn_right"] = (0.66, lambda t, T: run_turn(t, T, -1), True)
 
 os.makedirs(OUT, exist_ok=True)
 GROUND = {"knockdown", "death", "sleep"}

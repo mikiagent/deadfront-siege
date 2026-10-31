@@ -2,8 +2,8 @@ extends SceneTree
 ## SP-MEGALOCEROS: both sexes draw their own rigged Tripo body (stag with Blender-built antlers on Head, doe without)
 ## with every clip, the feet stay on the floor in the standing clips, the signature moves put the hooves/antlers
 ## where the hit lands (rear-up stomp: forehooves down ahead of the chest; rear kick: hind hooves up and far behind;
-## stag hook and charge: head low and forward), the brain fires them on a survivor and they damage her, the doe has
-## no ram, and tundra_30 spawns megaloceros of both sexes.
+## stag hook and charge: head low and forward), the brain fires them on a survivor and they damage her, the doe's
+## charge is a straight tackle (MEGAJOUST; it was a homing run into a forehoof strike), and tundra_30 spawns both sexes.
 ## Run: Godot --headless --path game --script res://tests/t_sp_megaloceros.gd -> "[t_sp_megaloceros] PASS", 0/1.
 
 const ID := &"megaloceros"
@@ -34,7 +34,7 @@ func _run() -> void:
 	for v in [&"stag", &"doe"]:
 		_test_view(v)
 	await _test_moves(&"stag", [&"heavy", &"kick", &"charge", &"bite"])
-	await _test_moves(&"doe", [&"heavy", &"kick", &"bite"])
+	await _test_moves(&"doe", [&"heavy", &"kick", &"charge", &"bite"])
 	await _test_spawns()
 	if failures.is_empty():
 		print("[t_sp_megaloceros] PASS")
@@ -71,8 +71,7 @@ func _test_view(v: StringName) -> void:
 		return
 	var clips: Array = def.pipeline.get("clips", [])
 	for clip in clips:
-		var want: bool = not (v == &"doe" and clip == "charge")
-		_expect(view.rig.has_clip(StringName(clip)) == want, "%s clip %s %s" % [v, clip, "loaded" if want else "absent (no ram)"])
+		_expect(view.rig.has_clip(StringName(clip)), "%s clip %s loaded" % [v, clip])  # MEGAJOUST: the doe's charge is her tackle
 	var sk: Skeleton3D = view.rig.skeleton
 	_expect(sk.find_bone("Jaw") >= 0 and sk.find_bone("HindCannon.L") >= 0, "%s: deer skeleton with Jaw and cannon bones" % v)
 	var antlers: Array = view.rig.mesh_root.find_children("Antlers*", "MeshInstance3D", true, false)
@@ -169,7 +168,7 @@ func _test_moves(v: StringName, moves: Array) -> void:
 				break
 		_expect(hits[0] > 0 and player.vitals.health < hp0, "%s %s lands on the survivor (hits %d, hp %.0f -> %.0f, clip %s, dist %.2f)" % [v, move, hits[0], hp0, player.vitals.health, c.anim.current_clip, Vector2(c.global_position.x, c.global_position.z).length()])
 		if v == &"doe":
-			_expect(not c.brain.tac.get("charge_straight", true), "doe: no straight ram (her charge runs in to a forehoof strike)")
+			_expect(c.brain.tac.get("charge_straight", false), "doe: her charge is a straight tackle (MEGAJOUST)")
 		c.free()
 		player.free()
 	host.free()

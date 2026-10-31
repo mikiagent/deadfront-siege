@@ -351,6 +351,11 @@ func _holds_flee() -> bool:
 func _full_rate() -> bool:
 	return state in MOVES
 
+## BIGSTOMP: every fighting state is a timed move here, so the stomp may cut in only on the steady ones (closing in,
+## circling, the plain attack, holding), never inside a charge, pounce, lunge, leap, combo, dodge or pin.
+func stomp_ready() -> bool:
+	return state in [&"approach", &"circle", &"attack", &"hold", &"alert"] and _valid_target() and not creature.anim.is_busy()
+
 func _pre_think(dt: float) -> bool:
 	# Before the shared rules (a disengage would skip the think): a packmate just died, the rest scatter.
 	var pack_now := _pack_members().size()
@@ -1370,7 +1375,8 @@ func _charge(delta: float) -> void:
 	if tac.get("charge_straight", false):
 		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # committed: no can_sprint gate mid-line
 		gait_clip = &"charge"
-		creature.move_to(_charge_to)
+		# a carrot on the locked line, not its far end: a long pass (megaloceros joust) past 12 m got no direct steer without a navmesh
+		creature.move_to(creature.global_position + (_charge_to - creature.global_position).limit_length(8.0))
 		var to := attack_target.global_position - creature.global_position
 		to.y = 0.0
 		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
@@ -2330,7 +2336,7 @@ func _pin(delta: float) -> void:
 	var hold := creature.global_position + fwd.normalized() * _t("pin_reach_m", 1.5) * creature.size_scale()
 	var d := hold - v.global_position
 	d.y = 0.0
-	v.global_position += d * (1.0 - exp(-delta / 0.12))
+	v.global_position += (d * (1.0 - exp(-delta / 0.12))).limit_length(float(BigStomp.section().get("pin_slide_mps", 3.0)) * delta)  # BIGSTOMP: no jump
 
 func _end_pin() -> void:
 	var v := _pin_victim

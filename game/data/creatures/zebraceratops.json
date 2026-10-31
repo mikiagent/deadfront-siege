@@ -203,5 +203,17 @@
     "feeds_needed": 3,
     "window_seconds": 45,
     "requires_pen": false
+  },
+  "tactics": {
+    "base": "pack_mule",
+    "joust": {
+      "_about": "MEGAJOUST (owner 2026-10-31: 'the jousting brain is good for many of the four legged animals'): JoustBrain, charge through, wheel wide, charge again; no strafe or hop. ASSUMPTION numbers (Open Questions MJ3). A herd grazer: a tighter wheel, no display.",
+      "turn_radius_m": 6.0,
+      "overshoot_m": 5.0,
+      "min_run_m": 7.0,
+      "align_deg": 25.0,
+      "wheel_max_s": 9.0,
+      "display": false
+    }
   }
 }

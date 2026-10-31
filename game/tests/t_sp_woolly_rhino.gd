@@ -207,7 +207,7 @@ func _test_charge() -> void:
 	c.spawn(data.creature(ID))
 	c.look_at(Vector3(0, 0.1, 0), Vector3.UP)
 	var b = c.brain
-	_expect((b.get_script() as Script).resource_path.ends_with("tactical_brain.gd"), "a TacticalBrain runs it")
+	_expect((b.get_script() as Script).resource_path.get_file() in ["tactical_brain.gd", "joust_brain.gd"], "a TacticalBrain runs it (MEGAJOUST: the JoustBrain, a TacticalBrain)")
 	b.attack_target = player
 	b._provoked_until = b._now_s() + 60.0
 	b._seq = [&"charge"]
