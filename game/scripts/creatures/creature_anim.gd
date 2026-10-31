@@ -11,12 +11,16 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"stomp", &"shove_left", &"shove_right", &"tackle", &"charge_windup", &"impale", &"charge_recover"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle"]
 const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle"]
 ## One-shots during which a brain moves the body itself on an arc (TacticalBrain._arc_step), not by walking.
-const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn"]
-const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
+const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn", &"leap"]
+const HUBS: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"]
+## The gait ladder, slowest first: set_move_speed picks among the ones the rig has (lope and sprint: smilodon).
+const GAITS: Array[StringName] = [&"walk", &"lope", &"run", &"sprint"]
 const XFADE := 0.08
+const RUN_GAITS: Array[StringName] = [&"lope", &"run", &"sprint"]
+const RUN_INTO: Array[StringName] = [&"attack_heavy", &"pounce", &"leap"]
 const GAIT_XFADE := 0.2  # walk <-> run: long enough that a gait change never pops
 const PIN_XFADE := 0.3  # the stomp into the pin, and the foot back to its print on release
 const LEGACY_TOP_MPS := 8.0  # creature.gd passes play_locomotion(speed / 8)
@@ -58,7 +62,7 @@ func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 	tree = at
 	var host := get_parent() as Creature
 	_def = host.def if host else null
-	for gait in [&"walk", &"run"]:
+	for gait in GAITS:
 		if player.has_animation(gait):
 			var anim := player.get_animation(gait)
 			CreatureClips.trim_frozen_tail(anim, "%s/%s" % [_def.id, gait] if _def else "")
@@ -288,10 +292,18 @@ func _pick_gait(mps: float) -> StringName:
 		return &"run"
 	if r <= w:
 		return &"walk"  # a run clip that strides no faster than the walk only adds cadence
-	# ASSUMPTION: switch at the geometric mean, where either gait is equally far from cadence 1;
-	# 10 % hysteresis stops flapping at the boundary.
-	var cut := sqrt(w * r) * (0.9 if current_clip == &"run" else 1.1)
-	return &"run" if mps > cut else &"walk"
+	# ASSUMPTION: switch at the geometric mean of neighbouring gaits, where either is equally far from cadence 1;
+	# 10 % hysteresis stops flapping at the boundary. The ladder is walk, run, or walk, lope, run, sprint.
+	var gait := &"walk"
+	for next in GAITS:
+		var nat := float(_natural.get(next, 0.0))
+		if next == &"walk" or nat <= float(_natural[gait]):
+			continue
+		var cut := sqrt(float(_natural[gait]) * nat) * (0.9 if current_clip == next else 1.1)
+		if mps <= cut:
+			break
+		gait = next
+	return gait
 
 ## Runs after every tree update (idle or manual advance): fires attack_hit at the clip's hit
 ## fraction and ends the one-shot at its last frame, both measured in tree time.
@@ -379,8 +391,10 @@ func _build_tree() -> void:
 		var xf := GAIT_XFADE if clip == &"investigate" else (PIN_XFADE if clip == &"pin_foot" else XFADE)
 		for hub in HUBS:
 			if _param.has(hub):
-				_trans(sm, hub, clip, xf)
-				_trans(sm, clip, hub, xf)  # STYRAFIX: out to walk/run directly too, not through idle
+				# SMILORUN: out of a stride into a crouch or a leap, and a chase bound back into the stride, take the gait blend
+				var into := GAIT_XFADE if hub in RUN_GAITS and clip in RUN_INTO else xf
+				_trans(sm, hub, clip, into)
+				_trans(sm, clip, hub, GAIT_XFADE if clip == &"leap" and hub in RUN_GAITS else xf)  # STYRAFIX: out to walk/run directly too, not through idle
 		# STYRAFIX: straight from any other non-hub clip too (strafe -> walk_back, charge -> impale, windup ->
 		# charge). Without it travel() routed through idle and the idle pose blinked in between.
 		for other in _param:

@@ -6,7 +6,7 @@ const CONTRACT: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert", &"feed",
 ]
-const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"strafe_left", &"strafe_right", &"walk_back", &"investigate", &"stalk"]
+const LOOPING: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint", &"charge", &"strafe_left", &"strafe_right", &"walk_back", &"investigate", &"stalk"]
 ## Authored on some species only; loaded when the GLB exists, CreatureAnim falls back to idle where
 ## missing. bite_combo: deinonychus chomp, Chomp, CHOMP (three hit fracs in anim_events.json).
 ## hop_back / leap_back: short and long backward leaps, pounce: the forward leap (airborne fracs in
@@ -18,9 +18,9 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"straf
 ## charge_crouch: the coil a TacticalBrain plays, body still, before a charge's run (compsognathus, owner 2026-10-31).
 ## toss: the woolly rhino's horn toss on a charge impact (TacticalBrain._charge_impact).
 ## stalk: the low hunting creep a tactics.stalk brain approaches in; pin_stab: the sabre stabs while it holds pinned prey
-## (smilodon, SP-SMILODON). stomp / shove_left / shove_right / tackle (the coil before its body check): the ankylosaurus'
-## close-range moves (ClubTailBrain close_moves, ANKYLOCLOSE).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"bite_shake", &"charge_turn", &"stomp", &"shove_left", &"shove_right", &"tackle", &"charge_windup", &"impale", &"charge_recover"]
+## (smilodon, SP-SMILODON). lope / sprint: extra gaits either side of the run (CreatureAnim._pick_gait's ladder), leap: the
+## chase bound one-shot (airborne fracs in anim_events; smilodon, SMILORUN).
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120

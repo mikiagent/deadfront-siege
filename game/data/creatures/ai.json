@@ -474,8 +474,12 @@
       ],
       "resists": [],
       "chase_speed_mult": 0.7,
+      "perception_base": 4.0,
+      "leash_mult": 1.25,
+      "spot_alert_s": 0.15,
+      "_burst_chaser": "SMILORUN (owner 2026-10-31: 'the ultimate burst chaser. But its agro ring could be lower since its so fast'): ASSUMPTION perception_base 4 (was the default 8: spots prey at 4 + tier 45 x 0.15 = 10.75 m, was 14.75) and leash_mult 1.25 (was 1.5: the ring 13.4 m, was 22.1). Inside it nothing outruns it; outside it is ignored. spot_alert_s 0.15 (default 0.6, no roar): it goes the moment it spots prey, or a sprinting survivor is out of the small ring before it moves.",
       "tactics": {
-        "_about": "SABER CAT (SP-SMILODON, owner 2026-10-30: 'be creative with what moves you think they should do'). A lone ambush stalker: it closes in on the low stalk creep (stalk clip, stalk_speed_frac of its walk), and from 4-9 m it POUNCES (attack_heavy is the crouch, rump wiggle and gape under the ground ring, then the pounce leap). A landed pounce PINS the prey under both forepaws (Pinned + Knockdown, held pin_reach_m in front) while pin_stab drives the sabres in twice (pin_mult each). Point blank it rakes with a forepaw (attack_primary, the swipe, hit from the paw bone) or lunges into a sabre stab (heavy, attack_heavy from the Head bone). Pinned prey can be freed only by the clip ending (no struggle exists yet). Every number an ASSUMPTION (first pass, not balanced).",
+        "_about": "SABER CAT (SP-SMILODON, owner 2026-10-30: 'be creative with what moves you think they should do'). A lone ambush stalker: it closes in on the low stalk creep (stalk clip, stalk_speed_frac of its walk), and from 4-9 m it POUNCES (attack_heavy is the crouch, rump wiggle and gape under the ground ring, then the pounce leap). A landed pounce PINS the prey under both forepaws (Pinned + Knockdown, held pin_reach_m in front) while pin_stab drives the sabres in twice (pin_mult each). Point blank it rakes with a forepaw (attack_primary, the swipe, hit from the paw bone) or lunges into a sabre stab (heavy, attack_heavy from the Head bone). Pinned prey can be freed only by the clip ending (no struggle exists yet). Every number an ASSUMPTION (first pass, not balanced). SMILORUN burst chaser: prey running away is run down with short bursts (burst: mps 15.5 for s 2.2, burst_cd 5, energy costs.burst in smilodon.json), bounds of 4-12 m whose landing is the chase's pounce (bound.strike: the forepaws, leap hit_parts, pounce cooldown/energy/mult, pins) (bound, the leap clip: lands short of her, or with cut-off across her escape line cutoff_ahead_m past her), a hop onto a step it is stuck against (bound.stuck_s, step_m), and a bound landing 4+ m off springs straight into the pounce (chase_pounce_telegraph_s 0: already coiled). Every number an ASSUMPTION.",
         "stalk": true,
         "stalk_speed_frac": 0.25,
         "sequences": [
@@ -593,7 +597,27 @@
           "tactic_cooldown_mult": 0.7,
           "tactic_hold_mult": 0.6,
           "tactic_w_pounce": 1.5
-        }
+        },
+        "burst": {
+          "mps": 15.5,
+          "s": 2.2,
+          "min_m": 3.0
+        },
+        "burst_cd": 5.0,
+        "bound": {
+          "min_m": 4.0,
+          "max_m": 12.0,
+          "cutoff_deg": 35.0,
+          "cutoff_ahead_m": 2.0,
+          "height_per_m": 0.12,
+          "min_height_m": 0.6,
+          "stuck_s": 0.3,
+          "step_m": 3.0,
+          "strike": true
+        },
+        "bound_cd": 1.8,
+        "coiled_s": 0.6,
+        "chase_pounce_telegraph_s": 0.0
       }
     },
     "tyrant": {

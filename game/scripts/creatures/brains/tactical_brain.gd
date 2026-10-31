@@ -26,7 +26,7 @@ signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn", &"bound"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -110,6 +110,18 @@ var _terr_fled_s := 0.0
 var _terr_threat: Node3D
 ## PIN (tactics.pin, SP-SMILODON): the prey held down under the forepaws after a landed pounce.
 var _pin_victim: Node3D
+## BURST CHASER (tactics.burst / tactics.bound, SMILORUN, owner 2026-10-31: "jumping, leaping, bounding movement abilities
+## that make it very hard to escape ... the ultimate burst chaser"). On prey running away it sprints in short bursts
+## (burst.mps for burst.s, burst_cd between, energy costs.burst), bounds bound.min_m-max_m at it in one leap (the leap clip),
+## lands a cut-off leap across her escape line when she runs across its path, hops onto a step it is stuck against, and a
+## bound that lands in pounce range springs straight into the pounce (chase_pounce_telegraph_s: it is already coiled).
+var _burst_left := 0.0
+var _coiled_left := 0.0  ## seconds since a bound landed during which the pounce skips its crouch
+var _stuck_t := 0.0  ## seconds the chase has been pushing into something (the step hop)
+var _b_phys := false  ## the current leap lifts the body itself (over steps) instead of the view
+var _b_from_y := 0.0
+var _b_to_y := 0.0
+var _b_struck := false  ## this bound's landing strike has been judged
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -402,6 +414,8 @@ func _think(delta: float) -> void:
 	_retreat_cd = maxf(0.0, _retreat_cd - delta)
 	_wide_left = maxf(0.0, _wide_left - delta)
 	_open_left = maxf(0.0, _open_left - delta)
+	_burst_left = maxf(0.0, _burst_left - delta)
+	_coiled_left = maxf(0.0, _coiled_left - delta)
 	if _valid_target() and state in [&"circle", &"dodge", &"hold", &"hop"] and _prey_advancing():
 		_wait_t += delta
 	_opening = _opening and _open_left > 0.0
@@ -467,6 +481,7 @@ func _think(delta: float) -> void:
 		&"charge_turn": _charge_turn(delta)
 		&"display": _display(delta)
 		&"pin": _pin(delta)
+		&"bound": _bound(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
 func _roam(delta: float) -> void:
@@ -586,7 +601,11 @@ func _approach_ring() -> void:
 			speed_override = creature.move_speed_mps()  # a full run after it, not the 0.7 chase pace
 		var d := _flat_dist(attack_target)
 		# A quick bite (or the pounce) on the run; the long combo would only let her walk off.
-		if (d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])) or (d <= reach_to(attack_target) and _strike(d, ["bite"])):
+		# A bound-striker does not stop to swipe at prey sprinting off (the paw only rakes air): it bounds onto her instead.
+		var swipe := not bool((tac.get("bound", {}) as Dictionary).get("strike", false)) or _prey_speed() < _t("swipe_max_prey_mps", 4.0)
+		if (d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])) or (swipe and d <= reach_to(attack_target) and _strike(d, ["bite"])):
+			return
+		if _burst_chase(d, delta_s()):
 			return
 		# tactics.chase_hop (swarm): at her heels with the bite not allowed yet (cooling, or no beat since the
 		# last one) it hops back out instead of trotting glued to her forever; the hop is the beat, the chase
@@ -609,6 +628,10 @@ func _approach_ring() -> void:
 		gait_clip = &"stalk"
 		speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("stalk_speed_frac", 0.5)
 	creature.move_to(attack_target.global_position + _to_me() * ring_m())
+
+func _prey_speed() -> float:
+	var v: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
+	return Vector2(v.x, v.z).length()
 
 ## The prey moving away from it (> 1 m/s outward).
 func _prey_leaving() -> bool:
@@ -683,7 +706,7 @@ func attack_available(move: StringName, d: float) -> bool:
 			# Judged where the prey will be at the hit: windup plus flight at its current outward speed.
 			var tv: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
 			var outward := maxf(0.0, Vector3(tv.x, 0.0, tv.z).dot(-_to_me()))
-			var at_hit := d + outward * (_t("pounce_telegraph_s", 0.8) + _clip_len(&"pounce", _t("pounce_leap_s", 0.4)) * CreatureClips._hit_frac(&"pounce"))
+			var at_hit := d + outward * (_pounce_telegraph() + _clip_len(&"pounce", _t("pounce_leap_s", 0.4)) * CreatureClips._hit_frac(&"pounce"))
 			return creature.can_sprint() and creature.can_use_special(creature.special_cost(&"pounce")) \
 				and d >= _t("pounce_min_m", 4.0) and at_hit <= far + _size_excess(attack_target)
 		&"charge":
@@ -1570,10 +1593,12 @@ func _start_pounce() -> void:
 	_just_disengaged = false
 	_basic_streak = 0
 	_pounce_phase = &"windup"
-	_left = _t("pounce_telegraph_s", 0.8)
+	_left = _pounce_telegraph()
 	creature.stop_move()
-	# Windup pose: the heavy clip retimed to reach its strike frame as the windup ends.
-	creature.anim.play_timed_attack(&"attack_heavy", _left)
+	# Windup pose: the heavy clip retimed to reach its strike frame as the windup ends. Coiled from a chase bound there is
+	# no crouch: the pounce clip's own 0.2 crouch is the lead-in (the ring still shows from now to the hit).
+	if _left > 0.05:
+		creature.anim.play_timed_attack(&"attack_heavy", _left)
 	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("pounce_radius_m", 1.6) + _size_excess(attack_target), _left + 1.0)
 	_start_cd(&"pounce")
 	_mark_pack()
@@ -1635,7 +1660,8 @@ func _pounce(delta: float) -> void:
 				_end_pounce()
 				_back_off()
 
-func _pounce_land() -> void:
+## clip: the part rows the hit is judged on (pipeline.hit_parts): the pounce's sabres, or a chase bound's forepaws (leap).
+func _pounce_land(clip: StringName = &"pounce") -> void:
 	var tgt := attack_target
 	_pounce_landed = false
 	var ahead := tgt.global_position - creature.global_position
@@ -1643,7 +1669,7 @@ func _pounce_land() -> void:
 	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close. With hurtboxes the
 	# pounce clip's parts decide below instead (the smilodon's sabres included); else a species with pounce hit
 	# parts (pipeline.hit_parts) must also reach it with them.
-	if not Hitbox.applies(creature, tgt) and (_flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0 or not creature.part_hit(&"pounce", tgt)):
+	if not Hitbox.applies(creature, tgt) and (_flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0 or not creature.part_hit(clip, tgt)):
 		_log("[ai] %s pounce missed" % creature.def.id)
 		if tgt is Player or tgt is Creature:
 			CombatAvoid.avoided(tgt, creature, &"miss")
@@ -1652,7 +1678,7 @@ func _pounce_land() -> void:
 		return
 	# HITBOXES: the jaws and claws of the pounce clip must sweep through her hurtboxes.
 	if Hitbox.applies(creature, tgt):
-		var hit := Hitbox.strike(creature, &"pounce", tgt)
+		var hit := Hitbox.strike(creature, clip, tgt)
 		if hit.is_empty():
 			_log("[ai] %s pounce missed (no part touched)" % creature.def.id)
 			if tgt is Player or tgt is Creature:
@@ -1717,9 +1743,10 @@ func _jump_tick(delta: float) -> bool:
 
 func _jump_end() -> void:
 	_j_loop = &""
+	_b_phys = false
 	if creature and creature.view:
 		creature.view.position.y = 0.0
-	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right", &"charge_turn"]:
+	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right", &"charge_turn", &"leap"]:
 		creature.anim.release_oneshot()  # landed: the clip's last frame must not hold the next strike
 	if _j_timed:
 		_j_timed = false
@@ -1728,6 +1755,16 @@ func _jump_end() -> void:
 ## One frame of a leap: along from -> to at fraction f, the body (view) lifted on a sine arc.
 func _arc_step(from: Vector3, to: Vector3, f: float, height: float) -> void:
 	var step := from.lerp(to, f) - creature.global_position
+	if _b_phys:
+		# BURST CHASER bound: the body itself flies the arc (over steps) from its height to the landing ground, sliding
+		# along anything it still meets; gravity is held off while it flies.
+		step.y = lerpf(_b_from_y, _b_to_y, f) + sin(PI * f) * height - creature.global_position.y
+		var hit := creature.move_and_collide(step)
+		if hit:
+			creature.move_and_collide(hit.get_remainder().slide(hit.get_normal()))
+		creature.velocity.y = 0.0
+		creature.view.position.y = 0.0
+		return
 	step.y = 0.0
 	creature.move_and_collide(step)
 	creature.view.position.y = sin(PI * f) * height
@@ -1775,6 +1812,114 @@ func _hop(delta: float) -> void:
 		_seq_next()
 	else:
 		_enter_circle()
+
+## The pounce's windup: shorter (or none) straight after a chase bound, the animal already coiled.
+func _pounce_telegraph() -> float:
+	if _coiled_left > 0.0 and tac.has("chase_pounce_telegraph_s"):
+		return _t("chase_pounce_telegraph_s", 0.0)
+	return _t("pounce_telegraph_s", 0.8)
+
+func delta_s() -> float:
+	return get_physics_process_delta_time()
+
+## BURST CHASER, while the prey runs: a bound when she is bound.min_m-max_m off, a step hop when stuck, else a burst
+## sprint (burst.mps for burst.s). True when it took off (state bound).
+func _burst_chase(d: float, delta: float) -> bool:
+	var b: Dictionary = tac.get("bound", {})
+	if not b.is_empty() and creature.anim.has_state(&"leap") and _ready_to(&"bound"):
+		# Stuck: chasing but hardly moving (move_and_slide already zeroed the velocity it ran into the step with).
+		var got := creature.get_real_velocity()
+		_stuck_t = _stuck_t + delta if Vector2(got.x, got.z).length() < 1.0 and creature.can_sprint() else 0.0
+		if _stuck_t >= float(b.get("stuck_s", 0.3)):
+			_start_bound(float(b.get("step_m", 3.0)))
+			return true
+		# Judged on the jump it would make: to where she will be when it lands, less the landing gap.
+		var jump := _flat_dist_to(_bound_aim()) - _land_short()
+		if creature.can_sprint() and jump >= float(b.get("min_m", 5.0)) and jump <= float(b.get("max_m", 10.0)) + _size_excess(attack_target) \
+				and creature.try_special(&"leap"):
+			_start_bound()
+			return true
+	var u: Dictionary = tac.get("burst", {})
+	if u.is_empty():
+		return false
+	if _burst_left <= 0.0 and _ready_to(&"burst") and d >= float(u.get("min_m", 3.0)) and creature.can_sprint() and creature.try_special(&"burst"):
+		_burst_left = float(u.get("s", 2.0))
+		_start_cd(&"burst")
+		tactic.emit(&"burst")
+	if _burst_left > 0.0 and creature.can_sprint():
+		speed_override = float(u.get("mps", 13.0)) / Creature.run_speed_mult()  # the sprint state multiplies it back
+	return false
+
+## One bound at the prey: aimed where she will be when it lands (her velocity over the flight), short of her by the body
+## radius, or with cut-off (she runs across its line by more than bound.cutoff_deg) bound.cutoff_ahead_m beyond her on her
+## own line, in her escape path. step_m > 0: the short hop over a step it was stuck on. The body itself rises on the arc
+## (bound.height_m) and lands on the ground found under the landing point, so it clears steps and never ends in a slope.
+func _start_bound(step_m: float = -1.0) -> void:
+	var b: Dictionary = tac.get("bound", {})
+	creature.stop_move()
+	_set_state(&"bound")
+	_start_cd(&"bound")
+	_stuck_t = 0.0
+	_beat()  # a bound is a beat: the swipe may follow it
+	var from := creature.global_position
+	var tv: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
+	tv.y = 0.0
+	var to_prey := attack_target.global_position - from
+	to_prey.y = 0.0
+	var aim := _bound_aim()
+	var dir := Vector3(aim.x - from.x, 0.0, aim.z - from.z)
+	dir = dir.normalized() if dir.length_squared() > 0.01 else -_to_me()
+	var cut := step_m <= 0.0 and tv.length() > 2.0 and rad_to_deg(tv.angle_to(to_prey)) > float(b.get("cutoff_deg", 35.0))
+	var land := aim + tv.normalized() * float(b.get("cutoff_ahead_m", 2.0)) if cut else aim - dir * _land_short()
+	var far := step_m if step_m > 0.0 else float(b.get("max_m", 10.0)) + _size_excess(attack_target)
+	if step_m > 0.0:
+		land = from + dir * step_m
+	elif from.distance_to(land) > far:
+		land = from + (land - from).normalized() * far
+	var space := creature.get_world_3d().direct_space_state
+	land.y = RagdollSkin.ground_y(space, land, [creature.get_rid()], from.y)
+	_b_phys = true
+	_b_struck = false
+	_b_from_y = from.y
+	_b_to_y = land.y
+	_jump_begin(land, &"leap", _t("bound_s", 0.5), 0.0, float(b.get("height_per_m", 0.12)))
+	_j_height = maxf(_j_height, float(b.get("min_height_m", 0.6)))
+	tactic.emit(&"cutoff" if cut else (&"step_hop" if step_m > 0.0 else &"bound"))
+	_log("[ai] %s %s %.1f m" % [creature.def.id, "cut-off leap" if cut else "bound", from.distance_to(land)])
+
+## Where the prey will be when a bound launched now lands (her velocity over the flight).
+func _bound_aim() -> Vector3:
+	var tv: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
+	return attack_target.global_position + Vector3(tv.x, 0.0, tv.z) * _clip_len(&"leap", 0.75) * float(_leap_air().y)
+
+func _leap_air() -> Vector2:
+	var air: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get("leap", {}) as Dictionary).get("airborne")
+	return Vector2(float(air[0]), float(air[1])) if air is Array and (air as Array).size() == 2 else Vector2(0.2, 0.65)
+
+func _bound(delta: float) -> void:
+	creature.face_towards(_j_to if _j_t < _j_len * _j_air.y else attack_target.global_position, delta)
+	var done := _jump_tick(delta)
+	# bound.strike: the forepaws come down on her as it lands (leap hit_parts) - the chase's pounce, pin and all. It is the
+	# pounce (its cooldown, energy and pounce_mult), with no windup: a roll still dodges it (CreatureAttack's roll window).
+	if not _b_struck and _j_t >= _j_len * _j_air.y:
+		_b_struck = true
+		if bool((tac.get("bound", {}) as Dictionary).get("strike", false)) and _ready_to(&"pounce") and creature.try_special(&"pounce"):
+			_start_cd(&"pounce")
+			_pounce_dir = Vector3(_j_to.x - _j_from.x, 0.0, _j_to.z - _j_from.z).normalized()
+			_pounce_land(&"leap")
+			if _pounce_landed:
+				_jump_end()
+				if _start_pin():
+					return
+	if not done:
+		return
+	_jump_end()
+	_coiled_left = _t("coiled_s", 0.6)
+	var d := _flat_dist(attack_target)
+	# Landed: the swipe if she is in reach, the coiled pounce if she is in its range, else run on.
+	if (d <= reach_to(attack_target) and _strike(d, ["bite"])) or _strike(d, ["pounce"]):
+		return
+	_set_state(&"approach")
 
 func _end_pounce() -> void:
 	if _pounce_phase == &"":
@@ -1881,7 +2026,7 @@ func _on_state_changed(prev: StringName, _next: StringName) -> void:
 		_end_pin()
 	if prev == &"pounce":
 		_end_pounce()
-	elif prev == &"hop" or prev == &"lunge" or prev == &"dodge":
+	elif prev == &"hop" or prev == &"lunge" or prev == &"dodge" or prev == &"bound":
 		_jump_end()
 		_leaping = false
 
