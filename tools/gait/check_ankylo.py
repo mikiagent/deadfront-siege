@@ -142,6 +142,7 @@ for f in sorted(os.listdir(anim_dir)):
                   f" nearest the snout {near_head:.2f} m; path " + " ".join(f"{q[0]}:{q[4]:+.0f}deg/{q[5]:.1f}m/z{q[6]:.1f}" for q in path))
         if best[1] > r - SURVIVOR_R: bad.append(f"club misses the target spot by {best[1]:.2f} m (radius {r - SURVIVOR_R:.2f})")
         if best[3] < CLUB_SPEED and not mv.get("slam"): bad.append(f"club moving {best[3]:.1f} m/s at the target")
+        if mv.get("slam") and min(q[6] for q in path) > mv.get("slam_height_m", 0.9): bad.append(f"slam: the club never comes down to {mv.get('slam_height_m', 0.9)} m in the window")
         if near_head < r + SURVIVOR_R: bad.append(f"club reaches a survivor at the snout ({near_head:.2f} m)")
     print(f"CLIP {clip} {'FAIL ' + '; '.join(bad) if bad else 'PASS'} frames={f1-f0+1} stretch={stretch:.2f} low=[{lo:.3f},{hi_low:.3f}] drift={drift}{extra} at={where}")
     fails += bool(bad)

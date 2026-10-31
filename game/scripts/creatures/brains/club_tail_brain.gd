@@ -31,6 +31,7 @@ var last_hit_s := -999.0
 var _planned: StringName = &""
 var _move_n := 0
 var _struck: Array[Node3D] = []
+var _near: Dictionary = {}  ## target -> club distance last frame (the strike lands at the club's closest pass)
 var _slammed := false
 var _aim: Node3D
 var telegraph: Telegraph
@@ -170,6 +171,7 @@ func _start(id: StringName) -> void:
 	_planned = &""
 	move_t = 0.0
 	_struck.clear()
+	_near.clear()
 	_slammed = false
 	creature.stop_move()
 	strafe_face = null
@@ -181,7 +183,7 @@ func _start(id: StringName) -> void:
 	move_len = length / maxf(0.01, creature.anim.cadence(clip))
 	var strike: Array = move.get("strike", [0.5, 0.6])
 	var shock := float(move.get("shock_radius_m", 0.0))
-	telegraph = Telegraph.show_club(creature, strike_spot(id), maxf(float(move.get("hit_radius_m", 1.3)), shock),
+	telegraph = Telegraph.show_club(creature, strike_spot(id), maxf(float(move.get("hit_radius_m", 1.1)), shock),
 		float(strike[1]) * move_len, "%s - ROLL OR GET TO ITS HEAD" % str(move.get("label", id)).to_upper())
 	_log("[ai] ankylo %s (wind-up %.1fs)" % [id, float(strike[0]) * move_len])
 
@@ -197,12 +199,24 @@ func _tick_move(delta: float) -> void:
 	if u >= float(strike[0]) and u <= float(strike[1]) + 0.0001:
 		var club := club_position()
 		if bool(move.get("slam", false)):
-			if not _slammed and u >= (float(strike[0]) + float(strike[1])) * 0.5:
+			# Impact on the frame the club comes down to the ground (or the window's end), not on a fixed fraction:
+			# the tree's crossfade can land the slam a few frames off the authored timing.
+			var low := club.y - creature.global_position.y <= float(move.get("slam_height_m", 0.9))
+			if not _slammed and (low or u + delta / maxf(0.01, move_len) > float(strike[1])):
 				_slammed = true
 				_slam(club)
 		else:
+			var r := float(move.get("hit_radius_m", 1.1))
+			var last := u + delta / maxf(0.01, move_len) > float(strike[1])
 			for t in _threats():
-				if not _struck.has(t) and _in_sphere(club, t, float(move.get("hit_radius_m", 1.3))):
+				if _struck.has(t):
+					continue
+				# Land where the club passes through her: once it is inside the sphere, at its closest point (the
+				# frame it starts to move away, it is well inside, or the window ends), not at the sphere's edge.
+				var d := Vector2(club.x - t.global_position.x, club.z - t.global_position.z).length() - _size_excess(t)
+				var was: float = _near.get(t, INF)
+				_near[t] = d
+				if d <= r and (d >= was or d <= r * 0.5 or last):
 					_strike(t, float(move.get("damage_mult", 1.0)), float(move.get("knockback_m", 0.0)), false, &"club")
 	if u >= 1.0:
 		_end_move()
@@ -214,7 +228,7 @@ func _in_sphere(club: Vector3, t: Node3D, radius: float) -> bool:
 func _slam(club: Vector3) -> void:
 	IsoCamera.shake(PlayerRegistry.local(), CombatTuning.num("camera", "heavy_hit", 0.6))
 	for t in _threats():
-		if _in_sphere(club, t, float(move.get("hit_radius_m", 1.3))):
+		if _in_sphere(club, t, float(move.get("hit_radius_m", 1.1))):
 			_strike(t, float(move.get("damage_mult", 1.0)), float(move.get("knockback_m", 0.0)), bool(move.get("knockdown", false)), &"club")
 		elif _in_sphere(club, t, float(move.get("shock_radius_m", 0.0))):
 			_strike(t, float(move.get("shock_mult", 0.3)), float(move.get("shock_knockback_m", 0.0)), false, &"shock")

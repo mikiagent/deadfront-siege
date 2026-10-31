@@ -126,6 +126,7 @@ func _test_club_paths() -> void:
 
 ## Run one move against the survivor at `at`; returns [hits on her, telegraph up at t=0, telegraph up at the hit].
 func _run_move(id: StringName, at: Vector3, roll_at: float = -1.0) -> Dictionary:
+	_place(at)  # before the spawn: an animal spawned on her would stand on her
 	var c = _spawn(Vector3.ZERO, Vector3(0, 0, -10))
 	await physics_frame
 	await physics_frame
@@ -152,6 +153,7 @@ func _run_move(id: StringName, at: Vector3, roll_at: float = -1.0) -> Dictionary
 			out["hit_t"] = float(_hits[n][3])
 			out["ring_at_hit"] = is_instance_valid(b.telegraph)
 			out["club_d"] = _flat(_hits[n][4], player.global_position)
+			out["club_y"] = (_hits[n][4] as Vector3).y - c.global_position.y
 			out["kind"] = _hits[n][2]
 			out["knockdown"] = player.statuses.has(&"knockdown")
 	out["turned"] = absf(angle_difference(yaw0, c.rotation.y))
@@ -186,6 +188,7 @@ func _test_moves() -> void:
 		_expect(float(r["turned"]) < 0.001 and float(r["slid"]) < 0.01, "%s: no turn and no slide in code while the clip plays (%.4f rad, %.3f m)" % [id, r["turned"], r["slid"]])
 		if id == &"smash":
 			_expect(r.get("kind", &"") == &"club" and r.get("knockdown", false), "smash: the club itself lands (not the shockwave) and knocks her down")
+			_expect(float(r.get("club_y", 9.0)) <= float(mv.get("slam_height_m", 0.9)) + 0.01, "smash: it lands when the club is down at the ground (%.2f m up)" % r.get("club_y", 9.0))
 		var head := await _run_move(id, Vector3(0, 0, -4.5))
 		_expect(int(head["hits"]) == 0, "%s: a survivor at the snout is not hit (%d)" % [id, head["hits"]])
 	var behind := await _run_move(&"smash", Vector3(0, 0, 3.0))

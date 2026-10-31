@@ -34,7 +34,7 @@ var info: Label
 const BRAIN_MOVES := {
 	"TyrantBrain": "telegraphed bite, stomp every 3rd attack, tail whip if you are behind, roar on spotting",
 	"RaptorPackBrain": "pack flank, bites, heavy pounce from 4-7 m off-axis",
-	"ClubTailBrain": "turns its tail to you, no rush: TAIL WHIP (knockback), TAIL SMASH every 3rd (knockdown + shockwave), CLUB SWEEP when surrounded; hits only from the club, the head is safe",
+	"ClubTailBrain": "turns its tail to you, no rush: whip, whip, smash, whip, sweep: TAIL WHIP (knockback), TAIL SMASH (knockdown + shockwave), CLUB SWEEP (also when surrounded); hits only from the club, the head is safe",
 	"CreatureBrain": "attack_primary, attack_heavy after 3 primaries",
 }
 const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge"]
