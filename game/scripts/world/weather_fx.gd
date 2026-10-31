@@ -2,7 +2,7 @@ class_name WeatherFx
 extends CanvasLayer
 ## WEATHER's screen layer for WorldWeather, on a canvas layer under every HUD layer, so the HUD, its taken
 ## rects and the combat red edge (StatusFx.draw_vignette) always draw over it. Heat: an orange edge, a warm
-## wash, the shimmer (high quality) and a slow sway. Cold: a blue-white edge and frost creeping in from the
+## wash, the shimmer round the border (high quality) and a slow sway. Cold: a blue-white edge and frost creeping in from the
 ## borders, with shivers. Storm: the lightning flash, then the thunder's rumble. While a hunt or a red-edge
 ## status is on, the weather edges drop to 35 % so the red one reads first.
 ## It also dims the sun in rain, on top of what WorldLighting wrote this frame (process_priority runs it

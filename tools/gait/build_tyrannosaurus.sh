@@ -19,7 +19,7 @@ if [ "${1:-all}" != clips ]; then
 fi
 [ "${1:-all}" = base ] && exit 0
 mkdir -p $T/x $T/g
-for c in idle alert attack_primary attack_heavy tail_swipe bite_shake hit_react feed knockdown death sleep; do
+for c in idle alert attack_primary attack_heavy tail_swipe bite_shake hit_react feed knockdown death sleep pin_foot; do
   run -P tools/gait/make_rex_moves.py -- $D/tyrannosaurus.glb $c $T/x/$c.glb &
 done
 run -P tools/gait/make_gait.py -- $D/tyrannosaurus.glb $G walk $T/x/walk.glb &

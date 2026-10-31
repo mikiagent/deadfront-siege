@@ -71,7 +71,8 @@
       "death",
       "alert",
       "feed",
-      "sleep"
+      "sleep",
+      "pin_foot"
     ],
     "provenance": "docs/orchestration/reports/claude-sp-tyrannosaurus.md",
     "model_variants": {

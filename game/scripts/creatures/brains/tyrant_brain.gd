@@ -16,7 +16,7 @@ var telegraph: Telegraph
 const TAIL_DOT := -0.35
 ## SP-TYRANNOSAURUS signature moves (owner: "be creative with what moves they do when they fight").
 ## Bite and shake: every third bite on something she can lift in her jaws (a survivor, or a creature no taller
-## than GRAB_HEIGHT) clamps on, thrashes it and flings it: more damage, and the catch is pinned while it is shaken.
+## than GRAB_HEIGHT) clamps on, thrashes it and flings it: more damage, and the catch lands knocked down.
 ## ASSUMPTION: 1.5x the bite's damage, rotation bite, bite-and-shake, stomp.
 const GRAB_HEIGHT := 3.0
 const SHAKE_MULT := 1.5
@@ -132,9 +132,8 @@ func _impact() -> void:
 	if windup_clip == &"bite_shake":
 		if not CreatureAttack.apply_for(creature, windup_clip, locked_target, SHAKE_MULT): return
 		if not CreatureAttack._target_dead(locked_target):
-			CreatureAttack._apply_token(&"pinned", &"attack_primary", locked_target, creature)  # held in the jaws (the raid kit still prevents it)
+			CreatureAttack._apply_token(&"knockdown", &"bite_shake", locked_target, creature)  # flung down (Pinned stays the stomp's: PINFEEL fairness)
 		if locked_target is Player: (locked_target as Player).receive_creature_hit(creature, windup_clip)
-		elif locked_target is Creature: (locked_target as Creature).anim.play_clip(&"knockdown")
 		return
 	CreatureAttack.apply_for(creature,windup_clip,locked_target)
 	if locked_target is Player: (locked_target as Player).receive_creature_hit(creature,windup_clip)

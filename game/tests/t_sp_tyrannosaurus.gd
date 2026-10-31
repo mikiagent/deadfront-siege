@@ -2,7 +2,7 @@ extends SceneTree
 ## SP-TYRANNOSAURUS (owner: remodel the T. rex with a real jaw): the v2 open-mouth model draws with every clip, the
 ## Jaw opens the mouth in the roar and the bite, the lying clips put her down on her belly and knockdown gets her
 ## back up, the feet stay on the floor in the standing clips, the signature moves fire through TyrantBrain and land
-## (bite and shake: damage + pinned; battle roar: small creatures and the survivor stagger, a big one does not),
+## (bite and shake: damage + knockdown; battle roar: small creatures and the survivor stagger, a big one does not),
 ## an Alpha wears the armoured skin, and the island table still spawns her (far shore).
 ## Run: Godot --headless --path game --script res://tests/t_sp_tyrannosaurus.gd  -> "[t_sp_tyrannosaurus] PASS"
 
@@ -149,7 +149,7 @@ func _test_moves() -> void:
 	brain.phase_left = 0.0
 	brain._think(1.0 / 60.0)
 	_expect(player.vitals.health < hp0, "the bite and shake lands (hp %.0f -> %.0f)" % [hp0, player.vitals.health])
-	_expect(player.statuses.has(&"pinned"), "the survivor is pinned in the jaws")
+	_expect(player.statuses.has(&"knockdown") and not player.statuses.has(&"pinned"), "the survivor is flung down (knockdown; Pinned stays the stomp's)")
 	_expect(brain.phase == &"recovery" and brain.phase_left > 1.5, "the shake and fling play out as recovery (%.2f s)" % brain.phase_left)
 	brain._end_phase()
 	# a big target can't be lifted: the second attack stays a plain bite

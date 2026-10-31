@@ -8,6 +8,10 @@ Exits 1 on penetration > 1 cm (game scale) or a planted-foot slide > 1 cm.
 
 usage: Blender -b -P tools/gait/check_leap.py -- <base.glb> <clip.glb> <frames_dir> [--game-scale 2.4] [--no-render]
        [--grounded]  (an in-place clip with no airborne window: every frame is a ground frame)
+       [--stance]  (a clip that steps (attacks): a toe glides only while it is down, within 1.5 cm (game) of its first
+                    print's height; each contact is measured from the frame it touched down, so a lifted step passes)
+       [--ref-clip]  (prints = the clip's own first frame (takeoff, grounded) and last frame (landing), not the bind
+                      rest: transplant rigs (deinonychus, coelophysis) stand in a stance that is not their bind pose)
 """
 import math
 import os
@@ -21,6 +25,9 @@ base, clip, out = a[:3]
 SCALE = float(a[a.index("--game-scale") + 1]) if "--game-scale" in a else 2.4
 RENDER = "--no-render" not in a
 GROUNDED = "--grounded" in a
+REF_CLIP = "--ref-clip" in a
+STANCE = "--stance" in a
+anchor = {}
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=base)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
@@ -64,6 +71,12 @@ except Exception:
     pass
 f0, f1 = (int(round(x)) for x in act.frame_range)
 n = f1 - f0
+land = dict(feet)
+if REF_CLIP:
+    for fr, d in ((f1, land), (f0, feet)):
+        sc.frame_set(fr)
+        for nm in d:
+            d[nm] = arm.matrix_world @ arm.pose.bones[nm].tail
 worst_low, slide, peak, jaw = 0.0, 0.0, 0.0, 0.0
 for f in range(f0, f1 + 1):
     sc.frame_set(f)
@@ -74,8 +87,16 @@ for f in range(f0, f1 + 1):
     worst_low = min(worst_low, lz)
     for nm, p0 in feet.items():
         p = arm.matrix_world @ arm.pose.bones[nm].tail
-        if GROUNDED or u <= 0.2 + 1e-6 or u >= 0.65 - 1e-6:
+        if STANCE:
+            if p.z - p0.z < 0.015 / SCALE:
+                anchor.setdefault(nm, p.copy())
+                slide = max(slide, (p - anchor[nm]).xy.length)
+            else:
+                anchor.pop(nm, None)
+        elif GROUNDED or u <= 0.2 + 1e-6:
             slide = max(slide, (p - p0).length)
+        elif u >= 0.65 - 1e-6:
+            slide = max(slide, (p - land[nm]).length)
         peak = max(peak, p.z - p0.z)
     if "Jaw" in arm.pose.bones:
         q = arm.pose.bones["Jaw"].matrix_basis.to_quaternion()

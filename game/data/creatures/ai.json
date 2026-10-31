@@ -63,13 +63,14 @@
   },
   "archetypes": {
     "pack_raptor": {
-      "attack_range": 2.0,
+      "attack_range": 1.3,
       "pack_flank": true,
       "weak_to": [
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "_attack_range": "ASSUMPTION (COELOMOVES 2026-10-31): attack_range set so the survivor's surface at contact reach (attack_range + 0.3 - 0.35) sits just inside where the snout is at the bite's hit frame (measured on the clip, game scale): velociraptor snout 1.32 m -> surface 1.25 m (was 2.0: it bit air 0.6 m short of her)."
     },
     "pack_flanker": {
       "attack_range": 2.0,
@@ -246,14 +247,15 @@
       }
     },
     "apex_raptor": {
-      "attack_range": 2.2,
+      "attack_range": 4.6,
       "pack_flank": true,
       "perception_base": 10.0,
       "weak_to": [
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "_attack_range": "ASSUMPTION (COELOMOVES 2026-10-31): attack_range set so the survivor's surface at contact reach (attack_range + 0.3 - 0.35) sits just inside where the snout is at the bite's hit frame (measured on the clip, game scale): utahraptor snout 5.08 m -> surface 4.55 m (was 2.2: the head passed 2.5 m through her). Allosaurus (no model, RaptorPackBrain) shares the archetype."
     },
     "swarm": {
       "attack_range": 1.4,
@@ -434,12 +436,14 @@
       }
     },
     "flock_harass": {
-      "attack_range": 1.6,
+      "attack_range": 2.2,
       "weak_to": [
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "pack_flank": true,
+      "_attack_range": "ASSUMPTION (COELOMOVES 2026-10-31): attack_range set so the survivor's surface at contact reach (attack_range + 0.3 - 0.35) sits just inside where the snout is at the bite's hit frame (measured on the clip, game scale): coelophysis snout 2.28 m -> surface 2.15 m (was 1.6: 1.55 m, the head passed 0.7 m through her)."
     },
     "venom_ranged": {
       "attack_range": 2.4,
@@ -601,12 +605,13 @@
     },
     "runner": {
       "is_herbivore": true,
-      "attack_range": 1.6,
+      "attack_range": 2.8,
       "weak_to": [
         "slashing"
       ],
       "resists": [],
-      "temperament": "skittish"
+      "temperament": "skittish",
+      "_attack_range": "ASSUMPTION (COELOMOVES 2026-10-31): attack_range set so the survivor's surface at contact reach (attack_range + 0.3 - 0.35) sits just inside where the snout is at the bite's hit frame (measured on the clip, game scale): gallimimus snout 3.13 m -> surface 2.75 m (was 1.6)."
     },
     "antlered": {
       "is_herbivore": true,
@@ -615,7 +620,18 @@
         "blunt"
       ],
       "resists": [],
-      "temperament": "skittish"
+      "temperament": "skittish",
+      "tactics": {
+        "base": "horned_charger",
+        "retreat_frac": 0.3,
+        "_megaloceros": "MEGALOCEROS (owner 2026-10-31: 'get territorial and engage the player after running away once'). Brain only: a copy of horned_charger's tactics (straight antler ram, attack_heavy at point blank, hind kick when she is behind) plus the territorial block; flees again under 30 % HP. Clips and size belong to the megaloceros rebuild (claude/mmo-sp-megaloceros). Open Questions CM3.",
+        "territorial": {
+          "_about": "SKITTISH-TERRITORIAL (owner 2026-10-31: 'engage the player after running away once ... run away when its weak'). ASSUMPTION: the first flight lasts flee_once_s (or until it outruns the leash), then it turns on the threat if it is within leash_m and is provoked while the threat stays; under weak_frac HP (0.3) it runs again; with the threat gone (leash) it grazes and the cycle resets. TacticalBrain._territorial_tick.",
+          "flee_once_s": 3.0,
+          "leash_m": 30.0,
+          "weak_frac": 0.3
+        }
+      }
     },
     "club_tail": {
       "is_herbivore": true,
@@ -626,7 +642,48 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "defensive"
+      "temperament": "defensive",
+      "_club_moves": "ANKYLOAI (owner 2026-10-31: no rush/tackle, rare HARD tail hits). ClubTailBrain: strike = the clip fractions where the Tail5 club is live; the hit is a sphere of hit_radius_m round the club (plus the target's body), so the snout is safe. target_bearing_deg (+ = right of the snout) / target_dist_m (from the origin) is where the brain puts its target before it swings: the club passes there in the window (tools/gait/check_ankylo.py prints the club path). Every number below is an ASSUMPTION (WildLandsMMO_Open_Questions.md).",
+      "club_moves": {
+        "whip": {
+          "clip": "attack_primary",
+          "label": "TAIL WHIP",
+          "strike": [0.5, 0.72],
+          "target_bearing_deg": 120.0,
+          "target_dist_m": 3.0,
+          "hit_radius_m": 1.1,
+          "damage_mult": 0.8,
+          "knockback_m": 3.0,
+          "cooldown_s": 3.5
+        },
+        "smash": {
+          "clip": "attack_heavy",
+          "label": "TAIL SMASH",
+          "strike": [0.62, 0.76],
+          "slam": true,
+          "slam_height_m": 0.9,
+          "target_bearing_deg": 165.0,
+          "target_dist_m": 3.0,
+          "hit_radius_m": 1.1,
+          "damage_mult": 1.6,
+          "knockdown": true,
+          "shock_radius_m": 2.6,
+          "shock_mult": 0.35,
+          "shock_knockback_m": 2.0,
+          "cooldown_s": 6.0
+        },
+        "sweep": {
+          "clip": "tail_swipe",
+          "label": "CLUB SWEEP",
+          "strike": [0.44, 0.78],
+          "target_bearing_deg": 180.0,
+          "target_dist_m": 2.8,
+          "hit_radius_m": 1.1,
+          "damage_mult": 1.0,
+          "knockback_m": 3.5,
+          "cooldown_s": 5.0
+        }
+      }
     },
     "horned_charger": {
       "is_herbivore": true,

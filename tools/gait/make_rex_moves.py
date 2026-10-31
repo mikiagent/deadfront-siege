@@ -11,7 +11,7 @@ of (u, value) keys eased with smoothstep between keys (holds at keys, snaps wher
 game/data/creatures/anim_events.json: attack_primary 0.42, attack_heavy 0.72, tail_swipe the default 0.55.
 
 usage: Blender -b -P tools/gait/make_rex_moves.py -- <base.glb> <clip> <out.glb>
-  clip: idle | alert | attack_primary | attack_heavy | tail_swipe | bite_shake | hit_react | feed | knockdown | death | sleep
+  clip: idle | alert | attack_primary | attack_heavy | tail_swipe | bite_shake | hit_react | feed | knockdown | death | sleep | pin_foot
 
 SP-TYRANNOSAURUS (v2 open-mouth mesh): bite_shake (signature), hit_react, feed and the lying clips (knockdown, death,
 sleep) are authored here too. Lying clips go down on the belly with the feet planted and "settle" the skin onto the
@@ -438,10 +438,52 @@ def sleep(u):
     p["jaw"] = 2 + 3 * br
     return p
 
+
+def pin_foot(u):
+    """Foot pin, 4 s, held on its last frame (PINFEEL, owner 2026-10-30: "the trex ... physically pinned the target
+    with a foot"). Starts on the stomp's impact frame (attack_heavy at its 0.72 hit), so the brain can cut to it
+    the moment the stomp lands and Pinned is applied. The right foot rises off the ground and comes down on the
+    victim's chest (ball of the foot PIN_LIFT up, PIN_FWD ahead, toward the midline, toes curled down), she crouches
+    over it with the body tipped nose-down, neck curled and the head low over the victim, then holds: two growling
+    breaths, small head shakes, the tail up for balance. The game slides the victim's chest under the claws (PinHold)."""
+    E = 0.15  # the plant: 0.6 s
+    s = attack_heavy(0.72)  # the stomp's impact pose: the first frame
+    b0, t0 = s["body"], s["turns"]
+    br = 0.5 - 0.5 * math.cos(2 * math.pi * 2 * max(0.0, (u - E) / (1 - E)))  # two breaths over the hold
+    hold = smooth((u - E * 0.4) / (E * 0.6))
+    shake = wave(u, 9) * smooth((u - E) / 0.1) * (0.6 + 0.4 * br)
+
+    def mix(a, b):
+        return a + (b - a) * smooth(u / E)
+    body = {"dx": mix(b0["dx"], 0.0), "dy": mix(b0["dy"], 0.55), "dz": mix(b0["dz"], -0.7) - 0.07 * br,
+            "pitch": mix(b0["pitch"], -9.0) - 1.5 * br, "roll": mix(b0["roll"], 3.0), "yaw": 2.0 * wave(u, 1) * hold}
+    n1 = mix(t0["Neck1"][0], -13.0)  # v2: the bigger skull reached the floor at -22
+    tl = mix(-14.0, -10.0)
+    turns = {
+        "Chest": (mix(t0["Chest"][0], 3.0) + 2.0 * br, 0, 0),
+        "Neck1": (n1 + 2.0 * br, 4.0 * wave(u, 1, 0.2) * hold, 0),
+        "Neck2": (mix(t0["Neck2"][0], -9.0), 3.0 * shake, 0),
+        "Head": (mix(t0["Head"][0], 4.0), 2.0 * shake, 4.0 * shake),
+        "Arm.L": (mix(-10.0, 18.0), 0, 0), "Arm.R": (mix(-10.0, 18.0), 0, 0),
+        **{t: (tl * (0.45 if i < 3 else 0.25), 0, 0) for i, t in enumerate(TAILS)},
+    }
+    lift = max(0.0, track(u, [(0, 0), (E * 0.55, 0.95), (E, PIN_LIFT), (1, PIN_LIFT)]))
+    fwd = track(u, [(0, 1.2), (E * 0.55, 1.55), (E, PIN_FWD), (1, PIN_FWD)])
+    side = track(u, [(0, 0.0), (E, PIN_SIDE), (1, PIN_SIDE)])
+    heel = track(u, [(0, 0.0), (E * 0.55, 14.0), (E, 8.0), (1, 8.0)])
+    return {"body": body, "turns": turns, "jaw": mix(37.0, 12.0) + 9.0 * br * hold,
+            "feet": {"L": (0, 0, 0, 0), "R": (lift, fwd, side, heel)}}
+
+
+# The pinning foot's hold, metres in the rig (FWD / SIDE / UP from the right foot's print). PIN_LIFT puts the sole
+# on a lying survivor's chest (~0.3 m); PinHold moves the victim, never the foot, so these only shape the pose.
+PIN_LIFT, PIN_FWD, PIN_SIDE = 0.30, 1.8, -0.55
+
+
 CLIPS = {"idle": (idle, 96), "alert": (alert, 58), "attack_primary": (attack_primary, 40),
          "attack_heavy": (attack_heavy, 40), "tail_swipe": (tail_swipe, 48), "bite_shake": (bite_shake, 60),
          "hit_react": (hit_react, 18), "feed": (feed, 96), "knockdown": (knockdown, 76), "death": (death, 72),
-         "sleep": (sleep, 144)}
+         "sleep": (sleep, 144), "pin_foot": (pin_foot, 96)}
 fn, N = CLIPS[CLIP]
 
 arm.animation_data_create()

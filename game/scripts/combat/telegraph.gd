@@ -130,3 +130,24 @@ static func show_pounce(creature: Creature, at: Vector3, radius: float, duration
 	t.add_child(label)
 	_active.append(t)
 	return t
+
+## ANKYLOAI club moves: a ring where the tail club will pass, with the move's name, for the whole wind-up and strike
+## window. Rolling inside it at the strike is a dodge (player_dodged), like the heavy ring. Survives deafened (the
+## tyrant's rule: the swing is fixed, not a homing cue).
+static func show_club(creature: Creature, at: Vector3, radius: float, duration: float, text: String) -> Telegraph:
+	var t := Telegraph.new()
+	t.name = "ClubTelegraph"
+	creature.get_parent().add_child(t)
+	t.global_position = Vector3(at.x, creature.global_position.y, at.z)
+	t.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+	t._build(radius, creature)
+	t.clip = &"club"
+	t._life = duration + LINGER
+	var label := Label3D.new()
+	label.text = text
+	label.position.y = 2
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.font_size = 32
+	t.add_child(label)
+	_active.append(t)
+	return t
