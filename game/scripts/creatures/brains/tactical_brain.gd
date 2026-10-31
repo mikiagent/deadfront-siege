@@ -2110,8 +2110,8 @@ func _swing(delta: float) -> void:
 func _back_off() -> void:
 	if _prey_leaving():
 		_set_state(&"approach")  # she is leaving: after her, not away
-	elif str(tac.get("charge_reset", "")) == "bull":
-		_start_bull_reset()  # PACHYFEEL (owner: "make it less passive aggressive"): every back-off is a bull reset into a charge
+	elif tac.get("backoff_bull", false) and str(tac.get("charge_reset", "")) == "bull":
+		_start_bull_reset()  # PACHYFEEL tactics.backoff_bull (owner: "make it less passive aggressive"): every back-off is a bull reset into a charge
 	elif can_disengage():
 		_start_hop(&"circle", true)
 	else:
