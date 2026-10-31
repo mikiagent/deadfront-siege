@@ -132,6 +132,13 @@ var _tossing := false  ## WOOLLY RHINO: standing at the impact point while the t
 var _crouch := false  ## coiling in charge_crouch before the run
 ## BULL RESET (tactics.charge_reset "bull", pachycephalosaurus): back-hops left before the windup and the next charge.
 var _bull_hops := 0
+## PACHYFEEL (ai.json bull_windup.tiers): the windup tier the display picked, and the one the running charge uses.
+var _tier := {}
+var _charge_tier := {}
+## HOP TURN: a hop back with the prey off to the side or behind first turns to face it (no hop_back while moving forward).
+var _hop_turn := false
+var _hop_dist := 0.0
+var _hop_clip := &""
 ## SKITTISH-TERRITORIAL (tactics.territorial, owner 2026-10-31: "engage the player after running away once"):
 ## the first threat sends it running for flee_once_s, then it turns and fights while the threat stays.
 ## Under weak_frac HP it is no longer provoked and runs again; once the threat is gone the cycle resets.
@@ -1134,14 +1141,16 @@ func _start_charge(return_pass: bool = false) -> void:
 		_enter_circle(0.0)  # she closed in during the steps before it (a display): no run-up, fight point blank
 		return
 	_charge_return = return_pass
+	_charge_tier = _tier  # PACHYFEEL: the windup just played sets this charge's reach and speed
+	_tier = {}
 	_set_state(&"charge")
-	_left = _t("charge_max_s", 1.6)
+	_left = _ck("charge_max_s", 1.6)
 	_just_disengaged = false
 	_seq = []
 	_charge_hit = false
 	_tossing = false
 	_charge_dir = -_to_me()
-	_charge_to = attack_target.global_position + _charge_dir * _t("charge_through_m", 2.5)
+	_charge_to = attack_target.global_position + _charge_dir * _ck("charge_through_m", 2.5)
 	if tac.get("charge_impale", false):
 		_halt()
 		creature.anim.release_oneshot()  # a hold/display pose must not run under the paw
@@ -1155,6 +1164,10 @@ func _start_charge(return_pass: bool = false) -> void:
 		creature.stop_move()
 		creature.anim.play_clip(&"charge_crouch")
 	tactic.emit(&"charge")
+
+## A charge knob: the windup tier's value for this charge (PACHYFEEL), else the species tactics'.
+func _ck(key: String, fallback: float) -> float:
+	return float(_charge_tier.get(key, _t(key, fallback)))
 
 func _phase(name: StringName, clip: StringName = &"", fallback_s: float = 0.0) -> void:
 	_charge_phase = name
@@ -1405,10 +1418,10 @@ func _charge(delta: float) -> void:
 			return
 		_crouch = false
 		_charge_dir = -_to_me()  # a straight charge locks its line as it launches, not before the coil
-		_charge_to = attack_target.global_position + _charge_dir * _t("charge_through_m", 2.5)
+		_charge_to = attack_target.global_position + _charge_dir * _ck("charge_through_m", 2.5)
 	_left -= delta
 	if tac.get("charge_straight", false):
-		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # committed: no can_sprint gate mid-line
+		speed_override = creature.move_speed_mps() * _ck("charge_speed_mult", 1.5)  # committed: no can_sprint gate mid-line
 		gait_clip = &"charge"
 		# CARNOFEEL: the locked line itself, not a nav path to a goal past her (the path ran into her body and stalled);
 		# also covers megajoust's long passes past 12 m, which got no nav steer.
@@ -1705,7 +1718,9 @@ func _body_over(t: Node3D) -> bool:
 	return creature.footprint().grow(SURVIVOR_RADIUS).has_point(Vector2(l.x, l.z))
 
 func _tick_pass(dt: float) -> void:
-	if state in [&"charge", &"charge_arc", &"charge_turn"] and _valid_target() and _smaller(attack_target):
+	# PACHYFEEL tactics.charge_pass: a charger no taller than her (the pachycephalosaurus) still runs on through her line
+	# once the dome has thrown her aside (charge_toss_deg); without it the body pushed her along and the line stalled.
+	if state in [&"charge", &"charge_arc", &"charge_turn"] and _valid_target() and (_smaller(attack_target) or tac.get("charge_pass", false)):
 		if _pass_body != attack_target:
 			_pass_end()
 			_pass_body = attack_target as PhysicsBody3D
@@ -1772,12 +1787,31 @@ func _start_display() -> void:
 	creature.stop_move()
 	# tactics.display_clip (pachycephalosaurus: bull_windup, paw and snort): the display plays it for its whole length.
 	var clip := StringName(tac.get("display_clip", "alert"))
+	_tier = _pick_tier() if clip == &"bull_windup" else {}
+	if not _tier.is_empty():
+		clip = StringName(_tier["clip"])
 	if clip != &"alert" and creature.anim.has_state(clip):
 		creature.anim.play_clip(clip)
 		_left = _clip_len(clip, _left)
 	elif creature.anim.has_state(&"alert") and not creature.anim._busy:
 		creature.anim.play_clip(&"alert")
 	tactic.emit(&"display")
+
+## PACHYFEEL (owner 2026-10-31: "make some charges go really far and some go shorter depending on the wind up"): one
+## ai.json bull_windup tier at random by weight, among those whose clip is on the rig; {} when none is.
+func _pick_tier() -> Dictionary:
+	var ok: Array = []
+	var total := 0.0
+	for row in (Data.creature_ai.get("bull_windup", {}) as Dictionary).get("tiers", []):
+		if row is Dictionary and creature.anim.has_state(StringName(str(row.get("clip", "")))) and float(row.get("weight", 1.0)) > 0.0:
+			ok.append(row)
+			total += float(row.get("weight", 1.0))
+	var r := rng.randf() * total
+	for row in ok:
+		r -= float(row.get("weight", 1.0))
+		if r <= 0.0:
+			return row
+	return ok[-1] if not ok.is_empty() else {}
 
 func _display(delta: float) -> void:
 	creature.stop_move()
@@ -2021,6 +2055,8 @@ func _swing(delta: float) -> void:
 func _back_off() -> void:
 	if _prey_leaving():
 		_set_state(&"approach")  # she is leaving: after her, not away
+	elif str(tac.get("charge_reset", "")) == "bull":
+		_start_bull_reset()  # PACHYFEEL (owner: "make it less passive aggressive"): every back-off is a bull reset into a charge
 	elif can_disengage():
 		_start_hop(&"circle", true)
 	else:
@@ -2328,13 +2364,31 @@ func _start_hop(then: StringName = &"circle", long: bool = false, dist_mult: flo
 	_beat()
 	_hop_to = creature.global_position + _to_me() * dist
 	_scurry_left = _t("scurry_s", 0.6) if str(tac.get("backoff", "leap")) == "scurry" or _style == &"strafe" else 0.0
-	if _scurry_left <= 0.0:
+	# HOP TURN (PACHYFEEL, owner: "might have a walking backwards bug"): a back-hop leaps away from the prey; with the prey
+	# off to its side or behind (straight after a charge through her, a hind kick) the body would fly forward under
+	# hop_back. It turns to face the prey first, in place, then hops.
+	_hop_turn = _scurry_left <= 0.0 and _prey_off_deg() > HOP_TURN_DEG
+	if _hop_turn:
+		_hop_dist = dist
+		_hop_clip = clip
+		_hop_turn_left = HOP_TURN_MAX_S
+	elif _scurry_left <= 0.0:
 		_hop_leap(_hop_to, clip, _t("hop_s", 0.4), _t("hop_land_s", 0.15))
 	else:
 		reposition.emit(&"strafe")
 	tactic.emit(&"hop")
 
 func _hop(delta: float) -> void:
+	if _hop_turn:
+		creature.stop_move()
+		creature.face_towards(attack_target.global_position, delta)
+		_hop_turn_left -= delta
+		if _prey_off_deg() > HOP_FACE_DEG and _hop_turn_left > 0.0:
+			return
+		_hop_turn = false
+		_hop_to = creature.global_position + _to_me() * _hop_dist
+		_hop_leap(_hop_to, _hop_clip, _t("hop_s", 0.4), _t("hop_land_s", 0.15))
+		return
 	if _scurry_left > 0.0:
 		# Scurry (swarm): dart back out at a run facing the prey (walk_back / strafes by direction).
 		_scurry_left -= delta
@@ -2361,11 +2415,30 @@ func _hop(delta: float) -> void:
 	else:
 		_enter_circle()
 
+## HOP TURN thresholds. ASSUMPTION: turn first past 60 deg off, hop once within 25 deg, never turn longer than 1.2 s.
+const HOP_TURN_DEG := 60.0
+const HOP_FACE_DEG := 25.0
+const HOP_TURN_MAX_S := 1.2
+var _hop_turn_left := 0.0
+
+## Degrees between the body's facing and the prey (0 = straight ahead).
+func _prey_off_deg() -> float:
+	var fwd := -creature.global_basis.z
+	var to := attack_target.global_position - creature.global_position
+	fwd.y = 0.0
+	to.y = 0.0
+	if fwd.length_squared() < 0.0001 or to.length_squared() < 0.0001:
+		return 0.0
+	return rad_to_deg(fwd.angle_to(to))
+
 ## BULL RESET (owner 2026-10-31, pachycephalosaurus: "instead of it walking back slowly, have it jump backwards and
 ## wind up like a bull, huff huff, and then charge"): after every charge, bull_hops quick back-hops of bull_hop_m
 ## (hop_back, facing the prey), then the display (its display_clip, the bull windup) and the charge again.
 func _start_bull_reset() -> void:
 	_bull_hops = int(_t("bull_hops", 2))
+	# PACHYFEEL: already bull_far_m out (after a long charge) one hop back is enough before the windup
+	if _valid_target() and _flat_dist(attack_target) > _t("bull_far_m", 1e9):
+		_bull_hops = mini(_bull_hops, 1)
 	_bull_next()
 
 func _bull_next() -> void:

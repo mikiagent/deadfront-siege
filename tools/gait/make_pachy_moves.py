@@ -24,7 +24,7 @@ huff huff, and then charge"):
 Hit fractions match game/data/creatures/anim_events.json (attack_primary 0.42, attack_heavy 0.72, kick 0.45).
 
 usage: Blender -b -P tools/gait/make_pachy_moves.py -- <base.glb> <clip> <out.glb>
-  clip: idle | alert | hop_back | bull_windup | attack_primary | attack_heavy | kick | hit_react | knockdown | death | sleep | feed
+  clip: idle | alert | hop_back | bull_windup | bull_windup_short | bull_windup_long | attack_primary | attack_heavy | kick | hit_react | knockdown | death | sleep | feed
 """
 import math
 import sys
@@ -294,6 +294,48 @@ def bull_windup(u):
     }
 
 
+def bull_windup_tier(u, length_s, paws, period, lead, deep):
+    """PACHYFEEL (owner 2026-10-31: "make some charges go really far and some go shorter depending on the wind up"):
+    bull_windup's paw-and-snort cycle repeated `paws` times over length_s seconds, the head and body dropped `deep` x as
+    far. bull_windup_short: one quick paw and snort; bull_windup_long: a deep crouch held, head down, three paws."""
+    s = u * length_s
+    down = track(s, [(0, 0), (lead, deep), (length_s, deep)])
+    lift, fwd, heel, snort, jaw, breath = 0.0, 0.0, 0.0, 0.0, 1.0 + deep, 0.0
+    for k in range(paws):
+        a = lead + k * period
+        b, c, d = a + 0.21 * period, a + 0.38 * period, a + 0.84 * period
+        if a <= s <= d:
+            lift = max(0.0, track(s, [(a, 0), (b, 0.2), (c, 0), (d, 0)]))
+            fwd = track(s, [(a, 0), (b, 0.16), (c, 0.22), (d, -0.1)])
+            heel = track(s, [(a, 0), (b, 8), (c, 22), (d - 0.04, 22), (d, 0)])
+            breath = track(s, [(a, 0.2), (d, 1)])
+        elif d < s < d + 0.075:
+            fwd = track(s, [(d, -0.1), (d + 0.075, 0)])
+        if d - 0.03 <= s <= d + 0.12:
+            snort = max(snort, track(s, [(d - 0.03, 0), (d + 0.01, 1), (d + 0.12, 0)]))
+            jaw = max(jaw, track(s, [(d - 0.03, 2), (d + 0.01, 13), (d + 0.13, 2)]))
+    return {
+        "body": {"dz": -0.07 * down - 0.02 * snort + 0.01 * breath, "pitch": -8 * down, "dy": -0.05 * down, "dx": 0.03 * down},
+        "turns": merge({
+            "Chest": (-4 * down + 2 * breath, 0, 0), "Neck1": (-22 * down + 3 * snort, 0, 0), "Neck2": (-12 * down, 0, 0),
+            "Head": (-30 * down + 9 * snort, 3 * snort, 0),
+            "Arm.L": (14 * down, 0, 0), "Arm.R": (14 * down, 0, 0),
+        }, tail_set(10 * down + 4 * snort), tail_wave(u, 5.0, 0.0, cycles=paws, env=min(down, 1.0))),
+        "jaw": jaw,
+        "feet": {"L": (0, 0, 0, 0), "R": (lift, fwd, 0, heel)},
+    }
+
+
+def bull_windup_short(u):
+    """0.625 s: a light head drop and one quick paw and snort (the short, snappy charge)."""
+    return bull_windup_tier(u, 15 / FPS, 1, 0.42, 0.1, 0.8)
+
+
+def bull_windup_long(u):
+    """2.25 s: a deep crouch (1.3 x the drop), head held low, three slow paws with a snort each (the long charge)."""
+    return bull_windup_tier(u, 54 / FPS, 3, 0.55, 0.35, 1.3)
+
+
 def attack_primary(u):
     """Dome butt, 1.0 s, hit at 0.42: rock back on the hips, chin tucked so the dome faces forward, then drive the
     whole body forward off the left leg, the right foot stepping out under it, dome leading; recoil and step back."""
@@ -440,7 +482,8 @@ def feed(u):
     }
 
 
-CLIPS = {"idle": (idle, 60, True), "alert": (alert, 36, False), "hop_back": (hop_back, 14, False), "bull_windup": (bull_windup, 30, False), "attack_primary": (attack_primary, 24, False),
+CLIPS = {"idle": (idle, 60, True), "alert": (alert, 36, False), "hop_back": (hop_back, 14, False), "bull_windup": (bull_windup, 30, False), "bull_windup_short": (bull_windup_short, 15, False),
+         "bull_windup_long": (bull_windup_long, 54, False), "attack_primary": (attack_primary, 24, False),
          "attack_heavy": (attack_heavy, 36, False), "kick": (kick, 24, False), "hit_react": (hit_react, 14, False),
          "knockdown": (knockdown, 50, False), "death": (death, 43, False), "sleep": (sleep, 48, False), "feed": (feed, 48, True)}
 fn, N, loop = CLIPS[CLIP]

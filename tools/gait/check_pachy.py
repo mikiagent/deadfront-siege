@@ -31,7 +31,7 @@ GAITS = {"walk": 1, "run": 1, "charge": 1, "walk_back": -1}  # sign of the plant
 STRAFE = {"strafe_left": -1, "strafe_right": 1}  # sign of x drift of a planted foot (+x = the animal's left)
 LYING = {"knockdown", "death", "sleep"}
 AIR = {"hop_back": (0.2, 0.65)}  # anim_events airborne: the game lifts the body on its arc, the feet tuck (no touch/glide gate)
-PAW = {"bull_windup": "R"}  # the pawing foot scrapes back along the ground on purpose
+PAW = {"bull_windup": "R", "bull_windup_short": "R", "bull_windup_long": "R"}  # the pawing foot scrapes back along the ground on purpose
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.render.fps = FPS
 bpy.ops.import_scene.gltf(filepath=base)

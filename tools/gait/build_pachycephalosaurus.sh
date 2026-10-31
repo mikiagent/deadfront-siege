@@ -24,7 +24,7 @@ run -P tools/gait/make_gait.py -- $D/pachycephalosaurus.glb $G walk $T/x/strafe_
 run -P tools/gait/make_gait.py -- $D/pachycephalosaurus.glb $G walk $T/x/strafe_right.glb --as strafe_right --travel -1,0,0 --set stride=0.2
 run -P tools/gait/make_gait.py -- $D/pachycephalosaurus.glb $G walk $T/x/walk_back.glb --as walk_back --travel 0,1,0 --set stride=0.2
 pids=()
-for c in idle alert hop_back bull_windup attack_primary attack_heavy kick hit_react knockdown death sleep feed; do
+for c in idle alert hop_back bull_windup bull_windup_short bull_windup_long attack_primary attack_heavy kick hit_react knockdown death sleep feed; do
   run -P tools/gait/make_pachy_moves.py -- $D/pachycephalosaurus.glb $c $T/x/$c.glb & pids+=($!)
 done
 for p in "${pids[@]}"; do wait $p; done
