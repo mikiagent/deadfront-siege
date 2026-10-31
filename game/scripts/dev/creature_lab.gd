@@ -14,6 +14,8 @@ extends Node3D
 ## with its brain off, side-on beside the survivor, 6 frames per clip saved as DIR/<clip>_<k>.png, then the lab quits.
 ## --clipsheet=DIR [--clips=investigate,sniff]: contact sheets of the first creature's clips (8 frames, front
 ## three-quarter row over a side row) to DIR/<species>_<clip>.png, then quits. Brain off, tree stepped by hand.
+## --lineup=DIR [--species=a,b,c]: those species (default the three raptors) side-on in a row at body size 1.0
+## beside the survivor, each mesh's measured length and height printed, DIR/lineup.png saved, then quits.
 
 var _player: Player
 ## The on-screen SPAWN selector (species, count 1-6, nature, Alpha; Spawn / Clear all).
@@ -57,6 +59,9 @@ func _ready() -> void:
 				_sheet_clips.append(StringName(n))
 		elif a == "--spawn-open":
 			(func() -> void: spawn_panel.get_node("SpawnPanel").visible = true).call_deferred()
+		elif a.begins_with("--lineup="):
+			_lineup.call_deferred(a.substr(9), only)
+			return
 		elif a.begins_with("--clipshots="):
 			_clipshots.call_deferred(a.substr(12), StringName(only.get_slice(",", 0)))
 		elif a == "--enrage":
@@ -267,3 +272,47 @@ func _obstacle(pos: Vector3) -> void:
 	cs.shape = sh
 	body.add_child(cs)
 	add_child(body)
+
+func _lineup(dir: String, only: String) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	var ids := (only if only != "" else "velociraptor,deinonychus,utahraptor").split(",")
+	var x := 3.0
+	var tallest := 1.8
+	for id in ids:
+		var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
+		add_child(c)
+		c.global_position = Vector3(0, 0, -24)
+		c.spawn(Data.creature(StringName(id)))
+		c.view.apply_genome(1.0, 1.0)  # species size, no genetic roll
+		c.brain.process_mode = Node.PROCESS_MODE_DISABLED
+		c.set_physics_process(false)
+		c.rotation.y = -PI / 2.0  # faces +X: side-on to the camera
+		await get_tree().process_frame
+		var box := AABB()
+		var first := true
+		for mi in c.view.rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+			var m := mi as MeshInstance3D
+			if m.mesh == null or m.has_meta(&"creature_eyeshine"):
+				continue
+			var b: AABB = m.global_transform * m.get_aabb()
+			box = b if first else box.merge(b)
+			first = false
+		c.global_position.x += x - box.position.x + 1.0
+		x += box.size.x + 2.0
+		tallest = maxf(tallest, box.size.y)
+		print("[lineup] %s length %.2f m height %.2f m (height_meters %.2f, real_length_m %.2f)" % [id, box.size.x, box.size.y, c.def.height_meters, c.def.real_length_m])
+	_player.global_position = Vector3(0.0, 0.1, -24)
+	_player.rotation.y = -PI / 2.0
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL  # no perspective: sizes compare 1:1
+	cam.size = maxf(x * 0.62, tallest * 1.6)
+	cam.global_position = Vector3(x * 0.5, tallest * 0.5, -17.0)  # close in: no lab foliage between
+	cam.look_at(Vector3(x * 0.5, tallest * 0.5, -24))
+	cam.current = true
+	for k in 30:
+		await get_tree().process_frame
+	await get_tree().create_timer(1.0).timeout
+	get_viewport().get_texture().get_image().save_png("%s/lineup.png" % dir)
+	print("[lineup] wrote %s/lineup.png" % dir)
+	get_tree().quit()

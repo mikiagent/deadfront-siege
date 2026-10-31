@@ -1,5 +1,5 @@
 extends Node3D
-## SADDLES screenshots: an unsaddled and a saddled velociraptor side by side (the saddle tinted by its
+## SADDLES screenshots: an unsaddled and a saddled deinonychus side by side (the saddle tinted by its
 ## reddish hide), then the tame's Gear sheet, one PNG each into --shot-dir, suffixed with the canvas.
 ## Windowed: Godot --path game --resolution 1600x900 -- --lab=saddles_lab --shot-dir=DIR
 
@@ -32,7 +32,7 @@ func _shot(tag: String) -> void:
 	print("[saddles] shot %s" % path)
 
 func _pet(at: Vector3, saddled: bool) -> Creature:
-	var rec := PetRecord.from_def(Data.creature(&"velociraptor"), &"A")
+	var rec := PetRecord.from_def(Data.creature(&"deinonychus"), &"A")
 	rec.name = "Saddled" if saddled else "No saddle"
 	if saddled:
 		rec.gear.put(&"saddle", ItemStack.make(&"saddle_medium", 1, {"tint": "#9a4a2a"}, 8))
