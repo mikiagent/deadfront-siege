@@ -293,7 +293,7 @@ func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3, mv: Array = [])
 		if not MeleeQuery.clear(player, t):
 			return
 		Hitbox.mark(t, hit)
-		land_hit(t, w)
+		land_hit(t, w, hit.get("spot", {}))
 		return
 	var offset := aim_point(t) - player.global_position
 	offset.y = 0.0
@@ -329,8 +329,8 @@ func _swing_damage(w: ItemStack) -> float:
 	return dmg
 
 ## Resolve one swing that reached the target. Returns whether it landed. Statuses, wear, XP
-## and the tyrant counter happen only on a landed hit.
-func land_hit(t: Creature, w: ItemStack) -> bool:
+## and the tyrant counter happen only on a landed hit. spot: the crit spot its hitbox passed through (Hitbox.strike).
+func land_hit(t: Creature, w: ItemStack, spot: Dictionary = {}) -> bool:
 	var how := swing_outcome(t)
 	if how != &"":
 		CombatAvoid.avoided(t, player, how)
@@ -352,7 +352,12 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
 	var kind := effectiveness(t, dtype)
 	dealt *= CombatCounters.multiplier(t.def.archetype, dtype)
 	var crit_chance := float(tune.get("crit_base", 0.08)) + (float(tune.get("crit_behind", 0.2)) if behind else 0.0) + float(tune.get("crit_per_melee_level", 0.002)) * float(melee_lv)
-	if CombatTuning.roll(crit_chance):
+	# WEAK SPOTS: a hit in a crit spot is a sure crit at the spot's multiplier; any other hit rolls the chance crit.
+	var spot_mult := CritSpots.land(t, spot, player)
+	if spot_mult > 0.0:
+		dealt *= spot_mult
+		kind = CritSpots.KIND
+	elif CombatTuning.roll(crit_chance):
 		dealt *= float(tune.get("crit_mult", 1.75))
 		kind = &"crit"
 	t.next_hit_kind = kind
@@ -368,7 +373,7 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
 		t.add_torpor(CombatTuning.num("torpor", "blunt", 6.0), player)
 	if dtype == &"blunt" and not t.health.dead and CombatTuning.roll(float(tune.get("blunt_groggy_chance", 0.35))):
 		t.statuses.apply(&"groggy", player)
-	if kind == &"crit" or (dtype == &"blunt" and dmg > float(tune.get("heavy_swing_min_damage", 10.0))):
+	if kind == &"crit" or (kind != CritSpots.KIND and dtype == &"blunt" and dmg > float(tune.get("heavy_swing_min_damage", 10.0))):
 		IsoCamera.shake(player, CombatTuning.num("camera", "player_heavy_swing", 0.25))
 	return true
 
