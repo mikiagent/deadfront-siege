@@ -12,7 +12,7 @@ extends SkeletonModifier3D
 ## sits on the floor and is what the correction moves), anything on the head (a low-slung jaw) and the "_end" tips
 ## (no skin weights: they only mark where a bone ends).
 
-const FOOT_BAND := 0.06
+const FOOT_BAND := 0.06  # ASSUMPTION: a foot sits within 6 % of body height of the lowest limb bone
 const SHAKE_S := 0.45
 const FADE_S := 0.15
 
