@@ -121,7 +121,7 @@ func fit_shadows(cam: Camera3D) -> void:
 ## slice gives 1.6 cm texels on the 4096 desktop atlas and 6.4 cm on the 1024 mobile one, in one pass
 ## instead of four.
 func _fit_perspective(cam: IsoCamera) -> void:
-	_set_fog_scale(IsoCamera.ORTHO_DISTANCE / maxf(cam.distance, 1.0))
+	_set_fog_scale(IsoCamera.ORTHO_DISTANCE / maxf(cam.distance, IsoCamera.ORTHO_DISTANCE))  # ISOCAM: never thicker than the profile (close up the camera is only metres back)
 	var d := cam.distance
 	var g := cam.ground_half_depth()
 	var key := Vector4(cam.near, cam.far, d, g)
@@ -186,7 +186,7 @@ func _take_over() -> void:
 	sun = _make_light("Sun")
 	moon = _make_light("Moon")
 	moon.light_color = _c("moon_color")
-	moon.rotation_degrees = Vector3(-_f("moon_elevation_deg"), _f("moon_yaw_deg"), 0.0)
+	moon.rotation_degrees = Vector3(-_f("moon_elevation_deg"), _f("moon_yaw_deg") + IsoCamera.yaw_deg, 0.0)  # ISOCAM: yaws are camera-relative
 	drive(Game.time_of_day)
 
 func _make_env(reuse: Environment = null) -> Environment:
@@ -252,7 +252,7 @@ func drive(tod: float, sky: bool = true) -> void:
 	# caster. The band keeps the sun 55-105 deg off it while it crosses the sky. NORTHUP (camera yaw
 	# 45 -> 0): the old 80-130 band would light only the back of a rot-0 tent (t_structart: 0.25 lit);
 	# ASSUMPTION: 55-105 keeps shadows to the side and the camera-facing canvas lit (0.37).
-	var yaw_band: Array = profile.get("sun_yaw_deg", [-55.0, -105.0])
+	var yaw_band: Array = (profile.get("sun_yaw_deg", [-55.0, -105.0]) as Array).map(func (v: Variant) -> float: return float(v) + IsoCamera.yaw_deg)  # ISOCAM: the band was tuned for camera yaw 0
 	sun.rotation_degrees = Vector3(-elevation, lerpf(float(yaw_band[0]), float(yaw_band[1]), day_t), 0.0)
 	sun.light_color = _c("sun_color").lerp(_c("sun_warm_color"), warm)
 	sun.light_energy = _f("sun_energy") * lerpf(1.0, _f("sun_warm_energy_scale"), warm) * sun_up

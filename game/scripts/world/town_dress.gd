@@ -132,6 +132,7 @@ func out_of(p: Vector3) -> float:
 func _lay_out() -> void:
 	var t0 := Time.get_ticks_msec()
 	_guild_hall()
+	_adventurers_guild()
 	_pit_shelter()
 	for key in rt._harvest_nodes.keys():
 		var node: Variant = rt._harvest_nodes[key]
@@ -424,7 +425,9 @@ func _garden(c: Vector3, w: float, yaw: float) -> void:
 ## TOWNPOLISH: the roof was a unit prism with a flat plaster triangle per gable that lit blue and
 ## floated; the door leaf hung half outside its doorway. Windows get a night glow; doors an awning
 ## now and then, front windows a flower box, side walls a woodpile.
-func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int = 1) -> void:
+## ISOCAM: `corner_door` cuts the front-right corner (south-east at yaw 0, the corner nearest the iso
+## camera) on a 45 deg chamfer that holds the door, with windows above it.
+func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int = 1, corner_door: bool = false) -> void:
 	var b := Basis(Vector3.UP, yaw)
 	var lo := INF
 	for k in 4:
@@ -445,10 +448,12 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 			var sb := Basis(Vector3.UP, yaw + float(side) * PI * 0.5)
 			var n := along / 2
 			for i in n:
+				if corner_door and (side == 0 and i == n - 1 or side == 1 and i == 0):
+					continue  # the chamfer below stands in for these two panels
 				var off := Vector3(-float(along) * 0.5 + 1.0 + 2.0 * float(i), 0.0, float(across) * 0.5)
 				var at := Vector3(c.x, y, c.z) + sb * off
 				var part: String = wall_style[0]
-				if side == 0 and st == 0 and i == n / 2:
+				if side == 0 and st == 0 and i == n / 2 and not corner_door:
 					part = "house_wall_doorway"
 					# The leaf's origin is its hinge (house kit): hang it on the doorway's left jamb.
 					part_at("house_door", Transform3D(sb, at + sb * Vector3(-0.475, 0, 0.0)), FAR_HOUSE)
@@ -463,8 +468,14 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 				elif side == 1 and st == 0 and extras > 0.75 and i == 0:
 					part_at("town_woodpile", Transform3D(sb, at + sb * Vector3(0, 0, 0.55)), FAR_PROP)
 				part_at(part, Transform3D(sb, at), FAR_HOUSE, true)
+			var posts: Array[Vector3] = []
 			for k in 4:
-				var q := Vector3((float(k % 2) - 0.5) * float(w), 0.0, (float(k / 2) - 0.5) * float(d))
+				posts.append(Vector3((float(k % 2) - 0.5) * float(w), 0.0, (float(k / 2) - 0.5) * float(d)))
+			if corner_door:
+				posts[3] = Vector3(float(w) * 0.5 - 2.0, 0.0, float(d) * 0.5)
+				posts.append(Vector3(float(w) * 0.5, 0.0, float(d) * 0.5 - 2.0))
+				_chamfer(c, b, y, w, d, yaw, wall_style, st == 0)
+			for q in posts:
 				unit("box", Transform3D(b.scaled_local(Vector3(0.32, wall_h, 0.32)), Vector3(c.x, y, c.z) + b * q), Color(0.33, 0.22, 0.13), FAR_HOUSE)
 	var eave := top + wall_h * float(storeys)
 	var span := mini(w, d)
@@ -482,6 +493,58 @@ func house(c: Vector3, w: int, d: int, yaw: float, style: String, storeys: int =
 		part_at("town_chimney", Transform3D(rb, ch), FAR_HOUSE)
 	_take(c, float(w), float(d), eave + rh - c.y, yaw)
 	stats["houses"] += 1
+
+## The corner door's wall: a 2.83 m run across the cut corner, facing the camera's diagonal: the
+## doorway (or a window upstairs) in the middle and a plain sliver either side.
+func _chamfer(c: Vector3, b: Basis, y: float, w: int, d: int, yaw: float, wall_style: Array, ground: bool) -> void:
+	var cb := Basis(Vector3.UP, yaw + PI * 0.25)
+	var at := Vector3(c.x, y, c.z) + b * Vector3(float(w) * 0.5 - 1.0, 0.0, float(d) * 0.5 - 1.0)
+	if ground:
+		part_at("house_wall_doorway", Transform3D(cb, at), FAR_HOUSE, true)
+		part_at("house_door", Transform3D(cb, at + cb * Vector3(-0.475, 0, 0.0)), FAR_HOUSE)
+		part_at("town_awning", Transform3D(cb, at + cb * Vector3(0, 2.25, 0.12)), FAR_HOUSE)
+	else:
+		part_at(wall_style[1], Transform3D(cb, at), FAR_HOUSE, true)
+		unit("winglow", Transform3D(cb.scaled_local(Vector3(0.86, 0.86, 0.04)), at + cb * Vector3(0, 1.02, 0.0)), Color.WHITE, FAR_HOUSE)
+	var sliver := (2.0 * sqrt(2.0) - 2.0) * 0.5  # metres each side of the 2 m panel
+	for sgn in [-1.0, 1.0]:
+		part_at(wall_style[0], Transform3D(cb.scaled_local(Vector3(sliver * 0.5, 1.0, 1.0)), at + cb * Vector3(sgn * (1.0 + sliver * 0.5), 0, 0)), FAR_HOUSE, true)
+
+# ---------------------------------------------------------------- the Adventurer's Guild
+
+## ISOCAM (owner 2026-10-30: "make some buildings where the south corner is the door, we can interact
+## with it (Adventurer's Guild or whatever)"): a two-storey hall on the grid beside the dock avenue,
+## just south of the square, its door on the south-east corner (the one the iso camera looks at). The
+## whole building is one TownBuilding (role adventurers_guild): a tap anywhere on it does what the
+## Faction Hall's desk does. # ASSUMPTION: size, spot and style (open question ISOCAM).
+const ADV_W := 10
+const ADV_D := 8
+func _adventurers_guild() -> void:
+	var c := Vector3.INF
+	# West of the avenue (its door then faces the avenue), first lot the player's build rules allow.
+	for z in [31, 57, -21, -45]:
+		var q := Vector3(float(o.x - AVENUE_W / 2 - 2) - float(ADV_W) * 0.5, 0.0, float(o.y + z))
+		var base := lot_base(q, float(ADV_W), float(ADV_D), 0.0)
+		if not is_nan(base):
+			c = Vector3(q.x, base, q.z)
+			break
+	if c == Vector3.INF:
+		return
+	house(c, ADV_W, ADV_D, 0.0, "stone", 2, true)
+	_boxes.pop_back()  # the house's box: the TownBuilding below carries the same box and takes the taps
+	_pad_cells(c, float(ADV_W), float(ADV_D), 0.0)
+	var gb := TownBuilding.make(&"sign", &"adventurers_guild", "Adventurer's Guild")
+	rt._camp_place(gb, "AdventurersGuild", &"sign", BuildGrid.tile_of(c))
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	var h := 6.0
+	box.size = Vector3(float(ADV_W), h, float(ADV_D))
+	shape.shape = box
+	gb.add_child(shape)
+	shape.global_position = c + Vector3(0, h * 0.5, 0)
+	var door := c + Vector3(float(ADV_W) * 0.5 - 0.6, 0.0, float(ADV_D) * 0.5 - 0.6)
+	prop("signpost", door + Vector3(1, 0, 1).normalized() * 2.0 + Vector3(-1, 0, 1).normalized() * 2.2, PI * 0.25)
+	stats["adventurers_guild"] = [c.x, c.z]
 
 # ---------------------------------------------------------------- the Faction Hall
 

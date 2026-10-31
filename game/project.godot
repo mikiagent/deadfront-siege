@@ -68,7 +68,7 @@ camera_pitch_deg={
 }
 camera_yaw_deg={
 "type": "float",
-"value": 0.0
+"value": 45.0
 }
 camera_distance={
 "type": "float",
