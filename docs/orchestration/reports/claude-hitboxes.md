@@ -1,7 +1,8 @@
 # HITBOXES: every melee hit is an attacking part touching a hit-able part
 
-Branch `claude/mmo-hitboxes`, from `origin/claude/mmo-overhaul`, with overhaul merged in twice (bigreach, ankyloai,
-isleshow, then coelomoves, pinfeel, sp-pachycephalosaurus, zebrawalk). Not merged to canon. No credits spent.
+Branch `claude/mmo-hitboxes`, from `origin/claude/mmo-overhaul`, with overhaul merged in three times (bigreach,
+ankyloai and isleshow; then coelomoves, pinfeel, sp-pachycephalosaurus and zebrawalk; then sp-smilodon, sp-woolly and
+isocam). Not merged to canon. No credits spent.
 
 Owner (Milan): "are we even using hitboxes for attacks? We should have hitboxes and it should correlate with
 whatever is used to attack and whatever is hitable on the body".
@@ -40,7 +41,7 @@ How it works now: `docs/current/hitboxes.md`. Assumptions: HB1-HB7 in `docs/visi
 - **BIGREACH converted**: "melee connects against big bodies" is now hurtbox contact. `t_bigreach` places her where her capsule touches a hurtbox. Sides where the collider holds her off every part at her height are skipped and covered by its approach runs. The "refused" check stands 1.5 m clear of the footprint.
 - **Calibrated radii** (HB2): where a clip stops short of the brain's contact reach, or passes over a 1.78 m survivor, the part is widened just enough that today's AI still connects. The parts are marked `"calibrated": true`. Regenerate with `t_hitboxes.gd -- --calibrate`, which covers both ends of each species' size range.
   - The worst are the T. rex bite at 5.5 m (its jaws never come below 3.3 m) and its tail whip at 3.65 m.
-  - Next: utahraptor 1.8-2.7 m, pachycephalosaurus hip check 2.0 m, megaloceros charge 1.9 m, stegosaurus head 1.7 m.
+  - Next: utahraptor 1.8-2.7 m, pachycephalosaurus hip check 2.0 m, stegosaurus head 1.7 m.
   - These radii are animation or AI-spacing debt. COELOMOVES CM5 already fixed spacing for four species, and the velociraptor's jaw dropped from 1.08 m to 0.43 m after that merge.
 - **Debug draw** (`hitbox_debug.gd`):
   - Hurtboxes draw green. Each judged sweep draws red for 0.45 s, yellow where it touched.
@@ -57,13 +58,14 @@ They come from windowed off-screen runs: `--position 6000,3000 -- --skip-charcre
 - `tyrannosaurus_attack_heavy.png`: the stomp. The toe sweep comes down on her, and the jaw sweep passes high.
 - `survivor_swing.png`: her auto-attack walked to the stegosaurus's hind leg and the swing landed on `hind_thigh_R`.
 
-## Gates (final tree, after the second overhaul merge)
+## Gates (final tree, after the third overhaul merge)
 - `game/tests/t_hitboxes.gd`: **PASS**. It checks, per modelled species and the survivor:
   - hurtboxes cover at least 85 % of the posed skinned mesh;
   - head or neck and leg regions exist;
   - attack_primary's sweep rides its bone within 5 cm of the live seeked bone, in a window that closes on the hit frame;
   - a target where the part is before the window is not hit;
-  - every brain move connects with a survivor at its contact reach, behind for kicks and the tail whip, and where pounces land;
+  - every brain move connects with a survivor at its contact reach, behind for kicks and the tail whip, where pounces
+    land, and lying Pinned for the smilodon's pin_stab;
   - bites miss a survivor beside the hips;
   - a real velociraptor bite hits a survivor in its jaws exactly once, and one beside it 0 times;
   - the hit location reaches `Vitals.last_hit_part` and `Health.last_hit_part`;
@@ -73,18 +75,21 @@ They come from windowed off-screen runs: `--position 6000,3000 -- --skip-charcre
   - perf: 20 creatures' checks take 0.7 ms in all (gate 12 ms, worst 1.5 ms), and syncing 20 bodies' hurtboxes 0.4 ms;
   - the debug draw draws.
 - Also PASS: t_combat, t_tactical, t_kicktackle, t_autoability, t_rexclips, t_ankylo3d, t_raptorfeel, t_godlab,
-  t_boneparts, t_perfgates, t_bigreach, t_ankyloai, t_coelomoves, t_pinfeel, t_sp_pachycephalosaurus.
+  t_boneparts, t_perfgates, t_bigreach, t_ankyloai, t_coelomoves, t_pinfeel, t_sp_pachycephalosaurus, t_sp_smilodon,
+  t_sp_woolly_rhino.
 - `run_all.gd`: `[tests] PASS`.
 - `tools/smoke.sh --no-import`: SMOKE PASS.
 - Under load (other agents' Godot runs), `t_bigreach`'s "triceratops (AI on)" case is close to its 10 s limit.
   The trike charges and knocks her down, and she needs 2 landed swings. It passed 5 runs out of 5 after the swing margin.
-- `t_perfgates` failed once on island build time with the machine at load 10. It passed when run alone.
+- `t_perfgates` failed once on island build time with the machine at load 10. It passed in the final run.
 
 ## For the next agent
 - **Plugging a move in**:
   - Add `species.<id>.moves.<move>` in `hitboxes.json` with `parts` (bone, radius / length / axis / offset) and, optionally, `window`.
   - At the impact, call `Hitbox.strike(creature, move, target, hit_index)`. Treat `{}` as a miss and call `Hitbox.mark(target, hit)` before the damage.
   - A brain that runs its own window frame by frame calls `Hitbox.touch(attacker, from, to, radius, target)` with the part's world path, as ClubTailBrain does.
+- **sp-smilodon, sp-woolly**: their `pipeline.hit_parts` bones are now the moves' parts in `hitboxes.json`. Their
+  `Creature.part_hit` check remains only for targets without hurtboxes.
 - **styrafix, compyfeel**: had not landed in overhaul at merge time.
   - A styracosaurus impale from the horns is a `styracosaurus.moves.<move>` row with a `Head` capsule along the horn (`length`, `axis`) or a horn bone, if the rig has one.
   - Re-run `-- --calibrate` and drop calibrated radii the new clips no longer need.

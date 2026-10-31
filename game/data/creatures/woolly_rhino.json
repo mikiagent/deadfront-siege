@@ -1,0 +1,107 @@
+{
+  "species": "Woolly rhino",
+  "clade": "Rhinocerotidae",
+  "period": "Pleistocene",
+  "real_length_m": 7.4,
+  "height_meters": 2.95,
+  "rig": "quadruped",
+  "tier": 38,
+  "climate": "tundra",
+  "archetype": "horned_charger",
+  "tameable": true,
+  "capture_tier": 3,
+  "verb": "paws the ground, charges and tosses with its horn",
+  "status_applied": [
+    "knockdown"
+  ],
+  "stats": {
+    "hp": 4200,
+    "attack": 260,
+    "defense": 240,
+    "speed": 520,
+    "bag_slots": 90
+  },
+  "turn_rate": 2.2,
+  "tamed_role": [
+    "bag",
+    "mount",
+    "combat"
+  ],
+  "_assumptions": "ASSUMPTION (the PRDs are silent on the woolly rhino): a tundra horned_charger between the megaloceros (tier 30) and the smilodon (45); stats between the megaloceros and the styracosaurus; tamed as a cargo mount (bag + mount + combat like the other horned chargers); real_length_m 7.4 = the roster's 2x of a 3.7 m animal; height 2.95 m = ~1.8 m at the hump x1.6 house exaggeration.",
+  "look": "woolly rhinoceros standing 2.9 meters at the shoulder hump, barrel body under a thick dark grey-brown curly coat, a long pale curved nose horn and a short second horn, short thick legs, small ears, a tufted tail",
+  "texture_prompt": "dark grey-brown curly wool, darker legs and face, pale bone-coloured horns, matte surface",
+  "clips": {
+    "alert": "Woolly rhino drops its head, snorts and paws the ground three times with a forefoot: the telegraph before its charge",
+    "charge": "Head-down gallop with the nose horn levelled forward",
+    "toss": "At the charge's impact the head whips up and to the side, hooking the horn up through the target",
+    "attack_primary": "Forefoot stamp: the forequarters rise, then both forefeet slam down a stride ahead",
+    "attack_heavy": "Wide horn sweep: head cocked far right and held (the tell), then ripped across the front to the far left",
+    "knockdown": "Forelegs buckle and it rolls onto its right side",
+    "sleep": "Lies down on its belly with the legs folded and the chin low"
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
+  },
+  "tactics": {
+    "base": "horned_charger",
+    "_about": "ASSUMPTION (SP-WOOLLY_RHINO): the horned_charger brain (display -> charge, point-blank heavy, basic) with the rhino's moves: display = the paw-the-ground alert clip, a longer charge that tosses (the toss clip on impact, the survivor shoved charge_shove_m and lifted toss_lift_mps), attack_heavy = the wide horn sweep, the basic = the forefoot stamp. No hind kick (no kick clip).",
+    "sequences": [
+      {"name": "paw_charge", "steps": ["display", "charge"], "weight": 4.0},
+      {"name": "charge", "steps": ["charge"], "weight": 0.5},
+      {"name": "strafe_left_charge", "steps": ["strafe_left", "charge"], "weight": 0.5},
+      {"name": "strafe_right_charge", "steps": ["strafe_right", "charge"], "weight": 0.5}
+    ],
+    "ring_m": 11.0,
+    "display_s": 2.0,
+    "charge_max_s": 3.2,
+    "charge_through_m": 4.0,
+    "charge_speed_mult": 1.7,
+    "charge_shove_m": 5.0,
+    "charge_shove_stagger_s": 1.1,
+    "toss_lift_mps": 5.5
+  },
+  "pipeline": {
+    "route": "tripo_multiview_v3 + hand-built mammal rig (tools/gait/woolly_rhino/build.sh)",
+    "forward_axis": "+Z",
+    "source_height_m": 2.95,
+    "source_length_m": 6.15,
+    "tripo_task": "fc9ea902-6928-4ad9-979a-abbc9a4a24ec",
+    "tripo_model": "P1-20260311 multiview, texture + PBR, face_limit 15000",
+    "credits_spent": 50,
+    "inputs": "ref/woolly_rhino_tripo_{front,left,back,right}.png: cropped from the owner's sheet (woolly_rhino_owner_sheet_1), padded to one scale; right = left mirrored",
+    "mesh_source": "res://assets/creatures/woolly_rhino/work/woolly_rhino_tripo_v1.glb (gitignored; the task id re-downloads it)",
+    "model_variants": {
+      "alpha": "woolly_rhino_alpha_albedo.jpg"
+    },
+    "variant_note": "alpha = the owner's alpha sheet (woolly_rhino_owner_sheet_2_alpha: reddish, shaggy) as a recolour of the Tripo albedo on the same UVs (tools/gait/woolly_rhino/alpha_skin.py); only alpha spawns wear it.",
+    "hit_parts": {
+      "_about": "Where each move hits (the hitbox system is not on canon yet): at the clip's hit frame the named bones must be within radius_m of the target's body (Creature._part_hit). HornTip/Horn: the nose horn; FrontFoot.*: the forefeet.",
+      "attack_primary": {"bones": ["FrontFoot.L", "FrontFoot.R"], "radius_m": 1.1},
+      "attack_heavy": {"bones": ["HornTip", "Horn", "Head"], "radius_m": 1.3},
+      "charge": {"bones": ["HornTip", "Horn", "Head"], "radius_m": 1.3}
+    },
+    "clips": ["idle", "walk", "run", "charge", "strafe_left", "strafe_right", "walk_back", "alert", "attack_primary", "attack_heavy", "toss", "hit_react", "knockdown", "death", "sleep", "feed"],
+    "gate": "Blender -b -P tools/gait/check_woolly_rhino.py -- woolly_rhino.glb anim --height 2.95 (RHINO_CHECK PASS)"
+  },
+  "coloration": {
+    "hue_deg": 8,
+    "sat": 0.12,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": ["pale", "dark"],
+    "patterns": [
+      {"id": "countershade", "weight": 2.0, "scale": 1.0, "strength": 0.25},
+      {"id": "saddle", "weight": 1.0, "scale": 1.0, "strength": 0.3},
+      {"id": "", "weight": 3.0}
+    ]
+  }
+}

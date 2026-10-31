@@ -6,7 +6,7 @@ const CONTRACT: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert", &"feed",
 ]
-const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"strafe_left", &"strafe_right", &"walk_back", &"investigate"]
+const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"strafe_left", &"strafe_right", &"walk_back", &"investigate", &"stalk"]
 ## Authored on some species only; loaded when the GLB exists, CreatureAnim falls back to idle where
 ## missing. bite_combo: deinonychus chomp, Chomp, CHOMP (three hit fracs in anim_events.json).
 ## hop_back / leap_back: short and long backward leaps, pounce: the forward leap (airborne fracs in
@@ -14,7 +14,11 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"straf
 ## investigate: the idle while aware of prey but not attacking (CreatureAnim.play_idle(true)); sniff: the inspect
 ## one-shot a brain plays when it spots prey (velociraptor, owner 2026-10-30: head tilts, curious but aggressive).
 ## pin_foot: a big predator's foot on a Pinned victim (T. rex, PINFEEL); held on its last frame until the pin ends.
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot"]
+## charge_crouch: the coil a TacticalBrain plays, body still, before a charge's run (compsognathus, owner 2026-10-31).
+## toss: the woolly rhino's horn toss on a charge impact (TacticalBrain._charge_impact).
+## stalk: the low hunting creep a tactics.stalk brain approaches in; pin_stab: the sabre stabs while it holds pinned prey
+## (smilodon, SP-SMILODON).
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120

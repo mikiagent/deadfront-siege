@@ -563,10 +563,13 @@ func on_hit() -> bool:
 
 ## Knocked back push metres (flat) over stagger_s, no control meanwhile; walls stop the slide (move_and_slide).
 ## A roll in flight dodged the hit, so it is not shoved.
-func shove(push: Vector3, stagger_s: float) -> void:
+## lift_mps: an upward kick on top (the woolly rhino's horn toss); gravity brings her down during the stagger.
+func shove(push: Vector3, stagger_s: float, lift_mps: float = 0.0) -> void:
 	if p.rolling or stagger_s <= 0.0 or push.length_squared() <= 0.0:
 		return
 	push.y = 0.0
+	if lift_mps > 0.0 and p.mounted_on == null and not p.swimming:
+		p.velocity.y = lift_mps
 	_shove_s = stagger_s
 	_shove = push * (2.0 / stagger_s)  # linear decay from 2d/T to 0 covers d metres
 	_stagger_left = maxf(_stagger_left, stagger_s)

@@ -37,8 +37,8 @@ SPECIES = ARGS["species"]
 CONFIG = json.load(open(os.path.join(REPO, "tools/blender/saddles/saddles.json")))
 CFG = dict(CONFIG.get("defaults", {}))
 CFG.update(CONFIG.get("species", {}).get(SPECIES, {}))
-GLB = os.path.join(REPO, "game/assets/creatures/%s/%s.glb" % (SPECIES, SPECIES))
-OUT_DIR = os.path.join(REPO, "game/assets/creatures/%s/mount" % SPECIES)
+GLB = ARGS.get("glb") or os.path.join(REPO, "game/assets/creatures/%s/%s.glb" % (SPECIES, SPECIES))
+OUT_DIR = ARGS.get("out-dir") or os.path.join(REPO, "game/assets/creatures/%s/mount" % SPECIES)  # --glb/--out-dir: a body variant (megaloceros doe)
 HEIGHT = float(ARGS.get("height", CFG.get("height_meters", 1.0)))
 PREVIEW = ARGS.get("preview", "")
 
@@ -109,10 +109,11 @@ CUSHION = float(CFG.get("cushion_m", 0.05)) * SCALE
 PAD = float(CFG.get("pad_m", 0.022)) * SCALE
 LIFT = float(CFG.get("lift_m", 0.004)) * SCALE
 
-BACK_Z = top_z(0.0, SEAT_Y)
+# probe_x_m: probe the back this far off the midline (the woolly rhino's Tripo hide has a slit along the spine)
+BACK_Z = top_z(float(CFG.get("probe_x_m", 0.0)) * SCALE, SEAT_Y)
 if BACK_Z is None:
     raise SystemExit("no back surface at the seat")
-body_hw = side_x(SEAT_Y, BACK_Z * 0.9) or SEAT_HALF_W
+body_hw = float(CFG["body_half_w"]) if "body_half_w" in CFG else (side_x(SEAT_Y, BACK_Z * 0.9) or SEAT_HALF_W)  # mesh units, by hand when fur cards fool the ray
 SEAT_HALF_W = min(SEAT_HALF_W, body_hw * 0.95)
 SEAT_TOP = BACK_Z + LIFT + CUSHION
 # survivor v2 mount_idle, measured on the posed rig: hips 0.581 m above the armature root, feet 0.098,
@@ -509,8 +510,9 @@ if NSEL:
 else:
     nzmin, nzmax = MN.z, top_z(0.0, NECK_Y) or BACK_Z
 NCZ = (nzmin + nzmax) * 0.5
-strap_ring("neck_strap", NECK_Y, float(CFG.get("girth_width_m", 0.08)) * 0.75 * SCALE,
-           float(CFG.get("girth_thick_m", 0.025)) * 0.75 * SCALE, LEATHER_D, NECK_BONE, N=24)
+if CFG.get("neck_strap", True):  # false: a maned neck (smilodon) lets the section rays out through the fur cards
+    strap_ring("neck_strap", NECK_Y, float(CFG.get("girth_width_m", 0.08)) * 0.75 * SCALE,
+               float(CFG.get("girth_thick_m", 0.025)) * 0.75 * SCALE, LEATHER_D, NECK_BONE, N=24)
 
 # ------------------------------------------------------------------ reins
 REIN_R = 0.010 * SCALE

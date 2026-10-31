@@ -72,8 +72,8 @@
         "L": 0.0,
         "R": 0.5
       },
-      "lift_hind": 0.07,
-      "swing_curl_hind": 45,
+      "lift_hind": 0.11,
+      "swing_curl_hind": 15,
       "toe_roll": 35,
       "legroot_hind": 0.0,
       "foot_offset_hind": 0.0,
@@ -96,9 +96,9 @@
         "L": 0.0,
         "R": 0.5
       },
-      "lift_hind": 0.08,
-      "swing_curl_hind": 45,
-      "toe_roll": 35,
+      "lift_hind": 0.12,
+      "swing_curl_hind": 15,
+      "toe_roll": 0,
       "legroot_hind": 0.0,
       "foot_offset_hind": 0.0,
       "crouch": 0.13,
@@ -134,5 +134,6 @@
         ]
       }
     }
-  }
+  },
+  "note": "COMPYFEEL 2026-10-31 (owner: the deinonychus charge 'glides instead of running'): swing_curl 45 with a high toe_roll dragged the toe tips 3-4 cm off the ground and 10-22 cm into it, a shuffle. Run and charge: curl 15, lift 0.11-0.12 (32-52 cm toe clearance at 2.87 m), toe roll pivots on the real toe tip (make_gait.py). Stride and cycle unchanged, so natural speeds hold. The walk (and the strafes built from it) is unchanged."
 }

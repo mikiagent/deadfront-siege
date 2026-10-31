@@ -160,6 +160,9 @@ func _moves_of(c) -> Array:
 		out.append([&"pounce", 0, false, [land, (land + reach) * 0.5, reach]])
 	if steps.has("charge") and tac.get("charge_straight", false):
 		out.append([&"charge", 0, false, [reach]])
+	if tac.get("pin", false) and ap.has_animation(&"pin_stab"):
+		for i in 2:  # the sabres stab twice into prey held pin_reach_m in front (TacticalBrain._pin)
+			out.append([&"pin_stab", i, false, [float(tac.get("pin_reach_m", 1.5)) * c.size_scale()]])
 	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)):
 		out.append([&"kick", 0, true, [reach]])  # the hind kick at prey behind it (after a charge, or point blank)
 	if ap.has_animation(&"tail_swipe"):
@@ -186,8 +189,9 @@ func _test_species(id: StringName) -> void:
 			var side: float = 1.0 if row[2] else -1.0
 			for dist in row[3]:
 				_place_survivor(Vector3(0, 0, side * float(dist)), c)
-				await _frames(1)
+				await _pose_for(mv, c)
 				var hit: Dictionary = HX.strike(c, mv, player, int(row[1]))
+				_unpose(mv)
 				_expect(not hit.is_empty(), "%s %s[%d]: connects with a survivor %s at %.2f m (contact reach %.2f) (%s)" % [id, mv, row[1], "behind it" if row[2] else "in front", dist, reach, hit.get("part", "-")])
 			if not row[2] and mv != &"charge":
 				_place_survivor(Vector3(reach + 0.3, 0, 1.0), c)
@@ -195,6 +199,19 @@ func _test_species(id: StringName) -> void:
 				_expect(HX.strike(c, mv, player, int(row[1])).is_empty(), "%s %s[%d]: misses a survivor beside its hips" % [id, mv, row[1]])
 	c.queue_free()
 	await _frames(1)
+
+## A pin_stab lands on prey lying Pinned in front of it: lay her down as PinHold does and let the pose settle.
+func _pose_for(mv: StringName, c) -> void:
+	if mv != &"pin_stab":
+		await _frames(1)
+		return
+	player.statuses.apply(&"pinned", c, 1)
+	player.face_world(player.global_position + c.global_basis.z)
+	await _frames(60)
+
+func _unpose(mv: StringName) -> void:
+	if mv == &"pin_stab":
+		player.statuses.clear_id(&"pinned")
 
 func _place_survivor(at: Vector3, face) -> void:
 	player.global_position = Vector3(at.x, 0.9, at.z)
@@ -410,8 +427,9 @@ func _calibrate_species(id: StringName) -> void:
 		for row in _moves_of(c):
 			for dist in row[3]:
 				_place_survivor(Vector3(0, 0, (1.0 if row[2] else -1.0) * float(dist)), c)
-				await _frames(1)
+				await _pose_for(row[0], c)
 				_calib_need(c, sk, row, size, done)
+				_unpose(row[0])
 		c.queue_free()
 		await _frames(1)
 	for key in done:

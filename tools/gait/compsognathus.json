@@ -44,6 +44,35 @@
   },
   "clips": {
     "strafe": {
+      "cycle_s": 0.5,
+      "duty": 0.5,
+      "stride": 0.26,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.05,
+      "lift_shape": 0.7,
+      "swing_curl_hind": 30,
+      "toe_roll": 0.0,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "spread_hind": 0.02,
+      "crouch": 0.0,
+      "bob": 0.006,
+      "bob_harmonic": 2,
+      "roll_deg": 4.0,
+      "sway": 0.008,
+      "wiggle_head": 0.0,
+      "wiggle_tail": 8.0,
+      "hold": {
+        "Neck": [
+          "pitch",
+          4
+        ]
+      }
+    },
+    "strafe_v1": {
       "cycle_s": 0.62,
       "duty": 0.58,
       "stride": 0.15,
@@ -63,7 +92,51 @@
       "wiggle_head": 3.0,
       "wiggle_harmonic_head": 2,
       "wiggle_tail": 4.0
+    },
+    "charge": {
+      "cycle_s": 0.333,
+      "duty": 0.38,
+      "stride": 0.62,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.09,
+      "lift_shape": 0.8,
+      "swing_curl_hind": 20,
+      "toe_roll": 10.0,
+      "legroot_hind": 0.15,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.015,
+      "lean_deg": 18.0,
+      "bob": 0.012,
+      "bob_harmonic": 2,
+      "bob_phase": 0.0,
+      "roll_deg": 2.0,
+      "sway": 0.004,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 5.0,
+      "hold": {
+        "Neck": [
+          "pitch",
+          4
+        ],
+        "Tail1": [
+          "pitch",
+          8
+        ],
+        "FrontUpLeg.L": [
+          "pitch",
+          25
+        ],
+        "FrontUpLeg.R": [
+          "pitch",
+          25
+        ]
+      },
+      "reach_roll": 20.0
     }
   },
-  "note": "compsognathus (Tripo remodel 2026-10-28): sidestep loops only (walk/run are the transferred clips). make_gait.py ... compsognathus.json strafe --as strafe_left --travel 1,0,0 (strafe_right: -1,0,0)"
+  "note": "compsognathus (Tripo remodel 2026-10-28): sidestep loops and the charge sprint (walk/run are the transferred clips). make_gait.py ... compsognathus.json strafe --as strafe_left --travel 1,0,0 (strafe_right: -1,0,0); charge: make_gait.py ... charge. COMPYFEEL 2026-10-31: strafe rebuilt wider and lower (spread_hind, 0.30 stride, 5 cm lift) so it reads as real side-steps; strafe_v1 is the old plan."
 }

@@ -96,7 +96,7 @@
       },
       {
        "bone": "Head",
-       "radius": 1.03,
+       "radius": 1.04,
        "calibrated": true
       }
      ]
@@ -290,12 +290,12 @@
     "kick": {
      "parts": [
       {
-       "bone": "BackFoot.L",
-       "radius": 0.72,
-       "calibrated": true
+       "bone": "BackFoot.L"
       },
       {
-       "bone": "BackFoot.R"
+       "bone": "BackFoot.R",
+       "radius": 0.75,
+       "calibrated": true
       }
      ]
     },
@@ -307,7 +307,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.86,
+       "radius": 1.87,
        "calibrated": true
       }
      ]
@@ -316,7 +316,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.51,
+       "radius": 1.86,
        "calibrated": true
       }
      ]
@@ -325,12 +325,16 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.41,
+       "radius": 1.88,
        "calibrated": true
       }
      ]
     }
-   }
+   },
+   "hurtbox": {
+    "radius_scale": 1.0
+   },
+   "_note": "hurtboxes at 1.0x: the antler capsule at 1.25x reached 1.5 m past the antlers"
   },
   "pachycephalosaurus": {
    "parts": [
@@ -362,7 +366,7 @@
      "parts": [
       {
        "bone": "Tail2",
-       "radius": 2.04,
+       "radius": 2.05,
        "calibrated": true
       },
       {
@@ -520,7 +524,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.05,
+       "radius": 1.04,
        "calibrated": true
       },
       {
@@ -596,7 +600,7 @@
       },
       {
        "bone": "Tail5",
-       "radius": 3.65,
+       "radius": 3.66,
        "calibrated": true
       }
      ]
@@ -632,7 +636,7 @@
       },
       {
        "bone": "Head",
-       "radius": 2.73,
+       "radius": 2.74,
        "calibrated": true
       },
       {
@@ -650,7 +654,7 @@
       },
       {
        "bone": "Head",
-       "radius": 1.82,
+       "radius": 1.81,
        "calibrated": true
       }
      ]
@@ -662,7 +666,7 @@
       },
       {
        "bone": "Head",
-       "radius": 2.15,
+       "radius": 2.14,
        "calibrated": true
       }
      ]
@@ -758,7 +762,7 @@
      "parts": [
       {
        "bone": "BackFoot.L",
-       "radius": 0.87,
+       "radius": 0.86,
        "calibrated": true
       },
       {
@@ -783,7 +787,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.34,
+       "radius": 1.35,
        "calibrated": true
       }
      ]
@@ -798,6 +802,80 @@
      ]
     }
    }
+  },
+  "smilodon": {
+   "parts": [
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.92,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.71,
+       "calibrated": true
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.78,
+       "calibrated": true
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.65,
+       "calibrated": true
+      }
+     ]
+    }
+   },
+   "_note": "parts from the species' pipeline.hit_parts (its own branch named them before the hitbox system landed)"
+  },
+  "woolly_rhino": {
+   "parts": [
+    {
+     "bone": "HornTip"
+    },
+    {
+     "bone": "Horn"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 1.27,
+       "calibrated": true
+      }
+     ]
+    }
+   },
+   "_note": "parts from the species' pipeline.hit_parts (its own branch named them before the hitbox system landed)"
   }
  },
  "survivor": {

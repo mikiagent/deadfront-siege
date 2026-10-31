@@ -127,14 +127,13 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	platform_wall_layers = 0
 	def = p_def
 	variant = p_variant if p_variant != &"" else CreatureView.pick_variant(p_def, "%s@%v" % [p_def.id, global_position.round()])
+	# An alpha wears the species' alpha skin when it has one (pipeline.model_variants.alpha, the owner's alpha sheet).
+	if p_variant == &"" and (alpha_spawn or (genetics != null and genetics.alpha)) and CreatureView.model_variants(p_def).has("alpha"):
+		variant = &"alpha"
 	_slide_counter += 1
 	_slide_phase = _slide_counter
 	pack_id = p_pack
 	add_to_group("creatures")
-	view.setup(def, variant)
-	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
-	# old 26 m cut-off culled every creature mesh and only the plates showed.
-	_set_vis_range(view, 0.0)
 	if genetics == null:
 		# The colour roll is seeded off the animal's identity (spawn point), so a wild individual
 		# keeps its colours when the caller reuses a seeded genetics roll for it.
@@ -144,6 +143,13 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		genetics = CreatureGenetics.for_species(def, null, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
 	if alpha_spawn and not genetics.alpha:
 		genetics.make_alpha()
+	# SP-SMILODON: an alpha rolled by the genetics above (not asked for with alpha_spawn) wears the alpha skin too.
+	if p_variant == &"" and is_alpha() and CreatureView.model_variants(def).has("alpha"):
+		variant = &"alpha"
+	view.setup(def, variant)
+	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
+	# old 26 m cut-off culled every creature mesh and only the plates showed.
+	_set_vis_range(view, 0.0)
 	# One colour profile per individual, kept on the genetics record so taming carries it over.
 	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
 	if pet_record:  # SADDLES: the equipped saddle shows on the back, ridden or not
@@ -610,6 +616,14 @@ func _physics_process(delta: float) -> void:
 				direct.y = 0.0
 				if direct.length() > 0.3 and direct.length() <= 12.0:
 					locomote = direct.normalized()
+	# No glide (owner 2026-10-31: compy, deinonychus and ankylosaurus charges "glide"): the body never slides
+	# under a one-shot. An attack (or a timed windup) plays in place; any other one-shot (alert, sniff,
+	# hit_react, feed) gives way to the stride-matched gait below. Leaps move the body themselves (_arc_step).
+	if locomote.length_squared() > 0.0 and anim._busy and not anim.current_clip in CreatureAnim.LEAPS:
+		if anim.timed_attack or anim.current_clip in CreatureAnim.ATTACKS:
+			locomote = Vector3.ZERO
+		else:
+			anim.release_oneshot()
 	if locomote.length_squared() > 0.0:
 		var dir := locomote.normalized()
 		velocity.x = dir.x * speed
@@ -900,7 +914,7 @@ func _on_hit(clip: StringName) -> void:
 					CombatAvoid.avoided(target, self, &"miss")  # the jaws closed on air
 				return
 			Hitbox.mark(target, hit)
-		elif brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
+		elif brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
 			if target is Player or target is Creature:
 				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
@@ -908,6 +922,31 @@ func _on_hit(clip: StringName) -> void:
 			return
 		if target is Player:
 			(target as Player).receive_creature_hit(self, clip)
+
+## Where a move hits a body without hurtboxes (a structure; species JSON pipeline.hit_parts.<clip>: {bones,
+## radius_m}). HITBOXES: against hurtboxes those bones are the move's parts in hitboxes.json instead: at
+## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical
+## segment from its feet to its height. True when the species lists no parts for the clip or the rig lacks them.
+func part_hit(clip: StringName, target: Node3D) -> bool:
+	var row: Variant = (def.pipeline.get("hit_parts", {}) as Dictionary).get(str(clip)) if def and def.pipeline.get("hit_parts") is Dictionary else null
+	var sk: Skeleton3D = view.rig.skeleton if view and view.rig else null
+	if not (row is Dictionary) or sk == null or target == null:
+		return true
+	var tr := (target as Creature).body_radius() if target is Creature else 0.35
+	var th := (target as Creature).def.height_meters * (target as Creature).size_scale() if target is Creature else 1.78
+	var r := float((row as Dictionary).get("radius_m", 1.0)) * size_scale() + tr
+	var base := target.global_position
+	var found := false
+	for b in (row as Dictionary).get("bones", []):
+		var i := sk.find_bone(str(b))
+		if i < 0:
+			continue
+		found = true
+		var p := sk.global_transform * sk.get_bone_global_pose(i).origin
+		var y := clampf(p.y, base.y, base.y + th)
+		if p.distance_to(Vector3(base.x, y, base.z)) <= r:
+			return true
+	return not found
 
 func _on_attack_done() -> void:
 	pass

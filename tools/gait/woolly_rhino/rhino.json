@@ -1,0 +1,17 @@
+{
+  "_about": "Woolly rhino landmarks in the prepped Tripo mesh's own units (head to -Y, feet at z=0, ~1 unit long incl. the horn). Leg joints below the belly come from cross-section centroids at these heights; the rest are read off the grid render (docs/orchestration/reports/sp-woolly_rhino/rig_landmarks.png).",
+  "hide_name": "WoollyRhinoHide",
+  "withers_raw": 0.47,
+  "withers_m": 2.9,
+  "_size": "ASSUMPTION: a woolly rhino stood ~1.8 m at the shoulder hump; x1.6 house exaggeration (claude-raptorscale.md) = 2.9 m. Body 6.2 m nose to rump with the horn.",
+  "belly_z": 0.11,
+  "body_z": 0.30, "hips_y": 0.36, "torso_y": 0.12, "chest_y": -0.08, "chest_end": [-0.17, 0.33],
+  "neck": [[-0.17, 0.33], [-0.21, 0.31], [-0.25, 0.29]],
+  "head_tip": [-0.42, 0.21],
+  "jaw": {"pivot": [-0.355, 0.185], "tip": [-0.42, 0.172], "split_deg": -8, "blend": 0.012},
+  "tail": [[0.43, 0.30], [0.455, 0.22], [0.46, 0.12]],
+  "front": {"fetlock_z": 0.022, "carpus_z": 0.048, "elbow_dz": 0.15, "elbow_back": 0.02, "shoulder_z": 0.26, "shoulder_fwd": 0.035, "scap_top_z": 0.40, "scap_back": 0.07, "scap_x": 0.05, "toe_fwd": 0.045},
+  "hind": {"fetlock_z": 0.022, "hock_z": 0.075, "hock_back": 0.006, "stifle_z": 0.19, "stifle_fwd": 0.07, "hip": [0.37, 0.30], "hip_x": 0.07, "toe_fwd": 0.04},
+  "ymid": 0.15,
+  "horn": {"base": [-0.405, 0.25], "tip": [-0.489, 0.445], "rigid_box": [[-0.52, -0.33], [0.235, 0.50], 0.06]}
+}
