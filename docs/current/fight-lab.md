@@ -58,7 +58,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Protoceratops | TacticalBrain (pack_mule) | shoving beak, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | removed by owner 2026-10-31 |
 | Raptor | TacticalBrain (pack_flanker, species tactics x1.25) | pounce, pin and bite; sickle-claw slash | crest-flare display + pounce, pounce -> pin under the foot + two bites, sickle slash point blank, the deinonychus combo, charge, back-leaps and power strafes; five colour morphs (Body button) | alert, attack_primary, attack_heavy, bite_combo, pounce, pin_stab, charge | |
 | Stegosaurus | CreatureBrain (spiked_tail) | thagomizer tail sweep | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
-| Styracosaurus | TacticalBrain (horned_charger) | horn sweep, knockback | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
+| Styracosaurus | TacticalBrain (horned_charger + its own tactics block) | horn charge and impale | display, impale charge (paw, run, impale or miss, recover), horn swipe, kick, strafe | alert, attack_primary, attack_heavy, kick, charge, charge_windup, impale, charge_recover | reworked per owner 2026-10-31, re-test |
 | Triceratops | TacticalBrain (horned_charger) | full charge | display, charge, strafe | alert, attack_primary, attack_heavy | |
 | Tyrannosaurus | TyrantBrain (tyrant) | three-phase raid: stomp, roar, tail | telegraphed bite, stomp every 3rd attack (a stomp that lands pins you under its foot), tail whip from behind, roar on spotting | alert, attack_primary, attack_heavy, tail_swipe, pin_foot | |
 | Woolly rhino | TacticalBrain (horned_charger, species tactics) | paws the ground, charges and tosses with its horn | paw (display), charge + horn toss, horn sweep point blank, forefoot stamp | alert, attack_primary, attack_heavy, charge, toss | |
@@ -89,6 +89,24 @@ Under 30 % HP it runs again; once the threat is gone it grazes and the cycle res
 
 Pin shots: `-- --lab=creature_lab --god --skip-charcreate --species=tyrannosaurus --pinshots=DIR` (windowed, off
 screen with `--position 6000,3000`) saves the stomp, the foot pin and the release, then quits. Test: `game/tests/t_pinfeel.gd`.
+
+## Styracosaurus (reworked per owner 2026-10-31, re-test)
+
+Owner on the first pass: "make styracosaurus bigger by like 3x. the animations and brain needs some work. Its like
+bugging out though". Now 6.75 m tall and 15.2 m long (3x), turning at 1.4 rad/s. Its charge:
+1. **Paw**: it stops, lowers its horns and paws the ground with a fore-foot (charge_windup), turning onto you.
+   It paws again until it is aimed. Hits do not interrupt it.
+2. **Run**: a straight line in the direction it faced, locked at the end of the paw, no steering. It speeds up over
+   0.5 s on the charge clip and its feet keep pace with the ground.
+3. **Impale**: when you are where its horns will dip, it stops, scoops you up on the nose horn, carries you up and
+   throws you ahead (heavy hit plus knockdown).
+   - If you are beside the line against its flank, you are shoved aside instead.
+   - If you step or roll off the line during the run, it misses, slows to a stop and stands winded for 2 s
+     (charge_recover). Hits during that time flinch it.
+4. It only charges from 10 m or more. Up close it uses the horn swipe in front and the hind kick behind.
+
+Headless check: `game/tests/t_styrafix.gd` (60 s GOD fight, per-frame state and clip log with `-- --log=PATH`).
+Shots: `--lab=creature_lab --god --impaleshots=DIR` saves one frame per charge phase, then quits.
 
 Test: `game/tests/t_godlab.gd` (GOD survives a T. rex bite chain at full health, off without `--god`; NEXT
 cycles every modelled species, one model each).
