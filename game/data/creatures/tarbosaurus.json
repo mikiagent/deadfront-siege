@@ -28,6 +28,7 @@
   "look": "tall lean tyrannosaur, lankier than the T. rex: long deep skull with the jaws open, tiny two-fingered arms, long legs, long whip tail, rust-red and orange hide with dark maroon tiger banding, pale cream belly and throat, finer scales, no spinal scutes,",
   "texture_prompt": "rust-red and orange scaly hide with dark maroon tiger banding across back and tail, pale cream belly and throat, fine scales, matte surface",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
     "attack_primary": "Slashing bite: the head cocks to one side with the jaws wide, then whips across as the body drives forward, the jaws snapping shut mid-sweep",
     "attack_heavy": "Crouch and lunge: it sinks low and coils with the jaws gaping and the tail tip twitching, then explodes forward and clamps",
     "pounce": "The burst: one long low bound out of the stalk, jaws thrust ahead, landing on both feet as the jaws slam shut",
@@ -158,6 +159,7 @@
     "reference_sheet": "ref/tyrannosaur_owner_sheet_2.png (owner)",
     "rig_and_animation": "tools/gait/build_tarbosaurus.sh: tarbo_clean.py (two claw spikes Tripo drew to the floor), fit_rex_rig.py --joints tarbosaurus_joints.json (the T. rex's 30-bone rig), add_jaw.py --open (real Jaw, bound shut), make_rex_moves.py --tarbo + make_gait.py tarbosaurus.json, ground_clip.py on the lying clips and gaits, check_tarbosaurus.py",
     "clips": [
+      "big_stomp",
       "idle",
       "walk",
       "run",
