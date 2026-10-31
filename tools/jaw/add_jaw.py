@@ -127,11 +127,12 @@ inv = aw.inverted()
 eb.head, eb.tail = inv @ pivot, inv @ chin
 eb.parent = arm.data.edit_bones[a.head]
 eb.roll = 0
-if eb.x_axis.dot(inv.to_3x3() @ side) > 0:
-    eb.roll = 3.141592653589793  # a +X turn opens the jaw on every rig: local X must point to the animal's left (-side); +Y-facing rigs need the flip
 if a.x_side:
     from mathutils import Vector as _V
     eb.align_roll(inv.to_3x3() @ _V((0, 0, -1)))  # Z down, so X = Y x Z = +X (the side axis) for a forward jaw
+else:
+    if eb.x_axis.dot(inv.to_3x3() @ side) > 0:
+        eb.roll = 3.141592653589793  # a +X turn opens the jaw on every rig: local X must point to the animal's left (-side); +Y-facing rigs need the flip
 bpy.ops.object.mode_set(mode="OBJECT")
 
 jaw_g = ob.vertex_groups.get("Jaw") or ob.vertex_groups.new(name="Jaw")

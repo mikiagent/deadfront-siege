@@ -1,0 +1,151 @@
+{
+ "species": "Carnotaurus sastrei",
+ "clade": "Abelisauridae",
+ "period": "Late Cretaceous",
+ "real_length_m": 16.0,
+ "height_meters": 5.74,
+ "rig": "biped",
+ "tier": 48,
+ "climate": "desert",
+ "archetype": "horned_hunter",
+ "tameable": true,
+ "capture_tier": 4,
+ "verb": "horn ram that throws you back, a straight sprint charge with a sharp turn, snap bite",
+ "status_applied": [
+  "knockdown"
+ ],
+ "stats": {
+  "hp": 6000,
+  "attack": 360,
+  "defense": 150,
+  "speed": 640
+ },
+ "turn_rate": 2.0,
+ "tamed_role": [
+  "combat"
+ ],
+ "prompt": "Carnotaurus, a fast bull-like abelisaurid predator with short brow horns, a deep short snout, tiny arms, long running legs and a long stiff tail",
+ "texture_prompt": "tan hide with small dark brown spots, pale cream belly, darker brown brow horns and dorsal osteoderm bumps, matte surface",
+ "look": "8 meter Carnotaurus, short deep skull with two thick brow horns, tiny arms, long slender running legs, long stiff tail, tan with dark spots and a pale belly, rows of small osteoderm bumps down the back,",
+ "clips": {
+  "attack_primary": "Snap bite: coils the neck back with the jaws wide, darts the head forward and down and snaps shut, a short shake, recovers",
+  "attack_heavy": "Horn ram: rears back bellowing, scrapes a hind foot like a bull while the head drops to aim the brow horns, then drives forward with a step horns first and hooks the head up to throw the target back",
+  "knockdown": "Staggers and collapses onto its side, lying stunned",
+  "alert": "Rears up, head high, then thrusts the head forward roaring with the jaws wide",
+  "charge": "Head-low horn sprint, body near level, arms tucked",
+  "charge_turn": "At the end of a charge it plants, hops round to its left with the body banked and the tail flung wide, and lands facing back"
+ },
+ "taming": {
+  "preferred_food": [
+   "raw_meat"
+  ],
+  "accepted_food": [
+   "fish",
+   "raptor_meat"
+  ],
+  "feeds_needed": 6,
+  "window_seconds": 45,
+  "requires_pen": true
+ },
+ "coloration": {
+  "hue_deg": 10,
+  "sat": 0.14,
+  "val": 0.12,
+  "rare_chance": 0.02,
+  "rare_morphs": [
+   "dark",
+   "pale"
+  ],
+  "patterns": [
+   {
+    "id": "countershade",
+    "weight": 2.0,
+    "scale": 1.0,
+    "strength": 0.4
+   },
+   {
+    "id": "spots",
+    "weight": 1.0,
+    "scale": 1.0,
+    "strength": 0.3
+   },
+   {
+    "id": "",
+    "weight": 3.0
+   }
+  ]
+ },
+ "pipeline": {
+  "forward_axis": "+Z",
+  "source_height_m": 0.4473,
+  "source_length_m": 0.998,
+  "route": "skeleton_transplant_v3 + tools/jaw (add_jaw --x-side, key_jaw) + tools/gait (make_gait, make_carno_moves)",
+  "mesh": "Tripo P1 multiview (front from the owner sheet, left/right a Codex neutral-stance side view and its mirror), task 489df448-650c-4508-92c2-4c7b03d3c12d, 50 Tripo credits. First try a5576e4e (front + the sheet's mid-stride side) came back with four hind legs, 50 credits.",
+  "mesh_source": "res://assets/creatures/carnotaurus/work/carnotaurus_tripo_v2.glb",
+  "reference_sheet": "ref/carnotaurus_sheet.png (owner sheet 1, mouth open); alpha: ref/carnotaurus_alpha_sheet.png (owner sheet 2)",
+  "donor_rig": "tools/standins/quaternius/Velociraptor.fbx (CC0, biped)",
+  "build": "tools/gait/build_carnotaurus.sh",
+  "_hit_parts": "canon's bone hit check (Creature.part_hit, until claude/mmo-hitboxes lands): at the hit frame one named bone must be within radius_m (x body size) of the target's body",
+  "hit_parts": {
+   "attack_primary": {
+    "bones": [
+     "Jaw"
+    ],
+    "radius_m": 1.6
+   },
+   "attack_heavy": {
+    "bones": [
+     "Head"
+    ],
+    "radius_m": 1.9
+   },
+   "charge": {
+    "bones": [
+     "Head"
+    ],
+    "radius_m": 1.9
+   }
+  },
+  "clips": [
+   "idle",
+   "walk",
+   "run",
+   "charge",
+   "strafe_left",
+   "strafe_right",
+   "walk_back",
+   "attack_primary",
+   "attack_heavy",
+   "charge_turn",
+   "alert",
+   "hit_react",
+   "knockdown",
+   "death",
+   "sleep",
+   "feed"
+  ],
+  "authored_clips": {
+   "idle": "transplant donor idle, tail damped to 35 % (stiffen_tail)",
+   "hit_react": "transplant donor recoil, tail damped",
+   "knockdown": "transplant: complete collapse followed by a grounded hold",
+   "death": "transplant: sideways collapse",
+   "feed": "velociraptor feed moved across (transfer_clips), jaw chewing",
+   "sleep": "velociraptor sleep moved across (transfer_clips)",
+   "walk": "make_gait carnotaurus.json walk",
+   "run": "make_gait carnotaurus.json run",
+   "charge": "make_gait carnotaurus.json charge: head-low horn sprint",
+   "attack_primary": "make_carno_moves.py snap bite, hit 0.42",
+   "attack_heavy": "make_carno_moves.py horn ram: bellow, bull's foot scrape and head drop (the telegraph), step-in drive, hit 0.72, toss",
+   "charge_turn": "make_carno_moves.py hop-turn to its left, airborne 0.2-0.6",
+   "alert": "make_carno_moves.py roar"
+  },
+  "assumptions": [
+   "# ASSUMPTION: the PRDs are silent on Carnotaurus. Stats sit between the utahraptor (L50 desert apex) and the allosaurus: hp 6000, atk 360, def 150, speed 640 (fast), tier 48, capture tier 4, tamed role combat only (no saddle built), taming food as the other big carnivores.",
+   "# ASSUMPTION: size: 8 m real -> 12.8 m on screen (the house 1.6x), real_length_m 16 (the roster's 2x convention); height_meters 5.74 is the head-top height at that length.",
+   "# ASSUMPTION: turn_rate 2.0 rad/s (poor turner at speed, the reason for the charge's hop-turn and the flank window); climate desert; archetype horned_hunter (ai.json, new)."
+  ],
+  "model_variants": {
+   "alpha": "carnotaurus_alpha_albedo.jpg"
+  }
+ }
+}

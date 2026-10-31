@@ -467,6 +467,18 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM5** | Alpha skin = the brown sheet as a recolour of the regular texture (same mesh, mane shape unchanged); the alpha's eyeshine stays blue (the eyes block has one colour). | `smilodon_alpha_albedo.jpg`, `Creature.spawn` | A separate alpha mesh or amber alpha eyes would need more work. |
 | **SM6** | Saddle: the shared builder, no neck strap (the mane lets its rays out), seat behind the mane. Rideable (back 1.6 m clears the 1.78/1.6 rule). | `saddles.json`, `mount/` | Riding a sabre cat was in its data (`tamed_role` mount); the owner may prefer combat-only. |
 
+### SP-CARNOTAURUS (2026-10-30) — new species (claude/mmo-sp-carnotaurus)
+
+Owner: "fast bull-like predator: horn ram that knocks the target back, sprint charge with a sharp turn, snap bite". The PRDs say nothing about the Carnotaurus. Report `docs/orchestration/reports/claude-sp-carnotaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **CA1** | Stats sit between the utahraptor and the allosaurus: tier 48, hp 6000, atk 360, def 150, speed 640, capture tier 4. It is tameable and its tamed role is combat only (no saddle was built). Taming food is the same as the other big carnivores. | `carnotaurus.json` | A fast predator mount is an obvious ask. It needs a saddle (saddles.json + build) and `mount` in `tamed_role`. |
+| **CA2** | Size follows RS1/RS2: 8 m real is 12.8 m on screen, `height_meters` 5.74 (head top), `real_length_m` 16. | `carnotaurus.json` | It dwarfs the survivor: the head is about 5 m ahead of its body centre. |
+| **CA3** | New archetype `horned_hunter` (TacticalBrain). It roars, then charges on a straight line. A hit hooks her 60 deg off the line and throws her 3.5 m. It runs 9 m past her, hops round to its LEFT and charges back once. Up close it uses the horn ram (x1.8, throws her 4 m) or the snap bite. `turn_rate` is 2.0, so its flank is the safe side. Every number is a first pass. | `ai.json` archetypes.horned_hunter | This is pacing and difficulty. The return pass can catch a survivor who is still staggered from the first hit. |
+| **CA4** | Hits are checked from the attacking bone at the hit frame (`pipeline.hit_parts`: Jaw 1.6 m, Head 1.9 m) with canon's `Creature.part_hit`, until claude/mmo-hitboxes lands. `attack_range` 4.6, because the jaws are about 5 m ahead of its centre. Under its chest or at its flank it misses. | `Creature.part_hit`, `carnotaurus.json` | Once the hitbox system lands, move these to hitboxes.json and drop the shortcut. |
+| **CA5** | Spawns: one on desert_35's far shore (next to the utahraptor) and one in desert_50's working ring. Climate is desert. | `world/islands.json` | Savannah would also fit (the brief says "dry/savannah or desert"). |
+| **CA6** | The alpha skin is baked from the regular colour map: rust, black mottling, near-black horns. The sheet's heavier osteoderms are texture only; the alpha uses the same mesh. | `carnotaurus_alpha_albedo.jpg` (`pipeline.model_variants.alpha`) | A real alpha mesh would cost another Tripo generation. |
 
 ### SP-TARBOSAURUS (2026-10-31) — the tarbosaurus gets a model, a stalk, a burst that foot-pins, a head-whip bite and a tail whip (claude/mmo-sp-tarbosaurus)
 
