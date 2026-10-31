@@ -138,7 +138,9 @@ func _approach(id: StringName, dir: Vector3, live: bool) -> void:
 	h.hit_landed.connect(cb)
 	h.start(c)
 	var t := 0.0
-	while t < APPROACH_S and landed[0] < 2:
+	# KNOCKDOWN: a live charger knocks her down or throws her (PlayerKnock), so she gets up and walks back in.
+	var budget: float = APPROACH_S * (2.0 if live else 1.0)
+	while t < budget and landed[0] < 2:
 		await physics_frame
 		t += 1.0 / Engine.physics_ticks_per_second
 	h.hit_landed.disconnect(cb)

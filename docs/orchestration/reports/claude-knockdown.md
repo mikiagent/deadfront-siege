@@ -69,6 +69,11 @@ Credits spent: none (no Meshy, no Tripo; the clips are built from clips already 
   her down with no health lost, and a toss still throws her.
 - After the second merge of `origin/claude/mmo-overhaul`: t_knockdown, t_combat, t_tactical, t_pinfeel,
   t_kicktackle, t_mounts, t_sp_carnotaurus, t_sp_woolly_rhino and the wider subset listed in the final reply,
+  t_styraco, t_roll, t_godlab, t_ankyloai, t_sp_pachycephalosaurus, t_zebra, t_movepriority, t_capture09, t_tame,
+  t_alphas, t_sp_tarbosaurus, t_sp_raptor, t_sp_smilodon, t_water, t_ragdoll, t_foodtorpor, t_autoability,
+  t_playerturn, t_tamingodds, t_skilltrees, t_w2_skills, t_targetui, t_rest, t_bigreach all PASS. t_bigreach's live
+  triceratops approach now gets 20 s (the trike throws her; she gets up and walks back in). t_colors FAILs on
+  "stegosaurus uses the placeholder boxes" (a nil material_override; no stegosaurus file differs from canon).
   run_all (`[tests] PASS`; its 4 "Nonexistent function 'new'" SCRIPT ERRORs are on canon too), `tools/smoke.sh`
   SMOKE PASS.
 
