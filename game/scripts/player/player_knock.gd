@@ -38,9 +38,6 @@ const TUMBLE_S := 0.4
 ## fall_back from this far in on landing from a throw: the drop onto the butt (the flight already did the stagger).
 const LAND_FROM_S := 0.3
 const MAX_AIR_S := 3.0
-## A heavier reaction may replace a lighter one this soon after it started (a token knockdown and the charge's
-## throw land on the same frame).
-const UPGRADE_S := 0.15
 const BLEND := 0.12
 
 var p: Player
@@ -84,10 +81,14 @@ func hit(push: Vector3, lift_mps: float, who: Creature) -> int:
 			return Tier.LIGHT  # ASSUMPTION: the mount takes a ram; only a throw unseats her
 		p.dismount()
 	if active():
-		if want > tier and phase == Phase.FALL and _t < UPGRADE_S:
-			_end(false)  # the same impact turned out to be a throw
-		else:
-			return tier  # already down: the hit lands, the reaction does not restart
+		# Already down: a throw launches her again; a ram shoves her along the ground, or back down if she was
+		# getting up. In the air nothing new lands on her.
+		if phase == Phase.AIR:
+			return tier
+		if want != Tier.THROW and phase != Phase.UP:
+			_push(push)  # (also the impact whose own knockdown token laid her down a moment ago)
+			return want
+		_end(false)
 	if want == Tier.THROW:
 		_throw(push * size_scale(who), lift_mps if lift_mps > 0.0 else THROW_LIFT_MPS, who)
 	else:
@@ -109,13 +110,17 @@ func _can_react() -> bool:
 func _knockdown(push: Vector3, lie_s: float) -> void:
 	tier = Tier.KNOCKDOWN
 	_lie_s = lie_s
-	_vel = push * (2.0 / SLIDE_S)
-	_slide_s = SLIDE_S
-	if push.length_squared() > 0.0001:
-		p.face_world(p.global_position - push)  # she falls back, away from the hit
+	_push(push)
 	_enter(Phase.FALL)
 	_play(&"fall_back")
 	print("[knock] knockdown push=%.1f lie=%.1f" % [push.length(), lie_s])
+
+## A knockdown's shove: slid push metres over SLIDE_S, falling back away from it.
+func _push(push: Vector3) -> void:
+	_vel = push * (2.0 / SLIDE_S)
+	_slide_s = SLIDE_S
+	if push.length_squared() > 0.0001:
+		p.face_world(p.global_position - push)
 
 func _throw(push: Vector3, lift: float, who: Creature) -> void:
 	tier = Tier.THROW
