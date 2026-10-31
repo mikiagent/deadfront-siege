@@ -202,7 +202,7 @@
     "shove_right": {
       "hit_frac": 0.46,
       "windup": true,
-      "note": "SHOULDER SLAM, ankylosaurus (STEGOSPIN port, owner 2026-10-31: 'use its momentum and drop its shoulder ... throw its body weight at the player ... and then steady itself after' / 'needs more range'; make_tail_club.py, 1.8 s): cocked off, a bound (airborne 0.24-0.42: ClubTailBrain throws the body up to close_moves.shove_right.carry_m at her in this window), it lands into her with the shoulder dropped (impact 0.46), holds, rocks back, re-plants and steadies; the hit is its shoulder / foreleg hitbox parts swept live (knockdown). The stegosaurus' shove_right (make_stego_moves.py, 1.7 s) is the same slam on the spot (impact 0.40, no airborne window used)",
+      "note": "SHOULDER SLAM, ankylosaurus (STEGOSPIN port, owner 2026-10-31: 'use its momentum and drop its shoulder ... throw its body weight at the player ... and then steady itself after' / 'needs more range'; make_tail_club.py, 1.8 s): cocked off, a bound (airborne 0.24-0.42: ClubTailBrain throws the body up to close_moves.shove_right.carry_m at her in this window), it lands into her with the shoulder dropped (impact 0.46), holds, rocks back, re-plants and steadies; the hit is its shoulder / foreleg hitbox parts swept live (knockdown). The stegosaurus' shove_right (make_stego_moves.py, STEGOSLAM) is the same slam and bound with the same timing",
       "airborne": [
         0.24,
         0.42

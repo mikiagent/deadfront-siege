@@ -360,6 +360,11 @@ func _oneshot_done(clip: StringName) -> void:
 func _effective(state: StringName) -> float:
 	return float(_scale.get(state, 1.0)) * _time_scale
 
+## Retime one clip's state while it plays (CARNOFEEL: the chomp combo's slowed coil); its next play_clip resets it.
+func set_clip_speed(clip: StringName, x: float) -> void:
+	_scale[clip] = x
+	_apply(clip)
+
 func _apply(state: StringName) -> void:
 	if tree and _param.has(state):
 		tree.set(_param[state], _effective(state))

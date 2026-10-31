@@ -1367,6 +1367,20 @@
    ],
    "_note": "made by calibration; other moves take pipeline.hit_parts",
    "moves": {
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 2.48,
+       "calibrated": true
+      },
+      {
+       "bone": "Head",
+       "radius": 2.55,
+       "calibrated": true
+      }
+     ]
+    },
     "attack_heavy": {
      "parts": [
       {
