@@ -108,8 +108,9 @@ func _run() -> void:
 					names[psk.get_bone_name(i)] = true
 				if not names.has(str(mj.get("socket", ""))):
 					fails.append("%s saddle skeleton lacks the socket bone %s" % [def.id, mj.get("socket", "")])
-				if not names.has("Neck") and def.id != &"tyrannosaurus":
-					fails.append("%s saddle skeleton lacks Neck (reins)" % def.id)
+				# Neck on the transplant rigs, Neck1 on the Tripo/Opus rigs (triceratops)
+				if not (names.has("Neck") or names.has("Neck1")) and def.id != &"tyrannosaurus":
+					fails.append("%s saddle skeleton lacks Neck/Neck1 (reins)" % def.id)
 		pin.free()
 		print("[tmount] %s saddle ok: socket=%s seat=%s hips_above_socket=%s" % [
 			def.id, mj.get("socket"), str(mj.get("seat")), str(mj.get("hips_above_socket_m"))])

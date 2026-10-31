@@ -75,6 +75,18 @@
    "cushion_m": 0.05,
    "skirt_m": 0.11,
    "seat_frac": -0.6
+  },
+  "triceratops": {
+   "forward": "+Y",
+   "socket": "Spine1",
+   "shoulder_bone": "Chest",
+   "neck_bone": "Neck1",
+   "torso_len_frac": 0.0,
+   "seat_half_w_m": 0.3,
+   "seat_half_len_m": 0.32,
+   "cushion_m": 0.22,
+   "skirt_m": 0.18,
+   "pad_m": 0.06
   }
  }
 }

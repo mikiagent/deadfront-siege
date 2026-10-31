@@ -47,10 +47,15 @@ bpy.context.preferences.filepaths.save_version = 0
 bpy.ops.import_scene.gltf(filepath=GLB)
 sc = bpy.context.scene
 arm = next(o for o in sc.objects if o.type == "ARMATURE")
-creature = next(o for o in sc.objects if o.type == "MESH")
+creature = max((o for o in sc.objects if o.type == "MESH"), key=lambda o: len(o.data.vertices))  # not the importer's bone-shape Icosphere
 for _o in list(sc.objects):
     if _o.type == "MESH" and _o is not creature:
         bpy.data.objects.remove(_o, do_unlink=True)
+# Everything below assumes the animal faces -Y in Blender (glTF +Z, the transplant rigs). A rig that faces +Y
+# (glTF -Z: the Tripo/Opus triceratops) is turned 180 deg about Z for the build and turned back before binding,
+# so the saddle mesh and rider_offset come out in the GLB's own frame (rider_offset then carries the 180 deg turn).
+TURN = Matrix.Rotation(math.pi, 4, "Z") if CFG.get("forward", "-Y") == "+Y" else Matrix.Identity(4)
+arm.matrix_world = TURN @ arm.matrix_world
 arm.data.pose_position = "REST"
 bpy.context.view_layer.update()
 dg = bpy.context.evaluated_depsgraph_get()
@@ -93,11 +98,12 @@ SOCKET = CFG.get("socket", "Torso")
 if SOCKET not in BONES:
     SOCKET = "Back"
 HIPS_Y = bone("Hips").y
-SHO_Y = bone("Shoulders").y if "Shoulders" in BONES else bone("Neck").y
+SHO_BONE = CFG.get("shoulder_bone", "Shoulders" if "Shoulders" in BONES else "Neck")
+SHO_Y = bone(SHO_BONE).y
 SEAT_FRAC = float(CFG.get("seat_frac", 0.55))
 SEAT_Y = HIPS_Y + (SHO_Y - HIPS_Y) * SEAT_FRAC
 TORSO_LEN = abs(SHO_Y - HIPS_Y)
-SEAT_HALF_LEN = max(float(CFG.get("seat_half_len_m", 0.25)) * SCALE, TORSO_LEN * 0.5)
+SEAT_HALF_LEN = max(float(CFG.get("seat_half_len_m", 0.25)) * SCALE, TORSO_LEN * float(CFG.get("torso_len_frac", 0.5)))
 SEAT_HALF_W = float(CFG.get("seat_half_w_m", 0.24)) * SCALE
 CUSHION = float(CFG.get("cushion_m", 0.05)) * SCALE
 PAD = float(CFG.get("pad_m", 0.022)) * SCALE
@@ -494,8 +500,9 @@ for sgn, nm in ((1, "L"), (-1, "R")):
         (0.022 * SCALE, 0.14 * SCALE, 0.022 * SCALE), IRON, SOCKET, bevel=0.006 * SCALE)
 
 # ------------------------------------------------------------------ neck strap
-NECK_BONE = "Neck" if "Neck" in BONES else SOCKET
-NECK_Y = (bone(NECK_BONE).y + (bone("Shoulders").y if "Shoulders" in BONES else bone(NECK_BONE).y)) * 0.5
+NECK_BONE = CFG.get("neck_bone", "Neck" if "Neck" in BONES else SOCKET)
+NECK_Y = (bone(NECK_BONE).y + SHO_Y) * 0.5 if "neck_y_frac" not in CFG else \
+    bone(NECK_BONE).y + (SHO_Y - bone(NECK_BONE).y) * float(CFG["neck_y_frac"])
 NSEL = [v for v in VERTS if abs(v.y - NECK_Y) < (MX.y - MN.y) * 0.02]
 if NSEL:
     nzmin, nzmax = max(MN.z, min(v.z for v in NSEL)), max(v.z for v in NSEL)
@@ -553,6 +560,11 @@ bpy.ops.object.select_all(action="DESELECT")
 saddle.select_set(True)
 bpy.context.view_layer.objects.active = saddle
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+# rider_offset in the socket bone's frame is the same in the turned frame and the GLB's own one
+OFF = (arm.matrix_world @ arm.data.bones[SOCKET].matrix_local).inverted() @ Matrix.Translation(RIDER_ROOT)
+saddle.data.transform(TURN.inverted())
+arm.matrix_world = TURN.inverted() @ arm.matrix_world
+bpy.context.view_layer.update()
 saddle.parent = arm
 saddle.parent_type = "OBJECT"
 saddle.matrix_parent_inverse = Matrix.Identity(4)
@@ -571,13 +583,9 @@ print("[saddle] tris=%d verts=%d groups=%s bounds=%s..%s" % (
 # ------------------------------------------------------------------ mount.json
 # rider_offset: the rider root in the socket bone's frame, as Blender imports it (reference only; the game
 # uses rider_in_mount, which mount_to_model_space.py derives from it against the game's own GLB).
-S = arm.matrix_world @ arm.data.bones[SOCKET].matrix_local
 # These species face +Z in glTF (the survivor does too), which is -Y in Blender after the import's Y-up
 # conversion, and the rider's own forward is -Y as well, so the root needs no turn (the T. rex howdah's
 # 180 deg exists because its model faces -Z).
-ROOT = Matrix.Identity(4)
-ROOT.translation = RIDER_ROOT
-OFF = S.inverted() @ ROOT
 os.makedirs(OUT_DIR, exist_ok=True)
 mj = {
     "mount": SPECIES,
