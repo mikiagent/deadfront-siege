@@ -107,4 +107,4 @@ What read wrong in my reviews, and what I did about it:
   - `rejoint_legs.py` fixes any transplant whose legs the landmark warp misplaced.
   - `make_tail_club.py` provides a tail swing for any `club_tail`/`spiked_tail` species.
 
-Report head: see the push below (commit on `claude/mmo-ankylo3d`).
+Report head: model commit c809924a on `claude/mmo-ankylo3d` (pushed); this line is updated in the follow-up commit.
