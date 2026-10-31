@@ -7,8 +7,14 @@ extends RefCounted
 const TOOL_ICON_ITEM := {"axe": "work_axe", "pick": "work_pick", "knife": "stone_knife_work", "none": "hands", "": "hands"}
 const GLIDE_PX := 5.0  ## px per frame a pill slides toward a new row (it hopped a whole row in one frame)
 
-## Each pill's offset from its anchor as last drawn, by object instance id.
+## Each pill's offset from its anchor as last drawn, by object instance id. WORLDUI: only pills that were
+## visibly drawn: a pill laid out at alpha 0 (just inside 8 m) kept a far-off row there and, fading in,
+## flew from it down onto its resource (owner 2026-10-31: "a tag fly in and drop on the resource").
 static var _last_offset := {}
+## WORLDUI: msec each pill was first visibly drawn, for its gentle fade-in.
+static var _born := {}
+## WORLDUI: a new pill fades in over this; it never moves to get there.
+const FADE_IN_MS := 180.0
 
 ## The last frame's drawn chips: {node, anchor, rect}. Read by labs that check a chip sits by its object.
 static var last_drawn: Array = []
@@ -215,8 +221,9 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 	hit_pills = []
 	animating = false
 	var offsets := {}
+	var born := {}
+	var now := float(Time.get_ticks_msec())
 	for item in UiTokens.layout_labels(pending, view, hard, soft):
-		last_drawn.append({"node": item["node"], "anchor": item["at"], "rect": item["rect"]})
 		var box: Rect2 = item["rect"]
 		var anchor: Vector2 = item["anchor"]
 		if _last_offset.has(item["id"]):
@@ -225,7 +232,15 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			box.position = from.move_toward(to, GLIDE_PX)
 			if box.position.distance_to(to) > 0.01:
 				animating = true  # still sliding toward its row
-		offsets[item["id"]] = box.position - anchor
+		var a: float = item["a"] * (0.35 if walking and box.intersects(fig) else 1.0)
+		if a > 0.02:  # WORLDUI: an invisible pill keeps no row and no birth; it starts fresh when it shows
+			offsets[item["id"]] = box.position - anchor
+			born[item["id"]] = _born.get(item["id"], now)
+			var age := now - float(born[item["id"]]) + 33.0  # its first frame already shows a little
+			a *= clampf(age / FADE_IN_MS, 0.0, 1.0)
+			if age < FADE_IN_MS:
+				animating = true
+		last_drawn.append({"node": item["node"], "anchor": item["at"], "rect": box, "laid": item["rect"], "a": a})
 		var under := false
 		for h in hard:
 			under = under or box.intersects(h)
@@ -237,7 +252,6 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 		var rect := Rect2(box.position + Vector2(0.0, 8.0 if not tools.is_empty() else 0.0), Vector2(box.size.x, float(pm.x)))
 		if item["harvest"]:
 			hit_pills.append({"node": item["node"], "rect": rect})
-		var a: float = item["a"] * (0.35 if walking and box.intersects(fig) else 1.0)
 		var text: String = item["text"]
 		var dot: Color = item["dot"]
 		var bg := UiTokens.INK
@@ -275,6 +289,7 @@ static func draw(hud: HuntHud, cam: Camera3D, avoid: Array[Rect2]) -> void:
 			hud.draw_string(hud._font, Vector2(trect.position.x + 8.0, trect.position.y + 14.0), tt, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.meta(view), Color(1, 0.9, 0.6, a))
 		shown += 1
 	_last_offset = offsets
+	_born = born
 
 ## A status chip blocked where it stands (the survivor's figure, a HUD panel) steps sideways first, only
 ## as far as its station's anchor stays under it, then tries hanging just under the anchor and one row
