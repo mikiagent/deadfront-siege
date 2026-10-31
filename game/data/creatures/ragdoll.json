@@ -251,12 +251,12 @@
         {"bone": "Neck1", "dir": [0.0, 0.088, -0.996], "length": 3.6, "radius": 1.05, "angular_damp": 8.0, "joint": {"type": "pin"}},
         {"bone": "Tail2", "to": "Tail4", "radius": 0.85, "angular_damp": 6.0, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -25, "max": 25}},
         {"bone": "Tail4", "to": "Tail7", "extend": 1.5, "radius": 0.8, "angular_damp": 6.0, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -25, "max": 25}},
-        {"bone": "Thigh.L", "to": "Shin.L", "radius": 1.0, "offset": [2.26, 0.2, -0.3], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -50, "max": 50}},
-        {"bone": "Thigh.R", "to": "Shin.R", "radius": 1.0, "offset": [-2.27, 0.18, -0.21], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -50, "max": 50}},
-        {"bone": "Shin.L", "to": "Metatarsal.L", "radius": 0.45, "offset": [2.33, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 18.8}},
-        {"bone": "Shin.R", "to": "Metatarsal.R", "radius": 0.45, "offset": [-2.4, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 18.8}},
-        {"bone": "Metatarsal.L", "dir": [-0.087, -0.35, -0.93], "length": 2.0, "radius": 0.6, "offset": [2.4, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 30}},
-        {"bone": "Metatarsal.R", "dir": [0.087, -0.35, -0.93], "length": 2.0, "radius": 0.6, "offset": [-2.4, 0.0, 0.0], "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 30}}
+        {"bone": "Thigh.L", "to": "Shin.L", "radius": 1.0, "joint": {"type": "pin"}},
+        {"bone": "Thigh.R", "to": "Shin.R", "radius": 1.0, "joint": {"type": "pin"}},
+        {"bone": "Shin.L", "to": "Metatarsal.L", "radius": 0.45, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 18.8}},
+        {"bone": "Shin.R", "to": "Metatarsal.R", "radius": 0.45, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -60, "max": 18.8}},
+        {"bone": "Metatarsal.L", "to": "Toe.L", "radius": 0.5, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 30}},
+        {"bone": "Metatarsal.R", "to": "Toe.R", "radius": 0.5, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 30}}
       ]
     },
     "stegosaurus": {

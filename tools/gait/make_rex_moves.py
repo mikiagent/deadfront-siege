@@ -382,16 +382,16 @@ def feed(u):
 
 def _belly_lie(k, roll=0.0, breath=0.0):
     """Down on her belly, k = 0 (standing) .. 1 (down): the body dropped 3 m onto its belly and chest, legs folded
-    under with the metatarsals flat (heels down), the chin laid on the ground and the tail along it. A rex is too
+    under with the feet flat on their soles, the chin laid on the ground and the tail along it. A rex is too
     tall and its legs too long to lie on its side without the thighs tearing, so it goes down sternal, the way birds
     and big theropod mounts are shown resting; roll tips it onto its right flank (death)."""
     return {
-        "body": {"dz": -3.0 * k, "pitch": -2 * k + 1.0 * breath, "roll": roll},
+        "body": {"dz": -2.5 * k, "pitch": -2 * k + 1.0 * breath, "roll": roll},
         "turns": merge({"Spine2": (1.2 * breath, 0, 0), "Chest": (2.0 * breath, 0, 0),
-                        "Neck1": (-8 * k, 0, -roll * 0.3), "Neck2": (-4 * k, 0, 0), "Head": (2 * k, 0, -roll * 0.4),
+                        "Neck1": (-3 * k, 0, -roll * 0.3), "Neck2": (-2 * k, 0, 0), "Head": (2 * k, 0, -roll * 0.4),
                         "Arm.L": (30 * k, 0, 0), "Arm.R": (30 * k, 0, 0)},
                        {t: (6 * k if i < 2 else 2 * k, 0, 0) for i, t in enumerate(TAILS)}),
-        "feet": {"L": (0, 0.6 * k, 0, -30 * k), "R": (0, 0.6 * k, 0, -30 * k)},
+        "feet": {"L": (0, 0.6 * k, 0, -8 * k), "R": (0, 0.6 * k, 0, -8 * k)},  # the foot stays on its sole; more heel-down about the ball buries the heel pad
         "settle": 1.0,
     }
 
