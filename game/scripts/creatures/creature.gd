@@ -603,7 +603,9 @@ func _physics_process(delta: float) -> void:
 	elif sprint:
 		speed *= run_speed_mult()  # owner 2026-10-28: running is faster for every creature
 	var locomote := Vector3.ZERO
-	if _path_active:
+	if brain and not is_pet and brain.line_dir != Vector3.ZERO:
+		locomote = brain.line_dir
+	elif _path_active:
 		if _use_tile_path():
 			locomote = _tile_path_direction(delta)
 		else:
@@ -927,7 +929,9 @@ func _on_hit(clip: StringName) -> void:
 ## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical
 ## segment from its feet to its height. True when the species lists no parts for the clip or the rig lacks them.
 func part_hit(clip: StringName, target: Node3D) -> bool:
-	var row: Variant = (def.pipeline.get("hit_parts", {}) as Dictionary).get(str(clip)) if def and def.pipeline.get("hit_parts") is Dictionary else null
+	# A body variant may judge its hits at its own parts (SP-TRIKEALPHA: model_variants.alpha.hit_parts).
+	var parts: Variant = CreatureView.variant_row(def, variant).get("hit_parts", def.pipeline.get("hit_parts")) if def else null
+	var row: Variant = (parts as Dictionary).get(str(clip)) if parts is Dictionary else null
 	var sk: Skeleton3D = view.rig.skeleton if view and view.rig else null
 	if not (row is Dictionary) or sk == null or target == null:
 		return true
@@ -1055,11 +1059,12 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		anim.play_clip(&"knockdown")
 		return
 	var staggered := false
-	if not brain is TyrantBrain and _now_s() >= _stagger_immune_until:
+	var armored: bool = brain is TyrantBrain or (brain != null and brain.super_armor())  # a committed charge does not flinch
+	if not armored and _now_s() >= _stagger_immune_until:
 		stagger_left = 0.45 if kind == &"crit" else 0.3
 		_stagger_immune_until = _now_s() + 1.0
 		staggered = true
-	if not brain is TyrantBrain and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
+	if not armored and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
 		# stagger's once-a-second immunity so a pinned animal can still fight back.

@@ -316,6 +316,16 @@ Source: branch `claude/mmo-styratactics`, report `docs/orchestration/reports/dsc
 | **S3** | Point blank it sweeps the horns: the `heavy` move (attack_heavy clip) x 2.2, 7 s cooldown, before kick/bite in `point_blank`. | `heavy_cd`, `heavy_mult`, `point_blank`, `TacticalBrain` heavy move | Gives the big head a finisher that is not a bite. |
 | **S4** | It fights to 25 % HP, then flees 4 s; guard 20 m around its home; herd defence as pack_mule. | `retreat_frac`, `guard_m`, `herd_defend` | Braver than the zebra; still capturable when weak. |
 
+### STYRAFIX (2026-10-31) — styracosaurus 3x and the impale charge (claude/mmo-styrafix)
+
+Owner, from the fight lab: "make styracosaurus bigger by like 3x ... i see you attempted to make some cool charge attacks and impale? we have to fix it". Report `docs/orchestration/reports/claude-styrafix.md`. Numbers in `game/data/creatures/styracosaurus.json` (`tactics` block), every one an ASSUMPTION.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **SF1** | height_meters 2.25 -> 6.75 (15.2 m long on screen, longer than the triceratops at 9.2 m); real_length_m 11 -> 19 by the roster rule (RS2) rather than 33 (3 x 11), so the capsule radius (2.3 m) matches the 4.7 m wide body. It now needs the Apex pen (over 18 m) and a large saddle; turn rate 2.5 -> 1.4. | `height_meters`, `real_length_m`, `turn_rate` | 33 would make an 8 m wide hitbox and the biggest gameplay body in the roster. |
+| **SF2** | Its distances scale with it: ring 16 m, reach 6 m (the horns, not the barrel), display 9 m, charge through 6 m, strafe and hop 3 m, guard 45 m. It charges only from 10 m. | `tactics` block | Without the scaling it hugged the survivor with its chest and charged from 3 m. |
+| **SF3** | Charge = paw (about 1.3 s, until aimed within 12 deg) -> straight run (0.5 s ramp to about 9 m/s) -> impale (caught at the horn tip, carried, flung 4 m/s up and 4 m ahead) or miss (brakes 0.6 s, stands 2 s: the punish window). It cannot be flinched while it paws, runs or impales. | `charge_*`, `impale_*`, `toss_up_mps` | The read the owner asked for: telegraph, commit, punish. |
+
 ### TOOLSDOC (2026-10-30) — tools, durability, repair and gear traits
 
 Source: `docs/design/tools-durability-crafting.md` (PROPOSED; packages P1-P4 on the roadmap), from Milan's research
@@ -507,6 +517,32 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **TB4** | Pin: the burst and the point-blank lunge are attack_heavy hits, so (PINFEEL rule) they apply Pinned and it plants its right foot on the victim (`pin_foot`); the bite never pins. Pinned length and damage are the status data. | `tarbosaurus.json` status_applied, PINFEEL | Pin frequency is a balance call. |
 | **TB5** | Tail whip uses the TacticalBrain's `kick` slot (point blank, prey behind); the clip is named `kick` and its hit part radius is 2.0 m (the tail sweeps metres between frames). | `tarbosaurus.json` hit_parts | Swap for the hitbox system's swept volumes when it lands. |
 | **TB6** | No alpha skin: no alpha sheet was given, so alphas get the genetics recolour only (`model_variants.alpha` not set). No eye glow block (eyes not measured). No saddle (`tamed_role` is combat only). | `tarbosaurus.json` | Give an alpha sheet to get a skin. |
+
+
+### SP-CERATOSAURUS (2026-10-31) — a new species: Ceratosaurus, with gore, slashing bite, tail swipe and a water-edge lunge (claude/mmo-sp-ceratosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight"; owner sheets "I made it look more like a ceratosaurus". Report `docs/orchestration/reports/claude-sp-ceratosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **CE1** | Size: ~6 m real at the house 1.6x = 9.7 m nose to tail, `height_meters` 4.0 (top of the brow horns, hips 2.3 m); `real_length_m` 12 (the roster's 2x). | `ceratosaurus.json` | The sheet has no scale figure; a bigger or smaller animal is one number. |
+| **CE2** | Stats between the utahraptor and the allosaurus: tier 45, 5200 HP, attack 360, defense 150, speed 560; tameable in a pen (6 raw-meat feeds), combat role only (no saddle). A fresh 100 HP survivor dies to one gore (x1.8) or one tail swipe (x1.3). | `ceratosaurus.json` | Balance pass; whether it should be rideable. |
+| **CE3** | Moves: slashing bite (attack_primary) applies Bleed x2 and is the only move that bleeds (`pipeline.status_clips`); nose-horn gore (attack_heavy, x1.8, held head-down telegraph); tail swipe in the brain's kick slot (prey behind it, x1.3); lunge = the pounce (x1.5, low surge, telegraphed by the gore crouch under the ground ring). Base profile saber_cat without stalk and pin. | `ceratosaurus.json` tactics, `CreatureAttack._apply_token` | Move set, multipliers and cooldowns are first-pass. |
+| **CE4** | Water-edge ambush: when a dry bank beside the river (within 9 m of its centre line) or the shore is within 40 m of home it lurks there and opens with the lunge (ambush radius 10 m, 15 m for a turned back); with no water near home, or in the lab, it hunts in the open. Spawns: swamp_55 working ring (1) and tropical_40 working ring (1, 60 %). | `TacticalBrain._find_water_edge`, `islands.json` | Where it lives and how sneaky it is. |
+| **CE5** | Alpha = the owner's sheet 2 (camo olive/dark brown/cream, orange throat and belly) as a recolour of the regular texture: same mesh, so the alpha's bigger blocky nasal crest and taller brow horns are not there (no second generation). | `ceratosaurus_alpha_albedo.jpg` | A separate alpha mesh would cost one Tripo generation. |
+
+### SP-TRIKEALPHA (2026-10-31) — the Alpha triceratops gets its own bull-horned body (claude/mmo-sp-trikealpha)
+
+Owner: "whatever happened to that bulky triceratops with the bull horns, is that in?". Report `docs/orchestration/reports/claude-sp-trikealpha.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TA1** | The Alpha body is a separate model (`model_variants.alpha`) worn by every alpha triceratops (wild rolled alphas, the lab's Alpha toggle, tamed alphas); regular triceratops keep the regular body. | `triceratops.json`, `Creature.spawn` | The owner may want it as its own rarer morph instead of every alpha. |
+| **TA2** | Tripo views were made with the beak closed (the sheet's open mouth would bake an open jaw into the rest pose); the jaw bone opens it in the roar, attacks and feed. | `alpha/ref/` | If the gaping mouth is the look he wants, the idle needs a held jaw-open pose. |
+| **TA3** | Same 4.645 m height as the regular, so the Alpha is 10.9 m beak to tail (longer, lower, wider); alpha genetics then scale it up 1.1-1.3x like any alpha. | `prep.py` scale, `height_meters` | Could be made taller. |
+| **TA4** | Signature: a landed charge ends in the bull-horn toss: head driven low, then a twist to its right that throws the survivor 5 m sideways (toss_side_m), 1.5 m along the line, lifted 4.5 m/s, 1.2 s stagger; charge cooldown 6 s (regular 8). | `model_variants.alpha.tactics`, `TacticalBrain._charge_impact` | Balance and feel. |
+| **TA5** | The Alpha's horn hits are judged at the Head bone with 2.4-2.6 m radii (no horn bones on the regular's rig layout; hitboxes not on canon). | `model_variants.alpha.hit_parts`, `Creature.part_hit` | Move to the hitbox system when it lands. |
+| **TA6** | A ridden mount never plays its strafe clips (it turns into its heading); the slow-turning Alpha played strafes under the rider. | `PlayerPets.mounted_move` | Affects every mount with strafe clips (megaloceros, rhino, smilodon...). |
 
 ### SP-RAPTOR (2026-10-31) — the Raptor, a new rideable dromaeosaur with colour morphs (claude/mmo-sp-raptor)
 

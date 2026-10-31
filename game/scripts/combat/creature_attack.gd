@@ -39,6 +39,10 @@ static func _target_dead(target: Node) -> bool:
 static func _apply_token(tok: StringName, clip: StringName, target: Node, source: Creature) -> void:
 	var parsed := StatusEffects.parse_token(tok)
 	var id: StringName = parsed["id"]
+	# pipeline.status_clips {status: [clips]}: a status only rides on those clips (the ceratosaurus' slashing bite bleeds, its gore does not).
+	var only: Variant = (source.def.pipeline.get("status_clips", {}) as Dictionary).get(str(id)) if source.def.pipeline.get("status_clips") is Dictionary else null
+	if only is Array and not (only as Array).has(str(clip)):
+		return
 	# Velociraptor: pounce (heavy) applies knockdown + bleed x2; primary is just contact damage.
 	if source.def.id == &"velociraptor" and clip != &"attack_heavy" and (id == &"knockdown" or id == &"bleed"):
 		return
