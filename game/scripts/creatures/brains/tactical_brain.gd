@@ -83,6 +83,20 @@ var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the poun
 var _charge_to := Vector3.ZERO
 var _charge_dir := Vector3.FORWARD
 var _charge_hit := false
+## STYRAFIX horned charge (tactics.charge_impale, owner 2026-10-31): paw (head-down telegraph, stands still) ->
+## run (committed line in its facing, ramped, the charge clip stride-matched) -> impale (the horn tip reaches her:
+## the impale clip; at its hit frame she is caught where the horn tip is, carried up with it and flung at its
+## release frame) or, on a miss, brake (decelerates on the charge clip) -> recover (winded, stands for
+## charge_recover_s: the punish window). The whole move is one brain state, "charge".
+var _charge_phase: StringName = &""
+var _phase_t := 0.0
+var _phase_len := 0.0
+var _caught: Player = null
+var _caught_y := 0.0  ## her standing centre height when caught
+var _run_v := 0.0
+## Flat metres from the horn tip to her centre at the impale's hit frame (-1 before one): read by t_styrafix.
+var impale_gap := -1.0
+static var _horn_local: Dictionary = {}  ## species -> the nose-horn tip in Head-bone rest space (model units)
 ## CHARGE TURN (tactics.charge_turn, carnotaurus): the charge's return pass is running (one per charge).
 var _charge_return := false
 var _turn_from := 0.0
@@ -199,6 +213,10 @@ static func has_tactics(def: CreatureDef) -> bool:
 func setup(c: Creature) -> void:
 	super.setup(c)
 	tac = tactics_for_def(c.def)
+	# STYRAFIX: a species tactics block may set attack_range, the reach its strikes are judged by (the 3x
+	# styracosaurus strikes with horns 6 m ahead of its centre, not its barrel).
+	if c.def.tactics.has("attack_range"):
+		profile["attack_range"] = c.def.tactics["attack_range"]
 	# A variant's own moves (megaloceros doe: no antlers, so no ram; kick and stomp only).
 	var over: Variant = CreatureView.variant_row(c.def, c.variant).get("tactics", {})
 	if over is Dictionary and not (over as Dictionary).is_empty():
@@ -388,6 +406,7 @@ func _think(delta: float) -> void:
 	speed_override = -1.0
 	strafe_face = null
 	gait_clip = &""
+	line_dir = Vector3.ZERO
 	if _flee_left > 0.0:
 		_flee_left -= delta
 		if _flee_left <= 0.0 and state == &"flee" and not _enrage_fled:
@@ -631,14 +650,15 @@ func attack_available(move: StringName, d: float) -> bool:
 			return creature.can_sprint() and creature.can_use_special(creature.special_cost(&"pounce")) \
 				and d >= _t("pounce_min_m", 4.0) and at_hit <= far + _size_excess(attack_target)
 		&"charge":
-			return creature.can_sprint()
+			return creature.can_sprint() and d >= _t("charge_min_m", 0.0)
 		&"kick":
 			return creature.anim.has_state(&"kick") and in_reach and _prey_behind()
 		&"heavy":
 			# The sweeping horn swipe (the attack_heavy clip, a CONTRACT clip): point blank only,
 			# in front (the horns sweep the head's arc). ASSUMPTION: heavy_mult, heavy_cd.
 			# tactics.heavy_reach_m: an in-place kick only reaches as far as the feet do (gallimimus rake).
-			return creature.anim.has_state(&"attack_heavy") and in_reach and d <= _t("heavy_reach_m", 1e9) + _size_excess(attack_target)
+			return creature.anim.has_state(&"attack_heavy") and in_reach and d <= _t("heavy_reach_m", 1e9) + _size_excess(attack_target) \
+				and not _prey_behind()
 		&"bite":
 			# Anti-spam (owner: "what i want to avoid is basic attack spam"): a non-attack beat between
 			# two basics, and at most max_basic_streak basics before a beat or a special.
@@ -724,7 +744,8 @@ func _terminal_ready(last: StringName, d: float) -> bool:
 		&"combo":
 			return creature.anim.has_state(&"bite_combo") and creature.can_use_special(creature.special_cost(&"bite_combo")) and creature.can_sprint()
 		&"charge":
-			return creature.can_sprint() and (tac.get("charge_straight", false) or _ready_to(&"bite"))  # a homing charge ends in a bite
+			return creature.can_sprint() and d >= _t("charge_min_m", 0.0) \
+				and (tac.get("charge_straight", false) or _ready_to(&"bite"))  # a homing charge ends in a bite
 	return false
 
 ## The offensive pick from the ring or a hold: the ambush opener while it waits for its pounce, point
@@ -845,6 +866,9 @@ func _dodge(delta: float) -> void:
 ## line locked at the start, through the prey's spot by charge_through_m; contact in front of it is
 ## one impact (charge_mult, the heavy hit's roll rules); a sidestep makes it miss and stagger.
 func _start_charge(return_pass: bool = false) -> void:
+	if tac.get("charge_impale", false) and _flat_dist(attack_target) < _t("charge_min_m", 0.0):
+		_enter_circle(0.0)  # she closed in during the steps before it (a display): no run-up, fight point blank
+		return
 	_charge_return = return_pass
 	_set_state(&"charge")
 	_left = _t("charge_max_s", 1.6)
@@ -854,6 +878,12 @@ func _start_charge(return_pass: bool = false) -> void:
 	_tossing = false
 	_charge_dir = -_to_me()
 	_charge_to = attack_target.global_position + _charge_dir * _t("charge_through_m", 2.5)
+	if tac.get("charge_impale", false):
+		_halt()
+		creature.anim.release_oneshot()  # a hold/display pose must not run under the paw
+		_phase(&"paw", &"charge_windup", 1.2)
+		tactic.emit(&"charge_windup")
+		return
 	# A rig with a charge_crouch clip coils first (owner 2026-10-31, compy: "it should lower its center of gravity
 	# and charge"): body still and turning to the prey until the clip ends, then the run.
 	_crouch = creature.anim.has_state(&"charge_crouch")
@@ -862,7 +892,225 @@ func _start_charge(return_pass: bool = false) -> void:
 		creature.anim.play_clip(&"charge_crouch")
 	tactic.emit(&"charge")
 
+func _phase(name: StringName, clip: StringName = &"", fallback_s: float = 0.0) -> void:
+	_charge_phase = name
+	_phase_t = 0.0
+	_phase_len = fallback_s
+	if clip != &"" and creature.anim.has_state(clip):
+		creature.anim.play_clip(clip)
+		_phase_len = _clip_len(clip, fallback_s)
+
+## The horned charge's phases (see _charge_phase).
+func _charge_impale(delta: float) -> void:
+	_phase_t += delta
+	match _charge_phase:
+		&"paw":
+			creature.stop_move()
+			creature.face_towards(attack_target.global_position, delta)
+			if _phase_t < _phase_len:
+				return
+			if _flat_dist(attack_target) < _t("charge_min_m", 0.0) * 0.5:
+				_charge_cleanup()  # she walked in under the horns while it pawed: no run-up left, fight point blank
+				_enter_circle(0.0)
+				return
+			var fwd := -creature.global_basis.z
+			var aim := absf(Vector2(fwd.x, fwd.z).angle_to(Vector2(-_to_me().x, -_to_me().z)))
+			if aim > deg_to_rad(_t("charge_aim_deg", 15.0)) and _phase_t < _phase_len * 2.0:
+				if not creature.anim.is_busy():
+					creature.anim.play_clip(&"charge_windup")  # still turning onto her: paws again, up to one more length
+				return
+			_charge_dir = -creature.global_basis.z  # committed: the line it faces after the telegraph
+			_charge_dir.y = 0.0
+			_charge_dir = _charge_dir.normalized()
+			_charge_to = creature.global_position + _charge_dir * (_flat_dist(attack_target) + _t("charge_through_m", 2.5))
+			_left = _t("charge_max_s", 1.6)
+			_run_v = 0.0
+			creature.anim.play_clip(&"charge")  # a second paw may still be playing: the run clip takes over now, not idle
+			_charge_phase = &"run"
+			_phase_t = 0.0
+			_drive(0.05)  # on the line this frame: Creature keeps the charge clip instead of falling back to idle
+			tactic.emit(&"charge")
+		&"run":
+			_left -= delta
+			var top := creature.move_speed_mps() * _t("charge_speed_mult", 1.5)
+			_run_v = minf(top, _run_v + top / maxf(0.05, _t("charge_ramp_s", 0.4)) * delta)  # feet accelerate with it
+			_drive(_run_v)
+			if _impale_contact():
+				_halt()
+				_phase(&"impale", &"impale", 1.2)
+				return
+			_glance()
+			if (creature.global_position - _charge_to).dot(_charge_dir) >= 0.0 or _left <= 0.0:
+				_charge_phase = &"brake"
+				_phase_t = 0.0
+				if not _charge_hit:
+					tactic.emit(&"charge_miss")
+		&"brake":
+			_run_v = maxf(0.0, _run_v - creature.move_speed_mps() * _t("charge_speed_mult", 1.5) / maxf(0.05, _t("charge_brake_s", 0.5)) * delta)
+			if _run_v > 0.3:
+				_drive(_run_v)
+			else:
+				_start_recover()
+		&"impale":
+			creature.stop_move()
+			var row: Dictionary = (Data.anim_events.get("clips", {}) as Dictionary).get("impale", {})
+			var hit := _phase_len * float(row.get("hit_frac", 0.26))
+			var release := _phase_len * float(row.get("release_frac", 0.46))
+			if not _charge_hit and _phase_t >= hit:
+				_impale_hit()
+			if _caught:
+				if _phase_t < release:
+					var tip := horn_tip()  # carried on the horn as it scoops up (never pushed into the ground)
+					_caught.global_position = Vector3(tip.x, maxf(tip.y + 0.3, _caught_y), tip.z)
+					_caught.velocity = Vector3.ZERO
+				else:
+					_fling()
+			if _phase_t >= _phase_len:
+				_fling()
+				_start_recover()  # she is in the air: it stands, winded, while she lands (the punish window)
+		&"recover":
+			creature.stop_move()
+			if _phase_t >= _phase_len:
+				_charge_cleanup()
+				if not _strike(_flat_dist(attack_target), ["kick"]):
+					_after_charge()
+
+func _start_recover() -> void:
+	_halt()
+	_phase(&"recover", &"charge_recover", 1.6)
+	_phase_len = maxf(_phase_len, _t("charge_recover_s", 2.0))
+	creature.stagger_left = maxf(creature.stagger_left, _phase_len)  # stands winded: the punish window
+	tactic.emit(&"charge_recover")
+
+## Planted this frame: no path, no line, no leftover velocity (the clip that starts now stands still).
+func _halt() -> void:
+	creature.stop_move()
+	line_dir = Vector3.ZERO
+	creature.velocity.x = 0.0
+	creature.velocity.z = 0.0
+
+## Straight along the locked line at v m/s, the charge clip stride-matched by Creature.
+func _drive(v: float) -> void:
+	line_dir = _charge_dir
+	speed_override = v
+	gait_clip = &"charge"
+
+static func _flat_between(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+## Contact: she is where the horn tip will be at the impale's hit frame (impale_reach_m ahead of the body on
+## the line: the running horns pass over her head and dip onto her), within impale_r_m of the line.
+func _impale_contact() -> bool:
+	var to := attack_target.global_position - creature.global_position
+	var along := to.dot(_charge_dir)
+	var reach := _t("impale_reach_m", 0.0) * creature.size_scale()
+	if reach <= 0.0:
+		return _flat_between(horn_tip(), attack_target.global_position) <= _t("impale_r_m", 1.6)
+	# Approached from in front: the first frame inside the window is within one step (~0.15 m) of reach + 0.2.
+	return along <= reach + 0.2 and along >= reach - 0.8 and _flat_between(to, _charge_dir * along) <= _t("impale_r_m", 1.6)
+
+## The impale's hit frame: she is caught where the horn tip is now (gap = how far she was from it).
+func _impale_hit() -> void:
+	_charge_hit = true
+	impale_gap = _flat_between(horn_tip(), attack_target.global_position)
+	if impale_gap > _t("impale_r_m", 1.6) + 0.8:
+		tactic.emit(&"charge_miss")  # she got clear between contact and the hit frame
+		return
+	var mult := _t("charge_mult", 1.8)
+	tactic_hit.emit(&"charge", 0, mult)
+	tactic.emit(&"impale")
+	tactic.emit(&"charge_hit")
+	_mark_pack()
+	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult) and attack_target is Player:
+		var pl := attack_target as Player
+		pl.receive_creature_hit(creature, &"attack_heavy")
+		if pl.sim:
+			_caught = pl
+			_caught_y = pl.global_position.y
+			pl.sim.shove(_charge_dir * 0.01, 2.0)  # no control while on the horn; _fling sets the real throw
+
+## Thrown off the horns: up at toss_up_mps and forward charge_shove_m along the line.
+func _fling() -> void:
+	if _caught == null or not is_instance_valid(_caught):
+		_caught = null
+		return
+	var up := _t("toss_up_mps", 6.0)
+	var air := 2.0 * up / 9.8
+	_caught.sim.shove(_charge_dir * _t("charge_shove_m", 4.0), air)
+	_caught.velocity.y = up
+	_caught = null
+
+## A body-check off the line: she is beside the horns but against its flank. Shoved clear sideways (one
+## charge hit), so the run never stalls against her capsule.
+func _glance() -> void:
+	if _charge_hit:
+		return
+	var to := attack_target.global_position - creature.global_position
+	to.y = 0.0
+	if to.length() > creature.body_radius() + 0.9 or to.dot(_charge_dir) < 0.0:
+		return
+	_charge_hit = true
+	var side := (to - _charge_dir * to.dot(_charge_dir)).normalized()
+	tactic_hit.emit(&"charge", 0, 1.0)
+	tactic.emit(&"charge_hit")
+	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, 1.0) and attack_target is Player:
+		var pl := attack_target as Player
+		pl.receive_creature_hit(creature, &"attack_heavy")
+		if pl.sim:
+			pl.sim.shove((side + _charge_dir * 0.5).normalized() * _t("charge_shove_m", 4.0) * 0.6, _t("charge_shove_stagger_s", 0.6))
+
+## Back to the ring, or straight after her when she is already past it (no one-frame circle in between).
+func _after_charge() -> void:
+	_charge_cleanup()
+	if _flat_dist(attack_target) > ring_m() + 3.0:
+		_set_state(&"approach")
+	else:
+		_enter_circle()
+
+func _charge_cleanup() -> void:
+	_fling()
+	_charge_phase = &""
+
+## Hit reactions do not interrupt a committed charge (paw, run, impale); brake and recover can be punished.
+func super_armor() -> bool:
+	return state == &"charge" and _charge_phase in [&"paw", &"run", &"impale"]
+
+## World position of the nose-horn tip on the live pose: the mesh's frontmost rest vertex, kept in Head-bone
+## space and carried by the bone (so it follows the dip and scoop). No rig: a point ahead of the body.
+func horn_tip() -> Vector3:
+	var fallback := creature.global_position - creature.global_basis.z * (creature.body_radius() + 1.0)
+	var rig := creature.view.rig if creature.view else null
+	var sk := rig.skeleton if rig else null
+	var bone := sk.find_bone("Head") if sk else -1
+	if bone < 0:
+		return fallback
+	if not _horn_local.has(creature.def.id):
+		_horn_local[creature.def.id] = _measure_horn(sk, bone)
+	var local: Variant = _horn_local[creature.def.id]
+	if local == null:
+		return fallback
+	return sk.global_transform * sk.get_bone_global_pose(bone) * (local as Vector3)
+
+func _measure_horn(sk: Skeleton3D, bone: int) -> Variant:
+	var fwd := (sk.global_basis.inverse() * -creature.global_basis.z).normalized()
+	var best := -INF
+	var tip: Variant = null
+	for mi in sk.find_children("*", "MeshInstance3D", false):
+		var m := (mi as MeshInstance3D).mesh
+		if m == null or (mi as MeshInstance3D).has_meta(&"creature_gear"):
+			continue
+		for sf in m.get_surface_count():
+			for v in (m.surface_get_arrays(sf)[Mesh.ARRAY_VERTEX] as PackedVector3Array):
+				var p := (mi as MeshInstance3D).transform * v
+				if p.dot(fwd) > best:
+					best = p.dot(fwd)
+					tip = p
+	return sk.get_bone_global_rest(bone).affine_inverse() * (tip as Vector3) if tip != null else null
+
 func _charge(delta: float) -> void:
+	if _charge_phase != &"":
+		_charge_impale(delta)
+		return
 	if _tossing:
 		# No glide: the toss plays in place where the horn met her; the line ends when the clip does.
 		creature.stop_move()
@@ -1560,6 +1808,8 @@ func _start_flee(seconds: float) -> void:
 	tactic.emit(&"flee")
 
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
+	if prev == &"charge":
+		_charge_cleanup()  # never leave her hanging on the horn
 	if prev == &"pin":
 		_end_pin()
 	if prev == &"pounce":
