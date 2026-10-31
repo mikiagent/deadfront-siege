@@ -579,10 +579,18 @@ func _sync_hand_tool() -> void:
 	if anchor == null:
 		return
 	var hunting := _hunting()
+	# PARTCOMBAT: the heavy blades and the bow stay in her hands while equipped (the drag carry, the bow at her side),
+	# except while she gathers; the bow rides the left hand.
+	var weapon := player.inventory.equipped_weapon()
+	var row := HeldModel.weapon_row(weapon.def_id) if weapon else {}
+	if row.get("always_held", false) and not player._gathering:
+		hunting = true
 	var held := player.inventory.equipped_weapon() if hunting else player.inventory.equipped_gather_tool()
 	if held == null and hunting:
 		held = player.inventory.equipped_gather_tool()
 	var want_id := held.def_id if held else &""
+	if held == weapon and str(row.get("hand", "")) == "left" and player.left_hand_anchor():
+		anchor = player.left_hand_anchor()
 	if _hand_tool and is_instance_valid(_hand_tool):
 		if want_id == &"" or str(_hand_tool.get_meta("tool_id", "")) != str(want_id):
 			_hand_tool.queue_free()

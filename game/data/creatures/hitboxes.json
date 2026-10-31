@@ -2521,7 +2521,7 @@
           ]
         }
       },
-      "_note_allofeel": "ALLOFEEL: ClawTip rows = a part at the tip of the three claws: the Hand bone + offset along it (the rig has no ClawTip bone and the approved model is not re-exported; 0.64 m = the Hand bone's length at size 1). # ASSUMPTION radius 0.45 m (the spread claws). They sit on every move where the hands reach the prey at the hit frame: the bite, the hatchet, the grab, the ram (right hand), the rake, the slash and the shoulder-checks (near hand). Calibrated (t_hitboxes --calibrate, the part that needs the least): the rake's left claw tip 0.86 m, the slash's jaw 1.34 m, the shoulder-checks' stepping foot (Metatarsal) 1.48 / 1.59 m: at survivor height only the legs are there (its chest is 4 m up). CARNOFEEL kit: bite_combo's right claw tip 1.32 m and the charge's Jaw 2.17 m calibrated (the charge plays the run clip with the head carried high; the body running her down, _body_over, is the other contact). ALLOCHARGE: charge_leap (the jump-bite) is judged once at its bite (0.75) by TacticalBrain._charge_leap; its jaw is a 1.4 m capsule from the hinge along the Jaw bone (radius 0.55, # ASSUMPTION), not a calibrated sphere."
+      "_note_allofeel": "ALLOFEEL: ClawTip rows = a part at the tip of the three claws: the Hand bone + offset along it (the rig has no ClawTip bone and the approved model is not re-exported; 0.64 m = the Hand bone's length at size 1). # ASSUMPTION radius 0.45 m (the spread claws). They sit on every move where the hands reach the prey at the hit frame: the bite, the hatchet, the grab, the ram (right hand), the rake, the slash and the shoulder-checks (near hand). Calibrated (t_hitboxes --calibrate, the part that needs the least): the rake's left claw tip 0.86 m, the slash's jaw 1.34 m, the shoulder-checks' stepping foot (Metatarsal) 1.48 / 1.59 m: at survivor height only the legs are there (its chest is 4 m up). CARNOFEEL kit: bite_combo's right claw tip 1.32 m and the charge's Jaw 2.17 m calibrated (the charge plays the run clip with the head carried high; the body running her down, _body_over, is the other contact)."
     },
     "dilophosaurus": {
       "_note": "SP-DILOPHOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
@@ -2902,6 +2902,132 @@
         ],
         "aim_down_m": 1.2,
         "aim_up_m": 0.3
+      },
+      "wpn_1h_cross1": {
+        "clip": "wpn_1h_cross1",
+        "hits": [
+          [
+            0.2,
+            0.45
+          ]
+        ],
+        "armed": true,
+        "channels": [
+          "slash"
+        ],
+        "damage_mult": 0.8,
+        "recover": 0.85,
+        "aim_down_m": 1.2,
+        "aim_up_m": 0.6
+      },
+      "wpn_1h_cross2": {
+        "clip": "wpn_1h_cross2",
+        "hits": [
+          [
+            0.2,
+            0.45
+          ]
+        ],
+        "armed": true,
+        "channels": [
+          "slash"
+        ],
+        "damage_mult": 0.9,
+        "recover": 0.85,
+        "aim_down_m": 1.2,
+        "aim_up_m": 0.6
+      },
+      "wpn_1h_cross3": {
+        "clip": "wpn_1h_cross3",
+        "hits": [
+          [
+            0.3,
+            0.5
+          ]
+        ],
+        "armed": true,
+        "channels": [
+          "slash"
+        ],
+        "damage_mult": 1.6,
+        "recover": 1.0,
+        "aim_down_m": 1.2,
+        "aim_up_m": 0.6
+      },
+      "wpn_1h_impale": {
+        "clip": "wpn_1h_impale",
+        "hits": [
+          [
+            0.15,
+            0.35
+          ]
+        ],
+        "armed": true,
+        "channels": [
+          "pierce"
+        ],
+        "damage_mult": 1.2,
+        "recover": 1.0,
+        "aim_down_m": 1.2,
+        "aim_up_m": 0.6
+      },
+      "wpn_1h_chop": {
+        "clip": "wpn_1h_chop",
+        "hits": [
+          [
+            0.35,
+            0.55
+          ]
+        ],
+        "armed": true,
+        "channels": [
+          "impact",
+          "slash"
+        ],
+        "damage_mult": 1.5,
+        "recover": 1.0,
+        "aim_down_m": 1.2,
+        "aim_up_m": 0.6
+      },
+      "wpn_2h_slam": {
+        "clip": "wpn_2h_slam",
+        "hits": [
+          [
+            0.45,
+            0.62
+          ]
+        ],
+        "armed": true,
+        "channels": [
+          "impact",
+          "impact",
+          "slash"
+        ],
+        "damage_mult": 2.2,
+        "recover": 1.0,
+        "aim_down_m": 1.2,
+        "aim_up_m": 0.6
+      },
+      "wpn_2h_sweep": {
+        "clip": "wpn_2h_sweep",
+        "hits": [
+          [
+            0.2,
+            0.42
+          ],
+          [
+            0.55,
+            0.75
+          ]
+        ],
+        "armed": true,
+        "channels": [
+          "slash"
+        ],
+        "damage_mult": 1.3,
+        "recover": 1.0,
+        "aim_down_m": 1.2,
+        "aim_up_m": 0.6
       }
     },
     "weapons": {
@@ -2960,6 +3086,284 @@
             ],
             "length": 0.7
           }
+        ]
+      },
+      "drag_blade": {
+        "parts": [
+          {
+            "bone": "RightHand",
+            "radius": 0.16,
+            "offset": [
+              0,
+              0.11,
+              0.03
+            ],
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "length": 1.45
+          }
+        ],
+        "chain": [
+          "wpn_1h_cross1",
+          "wpn_1h_cross2",
+          "wpn_1h_cross3",
+          "wpn_1h_impale",
+          "wpn_1h_chop"
+        ]
+      },
+      "great_blade": {
+        "parts": [
+          {
+            "bone": "RightHand",
+            "radius": 0.24,
+            "offset": [
+              0,
+              0.11,
+              0.03
+            ],
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "length": 1.4
+          }
+        ],
+        "chain": [
+          "wpn_2h_slam",
+          "wpn_2h_sweep"
+        ]
+      }
+    }
+  },
+  "sections": {
+    "_doc": [
+      "BODY SECTIONS (scripts/combat/body_sections.gd, docs/current/body_sections.md). Owner: aim ranged shots at a body section, build Wounds and Armor breaks",
+      "  with melee on one section. Sections are built from each body's hurtbox capsules, with no per-species code:",
+      "bones: [pattern, section] tested in order on the lowercased hurtbox bone name (contains); exact: whole-name matches tested first; default: the rest.",
+      "  sided sections take _L / _R from the bone's suffix (.L, _L, Left). splits: a hit on section `from` becomes `to` when its contact point is more than",
+      "  below / above x the capsule radius under / over the capsule's axis (body up), or (base_frac) within that share of the capsule's length from its",
+      "  base end, the end nearest the bone's own joint (the frill sits behind the skull). species.<id>: extra splits and the armoured list.",
+      "armoured: unbroken armour takes armour_mult of a hit (an Armor break lifts it). crit: a section holding a crit spot (computed, not listed).",
+      "wounds: melee build-up per section. channels per weapon tool_class, else per damage_type: slash builds a Wound on skin, impact an Armor break",
+      "  on armour; pierce builds both at pierce_rate. A hit on another section multiplies every other section's build by switch_keep; past idle_s",
+      "  without a hit on it a section loses decay_per_s. A Wound makes hits on its section sure crits at wound_mult and starts bleeding; both last",
+      "  until the animal goes fight_s without a player hit. Every number is an ASSUMPTION (Open Questions PC1-PC12)."
+    ],
+    "default": "torso",
+    "exact": {
+      "back": "torso"
+    },
+    "bones": [
+      [
+        "jaw",
+        "head"
+      ],
+      [
+        "skull",
+        "head"
+      ],
+      [
+        "head",
+        "head"
+      ],
+      [
+        "neck",
+        "neck"
+      ],
+      [
+        "tail",
+        "tail"
+      ],
+      [
+        "front",
+        "foreleg"
+      ],
+      [
+        "scapula",
+        "foreleg"
+      ],
+      [
+        "upperarm",
+        "foreleg"
+      ],
+      [
+        "forearm",
+        "foreleg"
+      ],
+      [
+        "arm",
+        "foreleg"
+      ],
+      [
+        "hand",
+        "foreleg"
+      ],
+      [
+        "finger",
+        "foreleg"
+      ],
+      [
+        "claw",
+        "foreleg"
+      ],
+      [
+        "hind",
+        "hindleg"
+      ],
+      [
+        "thigh",
+        "hindleg"
+      ],
+      [
+        "shin",
+        "hindleg"
+      ],
+      [
+        "metatarsal",
+        "hindleg"
+      ],
+      [
+        "toe",
+        "hindleg"
+      ],
+      [
+        "foot",
+        "hindleg"
+      ],
+      [
+        "cannon",
+        "hindleg"
+      ],
+      [
+        "leg",
+        "hindleg"
+      ]
+    ],
+    "sided": [
+      "foreleg",
+      "hindleg"
+    ],
+    "splits": [
+      {
+        "from": "torso",
+        "to": "belly",
+        "below": 0.05
+      }
+    ],
+    "labels": {
+      "head": "Head",
+      "neck": "Neck",
+      "torso": "Body",
+      "belly": "Belly",
+      "tail": "Tail",
+      "frill": "Frill",
+      "plates": "Plates",
+      "hump": "Hump",
+      "foreleg_L": "L. foreleg",
+      "foreleg_R": "R. foreleg",
+      "hindleg_L": "L. hindleg",
+      "hindleg_R": "R. hindleg"
+    },
+    "armour_mult": 0.25,
+    "species": {
+      "ankylosaurus": {
+        "armoured": [
+          "torso",
+          "tail",
+          "head"
+        ]
+      },
+      "stegosaurus": {
+        "splits": [
+          {
+            "from": "torso",
+            "to": "plates",
+            "above": 0.3
+          }
+        ],
+        "armoured": [
+          "plates"
+        ]
+      },
+      "triceratops": {
+        "splits": [
+          {
+            "from": "head",
+            "to": "frill",
+            "base_frac": 0.45
+          }
+        ],
+        "armoured": [
+          "frill"
+        ]
+      },
+      "styracosaurus": {
+        "splits": [
+          {
+            "from": "head",
+            "to": "frill",
+            "base_frac": 0.45
+          }
+        ],
+        "armoured": [
+          "frill"
+        ]
+      },
+      "zebraceratops": {
+        "splits": [
+          {
+            "from": "head",
+            "to": "frill",
+            "base_frac": 0.45
+          }
+        ],
+        "armoured": [
+          "frill"
+        ]
+      },
+      "pachycephalosaurus": {
+        "armoured": [
+          "head"
+        ]
+      },
+      "woolly_rhino": {
+        "exact": {
+          "shoulders": "hump"
+        }
+      }
+    },
+    "wounds": {
+      "wound_at": 3.0,
+      "break_at": 3.0,
+      "pierce_rate": 0.5,
+      "switch_keep": 0.5,
+      "idle_s": 3.0,
+      "decay_per_s": 0.5,
+      "fight_s": 30.0,
+      "wound_mult": 2.0,
+      "bleed": "bleeding_target",
+      "channels": {
+        "slashing": [
+          "slash"
+        ],
+        "blunt": [
+          "impact"
+        ],
+        "piercing": [
+          "pierce"
+        ],
+        "drag_blade": [
+          "slash",
+          "impact"
+        ],
+        "great_blade": [
+          "slash",
+          "impact",
+          "impact"
         ]
       }
     }

@@ -10,7 +10,7 @@ static func data() -> Dictionary:
 	return _data
 
 static func channel(token: StringName) -> String:
-	return "cut" if token == &"slashing" else str(token)
+	return "cut" if token == &"slashing" else ("pierce" if token == &"piercing" else str(token))
 
 static func family(archetype: StringName) -> String:
 	return str(data().get("archetype_family", {}).get(str(archetype), "neutral"))

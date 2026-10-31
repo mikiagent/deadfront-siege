@@ -25,6 +25,7 @@ var _marker_t: float = 0.0
 var _lantern: OmniLight3D
 var _lantern_phase: float = randf() * TAU
 var _right_hand_anchor: Marker3D
+var _left_hand_anchor: Marker3D
 var _hips_anchor: Marker3D
 var _stride_left: float = 0.0
 var _foot: int = 0
@@ -129,6 +130,8 @@ static func web_safe_mesh(mi: MeshInstance3D) -> void:
 
 func _bind_rig_markers() -> void:
 	_right_hand_anchor = _marker_from_socket(p.rig.hand_socket, "RightHand")
+	if p.rig.skeleton and p.rig.skeleton.find_bone("LeftHand") >= 0:
+		_left_hand_anchor = _marker_from_socket(p.rig._bone_marker("LeftHand", ["LeftHand"]), "LeftHand")  # the bow hand
 	_hips_anchor = _marker_from_socket(p.rig.hips_socket, "Hips")
 	p.pets.mount_hips_offset = p.to_local(_hips_anchor.global_position) if _hips_anchor else Vector3.ZERO
 
@@ -145,6 +148,9 @@ func _marker_from_socket(socket: BoneAttachment3D, fallback_name: String) -> Mar
 
 func right_hand_anchor() -> Marker3D:
 	return _right_hand_anchor
+
+func left_hand_anchor() -> Marker3D:
+	return _left_hand_anchor
 
 func hips_anchor() -> Marker3D:
 	return _hips_anchor
@@ -383,6 +389,11 @@ func _setup_station_craft() -> void:
 	p.station_craft.name = "StationCraft"
 	p.add_child(p.station_craft)
 	p.station_craft.setup(p, layer)
+	# PARTCOMBAT: the body-section picker under the target bar (on the same context layer).
+	var picker := SectionPicker.new()
+	picker.name = "SectionPicker"
+	layer.add_child(picker)
+	picker.setup(p)
 	p.pets.setup_menu(layer)
 
 func _setup_eat_session() -> void:

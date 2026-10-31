@@ -201,7 +201,7 @@ func tick(delta: float) -> void:
 			if _roll_cd_left <= 0.0:
 				try_roll(_roll_buffer_dir)
 	# Fight or move, not both: no walking while a swing or punch plays.
-	if anim and anim._busy and anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
+	if anim and anim._busy and (anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"] or PlayerAnim.is_weapon_move(anim.current_clip)):
 		p.velocity.x = 0.0
 		p.velocity.z = 0.0
 		p.move_and_slide()

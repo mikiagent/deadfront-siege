@@ -1646,6 +1646,51 @@
     "club": {
       "model": "kenney/tool-hammer",
       "status": "stand-in"
+    },
+    "iron_slab_blade": {
+      "model": "res://assets/props/blender/slab_blade.glb",
+      "status": "done",
+      "source": "Blender: tools/blender/items/heavy_weapons.py (PARTCOMBAT 2026-10-31)",
+      "scale": 1.0,
+      "grip_frac": 0.11,
+      "always_held": true,
+      "carry": {
+        "idle": "wpn_1h_carry_idle",
+        "walk": "wpn_1h_carry_walk",
+        "run": "wpn_1h_carry_run"
+      }
+    },
+    "steel_greatblade": {
+      "model": "res://assets/props/blender/greatblade.glb",
+      "status": "done",
+      "source": "Blender: tools/blender/items/heavy_weapons.py (PARTCOMBAT 2026-10-31)",
+      "scale": 1.0,
+      "grip_frac": 0.22,
+      "always_held": true,
+      "carry": {
+        "idle": "wpn_2h_carry_idle",
+        "walk": "wpn_2h_carry_walk",
+        "run": "wpn_2h_carry_run"
+      }
+    },
+    "pro_bow": {
+      "model": "res://assets/props/blender/pro_bow.glb",
+      "status": "done",
+      "source": "Blender: tools/blender/items/heavy_weapons.py (PARTCOMBAT 2026-10-31)",
+      "scale": 1.0,
+      "grip_frac": 0.5,
+      "always_held": true,
+      "hand": "left",
+      "carry": {
+        "idle": "wpn_bow_carry_idle"
+      },
+      "aim": {
+        "idle": "wpn_bow_aim",
+        "walk": "wpn_bow_aim",
+        "run": "wpn_bow_aim"
+      },
+      "draw_clip": "wpn_bow_draw",
+      "release_clip": "wpn_bow_release"
     }
   },
   "farm": {

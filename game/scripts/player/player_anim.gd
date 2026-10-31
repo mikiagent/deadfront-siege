@@ -141,6 +141,10 @@ func stop_rummage() -> void:
 	_forced = false
 	play_idle()
 
+## HEAVY BLADES / BOW: a weapon's own move clip (anim/wpn_*.glb: the blades' chains, the bow's draw and release).
+static func is_weapon_move(clip: StringName) -> bool:
+	return str(clip).begins_with("wpn_") and not str(clip).ends_with("_carry")
+
 func play_clip(clip: StringName, forced: bool = false) -> void:
 	if clip not in [&"sleep", &"sleep_down", &"sleep_up", &"sit"]:
 		if _sleeping or _waking:
@@ -154,7 +158,7 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		return  # already on the ground; every hit re-triggering the fall looked like a glitch
 	_requested_clip = clip
 	_forced = forced
-	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"kick", &"tackle", &"hit_react", &"roll", &"roll_back", &"knockdown"] or clip in GATHER_CLIPS
+	_busy = clip in [&"attack_primary", &"attack_heavy", &"punch", &"kick", &"tackle", &"hit_react", &"roll", &"roll_back", &"knockdown"] or clip in GATHER_CLIPS or is_weapon_move(clip)
 	if clip == &"death":
 		_dead = true
 	_play(clip)
@@ -541,7 +545,37 @@ func release_knockdown() -> void:
 		rig.anim_player.speed_scale = 1.0
 	play_idle()
 
+## PARTCOMBAT: an equipped weapon's carry clips stand in for idle / walk / run (props_manifest weapons.<id>.carry: the
+## blades dragged behind her, the bow at her side; its "aim" set while she has a hunt target). They are swapped into the
+## rig's library under the plain names, so every locomotion rule keeps working; unequipping puts the originals back.
+var _carry_key := ""
+var _carry_saved: Dictionary = {}
+
+func sync_carry() -> void:
+	if rig == null or rig.library == null or player == null or player.inventory == null:
+		return
+	var w := player.inventory.equipped_weapon()
+	var row := HeldModel.weapon_row(w.def_id) if w and not w.is_broken() else {}
+	var swap: Dictionary = row.get("carry", {})
+	if row.has("aim") and player.hunt and player.hunt.target and is_instance_valid(player.hunt.target):
+		swap = row["aim"]
+	var key := str(swap)
+	if key == _carry_key:
+		return
+	_carry_key = key
+	for k in _carry_saved:
+		rig.library.add_animation(k, _carry_saved[k])
+	_carry_saved.clear()
+	for k in swap:
+		var src := StringName(str(swap[k]))
+		if rig.library.has_animation(src) and rig.library.has_animation(StringName(k)):
+			_carry_saved[StringName(k)] = rig.library.get_animation(StringName(k))
+			rig.library.add_animation(StringName(k), rig.library.get_animation(src))
+	if current_clip in [&"idle", &"walk", &"run"]:
+		current_clip = &""  # replay it from the swapped library
+
 func _physics_tick(speed: float, running: bool = false) -> void:
+	sync_carry()
 	if _sleeping or _waking:
 		return
 	swim_lift = move_toward(swim_lift, SWIM_LIFT.get(current_clip, 0.0) if player.swimming else 0.0, 3.0 * get_physics_process_delta_time())  # PlayerView applies it to the rig
@@ -675,7 +709,7 @@ func _on_clip_finished(clip: StringName) -> void:
 	if clip == &"rummage_in":
 		_play(&"rummage")  # stays forced: loops until play_rummage(false)
 		return
-	if clip == &"attack_primary" or clip == &"attack_heavy" or clip == &"punch":
+	if clip == &"attack_primary" or clip == &"attack_heavy" or clip == &"punch" or is_weapon_move(clip):
 		attack_done.emit()
 	if clip == &"death":
 		_busy = false

@@ -49,7 +49,14 @@
     "min_damage_frac": 0.05,
     "gravity": 9.8,
     "damage_per_ranged_level": 0.01,
-    "xp_per_hit": 2
+    "xp_per_hit": 2,
+    "_aim_about": "PARTCOMBAT aimed shots (Hunt.aimed_shot): every shot flies at the picked body section's live point (a section holding a crit spot: the spot), with a miss at the target drawn from a 2D normal of sigma = sigma_per_m x distance x (ref_speed / projectile speed) + move_sigma_k x target speed x flight time; the target also keeps moving while the shot flies (no lead). projectile_speed per ammo, m/s. unaimed_section: where a shot goes with no section picked. Every number an ASSUMPTION (Open Questions PC5-PC8).",
+    "projectile_speed": {"stone_shot": 18.0, "tranquilizer_dart": 18.0, "arrow": 45.0},
+    "sigma_per_m": 0.012,
+    "ref_speed": 18.0,
+    "move_sigma_k": 0.35,
+    "unaimed_section": "torso",
+    "shot_radius": {"stone_shot": 0.08, "arrow": 0.03}
   },
   "roll": {
     "_about": "ROLL: the survivor's dodge. Spec 07 §2 fixes no numbers ('a small amount of time'), so every value here is an ASSUMPTION of ours, tunable in data. RollRules times all of them, for the live player (PlayerSim) and the server (IntentHandlers.act.roll, rolls_dodge). seconds = how long the dash lasts; speed_mps = speed at the press, end_speed_frac = the fraction of it at the last frame; the speed decays exponentially, so most of the ground is covered early (distance = speed_mps x seconds x (1 - end_speed_frac) / -ln(end_speed_frac), ~10.9 m and 46 % of it in the first 0.16 s at these values). iframes_s = the opening window in which a creature hit that would land is dodged. stamina = the energy the press costs; cooldown_s = the wait after the dash ends before another roll. defense_xp = Defense XP for one real dodge, never for pressing Roll alone.",

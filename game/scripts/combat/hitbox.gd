@@ -69,7 +69,10 @@ static func move_spec(attacker: Node, move: StringName, hit_index: int = 0, weap
 			row.merge(sv["weapons"][str(weapon)], true)
 	var clip := StringName(str(row.get("clip", move)))
 	row["clip"] = clip
-	if row.get("window") is Array:
+	if row.get("hits") is Array and not (row["hits"] as Array).is_empty():  # a move with several strikes (a two-way sweep)
+		var hw: Array = row["hits"][clampi(hit_index, 0, (row["hits"] as Array).size() - 1)]
+		row["window"] = Vector2(float(hw[0]), float(hw[1]))
+	elif row.get("window") is Array:
 		row["window"] = Vector2(float(row["window"][0]), float(row["window"][1]))
 	else:
 		var fracs := CreatureClips.hit_fracs(clip)
@@ -225,7 +228,10 @@ static func _touch(a: Vector3, b: Vector3, r: float, hurt: Hurtboxes) -> Diction
 		var d := pts[0].distance_to(pts[1]) - r - wr
 		if d <= 0.0 and d < best_d:
 			best_d = d
-			best = {"part": c["part"], "region": c["region"], "at": pts[1]}
+			# at: the touched capsule's axis point; surface: its skin toward the attacking part (body sections split on it).
+			var out := pts[0] - pts[1]
+			best = {"part": c["part"], "region": c["region"], "at": pts[1],
+				"surface": pts[1] + (out.normalized() * wr if out.length() > 0.001 else Vector3.ZERO)}
 	return best
 
 ## The move's parts through its window in skeleton space: one Array per sample of [a, b, radius_m]
