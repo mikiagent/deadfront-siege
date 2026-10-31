@@ -174,6 +174,20 @@ After this merge, all of these pass:
 - t_styraco, t_coelomoves, t_compyfeel, t_combat, t_canim, t_mounts, t_saddles, t_godlab, t_swarm;
 - run_all `[tests] PASS` and SMOKE PASS.
 
+### Third merge: afa2e7c9 (woolly rhino, megaloceros stag/doe, pachycephalosaurus)
+
+Conflicts:
+- **charge paths**: both kept. `_charge` runs the impale phases first, then the rhino's `_tossing` hold, then the crouch.
+- **clip lists**: `toss` and my three clips are both in ONESHOT and OPTIONAL.
+- **anim_events**: `toss` and my three rows are all in.
+- **setup**: the styracosaurus reach routing sits beside the megaloceros variant tactics.
+
+After this merge, all of these pass:
+- t_styrafix, 2 runs;
+- t_styraco, t_sp_woolly_rhino, t_sp_megaloceros, t_sp_pachycephalosaurus;
+- t_coelomoves, t_compyfeel, t_combat, t_canim, t_mounts, t_saddles, t_godlab, t_swarm;
+- run_all `[tests] PASS` and SMOKE PASS.
+
 ## Gates
 
 - t_styrafix PASS (5 runs in a row on the final code). Earlier runs failed on 2 frames at the start of the run: a
