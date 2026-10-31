@@ -251,7 +251,7 @@ def alert(u):
             "Chest": (3 * up, 0, 0), "Neck1": (14 * up, 9 * sway, 0), "Neck2": (6 * up, 7 * sway, 0),
             "Head": (-8 * up + 3 * wave(u, 9) * up, 4 * sway, 9 * sway),
             "Arm.L": (-18 * up, 0, 0), "Arm.R": (-18 * up, 0, 0), "Forearm.L": (-20 * up, 0, 0), "Forearm.R": (-20 * up, 0, 0),
-        }, tail_set(-10 * up), tail_wave(u, 6.0, 0.0, cycles=3, env=up)),  # tail_set: + droops, - raises
+        }, tail_set(-3 * up), tail_wave(u, 6.0, 0.0, cycles=3, env=up)),  # tail_set: + droops, - raises (it adds up down 7 bones)
         "jaw": hiss + 2.0 * wave(u, 11) * up,
         "frill": fr,
         "frill_shiver": 0.06 * up,
@@ -274,7 +274,7 @@ def attack_primary(u):
         "turns": merge({
             "Chest": (-3 * cock, 0, 0), "Neck1": (14 * cock, 0, 0), "Neck2": (10 * cock, 0, 0), "Head": (6 * cock - 8 * max(0.0, -cock), 0, 0),
             "Arm.L": (-25 * max(0.0, -cock), 0, 0), "Arm.R": (-25 * max(0.0, -cock), 0, 0),
-        }, tail_set(-pitch * 0.5)),
+        }, tail_set(-pitch * 0.35)),
         "jaw": track(u, [(0, 1), (0.22, 8), (0.36, 34), (H, 2), (0.55, 4), (0.7, 1), (1, 1)]),
         "frill": track(u, [(0, 0), (0.15, 0.45), (0.55, 0.45), (0.8, 0), (1, 0)]),
         "feet": {"L": (0, 0, 0, 0), "R": (rl, rf, 0, 0)},
@@ -302,7 +302,7 @@ def attack_heavy(u):
             "Chest": (2 * crouch, 0, 0), "Neck1": (10 * crouch - 6 * (1 - crouch) * fr, 0, 0), "Neck2": (4 * crouch, 0, 0),
             "Head": (-6 * crouch + 2 * wave(u, 10) * crouch, 0, 0),
             "Arm.L": (-20 * fr, 0, 0), "Arm.R": (-20 * fr, 0, 0),
-        }, tail_set(-5 * crouch - pitch * 0.5), tail_wave(u, 5.0, 0.0, cycles=3, env=crouch)),
+        }, tail_set(-2 * crouch - pitch * 0.4), tail_wave(u, 5.0, 0.0, cycles=3, env=crouch)),
         "jaw": hiss,
         "frill": fr,
         "frill_shiver": 0.07 * crouch,
@@ -326,7 +326,7 @@ def spit(u):
             "Chest": (-3 * draw, 0, 0), "Neck1": (16 * draw, 0, 0), "Neck2": (12 * draw, 0, 0),
             "Head": (10 * draw + 2.5 * wave(u, 13) * quiver, 0, 0),
             "Arm.L": (-15 * fr, 0, 0), "Arm.R": (-15 * fr, 0, 0),
-        }, tail_set(-0.7 * pitch - 4 * quiver), tail_wave(u, 4.0, 0.0, cycles=2, env=quiver)),
+        }, tail_set(-0.3 * pitch - 1.5 * quiver), tail_wave(u, 4.0, 0.0, cycles=2, env=quiver)),
         "jaw": track(u, [(0, 1), (0.25, 18), (0.5, 30), (H, 38), (0.75, 24), (0.95, 2), (1, 1)]),
         "frill": fr,
         "frill_shiver": 0.05 * quiver,
@@ -348,7 +348,7 @@ def pounce(u):
         "turns": merge({
             "Chest": (-0.3 * pitch, 0, 0), "Neck1": (6 * air - 10 * crouch * (1 - air), 0, 0), "Neck2": (-0.4 * pitch, 0, 0), "Head": (-0.5 * pitch, 0, 0),
             "Arm.L": (-35 * air, 0, 0), "Arm.R": (-35 * air, 0, 0), "Forearm.L": (-25 * air, 0, 0), "Forearm.R": (-25 * air, 0, 0),
-        }, tail_set(-pitch * 0.6 - 6 * air)),
+        }, tail_set(-pitch * 0.25 - 2 * air)),
         "jaw": track(u, [(0, 1), (0.2, 12), (0.5, 32), (0.7, 36), (0.8, 10), (1, 1)]),
         "frill": track(u, [(0, 0.5), (0.15, 1), (0.85, 1), (1, 0)]),
     }

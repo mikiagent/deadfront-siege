@@ -7,7 +7,7 @@ frill is made here:
 - 7 rib bones a side (Frill1-7.L/R) on Neck2, rooted on an arc round the side of the neck behind the skull. Open, the
   ribs fan out sideways from above the crest line to under the throat (the sheet's collar); folded, they lie back
   along the neck as a narrow ruff. The rest pose is FOLDED, so clips that never key the ribs (the gaits) keep it shut.
-- The membrane is a polar grid between the ribs with a serrated rim, two-sided (a back copy 1.5 mm behind, flipped),
+- The membrane is a polar grid between the ribs with a serrated rim, one sheet (the material is double-sided),
   weighted to its two neighbouring ribs by angle, so folding the ribs pleats it.
 - It joins the body mesh and shares its one material: the body UVs are squeezed into the top 80 % of the atlas and the
   frill paint (yellow cells, red veins, dark serrated rim; the alpha's fiery orange in dilophosaurus_alpha_skin.py)
@@ -188,14 +188,15 @@ def build(src, out, out_json):
     V, F, UV, W = [], [], [], []
     for side in "LR":
         ribs, verts, uvs, wts, faces = geo[side]
-        for back in (False, True):
-            o = len(V)
-            for p, uv, w in zip(verts, uvs, wts):
-                V.append(p + Vector((0, 0.0015, 0)) if back else p)  # the back sheet, behind the open fan
-                UV.append(uv)
-                W.append({"Frill%d.%s" % (i + 1, side): x for i, x in w.items() if x > 1e-4})
-            for f in faces:
-                F.append(tuple(o + i for i in (f[::-1] if back else f)))
+        # one sheet: the creature shader and the glTF material are double-sided (cull disabled). A second, back sheet
+        # 1.5 mm behind it shadowed the front one in Godot (dark radial shadow-acne streaks across the open fan).
+        o = len(V)
+        for p, uv, w in zip(verts, uvs, wts):
+            V.append(p)
+            UV.append(uv)
+            W.append({"Frill%d.%s" % (i + 1, side): x for i, x in w.items() if x > 1e-4})
+        for f in faces:
+            F.append(tuple(o + i for i in f))
     me.from_pydata([tuple(v) for v in V], [], F)
     me.update()
     uvl = me.uv_layers.new(name=body.data.uv_layers.active.name)  # join matches UV layers by name
@@ -225,10 +226,23 @@ def build(src, out, out_json):
             pb.matrix = Matrix.Translation(b) @ q.to_matrix().to_4x4() @ Matrix.Translation(-b) @ rest
             bpy.context.view_layer.update()
             rots[name] = q.inverted()  # folded -> open, armature space about the rib head
+    # The open fan's normals, carried into the fold by each vertex's own blend of its two ribs' fold rotations. The game
+    # skins rest normals, so normals recomputed on the pleated fold came back striped (lit/unlit rays) when it opened.
+    me.calc_normals() if hasattr(me, "calc_normals") else None
+    open_n = [v.normal.copy() for v in me.vertices]
+    folded_n = []
+    for vi, w in enumerate(W):
+        q = Quaternion((0, 0, 0, 0))
+        for n, x in w.items():
+            qr = rots[n].inverted()  # open -> folded
+            q = Quaternion(tuple(a + x * b for a, b in zip(q, qr if q.dot(qr) >= 0 or q.magnitude == 0 else -qr)))
+        q.normalize()
+        folded_n.append((q @ open_n[vi]).normalized())
     bpy.ops.object.select_all(action="DESELECT")
     bpy.context.view_layer.objects.active = fr
     fr.select_set(True)
     bpy.ops.object.modifier_apply(modifier="arm")
+    fr.data.normals_split_custom_set_from_vertices([tuple(n) for n in folded_n])
     bpy.context.view_layer.objects.active = arm
     bpy.ops.object.mode_set(mode="POSE")
     bpy.ops.pose.select_all(action="SELECT")
@@ -261,18 +275,18 @@ def build(src, out, out_json):
         dst = np.ones((Hn, Wd, 4))
         dst[Hn - Hd:] = src_px
         strip = Hn - Hd
-        name = im.name.lower()
-        if "color" in name and "orm" not in name:
+        name = im.name.lower()  # Tripo's maps: Color_<task>, ORM_<task>, NormalGL_<task> ("normal" contains "orm")
+        if name.startswith("color"):
             p = paint("regular", Wd, strip)
             dst[:strip, :, :3] = p
-        elif "orm" in name:
+        elif name.startswith("orm"):
             dst[:strip, :, :3] = (1.0, 0.72, 0.0)
         else:  # normal map: flat
             dst[:strip, :, :3] = (0.5, 0.5, 1.0)
         new = bpy.data.images.new(im.name + "_frill", Wd, Hn, alpha=False)
         new.colorspace_settings.name = im.colorspace_settings.name
         new.pixels[:] = dst.ravel()
-        new.file_format = "JPEG" if "color" in name else "PNG"
+        new.file_format = "JPEG" if name.startswith("color") else "PNG"
         new.pack()
         n.image = new
     off = Hn - Hd
