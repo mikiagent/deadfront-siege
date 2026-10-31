@@ -61,6 +61,7 @@ func _run() -> void:
 	await _test_charge_throw()
 	await _test_throw_into_wall()
 	await _test_god_mode()
+	await _test_out_of_energy()
 	if failures.is_empty():
 		print("[t_knockdown] PASS")
 		quit(0)
@@ -253,3 +254,13 @@ func _test_god_mode() -> void:
 	game.god_mode = false
 	styr.queue_free()
 	p.queue_free()
+
+## 6. Owner 2026-10-31: running until the stamina bar empties leaves her Winded (as getting up from a knockdown does).
+func _test_out_of_energy() -> void:
+	var p = _player(Vector3(-60, 0.9, 0))
+	await _frames(3)
+	p.statuses.clear_id(&"winded")
+	p.vitals.energy = 0.05
+	p.vitals.drain_energy(9.0, 0.1)
+	_expect(p.vitals.energy <= 0.0 and p.statuses.has(&"winded"), "running out of energy leaves her Winded")
+	_expect(p.statuses.has_flag(&"no_sprint"), "Winded: no sprint until she catches her breath")
