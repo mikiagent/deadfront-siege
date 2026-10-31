@@ -1,6 +1,6 @@
 # STEGOSPIN port onto canon (knockdown, hitboxes, bigstomp, megajoust)
 
-Branch `claude/mmo-stegospin`, merged with `origin/claude/mmo-overhaul` up to f1b73788e (megajoust). No Meshy or Tripo
+Branch `claude/mmo-stegospin`, merged with `origin/claude/mmo-overhaul` up to 38ad8b87b (megajoust, sp-gallimimus). No Meshy or Tripo
 credits spent. All clips are procedural (Blender scripts in `tools/gait/`).
 
 ## What shipped
