@@ -1251,7 +1251,7 @@ func _charge(delta: float) -> void:
 ## shoulder ram); tactics.kick_shove_m the same for its kick. THERIZINOSAURUS: tactics.primary_shove_m, the claw sweep
 ## (attack_primary) pushes her back to claw's length; tactics.hook_pull_m, the combo's first hit (the claw hook) drags her
 ## in toward it, never closer than hook_stop_m. SP-ALLOSAURUS (tactics.grab): the grab_bite's first hit (the hands' clamp)
-## pins her for the bites that follow (the utahraptor's grab_bite, without tactics.grab, is a plain bite).
+## pins her for the bites that follow (the utahraptor's bite with arms is its own clip, arm_bite).
 func landed(clip: StringName, target: Node) -> void:
 	if clip == &"grab_bite" and tac.get("grab", false) and creature.anim.hit_index == 0:
 		if _hold_victim(target as Node3D, &"grab_bite"):

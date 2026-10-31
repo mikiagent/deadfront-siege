@@ -805,7 +805,7 @@
       }
      ]
     },
-    "grab_bite": {
+    "arm_bite": {
      "parts": [
       {
        "bone": "Jaw"
@@ -816,7 +816,7 @@
        "calibrated": true
       }
      ],
-     "_note": "RAPTORFLANK x HITBOXES: the arms-and-jaws grab is the plain bite's timing and reach (utahraptor.json _bite_alt), so the bite's calibrated row"
+     "_note": "RAPTORFLANK x HITBOXES: the bite with arms is the plain bite's timing and reach (utahraptor.json _bite_alt), so the bite's calibrated row"
     }
    }
   },

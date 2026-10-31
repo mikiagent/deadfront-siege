@@ -7,7 +7,7 @@
       "note_therizinosaurus": "therizinosaurus (SP-THERIZINOSAURUS, tools/gait/make_theri_moves.py): claw sweep, 1.0 s: the right arm cocks out to its right, the sickle claws sweep low across its front on 0.42 (hit from Claw.R); a landed sweep shoves her back (tactics.primary_shove_m)",
       "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
-    "grab_bite": {
+    "arm_bite": {
       "hit_frac": 0.42,
       "windup": false,
       "note": "utahraptor (UTAHARMS 2026-10-31): its attack_primary with the hands reaching forward, claws spread, and raking down clenched on the bite (tools/gait/raptor_overlay.py --keep); same timing as attack_primary; TacticalBrain plays it for tactics.bite_alt_chance of the bites"
