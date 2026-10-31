@@ -231,7 +231,7 @@
     "pounce_radius_m": 2.2,
     "pounce_mult": 1.5,
     "pounce_overshoot_chance": 0.1,
-    "pounce_land_m": 3.6,
+    "reach_m": 4.9,
     "leap_height_per_m": 0.05
   }
 }

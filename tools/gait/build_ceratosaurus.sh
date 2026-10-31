@@ -2,7 +2,7 @@
 # SP-CERATOSAURUS (owner 2026-10-31, species brief): build the ceratosaurus from the Tripo v1 mesh (task
 # 402c6567-0c34-488c-9128-03352078ebe6, kept as work/ceratosaurus_tripo_v1.glb, gitignored; the task id re-downloads it):
 #   1. tools/gait/rig_biped.py: hand-placed theropod skeleton (tools/gait/ceratosaurus_rig.json), heat weights
-#   2. tools/jaw/add_jaw.py --x-side: Jaw bone + lower-jaw skin; tools/jaw/open_mouth.py rips the lips apart (Tripo
+#   2. tools/jaw/add_jaw.py --x-side: Jaw bone (local +X opens it) + lower-jaw skin; tools/jaw/open_mouth.py rips the lips apart (Tripo
 #      bridged the parted lips with 2 mm faces that stretched 29x at a 30 deg gape) and adds the mouth bag
 #   3. gaits from tools/gait/ceratosaurus.json (walk, run, strafes, walk_back)
 #   4. one-shots, idle, feed, sleep, the tail swipe (kick) and the water-edge lunge (pounce) from make_cerato_moves.py
