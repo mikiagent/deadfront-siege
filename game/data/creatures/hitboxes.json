@@ -15,6 +15,122 @@
   "species.<id>.variants.<model variant>: parts / moves for that model (megaloceros doe), over the species row.",
   "A species with no row (or no row for a move) takes the bones of its own pipeline.hit_parts.<move> as that move's parts, so new species plug in from their JSON; calibrated radii still need a row here."
  ],
+ "crit_spots": {
+  "_doc": ["WEAK SPOTS (scripts/combat/crit_spots.gd, docs/current/crit_spots.md). A player melee hit whose hitbox, where it first touches, passes through a spot (or a", "  stone or dart whose flight passes through one) is a sure crit at the spot's mult, instead of the chance crit (player_melee crit_base / crit_behind).", "default: mult and radius of a spot that names none. species.<id>: 1-3 spots, each {name, bone, offset [x right, y up, z forward] in metres at size 1", "  from the bone, measured in the rest pose in the animal's own frame (tests/t_hitboxes.gd -- --bones prints it), radius (m at size 1), mult}.", "  The spot rides the bone. Armoured species: small spots under the armour, mult 2.5. Every number here is an ASSUMPTION (Open Questions CS1-CS6).", "fallback: a species with no row and no rig (a stand-in): spots at [x, y, z] as shares of its width (0.3 x length), height and length (forward) from its feet centre.", "  A rigged species with no row takes a head spot on its first bone named Head."],
+  "default": {"mult": 2.0, "radius": 0.3},
+  "fallback": [{"name": "head", "at": [0.0, 0.85, 0.45], "radius": 0.35}],
+  "species": {
+   "allosaurus": [
+    {"name": "head", "bone": "Head", "offset": [0.04, 0.29, 0.86], "radius": 0.54},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "ankylosaurus": [
+    {"name": "belly", "bone": "Body", "offset": [0.03, -0.74, 0.58], "radius": 0.22, "mult": 2.5},
+    {"name": "throat", "bone": "Neck", "offset": [0.0, -0.24, 0.16], "radius": 0.2, "mult": 2.5}
+   ],
+   "carnotaurus": [
+    {"name": "head", "bone": "Head", "offset": [-0.15, 0.34, 0.96], "radius": 0.53},
+    {"name": "hamstring_L", "bone": "BackLowLeg.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "BackLowLeg.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "ceratosaurus": [
+    {"name": "head", "bone": "Head", "offset": [0.01, 0.25, 0.66], "radius": 0.37},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "coelophysis": [
+    {"name": "head", "bone": "Head", "offset": [0.01, 0.17, 0.43], "radius": 0.15}
+   ],
+   "compsognathus": [
+    {"name": "head", "bone": "Head", "offset": [0.0, 0.06, 0.23], "radius": 0.12}
+   ],
+   "deinonychus": [
+    {"name": "head", "bone": "Head", "offset": [0.0, 0.29, 0.26], "radius": 0.18}
+   ],
+   "dilophosaurus": [
+    {"name": "head", "bone": "Head", "offset": [0.01, 0.26, 0.51], "radius": 0.27}
+   ],
+   "gallimimus": [
+    {"name": "head", "bone": "Head", "offset": [0.02, 0.04, 0.28], "radius": 0.12},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "majungasaurus": [
+    {"name": "head", "bone": "Head", "offset": [-0.02, 0.23, 1.01], "radius": 0.43},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "megaloceros": [
+    {"name": "neck", "bone": "Neck", "offset": [0.03, -0.29, 0.52], "radius": 0.3}
+   ],
+   "megarex": [
+    {"name": "head", "bone": "Head", "offset": [-0.01, -0.31, 2.1], "radius": 0.9},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.5},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.5}
+   ],
+   "megatherium": [
+    {"name": "neck", "bone": "Neck", "offset": [-0.03, -0.21, 0.35], "radius": 0.35},
+    {"name": "belly", "bone": "Torso", "offset": [-0.0, -1.14, 0.43], "radius": 0.35}
+   ],
+   "pachycephalosaurus": [
+    {"name": "throat", "bone": "Neck1", "offset": [0.01, 0.11, 0.06], "radius": 0.15}
+   ],
+   "raptor": [
+    {"name": "head", "bone": "Head", "offset": [0.0, 0.32, 0.18], "radius": 0.29}
+   ],
+   "smilodon": [
+    {"name": "throat", "bone": "Neck", "offset": [0.0, -0.33, 0.21], "radius": 0.2}
+   ],
+   "spinosaurus": [
+    {"name": "head", "bone": "Head", "offset": [0.03, 0.08, 1.46], "radius": 0.6},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "stegosaurus": [
+    {"name": "belly", "bone": "spine_02", "offset": [0.0, -1.64, 0.85], "radius": 0.3, "mult": 2.5},
+    {"name": "throat", "bone": "neck_01", "offset": [0.0, -0.4, 0.61], "radius": 0.25, "mult": 2.5}
+   ],
+   "styracosaurus": [
+    {"name": "behind_frill", "bone": "Neck", "offset": [0.0, 0.7, -0.4], "radius": 0.35, "mult": 2.5},
+    {"name": "belly", "bone": "Torso", "offset": [0.03, -2.01, 0.54], "radius": 0.3, "mult": 2.5}
+   ],
+   "tarbosaurus": [
+    {"name": "head", "bone": "Head", "offset": [-0.0, -0.25, 0.92], "radius": 0.82},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "therizinosaurus": [
+    {"name": "head", "bone": "Head", "offset": [0.01, 0.43, 0.75], "radius": 0.54},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "triceratops": [
+    {"name": "behind_frill", "bone": "Neck1", "offset": [0.0, 0.6, -0.5], "radius": 0.3, "mult": 2.5},
+    {"name": "belly", "bone": "Spine1", "offset": [0.01, -1.78, 0.86], "radius": 0.3, "mult": 2.5}
+   ],
+   "tyrannosaurus": [
+    {"name": "head", "bone": "Head", "offset": [-0.01, 0.38, 1.15], "radius": 0.74},
+    {"name": "hamstring_L", "bone": "Shin.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "Shin.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "utahraptor": [
+    {"name": "head", "bone": "Head", "offset": [0.02, 0.24, 0.81], "radius": 0.55},
+    {"name": "hamstring_L", "bone": "BackLowLeg.L", "offset": [0.0, -0.25, -0.3], "radius": 0.3},
+    {"name": "hamstring_R", "bone": "BackLowLeg.R", "offset": [0.0, -0.25, -0.3], "radius": 0.3}
+   ],
+   "velociraptor": [
+    {"name": "head", "bone": "Head", "offset": [-0.01, 0.05, 0.26], "radius": 0.12}
+   ],
+   "woolly_rhino": [
+    {"name": "hump", "bone": "Shoulders", "offset": [0.0, 0.74, 0.31], "radius": 0.35},
+    {"name": "neck", "bone": "Neck2", "offset": [0.02, -0.4, 0.37], "radius": 0.3}
+   ],
+   "zebraceratops": [
+    {"name": "behind_frill", "bone": "Neck", "offset": [0.0, 0.65, -0.1], "radius": 0.18}
+   ]
+  }
+ },
  "hurtbox": {
   "min_share": 0.015,
   "end_pct": [
@@ -226,6 +342,7 @@
    }
   },
   "deinonychus": {
+   "_note": "SP-DEINONYCHUS v4: the jaws (Jaw, Head) and the hand claws (ClawTip.L/R, non-deforming markers at the hand bones' ends; 0.25 m # ASSUMPTION) strike in the bites, the combo and the pounce; the right sickle foot in the slash; calibrated: true from t_hitboxes.gd -- --calibrate on the v4 clips",
    "parts": [
     {
      "bone": "Jaw"
@@ -235,14 +352,64 @@
     }
    ],
    "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.69,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.83,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R",
+       "radius": 0.74,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.82,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.25
+      },
+      {
+       "bone": "ClawTip.R",
+       "radius": 0.25
+      }
+     ]
+    },
     "pounce": {
      "parts": [
       {
        "bone": "Jaw"
       },
       {
-       "bone": "Head",
-       "radius": 0.95,
+       "bone": "Head"
+      },
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.97,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R",
+       "radius": 0.97,
        "calibrated": true
       },
       {
@@ -267,38 +434,14 @@
       }
      ]
     },
-    "attack_primary": {
-     "parts": [
-      {
-       "bone": "Jaw"
-      },
-      {
-       "bone": "Head",
-       "radius": 0.76,
-       "calibrated": true
-      }
-     ]
-    },
     "attack_heavy": {
      "parts": [
       {
-       "bone": "Jaw",
-       "radius": 0.82,
-       "calibrated": true
+       "bone": "BackFoot.R"
       },
       {
-       "bone": "Head"
-      }
-     ]
-    },
-    "bite_combo": {
-     "parts": [
-      {
-       "bone": "Jaw"
-      },
-      {
-       "bone": "Head",
-       "radius": 0.87,
+       "bone": "BackFoot.R_end",
+       "radius": 0.32,
        "calibrated": true
       }
      ]

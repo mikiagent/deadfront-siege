@@ -117,7 +117,7 @@ Uncalibrated: triceratops, the tyrannosaurus stomp, and the ankylosaurus (ClubTa
 
 ## Debug draw
 
-- Every hurtbox is drawn green. Each judged hitbox sweep is drawn red for 0.45 s, yellow where it touched.
+- Every hurtbox is drawn green, each animal's crit spots magenta ([crit_spots.md](crit_spots.md)). Each judged hitbox sweep is drawn red for 0.45 s, yellow where it touched.
 - Code: `HitboxDebug` under the tree root, on while `Hitbox.debug_draw` is on.
 - The debug toggle (`debug_toggle` action, the HUD debug hex) switches it with `Game.debug_overlay`.
 - In the fight lab, key H or `--hitboxes` switches it.
