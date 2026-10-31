@@ -33,9 +33,9 @@ STRETCH = float(a[a.index("--stretch") + 1]) if "--stretch" in a else 10.0
 ONLY = a[a.index("--only") + 1].split(",") if "--only" in a else None
 FPS = 24
 HIT = {"attack_primary": 0.42, "attack_heavy": 0.72, "kick": 0.45, "grab_bite": 0.3,
-       "bite_combo": 0.815, "claw_rake": 0.5, "slash_bite": 0.42, "check_left": 0.45, "check_right": 0.45}
+       "bite_combo": 0.815, "charge_leap": 0.75, "claw_rake": 0.5, "slash_bite": 0.42, "check_left": 0.45, "check_right": 0.45}
 ARMS = list(HIT)  # every attack moves its arms
-GAITS = {"walk": 1, "run": 1, "walk_back": -1}  # sign of the planted foot's y drift (+y = backwards)
+GAITS = {"walk": 1, "run": 1, "charge": 1, "walk_back": -1}  # sign of the planted foot's y drift (+y = backwards)
 STRAFE = {"strafe_left": -1, "strafe_right": 1}  # sign of x drift of a planted foot (+x = the animal's left)
 LYING = {"knockdown", "death", "sleep"}
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -141,7 +141,7 @@ for f in sorted(os.listdir(anim_dir)):
         bad.append(f"stretch {stretch:.2f}")
     if lo < -0.03:
         bad.append(f"sinks {lo:.3f}")
-    if clip not in LYING and clip not in ("run", "charge") and hi_low > 0.05:
+    if clip not in LYING and clip not in ("run", "charge", "charge_leap") and hi_low > 0.05:
         bad.append(f"floats {hi_low:.3f}")
     drift = {}
     if clip in GAITS or clip in STRAFE:
@@ -160,7 +160,7 @@ for f in sorted(os.listdir(anim_dir)):
             drift[s] = round(d, 3)
             if want * d < -0.05:
                 bad.append(f"moonwalk {s} {d:+.2f}")
-    elif clip not in LYING:
+    elif clip not in LYING and clip != "charge_leap":  # ALLOCHARGE: the leap's grounded feet slide back at charge speed (they stay put in the world)
         for s in "LR":
             slide, start = 0.0, None
             for t in toe[s]:
@@ -175,7 +175,7 @@ for f in sorted(os.listdir(anim_dir)):
         # the left foot is the planted one in every standing one-shot but hit_react's stagger step: it never leaves the
         # floor (an over-reached leg lifts it off its print)
         lmax = max(z for z, _ in sole["L"])
-        if clip not in ("hit_react", "check_left") and lmax > 0.04:  # ALLOFEEL: check_left steps its left foot out
+        if clip not in ("hit_react", "check_left", "charge_leap") and lmax > 0.04:  # ALLOFEEL: check_left steps its left foot out
             bad.append(f"left foot lifts {lmax:.2f} m")
     if clip in HIT:
         n = f1 - f0
@@ -198,6 +198,12 @@ for f in sorted(os.listdir(anim_dir)):
             extra = f" hands@grab reach={-hands[i][1]:.2f} m height={hands[i][2]:.2f} m (+{fwd:.2f}); bites jaw at ({-b1[1]:.2f}, {b1[2]:.2f}) ({-b2[1]:.2f}, {b2[2]:.2f})"
             if fwd < 0.8 or b1[2] > 1.2 or b2[2] > 1.2:
                 bad.append("grab does not reach or bites do not come down")
+        elif clip == "charge_leap":  # ALLOCHARGE: both feet off the ground mid-leap, the jaws driven forward and down to the bite
+            mid = range(at(0.24), at(0.6) + 1)
+            air = min(min(sole["L"][k][0], sole["R"][k][0]) for k in mid)
+            extra = f" leap: lowest sole mid-air {air:.2f} m; bite jaw at ({-jaw[i][1]:.2f}, {jaw[i][2]:.2f})"
+            if air < 0.25 or jaw[i][2] > jaw[0][2] - 1.5:
+                bad.append("leap is not airborne or the bite does not come down")
         elif clip == "bite_combo":  # ALLOFEEL x CARNOFEEL: each chomp's jaw tip forward and down, the jaws shut on it
             hs = [at(f) for f in (0.092, 0.338, 0.815)]
             extra = " chomps jaw at " + " ".join(f"({-jaw[k][1]:.2f}, {jaw[k][2]:.2f})" for k in hs)
