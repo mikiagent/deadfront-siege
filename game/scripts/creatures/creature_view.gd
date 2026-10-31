@@ -182,8 +182,10 @@ static func variant_row(p_def: CreatureDef, p_variant: StringName) -> Dictionary
 	return row if row is Dictionary else {}
 
 ## ASSUMPTION: a wild spawn picks its variant deterministically from its identity key (50/50 for two).
+## "alpha" is reserved for alpha spawns (Creature.spawn) and never rolled here.
 static func pick_variant(p_def: CreatureDef, key: String) -> StringName:
 	var ids := model_variants(p_def).keys()
+	ids.erase("alpha")
 	if ids.is_empty():
 		return &""
 	ids.sort()
@@ -209,26 +211,6 @@ func _apply_model_variant() -> void:
 			var mat := src.duplicate() as StandardMaterial3D
 			mat.albedo_texture = tex
 			m.set_surface_override_material(i, mat)
-
-## ALPHA SKIN (pipeline.alpha_texture in the species JSON: an albedo map next to the GLB, e.g. the carnotaurus'
-## rust-and-black alpha sheet): an alpha's base colour map. Swaps it into the remembered authored materials, so
-## call it before apply_coloration (Creature.spawn does), which then copies the alpha map into the shader.
-func apply_alpha_skin() -> bool:
-	var tex_name := str(def.pipeline.get("alpha_texture", "")) if def else ""
-	if tex_name.is_empty() or not using_glb:
-		return false
-	var tex := load("res://assets/creatures/%s/%s" % [def.id, tex_name]) as Texture2D
-	if tex == null:
-		push_error("CreatureView: %s alpha skin: missing %s" % [def.id, tex_name])
-		return false
-	for mi in _originals:
-		var mats: Array = _originals[mi]
-		for i in mats.size():
-			if mats[i] is StandardMaterial3D:
-				var m := (mats[i] as StandardMaterial3D).duplicate() as StandardMaterial3D
-				m.albedo_texture = tex
-				mats[i] = m
-	return true
 
 ## Eyeshine dots on the Head bone; only species whose JSON has an "eyes" block get them.
 ## The block is read straight from the species file: it is a presentation detail, and CreatureDef

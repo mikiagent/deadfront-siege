@@ -127,6 +127,9 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	platform_wall_layers = 0
 	def = p_def
 	variant = p_variant if p_variant != &"" else CreatureView.pick_variant(p_def, "%s@%v" % [p_def.id, global_position.round()])
+	# An alpha wears the species' alpha skin when it has one (pipeline.model_variants.alpha, the owner's alpha sheet).
+	if p_variant == &"" and (alpha_spawn or (genetics != null and genetics.alpha)) and CreatureView.model_variants(p_def).has("alpha"):
+		variant = &"alpha"
 	_slide_counter += 1
 	_slide_phase = _slide_counter
 	pack_id = p_pack
@@ -144,8 +147,6 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		genetics = CreatureGenetics.for_species(def, null, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
 	if alpha_spawn and not genetics.alpha:
 		genetics.make_alpha()
-	if is_alpha():
-		view.apply_alpha_skin()  # a species with an alpha sheet (pipeline.alpha_texture) wears it on its alphas
 	# One colour profile per individual, kept on the genetics record so taming carries it over.
 	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
 	if pet_record:  # SADDLES: the equipped saddle shows on the back, ridden or not
@@ -902,8 +903,7 @@ func _on_hit(clip: StringName) -> void:
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
 		var offset := global_position - target.global_position
-		var part := part_reach(clip, target)
-		if part == 0 or (part < 0 and brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3):
+		if brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
 			if target is Player or target is Creature:
 				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
@@ -914,22 +914,29 @@ func _on_hit(clip: StringName) -> void:
 		if brain is TacticalBrain:
 			(brain as TacticalBrain).landed(clip, target)
 
-## Where a move's attacking part is at its hit frame (species JSON pipeline.hit_parts: {move: {"bone", "radius_m"}},
-## radius at body size 1.0): 1 when that bone, posed now, is within radius_m of the target's body, 0 when it is not,
-## -1 when the species names no part for the move (callers keep the centre-to-centre reach).
-## shortcut: one sphere on one bone, flat distance; upgrade to hitboxes.json parts when claude/mmo-hitboxes lands.
-func part_reach(move: StringName, target: Node3D) -> int:
-	var row: Variant = (def.pipeline.get("hit_parts", {}) as Dictionary).get(str(move)) if def and def.pipeline.get("hit_parts") is Dictionary else null
+## Where a move hits (species JSON pipeline.hit_parts.<clip>: {bones, radius_m}; until the hitbox system lands): at
+## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical
+## segment from its feet to its height. True when the species lists no parts for the clip or the rig lacks them.
+func part_hit(clip: StringName, target: Node3D) -> bool:
+	var row: Variant = (def.pipeline.get("hit_parts", {}) as Dictionary).get(str(clip)) if def and def.pipeline.get("hit_parts") is Dictionary else null
 	var sk: Skeleton3D = view.rig.skeleton if view and view.rig else null
-	if not row is Dictionary or sk == null or target == null:
-		return -1
-	var b := sk.find_bone(str((row as Dictionary).get("bone", "")))
-	if b < 0:
-		return -1
-	var p := sk.global_transform * sk.get_bone_global_pose(b).origin
-	var tr := (target as Creature).body_radius() if target is Creature and (target as Creature).def else CreatureBrain.SURVIVOR_RADIUS
+	if not (row is Dictionary) or sk == null or target == null:
+		return true
+	var tr := (target as Creature).body_radius() if target is Creature else 0.35
+	var th := (target as Creature).def.height_meters * (target as Creature).size_scale() if target is Creature else 1.78
 	var r := float((row as Dictionary).get("radius_m", 1.0)) * size_scale() + tr
-	return 1 if Vector2(p.x - target.global_position.x, p.z - target.global_position.z).length() <= r else 0
+	var base := target.global_position
+	var found := false
+	for b in (row as Dictionary).get("bones", []):
+		var i := sk.find_bone(str(b))
+		if i < 0:
+			continue
+		found = true
+		var p := sk.global_transform * sk.get_bone_global_pose(i).origin
+		var y := clampf(p.y, base.y, base.y + th)
+		if p.distance_to(Vector3(base.x, y, base.z)) <= r:
+			return true
+	return not found
 
 func _on_attack_done() -> void:
 	pass

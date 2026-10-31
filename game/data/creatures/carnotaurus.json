@@ -85,19 +85,24 @@
   "reference_sheet": "ref/carnotaurus_sheet.png (owner sheet 1, mouth open); alpha: ref/carnotaurus_alpha_sheet.png (owner sheet 2)",
   "donor_rig": "tools/standins/quaternius/Velociraptor.fbx (CC0, biped)",
   "build": "tools/gait/build_carnotaurus.sh",
-  "alpha_texture": "carnotaurus_alpha_albedo.jpg",
-  "_hit_parts": "shortcut until claude/mmo-hitboxes lands: the attacking bone of each move and its reach (m at body size 1.0); Creature.part_reach checks it at the hit frame",
+  "_hit_parts": "canon's bone hit check (Creature.part_hit, until claude/mmo-hitboxes lands): at the hit frame one named bone must be within radius_m (x body size) of the target's body",
   "hit_parts": {
    "attack_primary": {
-    "bone": "Jaw",
+    "bones": [
+     "Jaw"
+    ],
     "radius_m": 1.6
    },
    "attack_heavy": {
-    "bone": "Head",
+    "bones": [
+     "Head"
+    ],
     "radius_m": 1.9
    },
    "charge": {
-    "bone": "Head",
+    "bones": [
+     "Head"
+    ],
     "radius_m": 1.9
    }
   },
@@ -138,6 +143,9 @@
    "# ASSUMPTION: the PRDs are silent on Carnotaurus. Stats sit between the utahraptor (L50 desert apex) and the allosaurus: hp 6000, atk 360, def 150, speed 640 (fast), tier 48, capture tier 4, tamed role combat only (no saddle built), taming food as the other big carnivores.",
    "# ASSUMPTION: size: 8 m real -> 12.8 m on screen (the house 1.6x), real_length_m 16 (the roster's 2x convention); height_meters 5.74 is the head-top height at that length.",
    "# ASSUMPTION: turn_rate 2.0 rad/s (poor turner at speed, the reason for the charge's hop-turn and the flank window); climate desert; archetype horned_hunter (ai.json, new)."
-  ]
+  ],
+  "model_variants": {
+   "alpha": "carnotaurus_alpha_albedo.jpg"
+  }
  }
 }

@@ -97,9 +97,13 @@ func _test_view() -> void:
 	_expect(absf(aabb.size.y - def.height_meters) < 0.2 and absf(long_side - 12.8) < 0.8, "size: %.1f m long, %.2f m tall (8 m real x 1.6)" % [long_side, aabb.size.y])
 	# Alpha skin: an alpha wears the rust-and-black map, a normal one the regular map.
 	var regular := _albedo(view)
-	_expect(view.apply_alpha_skin(), "the alpha skin loads (pipeline.alpha_texture)")
+	view.free()
+	view = CV.new()
+	root.add_child(view)
+	view.setup(def, &"alpha")  # an alpha spawn's variant (Creature.spawn picks it for alphas)
 	view.apply_coloration(load("res://scripts/creatures/creature_coloration.gd").neutral())
 	var alpha := _albedo(view)
+	_expect(CV.model_variants(def).has("alpha") and not CV.pick_variant(def, "x") in [&"alpha"], "the alpha skin is pipeline.model_variants.alpha, never rolled for a normal spawn")
 	_expect(regular != null and alpha != null and alpha != regular and alpha.resource_path.ends_with("carnotaurus_alpha_albedo.jpg"), "the alpha's albedo is the alpha map (%s)" % (alpha.resource_path if alpha else "none"))
 	# Feet on their prints in the standing clips: lowest hind foot bone at its rest height, no slide across the floor.
 	var ap: AnimationPlayer = view.rig.anim_player
@@ -213,7 +217,7 @@ func _test_fight() -> void:
 	hurt[0] = 0
 	c.anim.play_clip(&"attack_primary")
 	await _sim(1.2)
-	_expect(hurt[0] == 0 and c.part_reach(&"attack_primary", player) == 0, "snap bite: at its flank (3 m from its centre) the jaws miss (damage events %d)" % hurt[0])
+	_expect(hurt[0] == 0 and not c.part_hit(&"attack_primary", player), "snap bite: at its flank (3 m from its centre) the jaws miss (damage events %d)" % hurt[0])
 	await _free(c)
 
 	# 2. Horn ram: lands and throws her back.

@@ -675,7 +675,7 @@ func _test_combat_counters() -> void:
 		if not row is Dictionary or not row.has("stats"): continue
 		creature_count += 1
 		_expect(model.family(StringName(row["archetype"])) != "neutral", "counter family for " + filename)
-	_expect(creature_count == 21, "counter chart covers 21 catalogue species")
+	_expect(creature_count >= 21, "counter chart covers the %d catalogue species (20 + woolly rhino; new species add more)" % creature_count)
 	_expect(is_equal_approx(model.multiplier(&"tyrant", &"blunt"), 1.5), "tyrant blunt counter")
 	_expect(is_equal_approx(model.multiplier(&"tyrant", &"slashing"), 0.5), "slashing aliases cut")
 	_expect(is_equal_approx(model.multiplier(&"unknown", &"blunt"), 1.0), "unknown archetype neutral")

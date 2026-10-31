@@ -4,7 +4,7 @@
 //
 // camera_focus       world point the camera looks at (its smoothed follow point, survivor height)
 // camera_pitch_deg   the camera's Euler x in degrees; negative looks down (-39 measured from Durango)
-// camera_yaw_deg     the camera's Euler y in degrees (0: north up, IsoCamera.YAW_DEG)
+// camera_yaw_deg     the camera's Euler y in degrees (45: the grid diagonal, IsoCamera.YAW_DEG)
 // camera_distance    camera to focus along the view, metres (perspective: from the zoom)
 // parallax_strength  extra sideways lean of tall props, on top of the lean the lens gives them:
 //                    metres of shift per metre of height per metre the prop stands right or left of
