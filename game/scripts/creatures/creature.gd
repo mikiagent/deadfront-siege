@@ -101,6 +101,9 @@ var _shove_left: float = 0.0
 var _stagger_immune_until: float = -1.0
 ## STUNLOCK: after a stagger ends it is immune to the next one for this long, so it always gets a window to act.
 const STAGGER_IMMUNE_S := 0.7
+## Owner 2026-10-31: "the hurt animation shouldn't stunlock, stun should be on a cooldown (maybe you can stun every 3s
+## or so?)". ASSUMPTION: at most one stagger (and its hurt clip) per this many seconds; hits between still damage and flash.
+const STAGGER_COOLDOWN_S := 3.0
 var _aggro_ring_r: float = -1.0
 var _aggro_ring_t: float = 0.0
 ## Pet regen accumulates here and is applied in one tick per second, so the heal float
@@ -711,17 +714,17 @@ func shove(push: Vector3, seconds: float) -> void:
 	_shove_left = seconds
 	_shove_v = push * (2.0 / seconds)  # linear decay from 2d/T to 0 covers d metres
 	stagger_left = maxf(stagger_left, seconds)  # the slide is the stagger: a kick's push is never refused
-	_stagger_immune_until = maxf(_stagger_immune_until, _now_s() + seconds + STAGGER_IMMUNE_S)
+	_stagger_immune_until = maxf(_stagger_immune_until, _now_s() + maxf(STAGGER_COOLDOWN_S, seconds + STAGGER_IMMUNE_S))
 
 ## STUNLOCK (owner 2026-10-31: "ankylosaurus is getting stunlocked and not fighting back"): every stagger a hit or a
 ## tackle puts on it comes through here. A poised body (CombatTactics.poised: a giant or an armoured species) shrugs
-## it off; anyone else is staggered at most once per stagger + STAGGER_IMMUNE_S, so it always gets to act between.
+## it off; anyone else is staggered at most once per STAGGER_COOLDOWN_S (or stagger + STAGGER_IMMUNE_S if longer).
 ## True = staggered.
 func stagger(seconds: float) -> bool:
 	if seconds <= 0.0 or CombatTactics.poised(self) or _now_s() < _stagger_immune_until:
 		return false
 	stagger_left = maxf(stagger_left, seconds)
-	_stagger_immune_until = _now_s() + seconds + STAGGER_IMMUNE_S
+	_stagger_immune_until = _now_s() + maxf(STAGGER_COOLDOWN_S, seconds + STAGGER_IMMUNE_S)
 	return true
 
 ## An animal standing still on the ground has nothing to slide (most of the idle cost), so it
@@ -1150,7 +1153,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	if not armored and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
-		# stagger's once-a-second immunity so a pinned animal can still fight back.
+		# stagger's cooldown (STAGGER_COOLDOWN_S) so it never stunlocks.
 		if staggered and authored.has("hit_react") and view.using_glb and not anim._hold_knockdown:  # down (pin, knockdown): stays down
 			anim.play_clip(&"hit_react")
 			if view.planted:  # the clip may shove the body over its feet; hold them where they stand
