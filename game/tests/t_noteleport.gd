@@ -123,6 +123,8 @@ func _kick(player, c, lim: float) -> void:
 	player.anim._busy = false
 	player.vitals.energy = player.vitals.effective_max_energy()
 	c.global_position = player.global_position + Vector3(0, -0.95, -2.0)
+	# HITBOXES: her feet must reach a hurtbox after the kick's step-in; a small animal 2 m out is a clean miss.
+	c.global_position.z += maxf(0.0, load("res://scripts/combat/melee_query.gd").surface_gap(player, c) - 0.5)
 	c.velocity = Vector3.ZERO
 	c.stagger_left = 0.0
 	await physics_frame
