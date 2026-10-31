@@ -1107,8 +1107,9 @@ func _charge_cleanup() -> void:
 	_charge_phase = &""
 
 ## Hit reactions do not interrupt a committed charge (paw, run, impale); brake and recover can be punished.
+## tactics.charge_armor (megatherium): the whole committed line ignores hits (its slow, unstoppable advance).
 func super_armor() -> bool:
-	return state == &"charge" and _charge_phase in [&"paw", &"run", &"impale"]
+	return state == &"charge" and (_charge_phase in [&"paw", &"run", &"impale"] or (tac.get("charge_armor", false) and not _tossing))
 
 ## World position of the nose-horn tip on the live pose: the mesh's frontmost rest vertex, kept in Head-bone
 ## space and carried by the bone (so it follows the dip and scoop). No rig: a point ahead of the body.
@@ -1187,6 +1188,17 @@ func _charge(delta: float) -> void:
 ## A contact hit of this brain's animal landed (Creature._on_hit). tactics.heavy_shove_m: the horn ram
 ## (attack_heavy) throws the survivor back along the line from the animal to her, like the charge's shove.
 func landed(clip: StringName, target: Node) -> void:
+	# tactics.primary_pull_m (megatherium hooking claw): the hook drags her that far toward its chest, never closer than
+	# pull_stop_m from its centre.
+	if clip == &"attack_primary" and _t("primary_pull_m", 0.0) > 0.0 and target is Player and (target as Player).sim:
+		var pl0 := target as Player
+		var to := creature.global_position - pl0.global_position
+		to.y = 0.0
+		var pull := minf(_t("primary_pull_m", 0.0), to.length() - _t("pull_stop_m", 2.5) * creature.size_scale())
+		if pull > 0.05:
+			pl0.sim.shove(to.normalized() * pull, _t("primary_pull_stagger_s", 0.5))
+			tactic.emit(&"hook_pull")
+		return
 	if clip != &"attack_heavy" or _t("heavy_shove_m", 0.0) <= 0.0 or not target is Player:
 		return
 	var pl := target as Player
@@ -1538,8 +1550,10 @@ func _start_pounce() -> void:
 	_pounce_phase = &"windup"
 	_left = _t("pounce_telegraph_s", 0.8)
 	creature.stop_move()
-	# Windup pose: the heavy clip retimed to reach its strike frame as the windup ends.
-	creature.anim.play_timed_attack(&"attack_heavy", _left)
+	# Windup pose: the heavy clip retimed to reach its strike frame as the windup ends. tactics.pounce_windup_clip: a
+	# species' own windup (the megatherium's grab: reared, arms thrown wide before the bear hug).
+	var wclip := StringName(str(tac.get("pounce_windup_clip", "attack_heavy")))
+	creature.anim.play_timed_attack(wclip if creature.anim.has_state(wclip) else &"attack_heavy", _left)
 	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("pounce_radius_m", 1.6) + _size_excess(attack_target), _left + 1.0)
 	_start_cd(&"pounce")
 	_mark_pack()

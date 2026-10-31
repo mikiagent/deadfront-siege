@@ -349,7 +349,13 @@
     "lifetime_hours": 12,
     "crater_type": "plant",
     "spawns": {
-      "gathering": [],
+      "gathering": [
+        {
+          "species": "megatherium",
+          "count": 2,
+          "groups": 1
+        }
+      ],
       "working": [
         {
           "species": "deinonychus",
@@ -498,7 +504,13 @@
     "lifetime_hours": 12,
     "crater_type": "animal",
     "spawns": {
-      "gathering": [],
+      "gathering": [
+        {
+          "species": "megatherium",
+          "count": 1,
+          "groups": 1
+        }
+      ],
       "working": [
         {
           "species": "stegosaurus",
