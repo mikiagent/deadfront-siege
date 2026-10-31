@@ -81,11 +81,15 @@ func _run() -> void:
 		if CreatureDef.has_model(id):
 			# A species with its own model per variant (megaloceros stag / doe) is checked once per model.
 			var mv: Dictionary = data.creature(id).pipeline.get("model_variants", {})
-			if mv.size() > 1:
+			var own := []
+			for v in mv:
+				if mv[v] is Dictionary and (mv[v] as Dictionary).has("model"):
+					own.append(v)
+			if own.is_empty():
+				species.append(id)  # colour morphs share one model
+			else:
 				for v in mv:
 					species.append(StringName("%s/%s" % [id, v]))
-			else:
-				species.append(id)
 	if calibrate:
 		for id in species:
 			await _calibrate_species(id)

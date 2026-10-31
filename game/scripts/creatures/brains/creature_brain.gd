@@ -97,6 +97,10 @@ func _holds_flee() -> bool:
 func setup(c: Creature) -> void:
 	creature = c
 	profile = _profile(c.def.archetype)
+	# SP-RAPTOR: a species tactics block may set its own attack_range (a bigger body on a shared archetype: the raptor
+	# runs the deinonychus' pack_flanker profile with its jaws 3 m out, not 2).
+	if c.def.tactics.has("attack_range"):
+		profile["attack_range"] = float(c.def.tactics["attack_range"])
 	perception = float(profile.get("perception_base", 8.0)) + float(c.def.tier) * float(profile.get("perception_tier_mult", 0.15))
 	_flank_sign = -1.0 if int(c.get_instance_id()) % 2 == 0 else 1.0
 	# Start walking promptly. The old full roam delay made newly spawned dinosaurs look frozen.

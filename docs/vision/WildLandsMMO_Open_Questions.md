@@ -492,6 +492,19 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **TB4** | Pin: the burst and the point-blank lunge are attack_heavy hits, so (PINFEEL rule) they apply Pinned and it plants its right foot on the victim (`pin_foot`); the bite never pins. Pinned length and damage are the status data. | `tarbosaurus.json` status_applied, PINFEEL | Pin frequency is a balance call. |
 | **TB5** | Tail whip uses the TacticalBrain's `kick` slot (point blank, prey behind); the clip is named `kick` and its hit part radius is 2.0 m (the tail sweeps metres between frames). | `tarbosaurus.json` hit_parts | Swap for the hitbox system's swept volumes when it lands. |
 | **TB6** | No alpha skin: no alpha sheet was given, so alphas get the genetics recolour only (`model_variants.alpha` not set). No eye glow block (eyes not measured). No saddle (`tamed_role` is combat only). | `tarbosaurus.json` | Give an alpha sheet to get a skin. |
+
+### SP-RAPTOR (2026-10-31) — the Raptor, a new rideable dromaeosaur with colour morphs (claude/mmo-sp-raptor)
+
+Owner: "black and gold is the original raptor (idk just call it Raptor)", "raptor is big enough though" (to ride), "it comes in different colors including green and different feathers". Report `docs/orchestration/reports/claude-sp-raptor.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **RP1** | Size: `height_meters` 3.5 (back over the hips ~2.4 m, 7.5 m long on screen = 4.7 m true at the house 1.6x, between deinonychus 4.8 m and utahraptor 11.2 m on screen); `real_length_m` 9.4 (the roster's 2x). | `raptor.json` | Size sets reach, pen tier, mount height. |
+| **RP2** | Stats between deinonychus and utahraptor: hp 2400, attack 230, defense 90, speed 650; tier 42, capture tier 4, 4 feeds in a pen; `deep_bleed`. A landed sickle slash (x2.0) or pounce (x2.5) kills a fresh 100 HP survivor. | `raptor.json` | Balance pass. |
+| **RP3** | AI: the deinonychus pack_flanker profile x1.25 distances, plus a pin (a landed pounce pins prey no bigger than itself under the right foot; two pin bites x1.0, held 3.2 m out), a point-blank sickle slash (heavy, cd 6 s, x2.0, from the right foot) and a crest-flare display that leads into a pounce. `attack_range` 2.9 (a species override, new in CreatureBrain.setup) so the bite meets her. | `raptor.json` tactics | Move mix, damage and the pin length are design calls. |
+| **RP4** | Colour morphs: five textures on one mesh with equal odds per wild spawn: black_gold (the sheet), black_crimson (the feather morph), green (olive hide, amber feathers), rust (rust hide, cream feathers), slate (blue-grey hide, ice-blue feathers). Recoloured from the Tripo albedo, so every morph has the same crest and quill shapes; no crest on/off. Alphas wear their rolled morph. | `pipeline.model_variants`, `tools/gait/raptor_palettes.py` | Which morphs exist, their odds, and whether colour ties to island/biome are the owner's. |
+| **RP5** | Spawns: a pair (chance 0.7) on the far shore of `temperate_35` and `tropical_40`; home climate tropical. | `islands.json` | Where it lives. |
+| **RP6** | Clips: the deinonychus set moved onto its body (bites step in with a short hop, both feet up to 0.18 m for a frame), the velociraptor's feed; pin_stab, the sickle slash, the crest-flare alert and sleep are new. Its arm feathers are part of the arm skin (no separate wing fans like the deinonychus), so the arm spread reads small. | `anim/`, `tools/gait/make_raptor_moves.py` | Clip asks go to the owner's review. |
 ### HITBOXES (2026-10-31) — every melee hit is a swept attack part touching a hurtbox (claude/mmo-hitboxes)
 
 Owner: "are we even using hitboxes for attacks? We should have hitboxes and it should correlate with whatever is used to attack and whatever is hitable on the body". Report `docs/orchestration/reports/claude-hitboxes.md`, how it works `docs/current/hitboxes.md`.
