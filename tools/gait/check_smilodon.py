@@ -5,6 +5,8 @@ height_meters, so the mesh is scaled by height / rest height). Every clip in ani
 - moonwalk: in walk/run each foot's planted run (sole within 4 cm of the floor) slides backwards (+Y in Blender: this
   rig faces -Y) or stays put; walk_back the opposite. Drift = y(end) - y(start) in metres; below -0.05 on walk/run fails,
 - moonwalk also on stalk; the pounce is airborne (no float check), the gallop has a flight phase,
+- gallops (run, sprint): a flight phase (every paw >= 2 cm up for a frame), the back flexes >= 12 deg, and each planted
+  paw moves back at the clip's ground speed within 3 cm a frame (no slide),
 - the part is the hit: at each hit frame (anim_events.json) the skin of the clip's hit bone (pipeline.hit_parts: the
   swiping FrontFoot.R, the sabres on Head) is at least --reach metres ahead of the rest body centre, and a sabre
   stab (Head) has come down at least --drop metres from the head's rest height.
@@ -21,6 +23,8 @@ DROP = float(a[a.index("--drop") + 1]) if "--drop" in a else 0.2
 PLANT = 0.02  # m: a paw is planted while its lowest skin is this close to the floor (the cat's low swing passes 4 cm)
 HIT = {"attack_primary": ([0.42], "FrontFoot.R"), "attack_heavy": ([0.72], "Head"), "pounce": ([0.7], "Head"), "pin_stab": ([0.38, 0.74], "Head")}
 FPS = 24
+GALLOPS = ("run", "lope", "sprint")  # SMILORUN: bounding gaits that must leave the ground, flex the back and keep planted paws stuck
+FLIGHT, MIN_BEND, SLIP = 0.02, 12.0, 0.03  # m clear of the floor, deg of back flex, m per frame off the ground speed
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.render.fps = FPS
 bpy.ops.import_scene.gltf(filepath=base)
@@ -69,6 +73,7 @@ for f in sorted(os.listdir(anim_dir)):
     except Exception: pass
     f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
     lows, stretch, feet, part, where = [], 1.0, {k: [] for k in FEET}, [], {}
+    flex, hipz, headz = [], [], []
     for fr in range(f0, f1 + 1):
         sc.frame_set(fr); p = pts()
         lows.append(p[:, 2].min())
@@ -85,11 +90,17 @@ for f in sorted(os.listdir(anim_dir)):
             feet[k].append((fp[:, 2].min(), pad[:, 1].mean()))
         if clip in HIT:
             part.append(p[PART[HIT[clip][1]]].mean(axis=0))
+        if clip in GALLOPS:  # SMILORUN: spine bend (pelvis vs chest pitch in the side plane), hip and head heights
+            pb = arm.pose.bones
+            def pitch(b):
+                y = pb[b].matrix.to_3x3().col[1]; return np.degrees(np.arctan2(y.z, -y.y))
+            flex.append(pitch("Shoulders") - pitch("Back"))
+            hipz.append((arm.matrix_world @ pb["BackUpLeg.L"].head).z * K); headz.append((arm.matrix_world @ pb["Head"].head).z * K)
     lo, hi_low = min(lows), max(lows)
     bad, extra = [], ""
     if stretch > 12.0: bad.append(f"stretch {stretch:.2f}")
     if lo < -0.03: bad.append(f"sinks {lo:.3f}")
-    if clip not in LYING and clip not in ("run", "pounce") and hi_low > 0.05: bad.append(f"floats {hi_low:.3f}")
+    if clip not in LYING and clip not in ("run", "lope", "sprint", "pounce", "leap") and hi_low > 0.05: bad.append(f"floats {hi_low:.3f}")
     drift = {}
     if clip in ("walk", "run", "walk_back", "stalk"):
         for k, seq in feet.items():
@@ -103,6 +114,19 @@ for f in sorted(os.listdir(anim_dir)):
             d = (best[-1] - best[0]) if len(best) > 1 else 0.0
             drift[k] = round(d, 3)
             if (-1 if clip == "walk_back" else 1) * -d > 0.05: bad.append(f"moonwalk {k} {d:+.2f}")
+    if clip in GALLOPS:
+        # flight: frames where every paw's lowest skin is clear of the floor; slip: each planted run (the paw's lowest skin
+        # within PLANT of the floor) must travel back at the clip's one ground speed (the median over every planted frame)
+        air = [i for i in range(len(lows)) if min(feet[k][i][0] for k in feet) > FLIGHT]
+        vel = [feet[k][i + 1][1] - feet[k][i][1] for k in feet for i in range(len(lows) - 1) if feet[k][i][0] < PLANT and feet[k][i + 1][0] < PLANT]
+        v = float(np.median(vel)) if vel else 0.0
+        slip = max([abs(d - v) for d in vel] or [0.0])
+        bend = max(flex) - min(flex)
+        extra += f" flight={len(air)}f {air} bend={bend:.1f}deg v={v * FPS:.2f}m/s slip={slip:.3f}m/f hip_z={min(hipz):.2f}-{max(hipz):.2f} head_z={min(headz):.2f}-{max(headz):.2f}"
+        if os.environ.get("GALLOP_TRACE"): print("TRACE head", [round(z, 2) for z in headz], "hip", [round(z, 2) for z in hipz], "flex", [round(f) for f in flex])
+        if not air: bad.append("no flight phase")
+        if bend < MIN_BEND: bad.append(f"spine bends only {bend:.1f} deg")
+        if slip > SLIP: bad.append(f"planted paw slips {slip:.3f} m/frame")
     if clip in HIT:
         fracs, bone = HIT[clip]
         for frac in fracs:

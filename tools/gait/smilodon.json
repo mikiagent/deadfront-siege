@@ -1,5 +1,5 @@
 {
-  "_about": "SP-SMILODON gait plan (make_gait.py), mesh units of the Tripo body (0.568 tall). Cat legs: the Foot bone runs hock/wrist -> toe tips (smilodon_rig.py), so the planted point is the toe tip and the heel peels off it. walk: lateral-sequence cat walk; run: rotary gallop with a strong back flex; stalk: the low hunting creep (body dropped, head low and level, tiny lifts, long slow cycle). Every number an ASSUMPTION tuned by eye on strips.",
+  "_about": "SP-SMILODON gait plan (make_gait.py), mesh units of the Tripo body (0.568 tall). Cat legs: the Foot bone runs hock/wrist -> toe tips (smilodon_rig.py), so the planted point is the toe tip and the heel peels off it. walk: lateral-sequence cat walk; run: rotary gallop with a strong back flex; stalk: the low hunting creep (body dropped, head low and level, tiny lifts, long slow cycle). Every number an ASSUMPTION tuned by eye on strips. SMILORUN 2026-10-31: run = rotary bound (flight, spine flex via the 'spine' block, true_pitch), sprint = the stretched burst bound, lope = the canter between walk and run.",
   "forward": [
     0,
     -1,
@@ -60,6 +60,14 @@
       "key": "tail2",
       "axis": "yaw",
       "phase": 0.1
+    },
+    "Tail2": {
+      "key": "tailp",
+      "axis": "pitch"
+    },
+    "Tail4": {
+      "key": "tailp2",
+      "axis": "pitch"
     }
   },
   "clips": {
@@ -128,32 +136,157 @@
       "wiggle_tail2": 4.0
     },
     "run": {
-      "cycle_s": 0.46,
-      "duty": 0.32,
-      "stride": 0.8,
+      "_about": "SMILORUN rotary bound: LH RH plant gathered (back arched, hinds forward under the chest), push into a long stretched flight, RF LF land reaching, the back flexes again and the fronts fold back through the gathered flight. Hips rise and fall (rock_hind), head held level, tail counterbalances.",
+      "cycle_s": 0.583,
+      "duty": 0.22,
+      "stride": 1.03,
       "phases": {
         "LH": 0.0,
-        "RH": 0.1,
-        "LF": 0.5,
-        "RF": 0.6
+        "RH": 0.06,
+        "RF": 0.5,
+        "LF": 0.56
       },
-      "lift_hind": 0.09,
-      "lift_front": 0.11,
-      "swing_curl_hind": 20,
-      "swing_curl_front": 35,
-      "toe_roll": 16,
+      "lift_hind": 0.1,
+      "lift_front": 0.12,
+      "lift_shape": 0.5,
+      "swing_curl_hind": 25,
+      "swing_curl_front": 45,
+      "toe_roll": 20,
+      "swing_ease_front": 1.6,
+      "swing_ease_hind": 1.3,
       "legroot_front": 0.25,
-      "legroot_hind": 0.15,
-      "crouch": 0.01,
-      "bob": 0.0,
-      "rock_front": 0.014,
-      "rock_phase_front": 0.0,
-      "rock_hind": 0.014,
-      "rock_phase_hind": 0.5,
-      "wiggle_head": 4.0,
-      "wiggle_harmonic_head": 1,
-      "wiggle_tail": 6.0,
-      "pitch_gain": 0.5
+      "legroot_hind": 0.3,
+      "rock_hind": 0.045,
+      "rock_phase_hind": 0.61,
+      "rock_front": 0.03,
+      "rock_phase_front": 0.3,
+      "flex_deg": 22,
+      "flex_bias_deg": 3,
+      "flex_phase": 0.95,
+      "flex_hind_share": 0.55,
+      "head_level": 1.0,
+      "wiggle_tail": 4.0,
+      "wiggle_tailp": 14,
+      "wiggle_phase_tailp": 0.7,
+      "wiggle_tailp2": 10,
+      "wiggle_phase_tailp2": 0.62,
+      "true_pitch": 1,
+      "foot_offset_hind": 0.08,
+      "foot_offset_front": 0.03,
+      "hold": {
+        "Tail1": [
+          "pitch",
+          -14
+        ]
+      }
+    },
+    "sprint": {
+      "_about": "SMILORUN burst sprint: the run's rotary bound stretched out (longer stride, shorter stance, longer flight, deeper flex) for the 2-3 s chase bursts at ~13 m/s.",
+      "cycle_s": 0.5,
+      "duty": 0.18,
+      "stride": 1.8,
+      "phases": {
+        "LH": 0.0,
+        "RH": 0.06,
+        "RF": 0.5,
+        "LF": 0.56
+      },
+      "lift_hind": 0.12,
+      "lift_front": 0.13,
+      "lift_shape": 0.5,
+      "swing_curl_hind": 25,
+      "swing_curl_front": 45,
+      "toe_roll": 20,
+      "swing_ease_front": 1.6,
+      "swing_ease_hind": 1.3,
+      "legroot_front": 0.25,
+      "legroot_hind": 0.3,
+      "rock_hind": 0.05,
+      "rock_phase_hind": 0.61,
+      "rock_front": 0.03,
+      "rock_phase_front": 0.3,
+      "flex_deg": 26,
+      "flex_bias_deg": 3,
+      "flex_phase": 0.95,
+      "flex_hind_share": 0.55,
+      "head_level": 1.0,
+      "wiggle_tail": 4.0,
+      "wiggle_tailp": 14,
+      "wiggle_phase_tailp": 0.7,
+      "wiggle_tailp2": 10,
+      "wiggle_phase_tailp2": 0.62,
+      "true_pitch": 1,
+      "foot_offset_hind": 0.1,
+      "foot_offset_front": 0.05,
+      "hold": {
+        "Tail1": [
+          "pitch",
+          -14
+        ]
+      }
+    },
+    "lope": {
+      "_about": "SMILORUN lope: the unhurried cat canter between the walk and the bound (winded pace, ridden at a walk_frac pace, the walk->run hand-over), the bound's shape with a short flight and a mild back flex.",
+      "cycle_s": 0.75,
+      "duty": 0.38,
+      "stride": 0.77,
+      "phases": {
+        "LH": 0.0,
+        "RH": 0.14,
+        "RF": 0.5,
+        "LF": 0.64
+      },
+      "lift_hind": 0.1,
+      "lift_front": 0.12,
+      "lift_shape": 0.5,
+      "swing_curl_hind": 25,
+      "swing_curl_front": 50,
+      "toe_roll": 20,
+      "swing_ease_front": 1.3,
+      "swing_ease_hind": 1.15,
+      "legroot_front": 0.25,
+      "legroot_hind": 0.2,
+      "rock_hind": 0.025,
+      "rock_phase_hind": 0.61,
+      "rock_front": 0.015,
+      "rock_phase_front": 0.3,
+      "flex_deg": 10,
+      "flex_bias_deg": 1,
+      "flex_phase": 0.95,
+      "flex_hind_share": 0.55,
+      "head_level": 1.0,
+      "wiggle_tail": 4.0,
+      "wiggle_tailp": 8,
+      "wiggle_phase_tailp": 0.7,
+      "wiggle_tailp2": 6,
+      "wiggle_phase_tailp2": 0.62,
+      "true_pitch": 1,
+      "foot_offset_hind": 0.04,
+      "foot_offset_front": 0.02,
+      "hold": {
+        "Tail1": [
+          "pitch",
+          -8
+        ]
+      }
     }
+  },
+  "spine": {
+    "front": [
+      "Hips",
+      "Torso",
+      "Shoulders"
+    ],
+    "front_roots": [
+      "FrontLeg.L",
+      "FrontLeg.R"
+    ],
+    "hind": [
+      "Back"
+    ],
+    "hind_roots": [
+      "BackLeg.L",
+      "BackLeg.R"
+    ]
   }
 }
