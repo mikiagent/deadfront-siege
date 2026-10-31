@@ -1,6 +1,6 @@
 # SP-ALLOSAURUS: the allosaurus is a rigged, animated 3D theropod with a hatchet bite, a grab-and-bite pin and a shoulder ram
 
-Branch `claude/mmo-sp-allosaurus`, from `origin/claude/mmo-overhaul`, with canon merged back in (8082c43b, SP-TARBOSAURUS). Pushed, not merged to canon.
+Branch `claude/mmo-sp-allosaurus`, from `origin/claude/mmo-overhaul`, with canon merged back in twice (8082c43b SP-TARBOSAURUS, then b572e213 SP-CARNOTAURUS). Pushed, not merged to canon.
 The owner confirmed the species ("yes allosaurus"). Species id `allosaurus`: the existing data and both spawn rows are kept.
 It used to have no model, so its spawns fell through to deinonychus and gallimimus, and it ran the raptor pack brain.
 
@@ -122,8 +122,9 @@ What read wrong and was fixed:
 
 ## Notes and open questions (AL1-AL6 in `docs/vision/WildLandsMMO_Open_Questions.md`)
 - **Merge notes:**
-  - My `landed()` hook is carno's, extended to the kick shove and the grab pin. When claude/mmo-sp-carnotaurus merges, keep the version here; it already includes carno's `heavy_shove_m`.
-  - add_jaw's `--x-side` lines are identical to carno's.
+  - carno is on canon now. My `landed()` is carno's hook extended to the kick shove and the grab pin, and keeps its `heavy_shove_m`.
+  - The clip lists hold both `charge_turn` and `grab_bite`. add_jaw is canon's, with `--x-side`.
+  - After this second merge every gate listed above was run again and passes: t_sp_carnotaurus and t_sp_tarbosaurus too.
 - **The grab** lays her down (PINFEEL's pose) rather than lifting her in the hands (AL5).
 - **Damage** is the old stat block (attack 480): the hatchet is x1.8 and the bites in a grab are x1.3. It is a balance call.
 - **Not done:**
