@@ -84,3 +84,19 @@ LOOKPASS), on `tut_butcher: no carcass`. Two causes:
 - `TUFTS_PER_PATCH` (3) and the patch offsets are visual tuning (# ASSUMPTION class, same as LP5).
 - The early-kill path in the tutorial was not hit in my passing runs. The pointer fallback and the bot's
   hunt-first branch are simple, but untested by a deterministic case.
+
+## 5. Follow-up after the canon merge (49ff065a): `tut_butcher: meat cut refused: carcass gone`
+The integration run failed the butcher step this way. The bot killed a compsognathus, but the rest of the
+pack kept biting, and each bite cancelled the cut. The bot also always took the *first* carcass in the
+group. After about 94 s of fighting, that carcass hit its 90 s lifetime and despawned at the cut.
+- Game (`corpse.gd`): an unlooted carcass does not count down its lifetime while the local survivor
+  stands within cut reach (3.5 m). Looted-empty carcasses still fade on their own clock. This stops a
+  carcass vanishing under a player who is fighting off the pack before cutting.
+- Bot (`tutorial_bot._loot_corpse`): it always takes the nearest carcass that is not fading and picks
+  again if that one is gone. Each of 4 attempts is: walk to it, fight off attackers, wait out the hit
+  lockout, then cut.
+
+Merged origin/claude/mmo-overhaul in. On the merged tree, t_tutorial passed 3 of 3 runs, each with its own HOME.
+Run 2 hit the early-kill path ("tut_hunt already true when it came up", the first carcass had despawned)
+and passed the butcher step in 68 s. t_playerturn, t_perfgates, t_lighting, t_ragdoll, t_butcher and t_data
+pass, run_all.gd `[tests] PASS`, smoke SMOKE PASS.

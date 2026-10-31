@@ -312,32 +312,39 @@ func _reachable_compy(skip: Array) -> Creature:
 	return best
 
 func _loot_corpse() -> String:
-	var corpse := get_tree().get_first_node_in_group("corpse") as Corpse
+	var corpse := _nearest_corpse()
 	if corpse == null:  # the hunt order was met by an earlier kill whose carcass is gone: hunt another
 		var h := await _hunt_weak()
 		if h != "":
 			return h
-		corpse = get_tree().get_first_node_in_group("corpse") as Corpse
+		corpse = _nearest_corpse()
 	if corpse == null:
 		return "no carcass"
-	var w := await _walk_to(corpse.global_position, 2.2)
-	if w != "":
-		return w
-	await _fight_off_attackers()
-	if not is_instance_valid(corpse):
-		return "carcass gone"
-	w = await _walk_to(corpse.global_position, 2.2)
-	if w != "":
-		return w
-	await _beat(5.5)  # a hit within the last seconds cancels a cut, as it does for a player
-	player.context_action("loot")  # opens the part picker over the carcass (or the chest)
-	await _beat(0.6)
-	for attempt in 3:
+	for attempt in 4:
 		if player.inventory.count_of(&"raw_meat") + player.inventory.count_of(&"raptor_meat") > 0:
 			break
+		# A pack fight can outlast a carcass, and new kills leave new ones: always cut the nearest live one.
+		if not is_instance_valid(corpse) or corpse.is_queued_for_deletion():
+			corpse = _nearest_corpse()
+			if corpse == null:
+				return "carcass gone"
+		var w := await _walk_to(corpse.global_position, 2.2)
+		if w != "":
+			return w
+		await _fight_off_attackers()
+		if not is_instance_valid(corpse):
+			continue
+		w = await _walk_to(corpse.global_position, 2.2)
+		if w != "":
+			return w
+		await _beat(5.5)  # a hit within the last seconds cancels a cut, as it does for a player
+		if not is_instance_valid(corpse):
+			continue
+		player.context_action("loot")  # opens the part picker over the carcass (or the chest)
+		await _beat(0.6)
 		# The picker's Meat hex: ButcherPicker -> Corpse.begin_cut, a 1.6 s cut standing still.
-		var why := corpse.begin_cut(&"raw_meat", player) if is_instance_valid(corpse) else "carcass gone"
-		if why != "":
+		var why := corpse.begin_cut(&"raw_meat", player) if is_instance_valid(corpse) else ""
+		if why != "" and attempt == 3:
 			return "meat cut refused: %s" % why
 		await _beat(2.4)
 	var pk := corpse.picker() if is_instance_valid(corpse) else null
@@ -346,6 +353,16 @@ func _loot_corpse() -> String:
 	if player.ui and player.ui.visible:
 		player.ui.hide()
 	return ""
+
+## The nearest carcass that is not fading out (null when none).
+func _nearest_corpse() -> Corpse:
+	var best: Corpse = null
+	for n in get_tree().get_nodes_in_group("corpse"):
+		var c := n as Corpse
+		if c and not c.is_queued_for_deletion() and c.collision_layer != 0 \
+				and (best == null or c.global_position.distance_to(player.global_position) < best.global_position.distance_to(player.global_position)):
+			best = c
+	return best
 
 ## A wild animal that is after her cancels every cut (canon's hit-interrupt): fight it off first, as a
 ## player would. Up to 60 s; returns when nothing within 10 m is targeting her.
