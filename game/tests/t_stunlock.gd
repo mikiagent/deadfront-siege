@@ -23,9 +23,10 @@ const OWN_ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"ta
 const FIGHT_S := 14.0
 const MAX_FIGHT_S := 30.0
 const DT := 1.0 / 60.0
-# ASSUMPTION (STUNLOCK): "fights back" = 3+ attack starts, never 10 s of her up-time without one.
-const MIN_STARTS := 3
-const MAX_GAP_S := 10.0
+# ASSUMPTION (STUNLOCK): "fights back" = 2+ attack starts, never 16 s of her up-time without one. A jouster's beat
+# (MEGAJOUST: pass, overshoot, a wheel of up to wheel_max_s 12 s, the tell) is the longest designed gap.
+const MIN_STARTS := 2
+const MAX_GAP_S := 16.0
 const POISED_MAX_STAGGER := 0.01
 const MAX_HER_STAGGER := 0.35
 
