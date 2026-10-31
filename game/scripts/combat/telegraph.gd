@@ -18,6 +18,10 @@ static func show_for(creature: Creature, clip: StringName) -> void:
 	if clip == &"bite_combo":  # the MEGA chomp snaps straight ahead, just past the snout
 		ahead = creature.body_radius() + 1.0
 		radius = 1.4
+		# CARNOFEEL tactics.combo_ring_ahead_m: a long snout chomps metres past its chest (the carnotaurus' ~4.5 m)
+		var tb := creature.brain as TacticalBrain
+		if tb and tb.tac.has("combo_ring_ahead_m"):
+			ahead = float(tb.tac["combo_ring_ahead_m"]) * creature.size_scale()
 	var impact := creature.global_position + -creature.global_transform.basis.z * ahead
 	# ALLOFEEL: tactics.rings {clip: [right m, ahead m, radius m]} at body size 1: the ring where that move lands
 	var rings: Variant = creature.def.tactics.get("rings") if creature.def else null

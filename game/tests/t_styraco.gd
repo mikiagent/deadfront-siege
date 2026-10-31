@@ -203,13 +203,13 @@ func _run() -> void:
 	_expect(fled, "below retreat_frac (%.2f) it flees (state %s)" % [frac, hurt.brain.state])
 	_free([hurt])
 
-	# 6. Triceratops shares the archetype and gets the same brain (no model: the box stand-in).
+	# 6. Triceratops: since MEGAJOUST it runs the JoustBrain (a TacticalBrain) on the same charger rules: it charges.
 	var tri = _herd(1, 0, &"brave", Vector3(0, 0.1, -8), &"triceratops")[0]
 	var tlog := _listen([tri])
-	_expect(tri.brain.get_script().get_global_name() == &"TacticalBrain", "triceratops gets the same horned_charger brain")
+	_expect(tri.brain.get_script().get_global_name() == &"JoustBrain", "triceratops jousts (JoustBrain, %s)" % tri.brain.get_script().get_global_name())
 	tri.brain.on_aggro(player)
-	await _sim(2.5)
-	_expect(tlog.count(&"display") >= 1, "triceratops (stand-in) displays like the styracosaurus (%s)" % [_head(tlog)])
+	await _sim(4.0)
+	_expect(tlog.count(&"charge") >= 1 or tlog.count(&"display") >= 1, "triceratops engages: a charge or display (%s)" % [_head(tlog)])
 	_free([tri])
 
 	load("res://scripts/combat/combat_tuning.gd").reset_overrides()

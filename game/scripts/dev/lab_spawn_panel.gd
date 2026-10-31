@@ -38,10 +38,10 @@ var info: Label
 const BRAIN_MOVES := {
 	"TyrantBrain": "telegraphed bite, stomp every 3rd attack, tail whip if you are behind, roar on spotting",
 	"RaptorPackBrain": "pack flank, bites, heavy pounce from 4-7 m off-axis",
-	"ClubTailBrain": "turns its tail to you, no rush: whip, whip, smash, whip, sweep: TAIL WHIP (knockback), TAIL SMASH (knockdown + shockwave), CLUB SWEEP (also when surrounded); hits only from the club, the head is safe",
+	"ClubTailBrain": "tail moves when you are round its rear (ankylosaurus: TAIL WHIP, TAIL SMASH, CLUB SWEEP; stegosaurus: TAIL SPIN, twice when you stay close), close moves in front and beside it (STOMP, SHOVE, TACKLE; ankylosaurus TAIL SPIN from the front; stegosaurus REAR SLAM, HIND STOMP), PIVOTS on a front foot, never backs into you; ankylosaurus JOUST from far off",
 	"CreatureBrain": "attack_primary, attack_heavy after 3 primaries",
 }
-const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"stomp", &"shove_left", &"shove_right", &"tackle", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"claw_rake", &"slash_bite", &"check_left", &"check_right"]
+const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"stomp", &"shove_left", &"shove_right", &"tackle", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"spin_left", &"spin_right", &"pivot_left", &"pivot_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"tackle_lunge", &"about_left", &"about_right", &"claw_rake", &"slash_bite", &"check_left", &"check_right"]
 
 ## Every species in the data, sorted (owner 2026-10-28: "put all of the animals in the creature lab").
 static func all_species() -> Array[StringName]:
@@ -67,7 +67,7 @@ static func moves_line(id: StringName) -> String:
 	var def := Data.creature(id)
 	if def == null:
 		return ""
-	var brain := "TyrantBrain" if id == &"tyrannosaurus" else ("ClubTailBrain" if def.archetype == &"club_tail" else ("TacticalBrain" if TacticalBrain.has_tactics(def) else ("RaptorPackBrain" if def.mapped_archetype() == &"raptor_pack" else "CreatureBrain")))  # mirrors Creature._make_brain
+	var brain := "TyrantBrain" if id == &"tyrannosaurus" else ("ClubTailBrain" if def.archetype in [&"club_tail", &"spiked_tail"] else ("TacticalBrain" if TacticalBrain.has_tactics(def) else ("RaptorPackBrain" if def.mapped_archetype() == &"raptor_pack" else "CreatureBrain")))  # mirrors Creature._make_brain
 	var seqs: Array[String] = []  # the distinct steps of its tactics sequences (strafe_left/right -> strafe)
 	for q in TacticalBrain.tactics_for_def(def).get("sequences", []):
 		for step in (q as Dictionary).get("steps", []):

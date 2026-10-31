@@ -91,6 +91,9 @@ func _run() -> void:
 				for v in mv:
 					species.append(StringName("%s/%s" % [id, v]))
 	if calibrate:
+		var only := Array(OS.get_cmdline_user_args()).filter(func(a: String) -> bool: return a.begins_with("--species="))
+		if not only.is_empty():  # -- --calibrate --species=carnotaurus: one species only
+			species = species.filter(func(id: StringName) -> bool: return str(id).get_slice("/", 0) == (only[0] as String).trim_prefix("--species="))
 		for id in species:
 			await _calibrate_species(id)
 		print("[t_hitboxes] CALIBRATE %s" % JSON.stringify(_calib))
@@ -212,8 +215,8 @@ func _moves_of(c) -> Array:
 	var close: Dictionary = c.brain.get(&"close_moves") if c.brain.get(&"close_moves") is Dictionary else {}
 	for move_id in close:
 		var row: Dictionary = close[move_id]
-		if row.has("lunge_m") or not ap.has_animation(StringName(str(row.get("clip", "")))):
-			continue  # the tackle is judged by its run's contact sphere
+		if row.has("lunge_m") or row.has("carry_m") or row.has("turn_deg") or row.has("line_bone") or not ap.has_animation(StringName(str(row.get("clip", "")))):
+			continue  # the tackle's leap and the slam's throw are swept live (ClubTailBrain._tick_leap); a turn has no hit; a line_bone move (STEGOSPIN spin) by its body line
 		var spot: Vector3 = c.brain.strike_spot(StringName(str(move_id))) - c.global_position
 		out.append([StringName(str(row["clip"])), 0, false, [Vector3(spot.x, 0.0, spot.z)]])
 	if club_tail:
@@ -254,7 +257,7 @@ func _test_species(id: StringName) -> void:
 					_calib_need(c, HB.skeleton_of(c), row, c.size_scale(), dbg)
 					print("[hbdebug] %s %s size %.3f need %s spec %s pos %s anim %s pclip %s" % [id, mv, c.size_scale(), dbg, HX.move_spec(c, mv, int(row[1])), player.global_position, c.anim.current_clip, player.anim.current_clip])
 				await _unpose(mv)
-				_expect(not hit.is_empty(), "%s %s[%d]: connects with a survivor %s at %.2f m (contact reach %.2f) (%s)" % [id, mv, row[1], "behind it" if row[2] else "in front", dist, reach, hit.get("part", "-")])
+				_expect(not hit.is_empty(), "%s %s[%d]: connects with a survivor %s at %s m (contact reach %.2f) (%s)" % [id, mv, row[1], "behind it" if row[2] else "in front", str(dist) if dist is Vector3 else "%.2f" % dist, reach, hit.get("part", "-")])
 			if not row[2] and mv != &"charge" and not (row[3][0] is Vector3):
 				_place_survivor(Vector3(reach + 0.3, 0, 1.0), c)
 				await _frames(1)

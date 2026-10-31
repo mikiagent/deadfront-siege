@@ -65,40 +65,49 @@
     "shove_left": {
      "window": [
       0.3,
-      0.55
+      0.48
      ],
      "parts": [
       {
-       "bone": "Shoulders"
-      },
-      {
-       "bone": "Torso"
-      },
-      {
        "bone": "FrontUpLeg.L",
-       "radius": 1.07,
-       "calibrated": true
+       "length": 0.45
+      },
+      {
+       "bone": "Shoulders"
       }
-     ]
+     ],
+     "_note": "STEGOSPIN port SHOULDER SLAM (make_tail_club.py): the near shoulder and foreleg lurched into her, at the attacker's own hurtbox radius (no calibrated inflation)."
     },
     "shove_right": {
      "window": [
       0.3,
-      0.55
+      0.48
      ],
      "parts": [
       {
-       "bone": "Shoulders"
-      },
-      {
-       "bone": "Torso"
-      },
-      {
        "bone": "FrontUpLeg.R",
-       "radius": 1.34,
-       "calibrated": true
+       "length": 0.45
+      },
+      {
+       "bone": "Shoulders"
       }
-     ]
+     ],
+     "_note": "STEGOSPIN port SHOULDER SLAM (make_tail_club.py): the near shoulder and foreleg lurched into her, at the attacker's own hurtbox radius (no calibrated inflation)."
+    },
+    "tackle_lunge": {
+     "window": [
+      0.14,
+      0.6
+     ],
+     "parts": [
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "Shoulders"
+      }
+     ],
+     "_note": "STEGOSPIN port TACKLE leap: head and shoulders; ClubTailBrain sweeps them live through the airborne window."
     }
    }
   },
@@ -299,43 +308,62 @@
   "gallimimus": {
    "parts": [
     {
-     "bone": "Head"
+     "bone": "Head",
+     "length": 0.55,
+     "radius": 0.3
+    },
+    {
+     "bone": "Jaw"
     }
    ],
    "moves": {
-    "attack_heavy": {
-     "parts": [
-      {
-       "bone": "BackFoot.L"
-      },
-      {
-       "bone": "BackFoot.R",
-       "radius": 1.27,
-       "calibrated": true
-      },
-      {
-       "bone": "Head"
-      }
-     ],
-     "_note": "the spring-and-rake kick (COELOMOVES CM2)"
-    },
     "attack_primary": {
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.1,
-       "calibrated": true
+       "length": 0.55,
+       "radius": 0.3
+      },
+      {
+       "bone": "Jaw"
       }
-     ]
+     ],
+     "_note": "SP-GALLIMIMUS beak peck: the skull capsule runs the 0.55 m beak (Head bone axis)"
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Toe.R",
+       "length": 0.5,
+       "radius": 0.3
+      },
+      {
+       "bone": "Metatarsal.R"
+      }
+     ],
+     "_note": "SP-GALLIMIMUS spring-and-rake kick: the right claws (Toe.R capsule along the toes) and the foot"
     },
     "bite_combo": {
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.13,
+       "length": 0.55,
+       "radius": 0.3
+      },
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Toe.R",
+       "length": 0.5,
+       "radius": 0.7,
        "calibrated": true
+      },
+      {
+       "bone": "Metatarsal.R"
       }
-     ]
+     ],
+     "_note": "SP-GALLIMIMUS peck-peck-kick: beak on the first two hits, the right claws on the third. Toe.R radius 0.7 calibrated: a small animal (genetic size 0.9) kicks 0.2 m short of her at the 3.1 m contact reach"
     }
    }
   },
@@ -591,6 +619,126 @@
        "calibrated": true
       }
      ]
+    },
+    "stomp": {
+     "window": [
+      0.5,
+      0.62
+     ],
+     "parts": [
+      {
+       "bone": "front_foot_L"
+      },
+      {
+       "bone": "front_toe_L"
+      }
+     ],
+     "_note": "STEGOSPIN port: the part the clip swings at the hit frame (tools/gait/make_stego_moves.py), at the attacker's own hurtbox radius there (no radius: not inflated to reach a spot); ai.json spiked_tail.close_moves puts her where it lands."
+    },
+    "rear_slam": {
+     "window": [
+      0.56,
+      0.68
+     ],
+     "parts": [
+      {
+       "bone": "front_foot_L"
+      },
+      {
+       "bone": "front_toe_L"
+      },
+      {
+       "bone": "front_foot_R"
+      },
+      {
+       "bone": "front_toe_R"
+      }
+     ],
+     "_note": "STEGOSPIN port: the part the clip swings at the hit frame (tools/gait/make_stego_moves.py), at the attacker's own hurtbox radius there (no radius: not inflated to reach a spot); ai.json spiked_tail.close_moves puts her where it lands."
+    },
+    "shove_left": {
+     "window": [
+      0.3,
+      0.48
+     ],
+     "parts": [
+      {
+       "bone": "front_forearm_L",
+       "length": 0.9
+      },
+      {
+       "bone": "front_upperarm_L",
+       "length": 1.0
+      }
+     ],
+     "_note": "STEGOSPIN port: the part the clip swings at the hit frame (tools/gait/make_stego_moves.py), at the attacker's own hurtbox radius there (no radius: not inflated to reach a spot); ai.json spiked_tail.close_moves puts her where it lands. SHOULDER SLAM: the near foreleg and upper arm lurched into her."
+    },
+    "shove_right": {
+     "window": [
+      0.3,
+      0.48
+     ],
+     "parts": [
+      {
+       "bone": "front_forearm_R",
+       "length": 0.9
+      },
+      {
+       "bone": "front_upperarm_R",
+       "length": 1.0
+      }
+     ],
+     "_note": "STEGOSPIN port: the part the clip swings at the hit frame (tools/gait/make_stego_moves.py), at the attacker's own hurtbox radius there (no radius: not inflated to reach a spot); ai.json spiked_tail.close_moves puts her where it lands. SHOULDER SLAM: the near foreleg and upper arm lurched into her."
+    },
+    "hind_stomp_left": {
+     "window": [
+      0.5,
+      0.62
+     ],
+     "parts": [
+      {
+       "bone": "hind_foot_L"
+      },
+      {
+       "bone": "hind_toe_L"
+      }
+     ],
+     "_note": "STEGOSPIN port: the part the clip swings at the hit frame (tools/gait/make_stego_moves.py), at the attacker's own hurtbox radius there (no radius: not inflated to reach a spot); ai.json spiked_tail.close_moves puts her where it lands."
+    },
+    "hind_stomp_right": {
+     "window": [
+      0.5,
+      0.62
+     ],
+     "parts": [
+      {
+       "bone": "hind_foot_R"
+      },
+      {
+       "bone": "hind_toe_R"
+      }
+     ],
+     "_note": "STEGOSPIN port: the part the clip swings at the hit frame (tools/gait/make_stego_moves.py), at the attacker's own hurtbox radius there (no radius: not inflated to reach a spot); ai.json spiked_tail.close_moves puts her where it lands."
+    },
+    "tackle_lunge": {
+     "window": [
+      0.14,
+      0.6
+     ],
+     "parts": [
+      {
+       "bone": "front_forearm_L",
+       "length": 0.9
+      },
+      {
+       "bone": "front_forearm_R",
+       "length": 0.9
+      },
+      {
+       "bone": "spine_03"
+      }
+     ],
+     "_note": "STEGOSPIN port TACKLE leap: the forelegs and chest it rams her with (its head rides above a survivor); ClubTailBrain sweeps them live through the airborne window."
     }
    }
   },
@@ -1103,6 +1251,20 @@
    ],
    "_note": "made by calibration; other moves take pipeline.hit_parts",
    "moves": {
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 2.48,
+       "calibrated": true
+      },
+      {
+       "bone": "Head",
+       "radius": 2.55,
+       "calibrated": true
+      }
+     ]
+    },
     "attack_heavy": {
      "parts": [
       {

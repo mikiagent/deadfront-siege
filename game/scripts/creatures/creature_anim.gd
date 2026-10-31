@@ -11,8 +11,8 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"bite_shake", &"big_stomp", &"claw_rake", &"slash_bite", &"check_left", &"check_right"]
-const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"arm_bite", &"spit", &"claw_rake", &"slash_bite", &"check_left", &"check_right"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"bite_shake", &"big_stomp", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right", &"claw_rake", &"slash_bite", &"check_left", &"check_right"]
+const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"arm_bite", &"spit", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"tackle_lunge", &"claw_rake", &"slash_bite", &"check_left", &"check_right"]
 ## One-shots during which a brain moves the body itself on an arc (TacticalBrain._arc_step), not by walking.
 const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn", &"leap", &"flank_rake"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"]
@@ -103,8 +103,9 @@ func set_move_speed(mps: float) -> void:
 	if _natural.is_empty():
 		play_locomotion(mps / LEGACY_TOP_MPS)
 		return
-	var gait := _pick_gait(mps)
-	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
+	var m := mps / _body_size()
+	var gait := _pick_gait(m)
+	_scale[gait] = clampf(m / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
 	_travel(gait)
 
 ## Direction-aware locomotion (owner 2026-10-28, every species and ridden mounts): the clip follows
@@ -143,7 +144,7 @@ func set_move_velocity(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -
 	var nat := CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"walk", 0.0))
-	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_scale[clip] = clampf(mps / (nat * _body_size()), CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
 ## A named loop (the charge) stride-matched at mps: natural_speeds.<id>.<clip>, else the run's. Falls
@@ -157,7 +158,7 @@ func set_gait_clip(clip: StringName, mps: float, vel: Vector3, basis: Basis) -> 
 	var nat := CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"run", 0.0))
-	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_scale[clip] = clampf(mps / (nat * _body_size()), CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
 ## Global retime on top of every state's own cadence. Each caller owns a named factor (the limp is
@@ -287,6 +288,12 @@ func end_timed_attack() -> void:
 	_forced = false
 	if not _dead: play_idle()
 
+## Natural speeds are baked at body size 1.0; a genome-sized animal (CreatureGenetics.size, 0.85-1.15) strides that much
+## longer or shorter, so the cadence divides by it too (COMPYREVERT: a 0.91 compy slid 9 % of every step).
+func _body_size() -> float:
+	var host := get_parent() as Creature
+	return maxf(0.01, host.size_scale()) if host else 1.0
+
 func _can_move() -> bool:
 	return not (_busy or _dead or _hold_knockdown or _forced or _pinning)
 
@@ -352,6 +359,11 @@ func _oneshot_done(clip: StringName) -> void:
 
 func _effective(state: StringName) -> float:
 	return float(_scale.get(state, 1.0)) * _time_scale
+
+## Retime one clip's state while it plays (CARNOFEEL: the chomp combo's slowed coil); its next play_clip resets it.
+func set_clip_speed(clip: StringName, x: float) -> void:
+	_scale[clip] = x
+	_apply(clip)
 
 func _apply(state: StringName) -> void:
 	if tree and _param.has(state):
