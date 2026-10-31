@@ -149,3 +149,10 @@ overhaul twice more (sp-tarbosaurus, megaloceros stag and doe, compyfeel, sp-car
   spot. The tackle's run keeps its contact sphere, and bodies without hurtboxes keep the spot sphere.
 - **Ceratosaurus and the trike alpha** plug in through `pipeline.hit_parts` and the calibration.
 - **Duplicate func names** in the merged .gd files: none.
+
+## Therizinosaurus merge (same pass)
+- The therizinosaurus claws come from its `pipeline.hit_parts`.
+- Front moves are now calibrated at 0.85x and 1x of the contact reach (a tyrant at 0.6x and 1x): brains strike prey
+  that walks inside their reach (t_sp_therizinosaurus sweeps at 5.2 m with a 5.97 m reach).
+- `t_plantedflinch` fails on the therizinosaurus's feet (36-38 cm), on canon as well (checked in a scratch worktree
+  of `origin/claude/mmo-overhaul`). It is not caused by this branch.

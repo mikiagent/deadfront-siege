@@ -161,14 +161,15 @@ func _moves_of(c) -> Array:
 	var tac: Dictionary = c.brain.get(&"tac") if c.brain.get(&"tac") is Dictionary else {}
 	# A TyrantBrain swings at anything inside its reach, so its timed moves must also land well inside it.
 	var tyrant: bool = c.brain.get_script().get_global_name() in [&"TyrantBrain", &"MegaRexBrain"]
-	var near: Array = [reach * 0.6, reach] if tyrant else [reach]
+	# Any brain bites prey that walked inside its reach too: a little closer for most, well inside for a tyrant.
+	var near: Array = [reach * 0.6, reach] if tyrant else [reach * 0.85, reach]
 	var club_tail: bool = c.brain.get_script().get_global_name() == &"ClubTailBrain"
 	out.append([&"attack_primary", 0, false, near])
 	# tactics.heavy_reach_m: an in-place kick fires only that close (the gallimimus rake).
 	out.append([&"attack_heavy", 0, false, [minf(reach, float(tac.get("heavy_reach_m", 1e9)))]])
 	if ap.has_animation(&"bite_combo"):
 		for i in 3:
-			out.append([&"bite_combo", i, false, [reach]])
+			out.append([&"bite_combo", i, false, near])
 	# TacticalBrain moves from the species' resolved tactics (ClubTailBrain's ankylosaurus is t_ankyloai's).
 	var steps := {}
 	for sq in tac.get("sequences", []):

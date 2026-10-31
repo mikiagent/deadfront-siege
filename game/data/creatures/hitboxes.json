@@ -116,7 +116,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.88,
+       "radius": 0.89,
        "calibrated": true
       },
       {
@@ -140,7 +140,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.88,
+       "radius": 0.89,
        "calibrated": true
       },
       {
@@ -155,7 +155,7 @@
       },
       {
        "bone": "Head",
-       "radius": 1.16,
+       "radius": 1.17,
        "calibrated": true
       }
      ]
@@ -176,7 +176,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.98,
+       "radius": 0.97,
        "calibrated": true
       },
       {
@@ -194,7 +194,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.86,
+       "radius": 0.85,
        "calibrated": true
       },
       {
@@ -206,7 +206,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.62,
+       "radius": 0.61,
        "calibrated": true
       },
       {
@@ -233,7 +233,7 @@
       },
       {
        "bone": "Head",
-       "radius": 0.94,
+       "radius": 0.95,
        "calibrated": true
       },
       {
@@ -265,7 +265,7 @@
       },
       {
        "bone": "Head",
-       "radius": 0.77,
+       "radius": 0.76,
        "calibrated": true
       }
      ]
@@ -274,7 +274,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.83,
+       "radius": 0.82,
        "calibrated": true
       },
       {
@@ -285,12 +285,12 @@
     "bite_combo": {
      "parts": [
       {
-       "bone": "Jaw",
-       "radius": 0.72,
-       "calibrated": true
+       "bone": "Jaw"
       },
       {
-       "bone": "Head"
+       "bone": "Head",
+       "radius": 0.87,
+       "calibrated": true
       }
      ]
     }
@@ -323,7 +323,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.04,
+       "radius": 1.1,
        "calibrated": true
       }
      ]
@@ -332,7 +332,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.09,
+       "radius": 1.13,
        "calibrated": true
       }
      ]
@@ -349,12 +349,12 @@
     "kick": {
      "parts": [
       {
-       "bone": "BackFoot.L",
-       "radius": 0.92,
-       "calibrated": true
+       "bone": "BackFoot.L"
       },
       {
-       "bone": "BackFoot.R"
+       "bone": "BackFoot.R",
+       "radius": 0.89,
+       "calibrated": true
       }
      ]
     },
@@ -366,7 +366,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 2.06,
+       "radius": 2.01,
        "calibrated": true
       }
      ]
@@ -375,7 +375,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 2.06,
+       "radius": 2.0,
        "calibrated": true
       }
      ]
@@ -384,7 +384,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 2.06,
+       "radius": 2.02,
        "calibrated": true
       }
      ]
@@ -425,7 +425,7 @@
         },
         {
          "bone": "Head",
-         "radius": 2.35,
+         "radius": 2.36,
          "calibrated": true
         }
        ],
@@ -475,7 +475,7 @@
      "parts": [
       {
        "bone": "Tail2",
-       "radius": 2.19,
+       "radius": 2.17,
        "calibrated": true
       },
       {
@@ -491,7 +491,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 0.63,
+       "radius": 0.61,
        "calibrated": true
       },
       {
@@ -506,7 +506,7 @@
       },
       {
        "bone": "Jaw",
-       "radius": 0.66,
+       "radius": 0.65,
        "calibrated": true
       }
      ]
@@ -566,7 +566,7 @@
       },
       {
        "bone": "head",
-       "radius": 1.78,
+       "radius": 1.91,
        "calibrated": true
       }
      ]
@@ -722,7 +722,7 @@
       },
       {
        "bone": "Tail5",
-       "radius": 3.75,
+       "radius": 3.76,
        "calibrated": true
       }
      ]
@@ -734,7 +734,7 @@
       },
       {
        "bone": "Head",
-       "radius": 6.48,
+       "radius": 6.5,
        "calibrated": true
       }
      ]
@@ -758,7 +758,7 @@
       },
       {
        "bone": "Head",
-       "radius": 2.84,
+       "radius": 2.81,
        "calibrated": true
       },
       {
@@ -776,7 +776,7 @@
       },
       {
        "bone": "Head",
-       "radius": 1.97,
+       "radius": 1.96,
        "calibrated": true
       }
      ]
@@ -788,7 +788,7 @@
       },
       {
        "bone": "Head",
-       "radius": 2.3,
+       "radius": 2.29,
        "calibrated": true
       }
      ]
@@ -821,7 +821,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.64,
+       "radius": 0.62,
        "calibrated": true
       },
       {
@@ -839,7 +839,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.58,
+       "radius": 0.57,
        "calibrated": true
       },
       {
@@ -851,7 +851,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.65,
+       "radius": 0.64,
        "calibrated": true
       },
       {
@@ -863,7 +863,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.65,
+       "radius": 0.64,
        "calibrated": true
       },
       {
@@ -909,7 +909,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.47,
+       "radius": 1.48,
        "calibrated": true
       }
      ]
@@ -918,7 +918,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.45,
+       "radius": 1.46,
        "calibrated": true
       }
      ]
@@ -991,7 +991,7 @@
       },
       {
        "bone": "FrontFoot.R",
-       "radius": 1.42,
+       "radius": 1.41,
        "calibrated": true
       }
      ]
@@ -1003,7 +1003,7 @@
       },
       {
        "bone": "Horn",
-       "radius": 0.66,
+       "radius": 0.67,
        "calibrated": true
       },
       {
@@ -1028,7 +1028,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 2.07,
+       "radius": 2.58,
        "calibrated": true
       },
       {
@@ -1040,7 +1040,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.7,
+       "radius": 1.69,
        "calibrated": true
       },
       {
@@ -1052,7 +1052,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.96,
+       "radius": 1.95,
        "calibrated": true
       },
       {
@@ -1109,7 +1109,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 2.18,
+       "radius": 2.7,
        "calibrated": true
       }
      ]
@@ -1143,7 +1143,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 0.88,
+       "radius": 0.86,
        "calibrated": true
       },
       {
@@ -1194,7 +1194,7 @@
       },
       {
        "bone": "Toe.R",
-       "radius": 2.7,
+       "radius": 2.67,
        "calibrated": true
       },
       {
@@ -1215,7 +1215,7 @@
       },
       {
        "bone": "Tail5",
-       "radius": 4.6,
+       "radius": 4.59,
        "calibrated": true
       }
      ]
@@ -1227,7 +1227,7 @@
       },
       {
        "bone": "Head",
-       "radius": 7.22,
+       "radius": 7.21,
        "calibrated": true
       }
      ]
@@ -1239,7 +1239,7 @@
       },
       {
        "bone": "Head",
-       "radius": 7.03,
+       "radius": 7.01,
        "calibrated": true
       }
      ]
@@ -1255,15 +1255,6 @@
    ],
    "_note": "made by calibration; other moves take pipeline.hit_parts",
    "moves": {
-    "attack_primary": {
-     "parts": [
-      {
-       "bone": "Jaw",
-       "radius": 0.67,
-       "calibrated": true
-      }
-     ]
-    },
     "attack_heavy": {
      "parts": [
       {
@@ -1276,11 +1267,51 @@
       }
      ]
     },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.67,
+       "calibrated": true
+      }
+     ]
+    },
     "pounce": {
      "parts": [
       {
        "bone": "Jaw",
        "radius": 1.4,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "therizinosaurus": {
+   "parts": [
+    {
+     "bone": "ClawTip.R"
+    }
+   ],
+   "_note": "made by calibration; other moves take pipeline.hit_parts",
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "ClawTip.R",
+       "radius": 1.43,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R",
+       "radius": 1.74,
        "calibrated": true
       }
      ]
