@@ -1,0 +1,266 @@
+{
+  "_about": "BIGSTOMP leg maps for tools/gait/make_big_stomp.py. legs: front pair first for a quadruped (then the hind pair); stomp: index of the stomping leg. lower: bones below the knee that keep their rest orientation; foot: a root-child foot placed directly. lift / fwd: multiples of the stomping leg's hip height; inward: share of the foot's offset from the midline it moves in; pitch: deg the front (quadruped) or chest (biped) rears.",
+  "triceratops": {
+    "height_m": 4.645,
+    "body": "Hips",
+    "head": "Head",
+    "tail": "Tail1",
+    "stomp": 0,
+    "lift": 0.75,
+    "fwd": 0.25,
+    "inward": 0.5,
+    "pitch": 4,
+    "neck": [
+      "Neck1",
+      "Neck2",
+      "Head"
+    ],
+    "tails": [
+      "Tail1",
+      "Tail2",
+      "Tail3"
+    ],
+    "legs": [
+      {
+        "up": "UpperArm.L",
+        "low": "Forearm.L",
+        "lower": [
+          "Hand.L",
+          "Finger.L"
+        ]
+      },
+      {
+        "up": "UpperArm.R",
+        "low": "Forearm.R",
+        "lower": [
+          "Hand.R",
+          "Finger.R"
+        ]
+      },
+      {
+        "up": "Thigh.L",
+        "low": "Shin.L",
+        "lower": [
+          "Metatarsal.L",
+          "Toe.L"
+        ]
+      },
+      {
+        "up": "Thigh.R",
+        "low": "Shin.R",
+        "lower": [
+          "Metatarsal.R",
+          "Toe.R"
+        ]
+      }
+    ]
+  },
+  "styracosaurus": {
+    "height_m": 6.75,
+    "body": "Body",
+    "head": "Head",
+    "tail": "Tail1",
+    "stomp": 0,
+    "lift": 0.5,
+    "fwd": 0.25,
+    "inward": 0.5,
+    "pitch": 4,
+    "neck": [
+      "Neck",
+      "Head"
+    ],
+    "tails": [
+      "Tail1",
+      "Tail2",
+      "Tail3"
+    ],
+    "legs": [
+      {
+        "up": "FrontUpLeg.L",
+        "low": "FrontLowLeg.L",
+        "foot": "FrontFoot.L"
+      },
+      {
+        "up": "FrontUpLeg.R",
+        "low": "FrontLowLeg.R",
+        "foot": "FrontFoot.R"
+      },
+      {
+        "up": "BackUpLeg.L",
+        "low": "BackLowLeg.L",
+        "foot": "BackFoot.L"
+      },
+      {
+        "up": "BackUpLeg.R",
+        "low": "BackLowLeg.R",
+        "foot": "BackFoot.R"
+      }
+    ],
+    "neck_drop": 4,
+    "crouch": 0.2
+  },
+  "woolly_rhino": {
+    "height_m": 2.95,
+    "body": "Body",
+    "head": "Head",
+    "tail": "Tail1",
+    "stomp": 0,
+    "lift": 0.6,
+    "fwd": 0.2,
+    "inward": 0.5,
+    "pitch": 4,
+    "neck": [
+      "Neck",
+      "Neck2",
+      "Head"
+    ],
+    "tails": [
+      "Tail1",
+      "Tail2"
+    ],
+    "legs": [
+      {
+        "up": "FrontUpper.L",
+        "low": "FrontLower.L",
+        "lower": [
+          "FrontCannon.L",
+          "FrontFoot.L"
+        ]
+      },
+      {
+        "up": "FrontUpper.R",
+        "low": "FrontLower.R",
+        "lower": [
+          "FrontCannon.R",
+          "FrontFoot.R"
+        ]
+      },
+      {
+        "up": "HindUpper.L",
+        "low": "HindLower.L",
+        "lower": [
+          "HindCannon.L",
+          "BackFoot.L"
+        ]
+      },
+      {
+        "up": "HindUpper.R",
+        "low": "HindLower.R",
+        "lower": [
+          "HindCannon.R",
+          "BackFoot.R"
+        ]
+      }
+    ]
+  },
+  "carnotaurus": {
+    "height_m": 5.74,
+    "body": "Body",
+    "head": "Head",
+    "tail": "Tail1",
+    "stomp": 1,
+    "lift": 0.55,
+    "fwd": 0.3,
+    "inward": 0.6,
+    "pitch": 12,
+    "neck": [
+      "Neck",
+      "Head"
+    ],
+    "tails": [
+      "Tail1",
+      "Tail2",
+      "Tail3"
+    ],
+    "legs": [
+      {
+        "up": "BackUpLeg.L",
+        "low": "BackLowLeg.L",
+        "foot": "BackFoot.L"
+      },
+      {
+        "up": "BackUpLeg.R",
+        "low": "BackLowLeg.R",
+        "foot": "BackFoot.R"
+      }
+    ]
+  },
+  "therizinosaurus": {
+    "height_m": 8.0,
+    "body": "Hips",
+    "head": "Head",
+    "tail": "Tail1",
+    "stomp": 1,
+    "lift": 0.55,
+    "fwd": 0.3,
+    "inward": 0.6,
+    "pitch": 10,
+    "neck": [
+      "Neck1",
+      "Neck2",
+      "Head"
+    ],
+    "tails": [
+      "Tail1",
+      "Tail2",
+      "Tail3"
+    ],
+    "legs": [
+      {
+        "up": "Thigh.L",
+        "low": "Shin.L",
+        "lower": [
+          "Metatarsal.L",
+          "Toe.L"
+        ]
+      },
+      {
+        "up": "Thigh.R",
+        "low": "Shin.R",
+        "lower": [
+          "Metatarsal.R",
+          "Toe.R"
+        ]
+      }
+    ]
+  },
+  "ceratosaurus": {
+    "height_m": 4.0,
+    "body": "Hips",
+    "head": "Head",
+    "tail": "Tail1",
+    "stomp": 1,
+    "lift": 0.55,
+    "fwd": 0.3,
+    "inward": 0.6,
+    "pitch": 10,
+    "neck": [
+      "Neck1",
+      "Neck2",
+      "Head"
+    ],
+    "tails": [
+      "Tail1",
+      "Tail2",
+      "Tail3"
+    ],
+    "legs": [
+      {
+        "up": "Thigh.L",
+        "low": "Shin.L",
+        "lower": [
+          "Metatarsal.L",
+          "Toe.L"
+        ]
+      },
+      {
+        "up": "Thigh.R",
+        "low": "Shin.R",
+        "lower": [
+          "Metatarsal.R",
+          "Toe.R"
+        ]
+      }
+    ]
+  }
+}

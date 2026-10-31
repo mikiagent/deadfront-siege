@@ -11,7 +11,7 @@ of (u, value) keys eased with smoothstep between keys (holds at keys, snaps wher
 game/data/creatures/anim_events.json: attack_primary 0.42, attack_heavy 0.72, tail_swipe the default 0.55.
 
 usage: Blender -b -P tools/gait/make_rex_moves.py -- <base.glb> <clip> <out.glb> [--v2 | --tarbo]
-  clip: idle | alert | attack_primary | attack_heavy | tail_swipe | bite_shake | hit_react | feed | knockdown | death | sleep | pin_foot
+  clip: big_stomp | idle | alert | attack_primary | attack_heavy | tail_swipe | bite_shake | hit_react | feed | knockdown | death | sleep | pin_foot
 
 --v2: the MegaRex (SP-TYRANNOSAURUS v2 open-mouth mesh; the regular T. rex keeps the v1 numbers). bite_shake (signature), hit_react, feed and the lying clips (knockdown, death,
 sleep) are authored here too. Lying clips go down on the belly with the feet planted and "settle" the skin onto the
@@ -465,7 +465,7 @@ def pin_foot(u):
     over it with the body tipped nose-down, neck curled and the head low over the victim, then holds: two growling
     breaths, small head shakes, the tail up for balance. The game slides the victim's chest under the claws (PinHold)."""
     E = 0.15  # the plant: 0.6 s
-    s = attack_heavy(0.72)  # the stomp's impact pose: the first frame
+    s = rex_stomp(0.72)  # the stomp's impact pose: the first frame (BIGSTOMP: the tarbosaurus too, its pins come from big_stomp)
     b0, t0 = s["body"], s["turns"]
     br = 0.5 - 0.5 * math.cos(2 * math.pi * 2 * max(0.0, (u - E) / (1 - E)))  # two breaths over the hold
     hold = smooth((u - E * 0.4) / (E * 0.6))
@@ -604,7 +604,8 @@ def tarbo_kick(u):
     return p
 
 
-CLIPS = {"idle": (idle, 96), "alert": (alert, 58), "attack_primary": (attack_primary, 40),
+rex_stomp = attack_heavy  # BIGSTOMP: big_stomp is this stomp on every tyrannosaur (its hit 0.72, anim_events big_stomp)
+CLIPS = {"big_stomp": (rex_stomp, 40), "idle": (idle, 96), "alert": (alert, 58), "attack_primary": (attack_primary, 40),
          "attack_heavy": (attack_heavy, 40), "tail_swipe": (tail_swipe, 48), "bite_shake": (bite_shake, 60),
          "hit_react": (hit_react, 18), "feed": (feed, 96), "knockdown": (knockdown, 76), "death": (death, 72),
          "sleep": (sleep, 144), "pin_foot": (pin_foot, 96)}

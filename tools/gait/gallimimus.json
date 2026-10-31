@@ -1,0 +1,187 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 1.25,
+  "view_centre": [
+    0.0,
+    0.33
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck1": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.2
+    },
+    "Neck3": {
+      "key": "head_yaw",
+      "axis": "yaw"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.2
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "note": "SP-GALLIMIMUS 2026-10-31: rig_biped.py rig with a 3-bone neck (gallimimus_rig.json, faces -Y, hip 0.33 mesh units). Ostrich-like runner: long light strides, neck pumping, tail level as a counterweight; the run leans the body flat and stretches the neck forward.",
+  "clips": {
+    "walk": {
+      "cycle_s": 0.96,
+      "duty": 0.6,
+      "stride": 0.42,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.06,
+      "swing_curl_hind": -10,
+      "toe_roll": 0,
+      "bob": 0.006,
+      "bob_harmonic": 2,
+      "roll_deg": 2,
+      "lean_deg": 3,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -4
+        ],
+        "Neck3": [
+          "pitch",
+          3
+        ],
+        "Head": [
+          "pitch",
+          2
+        ]
+      },
+      "wiggle_head": 4.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 2.0,
+      "wiggle_tail": 2.5,
+      "sway": 0.005,
+      "crouch": 0.006
+    },
+    "run": {
+      "cycle_s": 0.5,
+      "duty": 0.36,
+      "stride": 0.8,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.11,
+      "swing_curl_hind": -25,
+      "toe_roll": 0,
+      "bob": 0.012,
+      "bob_harmonic": 2,
+      "roll_deg": 2,
+      "lean_deg": 10,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -22
+        ],
+        "Neck2": [
+          "pitch",
+          -6
+        ],
+        "Neck3": [
+          "pitch",
+          14
+        ],
+        "Head": [
+          "pitch",
+          12
+        ],
+        "Tail1": [
+          "pitch",
+          4
+        ]
+      },
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.0,
+      "wiggle_tail": 2.0,
+      "sway": 0.004,
+      "crouch": 0.03
+    },
+    "charge": {
+      "cycle_s": 0.46,
+      "duty": 0.36,
+      "stride": 0.84,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.11,
+      "swing_curl_hind": -25,
+      "toe_roll": 0,
+      "bob": 0.012,
+      "bob_harmonic": 2,
+      "roll_deg": 2,
+      "lean_deg": 14,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -30
+        ],
+        "Neck2": [
+          "pitch",
+          -10
+        ],
+        "Neck3": [
+          "pitch",
+          18
+        ],
+        "Head": [
+          "pitch",
+          16
+        ],
+        "Tail1": [
+          "pitch",
+          6
+        ]
+      },
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.0,
+      "wiggle_tail": 2.0,
+      "sway": 0.004,
+      "crouch": 0.04
+    }
+  }
+}
