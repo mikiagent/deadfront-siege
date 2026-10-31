@@ -45,6 +45,8 @@ var phase: int = Phase.NONE
 var tier: int = Tier.LIGHT
 var _t := 0.0
 var _vel := Vector3.ZERO
+## This fall already took its impact's shove (a knockdown token alone lays her down without one).
+var _impact_taken := false
 var _slide_s := 0.0
 var _lie_s := LIE_S
 ## Where the last throw left the ground and came down (tests and the report read them).
@@ -85,12 +87,14 @@ func hit(push: Vector3, lift_mps: float, who: Creature) -> int:
 			return Tier.LIGHT  # ASSUMPTION: the mount takes a ram; only a throw unseats her
 		p.dismount()
 	if active():
-		# Already down: a throw launches her again; a ram shoves her along the ground, or back down if she was
-		# getting up. In the air nothing new lands on her.
-		if phase == Phase.AIR:
+		# ROOTED (owner 2026-10-31: "when the player is knocked down, they should be unable to move from the place
+		# they fell on their ass"): once down she stays where she fell. Only the impact that laid her down (its
+		# knockdown token can arrive before its shove) may still send her: once per fall; nothing later moves her.
+		if phase != Phase.FALL or _impact_taken:
 			return tier
-		if want != Tier.THROW and phase != Phase.UP:
-			_push(push)  # (also the impact whose own knockdown token laid her down a moment ago)
+		_impact_taken = true
+		if want != Tier.THROW:
+			_push(push)
 			return want
 		_end(false)
 	if want == Tier.THROW:
@@ -107,12 +111,14 @@ func on_knockdown_status() -> void:
 	var inst := p.statuses.get_instance(&"knockdown")
 	var left := inst.time_left if inst else LIE_S
 	_knockdown(Vector3.ZERO, maxf(LIE_S, left - _clip_len(&"fall_back") - _clip_len(&"get_up")))
+	_impact_taken = false  # the token came first: its impact's shove may still follow
 
 func _can_react() -> bool:
 	return not p.dead and not p.swimming and not p.rolling and p.statuses != null and not p.statuses.has(&"pinned")
 
 func _knockdown(push: Vector3, lie_s: float) -> void:
 	tier = Tier.KNOCKDOWN
+	_impact_taken = true
 	_lie_s = lie_s
 	_push(push)
 	_enter(Phase.FALL)
@@ -128,6 +134,7 @@ func _push(push: Vector3) -> void:
 
 func _throw(push: Vector3, lift: float, who: Creature) -> void:
 	tier = Tier.THROW
+	_impact_taken = true
 	_lie_s = LIE_S
 	var g := absf(p.get_gravity().y) if p.get_gravity().y != 0.0 else 9.8
 	var flight := 2.0 * lift / g
