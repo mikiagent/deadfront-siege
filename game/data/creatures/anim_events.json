@@ -147,6 +147,13 @@
     "toss": {
       "hit_frac": 0.3,
       "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
+,
+      "note_megatherium": "megatherium (SP-MEGATHERIUM, tools/gait/megatherium/clips.py): the lumbering advance's finish, 1.2 s: from upright on its hind legs it topples forward onto her, both arms crashing down at 0.3, and lands on its knuckles"
+    },
+    "grab": {
+      "hit_frac": 0.95,
+      "windup": false,
+      "note": "megatherium bear-hug windup, 1.4 s (SP-MEGATHERIUM): rears into the tripod with the arms thrown wide open; only played timed (TacticalBrain pounce windup, tactics.pounce_windup_clip), so hit_frac just marks the full reach (no hit)"
     },
     "pin_stab": {
       "hit_frac": 0.38,
@@ -495,6 +502,25 @@
       "strafe_right_len": 0.833,
       "walk_back": 1.027,
       "walk_back_len": 0.833
+    },
+    "megatherium": {
+      "height_m": 3.39,
+      "run_l": 3.71,
+      "run_len": 0.958,
+      "run_r": 3.703,
+      "walk_l": 1.226,
+      "walk_len": 1.625,
+      "walk_r": 1.226,
+      "walk": 1.226,
+      "run": 3.707,
+      "strafe_left": 1.226,
+      "strafe_left_len": 1.625,
+      "strafe_right": 1.226,
+      "strafe_right_len": 1.625,
+      "walk_back": 1.226,
+      "walk_back_len": 1.625,
+      "charge": 1.55,
+      "charge_len": 1.3
     },
     "woolly_rhino": {
       "height_m": 2.95,
