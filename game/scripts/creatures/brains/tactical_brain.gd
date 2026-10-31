@@ -102,6 +102,8 @@ var _charge_return := false
 var _turn_from := 0.0
 var _tossing := false  ## WOOLLY RHINO: standing at the impact point while the toss clip plays
 var _crouch := false  ## coiling in charge_crouch before the run
+## BULL RESET (tactics.charge_reset "bull", pachycephalosaurus): back-hops left before the windup and the next charge.
+var _bull_hops := 0
 ## SKITTISH-TERRITORIAL (tactics.territorial, owner 2026-10-31: "engage the player after running away once"):
 ## the first threat sends it running for flee_once_s, then it turns and fights while the threat stays.
 ## Under weak_frac HP it is no longer provoked and runs again; once the threat is gone the cycle resets.
@@ -1305,6 +1307,11 @@ func _charge_end() -> void:
 			and creature.can_sprint() and _flat_dist(attack_target) <= _t("charge_turn_max_m", 18.0):
 		_start_charge_turn()
 		return
+	if str(tac.get("charge_reset", "")) == "bull" and _valid_target():
+		if not _charge_hit:
+			tactic.emit(&"charge_miss")  # ASSUMPTION: no stagger; the hops and the windup are the punish window
+		_start_bull_reset()
+		return
 	if _charge_hit:
 		if not _strike(_flat_dist(attack_target), ["kick"]):
 			_back_off()
@@ -1376,7 +1383,12 @@ func _start_display() -> void:
 	_set_state(&"display")
 	_left = _t("display_s", 1.2)
 	creature.stop_move()
-	if creature.anim.has_state(&"alert") and not creature.anim._busy:
+	# tactics.display_clip (pachycephalosaurus: bull_windup, paw and snort): the display plays it for its whole length.
+	var clip := StringName(tac.get("display_clip", "alert"))
+	if clip != &"alert" and creature.anim.has_state(clip):
+		creature.anim.play_clip(clip)
+		_left = _clip_len(clip, _left)
+	elif creature.anim.has_state(&"alert") and not creature.anim._busy:
 		creature.anim.play_clip(&"alert")
 	tactic.emit(&"display")
 
@@ -1828,8 +1840,27 @@ func _hop(delta: float) -> void:
 		_set_state(&"approach")
 	elif _hop_then == &"seq":
 		_seq_next()
+	elif _hop_then == &"bull":
+		_bull_next()
 	else:
 		_enter_circle()
+
+## BULL RESET (owner 2026-10-31, pachycephalosaurus: "instead of it walking back slowly, have it jump backwards and
+## wind up like a bull, huff huff, and then charge"): after every charge, bull_hops quick back-hops of bull_hop_m
+## (hop_back, facing the prey), then the display (its display_clip, the bull windup) and the charge again.
+func _start_bull_reset() -> void:
+	_bull_hops = int(_t("bull_hops", 2))
+	_bull_next()
+
+func _bull_next() -> void:
+	if _bull_hops > 0:
+		_bull_hops -= 1
+		var dist := _t("bull_hop_m", 1.6)
+		_start_hop(&"bull", false, dist / maxf(0.01, _t("hop_m", 3.5)))
+		return
+	_seq = [&"charge"]
+	_seq_i = 0
+	_start_display()
 
 ## The pounce's windup: shorter (or none) straight after a chase bound, the animal already coiled.
 func _pounce_telegraph() -> float:
