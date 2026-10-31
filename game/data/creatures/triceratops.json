@@ -76,7 +76,70 @@
       "tripo_balance_after": 3105
     },
     "textures": "Tripo 2048 maps: colour and normal unchanged; roughness remapped 0.55 + 0.45 r (mean 0.57 -> 0.81) so the hide stays matte; metallic mean 0.02",
-    "data_note": "# ASSUMPTION (TRIKE 2026-10-21): height_meters 6.0 -> 4.645 so the mesh matches the approved sheet next to the 1.8 m survivor (9.0 m beak to tail, back 3.92 m). The kick-mass proxy real_length_m x height_meters fell from 54 to 41.8, under combat_tuning.json kick.giant_mass 60, so the triceratops became kickable (t_combat expects it too heavy). Smallest data change that keeps that outcome without changing the animal's size, collision radius, reach or plate box: kick.giant_mass 60 -> 40. Side effect for the owner: dilophosaurus (43.2), utahraptor (44.0), gallimimus (45.6) and ankylosaurus (54.4) also become too heavy to kick (they were shoved 0.51-0.65 m); styracosaurus (39.6) and everything smaller are unchanged."
+    "data_note": "# ASSUMPTION (TRIKE 2026-10-21): height_meters 6.0 -> 4.645 so the mesh matches the approved sheet next to the 1.8 m survivor (9.0 m beak to tail, back 3.92 m). The kick-mass proxy real_length_m x height_meters fell from 54 to 41.8, under combat_tuning.json kick.giant_mass 60, so the triceratops became kickable (t_combat expects it too heavy). Smallest data change that keeps that outcome without changing the animal's size, collision radius, reach or plate box: kick.giant_mass 60 -> 40. Side effect for the owner: dilophosaurus (43.2), utahraptor (44.0), gallimimus (45.6) and ankylosaurus (54.4) also become too heavy to kick (they were shoved 0.51-0.65 m); styracosaurus (39.6) and everything smaller are unchanged.",
+    "model_variants": {
+      "alpha": {
+        "model": "alpha/triceratops_alpha.glb",
+        "anim": "alpha/anim",
+        "mount": "alpha/mount",
+        "hit_parts": {
+          "_about": "ASSUMPTION (SP-TRIKEALPHA): the Alpha's horn hits are judged at the Head bone (skull base; the brow horns reach 2.8 m ahead of it at game scale) at the hit frame (Creature.part_hit). The regular triceratops keeps centre-reach hits.",
+          "charge": {
+            "bones": [
+              "Head"
+            ],
+            "radius_m": 2.4
+          },
+          "attack_heavy": {
+            "bones": [
+              "Head"
+            ],
+            "radius_m": 2.6
+          },
+          "attack_primary": {
+            "bones": [
+              "Head"
+            ],
+            "radius_m": 2.6
+          }
+        },
+        "tactics": {
+          "_about": "ASSUMPTION (SP-TRIKEALPHA, owner: 'that bulky triceratops with the bull horns'): the Alpha's signature bull-horn hook-and-throw. The horned_charger charge ends, on impact, in the toss clip (head driven low, then a hard twist to its right): the survivor is thrown sideways off the brow horns (toss_side_m to the Alpha's right, a short shove along the line and a lift), with a longer stagger. It charges more often.",
+          "toss_side_m": 5.0,
+          "charge_shove_m": 1.5,
+          "toss_lift_mps": 4.5,
+          "charge_shove_stagger_s": 1.2,
+          "charge_cd": 6.0
+        }
+      }
+    },
+    "alpha": {
+      "source": "owner's alpha sheet assets: /Users/milankinzy/Documents/deadfront-siege/.claude/worktrees/species-ref/triceratops_owner_sheet_alpha_wide.png (dark charcoal hide with brown mottling, bull-like brow horns swept out and forward, nose horn, frill rimmed with pale spikes, spines down the back, bulky)",
+      "mesh_views": "alpha/ref/tripo_inputs.jpg: four Codex views (free) from the owner's sheet with the beak closed (the sheet's open mouth would bake an open jaw into the rest pose; the jaw bone opens it), padded to one scale",
+      "mesh": "Tripo P1-20260311 multiview, texture + PBR, face_limit 20000, task b48de3cb-10cd-4302-a5f8-591494609b18, 50 Tripo credits (balance 2005 -> 1955), no retry; prep.py scaled to 4.645 m frill top (10.93 m beak to tail: the Alpha is longer and lower than the regular), 24776 -> 9544 verts welded",
+      "rig": "the regular's 31-bone layout and names (joints_alpha.py: joints placed on the Alpha body; build_rig.py tunables for its wider legs, solid frill boxes, thigh web smoothing, closed-mouth jaw line), so every clip, the saddle socket and the AI work unchanged",
+      "clips": [
+        "idle",
+        "walk",
+        "run",
+        "attack_primary",
+        "attack_heavy",
+        "hit_react",
+        "knockdown",
+        "death",
+        "alert",
+        "walk_back",
+        "strafe_left",
+        "strafe_right",
+        "charge",
+        "feed",
+        "sleep",
+        "toss"
+      ],
+      "authored_clips": "the regular's nine (clips.py) re-solved on the Alpha rig, plus clips_alpha.py: walk_back and strafes (the walk's footfalls along the travel direction), charge (the run with the horns levelled), feed (head down, three bites with a rip), sleep (lies down on its left side, breathing), toss (signature: head driven low, then a hard twist to its right and up at 30 %); knockdown, death and sleep floor-lifted by tools/gait/ground_clip.py",
+      "build": "tools/blender/triceratops/build_alpha.sh",
+      "gate": "Blender -b -P tools/gait/check_trike.py -- alpha/triceratops_alpha.glb alpha/anim --height 4.645 (TRIKE_CHECK PASS, 16 clips)"
+    }
   },
   "taming": {
     "preferred_food": [
@@ -104,7 +167,7 @@
         "id": "saddle",
         "weight": 2.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "stripes",
@@ -116,7 +179,7 @@
         "id": "countershade",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "",

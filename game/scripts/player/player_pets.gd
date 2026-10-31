@@ -457,7 +457,9 @@ func mounted_move(delta: float) -> void:
 		if m._face_vel.length() > 0.3:
 			m.face_heading(m._face_vel, delta)
 		if not m.anim._busy:
-			m.anim.set_move_velocity(dir * speed, m.global_basis)  # direction-aware and stride-matched, as creature.gd
+			# SP-TRIKEALPHA: side_dot past 1 = a ridden mount turns into its heading and never sidesteps (a slow-turning
+			# mount with strafe clips played them while it came round under the rider).
+			m.anim.set_move_velocity(dir * speed, m.global_basis, 1.1)  # direction-aware and stride-matched, as creature.gd
 	else:
 		m.velocity.x = 0.0
 		m.velocity.z = 0.0

@@ -144,6 +144,17 @@
         0.78
       ],
       "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
+    },
+    "charge_windup": {
+      "note": "STYRAFIX telegraph before a horned charge (styracosaurus): horns lowered, a fore-foot paws twice, a snort; the body stands still (tools/jaw/make_styra_impale.py)"
+    },
+    "impale": {
+      "hit_frac": 0.26,
+      "release_frac": 0.46,
+      "note": "STYRAFIX: horns dip to the ground and scoop up hard. The survivor is caught on the horn tip at hit_frac, carried up with it and flung at release_frac (TacticalBrain impale phase); feet planted"
+    },
+    "charge_recover": {
+      "note": "STYRAFIX: winded after a charge, head low with three decaying head shakes; the punish window (charge_recover_s)"
     }
   },
   "natural_speeds": {
@@ -182,6 +193,23 @@
       "strafe_right_len": 1.083,
       "walk_back": 0.793,
       "walk_back_len": 1.083
+    },
+    "ceratosaurus": {
+      "height_m": 4.0,
+      "run_l": 11.242,
+      "run_len": 0.542,
+      "run_r": 11.051,
+      "walk_l": 2.912,
+      "walk_len": 1.0,
+      "walk_r": 2.912,
+      "walk": 2.912,
+      "run": 11.146,
+      "strafe_left": 1.941,
+      "strafe_left_len": 1.0,
+      "strafe_right": 1.941,
+      "strafe_right_len": 1.0,
+      "walk_back": 1.941,
+      "walk_back_len": 1.0
     },
     "coelophysis": {
       "height_m": 2.0,

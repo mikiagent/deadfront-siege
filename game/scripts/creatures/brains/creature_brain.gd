@@ -28,6 +28,8 @@ var speed_override: float = -1.0
 var strafe_face: Node3D
 ## TACTICS: a named locomotion loop to play while moving (the charge); "" = the normal gait.
 var gait_clip: StringName = &""
+## TACTICS: non-zero drives the body straight along this flat direction, no pathing (a committed horn charge).
+var line_dir := Vector3.ZERO
 
 var creature: Creature
 var state: StringName = &"roam"
@@ -461,6 +463,7 @@ func _spot(who: Node3D) -> void:
 	var look := float(profile.get("spot_alert_s", 0.6))
 	_alert_left = maxf(_alert_left, look)
 	creature.mark_aggro_now()
+	creature.stop_move()  # it stops to look: the pose one-shot must not glide along the roam path
 	if look >= 0.3:
 		creature.anim.play_clip(&"sniff" if creature.anim.has_state(&"sniff") else &"alert")
 	_propagate_alert(who)
@@ -502,6 +505,10 @@ func _valid_target() -> bool:
 
 ## Both sides can contact a giant's body edge without body overlap or safe-edge cheese.
 ## Measured centre to centre against a survivor-sized target; see reach_to for others.
+## A move that hits do not interrupt (no flinch, no hurt clip); TacticalBrain's committed charge.
+func super_armor() -> bool:
+	return false
+
 func contact_reach() -> float:
 	return maxf(float(profile.get("attack_range", 1.8)) + 0.3, creature.body_radius() + 0.75)
 

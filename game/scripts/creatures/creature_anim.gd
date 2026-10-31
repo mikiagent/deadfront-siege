@@ -11,7 +11,7 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"leap"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap"]
 const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab"]
 ## One-shots during which a brain moves the body itself on an arc (TacticalBrain._arc_step), not by walking.
 const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn", &"leap"]
@@ -391,14 +391,15 @@ func _build_tree() -> void:
 		var xf := GAIT_XFADE if clip == &"investigate" else (PIN_XFADE if clip == &"pin_foot" else XFADE)
 		for hub in HUBS:
 			if _param.has(hub):
-				# SMILORUN: out of a stride into a crouch or a leap the legs need the gait blend, or the gallop pops
+				# SMILORUN: out of a stride into a crouch or a leap, and a chase bound back into the stride, take the gait blend
 				var into := GAIT_XFADE if hub in RUN_GAITS and clip in RUN_INTO else xf
 				_trans(sm, hub, clip, into)
-		_trans(sm, clip, &"idle", xf)
-		if clip == &"leap":  # a chase bound lands straight back into the stride, not through idle
-			for hub in RUN_GAITS:
-				if _param.has(hub):
-					_trans(sm, clip, hub, GAIT_XFADE)
+				_trans(sm, clip, hub, GAIT_XFADE if clip == &"leap" and hub in RUN_GAITS else xf)  # STYRAFIX: out to walk/run directly too, not through idle
+		# STYRAFIX: straight from any other non-hub clip too (strafe -> walk_back, charge -> impale, windup ->
+		# charge). Without it travel() routed through idle and the idle pose blinked in between.
+		for other in _param:
+			if other != clip and not other in HUBS:
+				_trans(sm, other, clip, xf)
 	if _param.has(&"pin_foot"):
 		for a in ATTACKS:  # the stomp (or any swing) lands and the foot goes straight onto the victim
 			if _param.has(a):
@@ -419,6 +420,8 @@ func _clip_node(clip: StringName) -> AnimationNodeBlendTree:
 	return bt
 
 func _trans(sm: AnimationNodeStateMachine, a: StringName, b: StringName, xfade: float) -> void:
+	if sm.has_transition(a, b):
+		return  # STYRAFIX's all-pairs links may already hold it (the pin_foot links below)
 	var t := AnimationNodeStateMachineTransition.new()
 	t.xfade_time = xfade
 	sm.add_transition(a, b, t)
