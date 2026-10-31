@@ -96,6 +96,9 @@ func _spawn(id: StringName, variant: StringName = &""):
 	c.spawn(data.creature(id), variant)
 	c.look_at(Vector3(0, 0, -10), Vector3.UP)  # faces -Z: +X is its right
 	c.brain._roam_pause = 999.0
+	# BIGSTOMP (canon): the stegosaurus also has the shared underfoot stomp (t_bigstomp covers it); off here, so each
+	# case judges the one move it sets up instead of the stomp pre-empting it under the body.
+	c.brain.stomp = null
 	_hits.clear()
 	c.brain.club_hit.connect(func(mv: StringName, t: Node3D, kind: StringName) -> void:
 		_hits.append([mv, t, kind, _t]))

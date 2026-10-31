@@ -1958,6 +1958,14 @@
         ],
         "pin_bone": "Toe.R",
         "pin_reach": 0.0
+      },
+      "stegosaurus": {
+        "land": [
+          -0.047,
+          0.305
+        ],
+        "pin_bone": "front_toe_L",
+        "pin_reach": 0.0
       }
     }
   }
