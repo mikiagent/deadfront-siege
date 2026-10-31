@@ -45,6 +45,34 @@ var move_speed_mps: float:
 	get:
 		return speed / 100.0
 
+## NOBOXES (owner 2026-10-30: "never show me that again"): a species with no model never spawns in
+## normal play and never draws the box placeholder. Labs and tests that want the boxes set this.
+static var allow_placeholder: bool = false
+## Tests only: species treated as if their GLB were present.
+static var fake_models: Dictionary = {}
+
+static func model_path(species: StringName) -> String:
+	return "res://assets/creatures/%s/%s.glb" % [species, species]
+
+## The one check every spawn decision asks: does this species have a loadable model?
+static func has_model(species: StringName) -> bool:
+	return fake_models.has(species) or ResourceLoader.exists(model_path(species))
+
+## `want` when it has a model; else the next species after it in `table` (wrapping) that has one;
+## else the first in `pool` that has one; else &"". Placeholders allowed = `want` as is.
+static func eligible(want: StringName, table: Array = [], pool: Array = []) -> StringName:
+	if allow_placeholder or has_model(want):
+		return want
+	var i := table.find(want)
+	for k in table.size():
+		var sp := StringName(str(table[(i + 1 + k) % table.size()]))
+		if has_model(sp):
+			return sp
+	for sp in pool:
+		if has_model(StringName(str(sp))):
+			return StringName(str(sp))
+	return &""
+
 static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	var c := CreatureDef.new()
 	c.id = file_id

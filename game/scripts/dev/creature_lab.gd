@@ -19,6 +19,7 @@ var _seq_t := 0.0
 var _seq_n := 0
 
 func _ready() -> void:
+	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	Game.lab_force_clips = true
 	Game.lab_flat_attack = true
 	_player = LabKit.build(self)["player"] as Player

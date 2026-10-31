@@ -6,13 +6,24 @@ static func spawn_all(rt: IslandRuntime, def: Dictionary) -> void:
 	var cap := Game.max_creatures_per_island
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 41
+	# NOBOXES: a model-less row falls back to the next species with a model in its own table, then
+	# to any species on this island that has one (CreatureDef.eligible).
+	var fixed_table := _species_of(def.get("creatures", []))
+	var pool := fixed_table.duplicate()
+	var spawns0: Variant = def.get("spawns", {})
+	if spawns0 is Dictionary:
+		for ring_id in spawns0:
+			pool.append_array(_species_of(spawns0[ring_id]))
 	for row in def.get("creatures", []):
 		if not row is Dictionary:
 			continue
 		if rt.creature_count >= cap:
 			break
 		var placed := Spawner.new()
-		placed.species = StringName(str(row.get("species", "velociraptor")))
+		placed.species = CreatureDef.eligible(StringName(str(row.get("species", "velociraptor"))), fixed_table, pool)
+		if placed.species == &"":
+			placed.queue_free()
+			continue
 		placed.count = mini(int(row.get("count", 1)), cap - rt.creature_count)
 		placed.as_pack = bool(row.get("pack", true))
 		var at: Array = row.get("at", [10, 0, 0])
@@ -36,8 +47,12 @@ static func spawn_all(rt: IslandRuntime, def: Dictionary) -> void:
 			if not rows is Array:
 				continue
 			var span: Array = rings.get(str(ring_id), {}).get("radius_m", [40, 80])
+			var table := _species_of(rows)
 			for row in rows:
 				if not row is Dictionary:
+					continue
+				var species := CreatureDef.eligible(StringName(str(row.get("species", "velociraptor"))), table, pool)
+				if species == &"":
 					continue
 				var groups := int(row.get("groups", 1))
 				var chance := float(row.get("chance", 1.0))
@@ -64,7 +79,9 @@ static func spawn_all(rt: IslandRuntime, def: Dictionary) -> void:
 							row.get("species", "?"), ring_id, r0, r1])
 						continue
 					var sp := Spawner.new()
-					sp.species = StringName(str(row.get("species", "velociraptor")))
+					sp.species = species
+					if species != StringName(str(row.get("species", ""))):
+						sp.set_meta(&"tier_offset", int(row.get("tier_offset", 0)))  # the row lookup keys on the old name
 					sp.count = mini(int(row.get("count", 1)), cap - rt.creature_count)
 					sp.as_pack = sp.count > 1
 					sp.position = pos["pos"]
@@ -72,6 +89,15 @@ static func spawn_all(rt: IslandRuntime, def: Dictionary) -> void:
 					var made := sp.spawn_now()
 					_apply_creature_level_override(rt, made)
 					rt.creature_count += made.size()
+
+## The species named by a spawn table's rows, in order.
+static func _species_of(rows: Variant) -> Array:
+	var out: Array = []
+	if rows is Array:
+		for row in rows:
+			if row is Dictionary:
+				out.append(StringName(str((row as Dictionary).get("species", "velociraptor"))))
+	return out
 
 static func _apply_creature_level_override(rt: IslandRuntime, creatures: Array[Creature]) -> void:
 	if rt._level_override <= 0:
