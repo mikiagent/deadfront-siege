@@ -367,6 +367,12 @@
       ],
       "far_shore": [
         {
+          "species": "therizinosaurus",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.5
+        },
+        {
           "species": "stegosaurus",
           "count": 1,
           "groups": 1
@@ -399,6 +405,12 @@
         }
       ],
       "working": [
+        {
+          "species": "ceratosaurus",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.6
+        },
         {
           "species": "dilophosaurus",
           "count": 2,
@@ -494,6 +506,12 @@
     "spawns": {
       "gathering": [],
       "working": [
+        {
+          "species": "therizinosaurus",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.6
+        },
         {
           "species": "stegosaurus",
           "count": 2,
@@ -599,6 +617,11 @@
         }
       ],
       "working": [
+        {
+          "species": "ceratosaurus",
+          "count": 1,
+          "groups": 1
+        },
         {
           "species": "triceratops",
           "count": 3,

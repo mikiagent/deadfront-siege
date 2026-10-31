@@ -3,13 +3,15 @@ extends Node3D
 ## (TAIL WHIP, TAIL SMASH, CLUB SWEEP) the survivor stands on the move's aim spot, the brain swings, and the tree pauses
 ## on the frame the club lands (club_hit), so the shot shows the club on her. One wind-up shot per move shows the ring
 ## and the name. Two cameras: high from the swing side, and low side-on to her. Saves DIR/<move>_<windup|hit>_<cam>.png.
-## Run windowed off-screen: Godot --path game --position 6000,3000 -- --skip-charcreate --lab=ankyloai_lab --out=DIR
+## Only some moves: --moves=stomp,tackle. Run windowed off-screen: Godot --path game --position 6000,3000 -- --skip-charcreate --lab=ankyloai_lab --out=DIR
 
-const MOVES: Array[StringName] = [&"whip", &"smash", &"sweep"]
+## ANKYLOCLOSE: the close moves too (STOMP, SHOVE to its right, TACKLE: the shot pauses on the body check's contact).
+const MOVES: Array[StringName] = [&"whip", &"smash", &"sweep", &"stomp", &"shove_right", &"tackle"]
 
 var _out := ""
 var _caption: Label
 var _hit := false
+var _only: Array = []
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -20,6 +22,9 @@ func _ready() -> void:
 		get_tree().quit(1)
 		return
 	DirAccess.make_dir_recursive_absolute(_out)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--moves="):
+			_only = Array(a.substr(8).split(","))
 	Game.debug_overlay = false
 	Game.god_mode = true
 	CombatTuning.force_accuracy = 1.0
@@ -55,6 +60,8 @@ func _run() -> void:
 	low.fov = 45.0
 	add_child(low)
 	for id in MOVES:
+		if not _only.is_empty() and not str(id) in _only:
+			continue
 		player.global_position = Vector3(12, player.global_position.y, 12)  # clear of the spawn point (it would stand on her)
 		var c := (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate() as Creature
 		add_child(c)
@@ -80,11 +87,14 @@ func _run() -> void:
 			if t == player and not _hit:
 				_hit = true
 				get_tree().paused = true
-				_caption.text = "%s  HIT (%s) at %.2f s: club %.2f m from the survivor (hit radius %.1f m)" % [mv["label"], kind, b.move_t,
-					Vector2(b.club_position().x - player.global_position.x, b.club_position().z - player.global_position.z).length(), mv["hit_radius_m"]]
+				if kind == &"close":
+					_caption.text = "%s  HIT at %.2f s%s" % [mv["label"], b.move_t, " (knockdown)" if mv.get("knockdown", false) else ", knockback %.1f m" % float(mv.get("knockback_m", 0.0))]
+				else:
+					_caption.text = "%s  HIT (%s) at %.2f s: club %.2f m from the survivor (hit radius %.1f m)" % [mv["label"], kind, b.move_t,
+						Vector2(b.club_position().x - player.global_position.x, b.club_position().z - player.global_position.z).length(), mv["hit_radius_m"]]
 		b.club_hit.connect(on_hit)
 		b._start(id)
-		var windup := float(mv["strike"][0]) * b.move_len
+		var windup := minf(float(mv["strike"][0]), 0.9) * b.move_len
 		var shot_windup := false
 		while b.move_id != &"" and not _hit:
 			await get_tree().physics_frame
@@ -93,7 +103,7 @@ func _run() -> void:
 			if not shot_windup and b.move_t >= windup * 0.6:
 				shot_windup = true
 				get_tree().paused = true
-				_caption.text = "%s  wind-up %.1f / %.1f s (ring + name: roll or get to its head)" % [mv["label"], b.move_t, windup]
+				_caption.text = "%s  wind-up %.1f / %.1f s (ring + name: %s)" % [mv["label"], b.move_t, windup, "roll away" if b.close_moves.has(id) else "roll or get to its head"]
 				high.current = true
 				await get_tree().process_frame
 				await _snap("%s_windup_high" % id)

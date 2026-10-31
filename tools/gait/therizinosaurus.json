@@ -1,0 +1,146 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 1.1,
+  "view_centre": [
+    0.0,
+    0.3
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck1": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head_yaw",
+      "axis": "yaw"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.2
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "note": "SP-THERIZINOSAURUS 2026-10-31: rig_biped.py rig (Thigh/Shin/Metatarsal/Toe, Arm/Forearm/Hand/Claw, faces -Y, hip 0.29 mesh units). A heavy, upright, slow-striding biped: long neck high, the big clawed arms carried forward, tail fan swaying. No charge clip (it fights standing). # ASSUMPTION: cadence/stride by eye.",
+  "clips": {
+    "walk": {
+      "cycle_s": 1.2,
+      "duty": 0.62,
+      "stride": 0.34,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.045,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
+      "bob": 0.004,
+      "bob_harmonic": 2,
+      "roll_deg": 2.5,
+      "lean_deg": 1,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -2
+        ],
+        "Head": [
+          "pitch",
+          2
+        ],
+        "Arm.L": [
+          "pitch",
+          8
+        ],
+        "Arm.R": [
+          "pitch",
+          8
+        ]
+      },
+      "wiggle_head": 1.5,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 2.0,
+      "wiggle_tail": 2.5,
+      "sway": 0.006,
+      "crouch": 0.004
+    },
+    "run": {
+      "cycle_s": 0.66,
+      "duty": 0.42,
+      "stride": 0.5,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.07,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.008,
+      "bob_harmonic": 2,
+      "roll_deg": 3,
+      "lean_deg": 10,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -10
+        ],
+        "Head": [
+          "pitch",
+          8
+        ],
+        "Arm.L": [
+          "pitch",
+          -10
+        ],
+        "Arm.R": [
+          "pitch",
+          -10
+        ],
+        "Claw.L": [
+          "pitch",
+          -20
+        ],
+        "Claw.R": [
+          "pitch",
+          -20
+        ]
+      },
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.5,
+      "wiggle_tail": 3.0,
+      "sway": 0.006,
+      "crouch": 0.025
+    }
+  }
+}

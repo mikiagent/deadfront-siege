@@ -4,8 +4,9 @@ extends Node3D
 ## (lit flank) and a high three-quarter from the front right. --alpha draws the alpha skin. Saves
 ## DIR/<clip>_<pct>_<cam>.png. Run windowed off-screen:
 ## Godot --path game --position 6000,3000 -- --skip-charcreate --lab=smilodon_lab --out=DIR [--alpha] [--clips=a,b]
+##   [--pcts=0,12,25,...] [--cams=side]  (SMILORUN: a gait-cycle contact strip instead of the 30/60 % pair, one camera)
 
-const CLIPS: Array[StringName] = [&"idle", &"walk", &"run", &"stalk", &"walk_back", &"strafe_left", &"strafe_right",
+const CLIPS: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint", &"leap", &"stalk", &"walk_back", &"strafe_left", &"strafe_right",
 	&"attack_primary", &"attack_heavy", &"pounce", &"pin_stab", &"hit_react", &"alert", &"feed", &"sleep", &"knockdown", &"death"]
 ## anim_events.json hit fractions: the paw rakes, the sabres stab.
 const HIT := {&"attack_primary": [42], &"attack_heavy": [72], &"pounce": [70], &"pin_stab": [38, 74]}
@@ -66,6 +67,17 @@ func _sheet() -> void:
 	add_child(tq)
 	tq.look_at_from_position(Vector3(-6.5, 4.5, 6.5), Vector3(-0.6, 0.8, 0.0))
 	_cams = {"side": side, "tq": tq}
+	var only_pcts: Array = []
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--pcts="):
+			for p in a.substr(7).split(","):
+				only_pcts.append(int(p))
+		if a.begins_with("--cams="):
+			var keep := {}
+			for cn in a.substr(7).split(","):
+				if _cams.has(cn):
+					keep[cn] = _cams[cn]
+			_cams = keep
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	_caption = Label.new()
@@ -84,6 +96,8 @@ func _sheet() -> void:
 		var pcts: Array = [30, 60]
 		if HIT.has(clip):
 			pcts.append_array(HIT[clip])
+		if not only_pcts.is_empty():
+			pcts = only_pcts
 		for pct in pcts:
 			v.rig.skeleton.reset_bone_poses()  # the importer drops constant tracks; a paused seek would keep the last clip's tail
 			ap.play(clip)

@@ -41,7 +41,7 @@ const BRAIN_MOVES := {
 	"ClubTailBrain": "turns its tail to you, no rush: whip, whip, smash, whip, sweep: TAIL WHIP (knockback), TAIL SMASH (knockdown + shockwave), CLUB SWEEP (also when surrounded); hits only from the club, the head is safe",
 	"CreatureBrain": "attack_primary, attack_heavy after 3 primaries",
 }
-const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge", &"toss", &"stalk", &"pin_stab", &"charge_turn"]
+const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"stomp", &"shove_left", &"shove_right", &"tackle"]
 
 ## Every species in the data, sorted (owner 2026-10-28: "put all of the animals in the creature lab").
 static func all_species() -> Array[StringName]:
@@ -239,7 +239,7 @@ static func variants_of(id: StringName) -> Array:
 		return []
 	var rows := CreatureView.model_variants(def)
 	var ids: Array = rows.keys()
-	ids.erase("alpha")
+	ids.erase("alpha")  # SP-TRIKEALPHA: the Alpha's body comes with the Alpha toggle (Creature.spawn), not the Body pick
 	ids.sort()
 	ids.reverse()
 	return ids
