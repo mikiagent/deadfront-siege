@@ -223,14 +223,24 @@ func _test_charge() -> void:
 	player.vitals.health = player.vitals.effective_max_health()
 	var hp0: float = player.vitals.health
 	var y0: float = player.global_position.y
+	var seen := {}
+	var toss_slide := [0.0, Vector3.INF]
 	for _f in 600:
 		await physics_frame
 		tossed[1] = maxf(tossed[1], player.global_position.y - y0)
+		seen[c.anim.current_clip] = true
+		if c.anim.current_clip == &"toss":  # no glide: the toss plays where the horn met her
+			if toss_slide[1] == Vector3.INF:
+				toss_slide[1] = c.global_position
+			toss_slide[0] = maxf(toss_slide[0], c.global_position.distance_to(toss_slide[1]))
 		if OS.has_environment("RHINO_DEBUG") and _f % 20 == 0:
 			print("  f%d state=%s clip=%s d=%.2f pos=%s stag=%.2f vel=%s path=%s" % [_f, b.state, c.anim.current_clip, c.global_position.distance_to(player.global_position), c.global_position, c.stagger_left, c.velocity, c._path_active])
-		if tossed[0] and _f > 0 and player.vitals.health < hp0 and tossed[1] > 1.0:
+		if tossed[0] and _f > 0 and player.vitals.health < hp0 and tossed[1] > 1.0 and seen.has(&"toss") \
+				and c.anim.current_clip != &"toss":
 			break
 	_expect(tossed[0], "the charge reaches her and tosses")
+	_expect(seen.has(&"charge"), "the run plays the rhino's own charge clip (%s)" % [seen.keys()])
+	_expect(seen.has(&"toss") and toss_slide[0] < 0.15, "the toss clip plays in place at the impact (slid %.2f m)" % toss_slide[0])
 	_expect(player.vitals.health < hp0, "the charge hurts (hp %.0f -> %.0f)" % [hp0, player.vitals.health])
 	_expect(tossed[1] > 1.0, "she is tossed off her feet (%.2f m)" % tossed[1])
 	host.free()

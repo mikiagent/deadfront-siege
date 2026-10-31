@@ -613,6 +613,14 @@ func _physics_process(delta: float) -> void:
 				direct.y = 0.0
 				if direct.length() > 0.3 and direct.length() <= 12.0:
 					locomote = direct.normalized()
+	# No glide (owner 2026-10-31: compy, deinonychus and ankylosaurus charges "glide"): the body never slides
+	# under a one-shot. An attack (or a timed windup) plays in place; any other one-shot (alert, sniff,
+	# hit_react, feed) gives way to the stride-matched gait below. Leaps move the body themselves (_arc_step).
+	if locomote.length_squared() > 0.0 and anim._busy and not anim.current_clip in CreatureAnim.LEAPS:
+		if anim.timed_attack or anim.current_clip in CreatureAnim.ATTACKS:
+			locomote = Vector3.ZERO
+		else:
+			anim.release_oneshot()
 	if locomote.length_squared() > 0.0:
 		var dir := locomote.normalized()
 		velocity.x = dir.x * speed

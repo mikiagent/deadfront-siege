@@ -153,12 +153,14 @@
       "walk_r": 0.312,
       "walk": 0.312,
       "run": 2.367,
-      "strafe_left": 0.574,
-      "strafe_left_len": 0.625,
-      "strafe_right": 0.574,
-      "strafe_right_len": 0.625,
+      "strafe_left": 1.243,
+      "strafe_left_len": 0.5,
+      "strafe_right": 1.243,
+      "strafe_right_len": 0.5,
       "walk_back": 0.576,
-      "walk_back_len": 0.625
+      "walk_back_len": 0.625,
+      "charge": 4.446,
+      "charge_len": 0.333
     },
     "deinonychus": {
       "height_m": 2.0,

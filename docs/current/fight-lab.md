@@ -48,8 +48,8 @@ Verdict: approve / new animations / reject model / new moves or AI.
 |---|---|---|---|---|---|
 | Ankylosaurus | ClubTailBrain (club_tail) | tail club | no rush: shuffles to turn its tail to you; TAIL WHIP (side sweep, knockback), TAIL SMASH (overhead slam behind it, knockdown + shockwave), CLUB SWEEP (long arc behind, also when two of you are close); order whip, whip, smash, whip, sweep; hits only from the club (the head is safe); a ring + the move name for the whole wind-up, roll through it | alert, attack_primary, attack_heavy, tail_swipe | reworked per owner 2026-10-31, re-test |
 | Coelophysis | TacticalBrain (flock_harass; the deinonychus profile) | flock harass, darting bites | backstep, strafe, pounce, charge, combo, ambush from cover, leap-in, back-leaps; lighter hits (pounce x2.0, combo x0.8) | alert, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
-| Compsognathus | TacticalBrain (swarm) | swarm nips, four to eight at once | charge, pounce, strafe, backstep | alert, attack_primary, attack_heavy, pounce | |
-| Deinonychus | TacticalBrain (pack_flanker) | pack flank, sickle-claw rake | backstep, strafe, pounce, charge, combo | alert, attack_primary, attack_heavy, bite_combo, pounce, charge | |
+| Compsognathus | TacticalBrain (swarm) | swarm nips, four to eight at once | crouch-then-charge (charge_crouch coil, then a low charge sprint into the bite), pounce, strafe walk and strafe jumps, backstep; twitchy combat idle while aggro | alert, attack_primary, attack_heavy, pounce, charge_crouch, charge, strafe_left, strafe_right, investigate (combat idle) | reworked per owner 2026-10-31, re-test |
+| Deinonychus | TacticalBrain (pack_flanker) | pack flank, sickle-claw rake | backstep, strafe, pounce, charge, combo | alert, attack_primary, attack_heavy, bite_combo, pounce, charge | run and charge re-stepped (glide) per owner 2026-10-31, re-test |
 | Gallimimus | TacticalBrain (runner; the deinonychus profile without the pounce, skittish-territorial) | charge, kick, outruns you | runs from the first threat, then turns and fights; kick (spring-and-rake, point blank), peck, peck flurry, charge into a peck, strafe, dodge, back-hops; no pounce; runs again under 30 % HP | alert, attack_primary, attack_heavy, bite_combo, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Megaloceros | TacticalBrain (antlered, horned_charger moves, skittish-territorial) | antler gore, flees | runs from the first threat, then turns and fights: display, straight antler ram, attack_heavy at point blank, hind kick from behind; runs again under 30 % HP | alert, attack_primary, attack_heavy, kick, charge | brain reworked per owner 2026-10-31 (model and clips being rebuilt on claude/mmo-sp-megaloceros), re-test |
 | Pachycephalosaurus | TacticalBrain (pack_mule + species tactics) | dome headbutt charge | display, head-down charge (dome ram, 3.5 m shove), strafe; point blank: hip check if you are behind it, stomp, dome butt | alert, attack_primary (dome butt), attack_heavy (stomp), kick (hip check), charge | reworked per owner 2026-10-31 (new Tripo model, new rig and clips, colour fix), re-test |
@@ -65,6 +65,11 @@ Verdict: approve / new animations / reject model / new moves or AI.
 
 ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
 archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
+
+No glide (owner 2026-10-31): a body never moves under a one-shot. Attacks play in place; alert, sniff and hit_react
+give way to the stride-matched gait when the brain moves the body; leaps move on their own arc. Test:
+`game/tests/t_compyfeel.gd` (planted-toe slide per step, live fights for compsognathus, deinonychus, ankylosaurus).
+
 
 CreatureBrain swings attack_primary and attack_heavy only, so the kick clip of Stegosaurus does not show in a fight.
 

@@ -83,6 +83,8 @@ var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the poun
 var _charge_to := Vector3.ZERO
 var _charge_dir := Vector3.FORWARD
 var _charge_hit := false
+var _tossing := false  ## WOOLLY RHINO: standing at the impact point while the toss clip plays
+var _crouch := false  ## coiling in charge_crouch before the run
 ## SKITTISH-TERRITORIAL (tactics.territorial, owner 2026-10-31: "engage the player after running away once"):
 ## the first threat sends it running for flee_once_s, then it turns and fights while the threat stays.
 ## Under weak_frac HP it is no longer provoked and runs again; once the threat is gone the cycle resets.
@@ -124,11 +126,13 @@ static func resolve(t: Dictionary) -> Dictionary:
 			out[key] = t[key]
 	return out
 
-## RAPTORFEEL on the tactics brain (velociraptor): a rig with an investigate loop sniffs, then holds still in the
+## RAPTORFEEL on the tactics brain (velociraptor): a rig with investigate and sniff loops sniffs, then holds still in the
 ## investigate idle for RaptorPackBrain.INVESTIGATE_HOLD_S before it commits; prey in reach or a hit ends it at once.
 func _spot(who: Node3D) -> void:
 	super._spot(who)
-	if creature.anim.has_state(&"investigate") and not _is_herbivore():
+	# The sizing-up hold is the sniff-then-investigate pair (velociraptor). The compy's investigate is its combat idle
+	# (COMPYFEEL, aware_idle), not a reason to wait: a swarm commits at once.
+	if creature.anim.has_state(&"investigate") and creature.anim.has_state(&"sniff") and not _is_herbivore():
 		_alert_left = RaptorPackBrain.INVESTIGATE_HOLD_S
 
 func _investigate_hold() -> void:
@@ -623,7 +627,7 @@ func _strike(d: float, only: Array = []) -> bool:
 		var move := StringName(m)
 		if not attack_available(move, d):
 			continue
-		var in_reach := d <= reach_to(attack_target)
+		var in_reach := d <= _bite_reach() + 0.1  # reach, less the bite_track lead on prey walking away
 		attack_chosen.emit(move, d)
 		_opening = false
 		_open_left = 0.0
@@ -817,11 +821,34 @@ func _start_charge() -> void:
 	_just_disengaged = false
 	_seq = []
 	_charge_hit = false
+	_tossing = false
 	_charge_dir = -_to_me()
 	_charge_to = attack_target.global_position + _charge_dir * _t("charge_through_m", 2.5)
+	# A rig with a charge_crouch clip coils first (owner 2026-10-31, compy: "it should lower its center of gravity
+	# and charge"): body still and turning to the prey until the clip ends, then the run.
+	_crouch = creature.anim.has_state(&"charge_crouch")
+	if _crouch:
+		creature.stop_move()
+		creature.anim.play_clip(&"charge_crouch")
 	tactic.emit(&"charge")
 
 func _charge(delta: float) -> void:
+	if _tossing:
+		# No glide: the toss plays in place where the horn met her; the line ends when the clip does.
+		creature.stop_move()
+		if creature.anim.current_clip == &"toss" and creature.anim.is_busy():
+			return
+		_tossing = false
+		_charge_end()
+		return
+	if _crouch:
+		creature.stop_move()
+		creature.face_towards(attack_target.global_position, delta)
+		if creature.anim.current_clip == &"charge_crouch" and creature.anim.is_busy():
+			return
+		_crouch = false
+		_charge_dir = -_to_me()  # a straight charge locks its line as it launches, not before the coil
+		_charge_to = attack_target.global_position + _charge_dir * _t("charge_through_m", 2.5)
 	_left -= delta
 	if tac.get("charge_straight", false):
 		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # committed: no can_sprint gate mid-line
@@ -839,7 +866,7 @@ func _charge(delta: float) -> void:
 		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # visibly faster than its run
 		gait_clip = &"charge"  # the low "naruto run" when the rig has it, else the run at charge speed
 	creature.move_to(attack_target.global_position)
-	if _flat_dist(attack_target) <= reach_to(attack_target) - 0.1 and (not creature.anim._busy) and creature.stagger_left <= 0.0:
+	if _flat_dist(attack_target) <= _bite_reach() and (not creature.anim._busy) and creature.stagger_left <= 0.0:
 		_bite(true)
 	elif _left <= 0.0:
 		_enter_circle()
@@ -854,7 +881,9 @@ func _charge_impact() -> void:
 	# hit is this impact) and the shove lifts her off her feet (tactics.toss_lift_mps, ASSUMPTION 5.5 m/s ~ 1.5 m).
 	var tossing := creature.anim.has_state(&"toss")
 	if tossing:
+		creature.stop_move()
 		creature.anim.play_clip(&"toss")
+		_tossing = true
 		tactic.emit(&"toss")
 	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult) and attack_target is Player:
 		var pl := attack_target as Player
@@ -1033,6 +1062,11 @@ func _feint(delta: float) -> void:
 	if _left <= 0.0:
 		_enter_circle()
 
+## In the fight but not striking (circling, holding, between moves): a rig with an investigate loop stands in it
+## (the compy's twitchy "itching for a fight" idle) instead of its calm idle.
+func aware_idle() -> bool:
+	return _valid_target() and not state in [&"roam", &"flee", &"retreat", &"disengage", &"sleep", &"dead", &"downed"]
+
 func _start_lunge(into: StringName) -> void:
 	_set_state(&"lunge")
 	_lunge_into = into
@@ -1059,7 +1093,7 @@ func _lunge(delta: float) -> void:
 	else:
 		speed_override = creature.move_speed_mps() * _t("lunge_speed_mult", 1.0)
 		creature.move_to(attack_target.global_position)
-	if _flat_dist(attack_target) <= reach_to(attack_target) - 0.1 and _can_swing():
+	if _flat_dist(attack_target) <= _bite_reach() and _can_swing():
 		if _lunge_into == &"bite_combo":
 			if creature.try_special(&"bite_combo"):
 				_combo()
@@ -1101,16 +1135,22 @@ func _mark_pack() -> void:
 	if _is_pack_member():
 		_pack_cooldown_until[creature.pack_id] = _sim_s() + _t("pack_gap_s", 0.6)
 
+## How close a running charge or lunge closes before it bites. tactics.bite_track (swarm, owner 2026-10-28: "it
+## should land some attacks"): prey walking away gets a lead of its outward speed x the time to the bite's contact
+## frame, so the jaws still reach her there. It used to slide the body after her during the bite, which glided
+## (owner 2026-10-31); a bite now plays in place and the run carries it close enough first.
+func _bite_reach() -> float:
+	var r := reach_to(attack_target) - 0.1
+	if not tac.get("bite_track", false):
+		return r
+	var v: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
+	var out := maxf(0.0, Vector3(v.x, 0.0, v.z).dot(-_to_me()))
+	var to_hit := _clip_len(&"attack_primary", 0.4) * CreatureClips._hit_frac(&"attack_primary")
+	return maxf(r * _t("bite_track_frac", 0.6), r - out * to_hit)
+
 ## Standing in a bite or the combo: face the prey, leap back out when the clip ends.
 func _swing(delta: float) -> void:
-	# tactics.bite_track (swarm, owner 2026-10-28: "it should land some attacks"): until the bite's contact
-	# frame it keeps lunging after prey that walks out of its jaws, instead of snapping at the spot she left.
-	if tac.get("bite_track", false) and creature.anim.current_clip == &"attack_primary" and not creature.anim._os_hit_done \
-			and _flat_dist(attack_target) > reach_to(attack_target) * _t("bite_track_frac", 0.6):
-		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.3)
-		creature.move_to(attack_target.global_position)
-	else:
-		creature.stop_move()
+	creature.stop_move()  # the bite plays in place (no glide): bite_track leads it instead (_bite_reach)
 	if creature.anim.current_clip != &"kick":  # a hind kick keeps its back to the prey
 		creature.face_towards(attack_target.global_position, delta)
 	if not creature.anim._busy:
