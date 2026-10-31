@@ -673,6 +673,8 @@ func _make_brain() -> void:
 		brain = PetBrain.new()
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
+	elif def and def.archetype == &"club_tail":
+		brain = ClubTailBrain.new()  # ANKYLOAI: tail toward the threat, rare hard club hits
 	elif def and TacticalBrain.has_tactics(def):
 		brain = TacticalBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":
@@ -847,10 +849,11 @@ func _update_label() -> void:
 	label.position.y = def.height_meters * size_scale() + 0.4
 
 func _on_windup(clip: StringName) -> void:
+	if brain is ClubTailBrain: return  # it rings where the club will pass, not ahead of the snout
 	Telegraph.show_for(self, clip)
 
 func _on_hit(clip: StringName) -> void:
-	if brain is TyrantBrain: return
+	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
 	var target := brain.attack_target if brain else null
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup.

@@ -1,16 +1,23 @@
-"""ANKYLO3D: the ankylosaurus' tail-club clips, keyed from rest on the transplant skeleton (Triceratops donor bones).
+"""ANKYLO3D + ANKYLOAI: the ankylosaurus' tail-club clips, keyed from rest on the transplant skeleton (Triceratops donor
+bones).
 
-attack_primary  1.25 s: cock the tail to the left, then whip it to the right; the club passes the right flank at
-                hit_frac 0.42 (anim_events.json), overshoots and settles back.
-attack_heavy    2.0 s: braced telegraph (tail cocked far and high, body low, a tremble while it holds), then a full
-                swing that lands at hit_frac 0.72, follow-through, recover.
-alert           1.6 s: head comes up, body drops low and wide, the club lifts and rattles.
-sleep           2.5 s, not looped (the game holds the last frame): settles belly-down on the ground, legs folded out to
-                the sides, chin down, the tail curled round to the right with the club resting on the ground.
+ANKYLOAI (owner 2026-10-31: "smashing that tail around", "keeps feet planted or steps in the direction for the swing"):
+every foot is planted (its pose is fixed: zero slide) except inside a scheduled step, where it lifts on an arc and lands
+on a new plant (its rest spot turned about PIVOT by that step's yaw, optionally set out wider), or a stamp (lift and
+stamp in place). The body yaws a few degrees over planted feet; bigger yaws are carried by steps. ClubTailBrain never
+turns the animal in code while these play, so what the feet do is what the player sees.
 
-Body yaw pivots about the front feet, so the hindquarters swing with the tail; all four feet follow that yaw (the
-hind ones scramble: they lift while the yaw is fast) and the legs are solved onto them every frame, so nothing
-slides through the floor. The head counter-turns to keep facing the target. Exports skeleton-only like make_gait.py.
+TAIL WHIP  attack_primary 2.0 s: the tail cocks left and rattles, the head looks back right, a front-foot stamp, then the
+           whip to the right: the club sweeps from behind round the right flank (strike window 0.50-0.66) while the hind
+           feet step into the swing; they step back in the recovery.
+TAIL SMASH attack_heavy 3.0 s: the front feet step out into a wide brace, the tail rises overhead (curled up) and
+           trembles, then slams down behind and a little right (impact 0.65; the club rests on the ground, never under
+           it); hold, then the feet step back in.
+CLUB SWEEP tail_swipe 2.6 s: the tail drawn far left and low, a stamp, then one long low sweep from the left through
+           straight behind to the right (0.44-0.74) while all four feet step round a pivot; steps back in the recovery.
+alert 1.6 s and sleep 2.5 s (not looped) are unchanged from ANKYLO3D.
+(The ANKYLO3D attack_primary 1.25 s / attack_heavy 2.0 s side whips were replaced: their feet followed the body yaw and
+slid, which read as gliding.)
 
 usage: Blender -b -P tools/gait/make_tail_club.py -- <base.glb> <out_dir> [clip ...]
 """
@@ -23,7 +30,7 @@ from mathutils import Matrix, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 BASE, OUT = argv[:2]
-WANT = argv[2:] or ["attack_primary", "attack_heavy", "alert", "sleep"]
+WANT = argv[2:] or ["attack_primary", "attack_heavy", "tail_swipe", "alert", "sleep"]
 FPS = 24
 TAILS = ["Tail1", "Tail2", "Tail3", "Tail4", "Tail5"]
 LEGS = [(f"{e}UpLeg.{s}", f"{e}LowLeg.{s}", f"{e}Foot.{s}") for e in ("Back", "Front") for s in ("L", "R")]
@@ -36,6 +43,8 @@ def smooth(x):
 
 def keys(u, pts):
     """Piecewise smoothstep through (u, value) points."""
+    if pts is None:
+        return 0.0
     if u <= pts[0][0]:
         return pts[0][1]
     for (u0, v0), (u1, v1) in zip(pts, pts[1:]):
@@ -44,44 +53,75 @@ def keys(u, pts):
     return pts[-1][1]
 
 
-# Each clip: frames, and curves of u in [0, 1]. yaw: body yaw (deg, + swings the rear to the right, -X);
-# tail: per-bone tail yaw (deg, + = club to the right), lagged down the chain; lift: tail pitch (deg, + raises the club);
-# crouch: body drop (mesh units); roll: body roll (deg); head: neck+head pitch (deg, + = nose up); tremble: deg.
+Z0 = [(0, 0), (1.0, 0)]
+# Each clip: frames, and curves of u in [0, 1]. yaw: body yaw (deg, + swings the rear to the right, -X; the rig faces -Y);
+# tail: per-bone tail yaw (deg, + = club to the right), lagged down the chain; lift: Tail1 pitch (deg, + raises the club);
+# curl: pitch of Tail2-5 each (deg, + curls the club up and over); crouch: body drop (mesh units); roll: body roll (deg);
+# head: neck+head pitch (deg, + = nose up); look: neck+head yaw (deg, + = looks right); tremble: (u0, u1, cycles, deg).
+# steps: (foot, u0, u1, yaw, out): the foot lifts at u0 and lands at u1 on its rest spot turned by yaw about PIVOT and set
+# out by `out` mesh units to its own side; it is planted (unmoving) before and after. stamps: (foot, u0, u1, height).
 CLIPS = {
     "attack_primary": dict(
-        n=30, lag=0.03,
-        yaw=[(0, 0), (0.24, -10), (0.42, 26), (0.55, 30), (1.0, 0)],
-        tail=[(0, 0), (0.24, -15), (0.36, 18), (0.46, 23), (0.62, 14), (1.0, 0)],
-        lift=[(0, 0), (0.24, 10), (0.40, 6), (0.6, 4), (1.0, 0)],
-        crouch=[(0, 0), (0.24, 0.008), (0.45, 0.010), (1.0, 0)],
-        roll=[(0, 0), (0.24, -4), (0.44, 5), (1.0, 0)],
-        head=[(0, 0), (0.24, 4), (0.44, -6), (1.0, 0)],
-        tremble=None),
-    "attack_heavy": dict(
         n=48, lag=0.02,
-        yaw=[(0, 0), (0.32, -16), (0.60, -18), (0.72, 34), (0.82, 38), (1.0, 0)],
-        tail=[(0, 0), (0.32, -19), (0.60, -20), (0.68, 20), (0.76, 26), (0.88, 14), (1.0, 0)],
-        lift=[(0, 0), (0.32, 16), (0.60, 18), (0.72, 6), (0.85, 4), (1.0, 0)],
-        crouch=[(0, 0), (0.32, 0.009), (0.60, 0.010), (0.75, 0.008), (1.0, 0)],
-        roll=[(0, 0), (0.32, -5), (0.60, -5), (0.74, 6), (1.0, 0)],
-        head=[(0, 0), (0.32, -8), (0.60, -9), (0.74, -4), (1.0, 0)],
-        tremble=(0.34, 0.60, 4.0, 2.0)),  # u0, u1, cycles, degrees on the cocked tail
+        yaw=[(0, 0), (0.18, -5), (0.48, -5), (0.58, 8), (0.66, 10), (0.80, 5), (1.0, 0)],
+        tail=[(0, 0), (0.18, -18), (0.48, -20), (0.53, -2), (0.59, 22), (0.65, 27), (0.80, 12), (1.0, 0)],
+        lift=[(0, 0), (0.18, 10), (0.48, 12), (0.56, 5), (0.70, 4), (1.0, 0)],
+        curl=[(0, 0), (0.18, 3), (0.48, 3), (0.56, 0), (1.0, 0)],
+        crouch=[(0, 0), (0.18, 0.006), (0.48, 0.008), (0.60, 0.011), (1.0, 0)],
+        roll=[(0, 0), (0.18, -3), (0.48, -3), (0.60, 5), (1.0, 0)],
+        head=[(0, 0), (0.18, -4), (0.48, -6), (0.60, -8), (1.0, 0)],
+        look=[(0, 0), (0.18, 25), (0.48, 25), (0.62, 12), (1.0, 0)],
+        tremble=(0.20, 0.48, 4.0, 2.5),
+        stamps=[("FrontFoot.L", 0.26, 0.34, 0.02)],
+        steps=[("BackFoot.R", 0.55, 0.64, 10, 0), ("BackFoot.L", 0.60, 0.69, 10, 0),
+               ("BackFoot.R", 0.80, 0.89, 0, 0), ("BackFoot.L", 0.86, 0.95, 0, 0)]),
+    "attack_heavy": dict(
+        n=72, lag=0.015,
+        yaw=[(0, 0), (0.15, 0), (0.45, -4), (0.60, -4), (0.66, 6), (0.80, 6), (1.0, 0)],
+        tail=[(0, 0), (0.15, 0), (0.45, -4), (0.60, -4), (0.66, 8), (0.82, 8), (1.0, 0)],
+        lift=[(0, 0), (0.12, 6), (0.45, 36), (0.60, 38), (0.655, -18), (0.70, -16), (0.82, -14), (1.0, 0)],
+        curl=[(0, 0), (0.12, 2), (0.45, 15), (0.60, 16), (0.655, -2), (0.70, 0), (1.0, 0)],
+        crouch=[(0, 0), (0.12, 0.012), (0.60, 0.014), (0.66, 0.020), (0.72, 0.012), (1.0, 0)],
+        roll=Z0,
+        head=[(0, 0), (0.12, -10), (0.60, -12), (0.66, -16), (0.80, -8), (1.0, 0)],
+        look=[(0, 0), (0.15, 15), (0.60, 15), (1.0, 0)],
+        tremble=(0.45, 0.60, 5.0, 3.0),
+        steps=[("FrontFoot.L", 0.03, 0.12, 0, 0.03), ("FrontFoot.R", 0.08, 0.17, 0, 0.03),
+               ("BackFoot.R", 0.63, 0.71, 6, 0), ("BackFoot.L", 0.68, 0.76, 6, 0),
+               ("FrontFoot.L", 0.82, 0.90, 0, 0), ("FrontFoot.R", 0.87, 0.95, 0, 0),
+               ("BackFoot.R", 0.84, 0.92, 0, 0), ("BackFoot.L", 0.89, 0.97, 0, 0)]),
+    "tail_swipe": dict(
+        n=62, lag=0.03,
+        yaw=[(0, 0), (0.20, -6), (0.42, -6), (0.60, 10), (0.72, 16), (0.80, 16), (1.0, 0)],
+        tail=[(0, 0), (0.20, -22), (0.42, -24), (0.50, -10), (0.60, 10), (0.70, 26), (0.80, 20), (1.0, 0)],
+        lift=[(0, 0), (0.20, -2), (0.42, -3), (0.60, 2), (0.80, 4), (1.0, 0)],
+        curl=Z0,
+        crouch=[(0, 0), (0.20, 0.010), (0.70, 0.012), (1.0, 0)],
+        roll=[(0, 0), (0.20, -4), (0.42, -4), (0.65, 6), (1.0, 0)],
+        head=[(0, 0), (0.20, -6), (0.70, -6), (1.0, 0)],
+        look=[(0, 0), (0.20, 30), (0.42, 30), (0.70, 0), (1.0, 0)],
+        tremble=(0.22, 0.42, 3.0, 2.0),
+        stamps=[("FrontFoot.R", 0.26, 0.33, 0.02)],
+        steps=[("BackFoot.L", 0.46, 0.56, 8, 0), ("BackFoot.R", 0.52, 0.62, 16, 0), ("BackFoot.L", 0.62, 0.70, 16, 0),
+               ("FrontFoot.L", 0.55, 0.63, 16, 0), ("FrontFoot.R", 0.60, 0.68, 16, 0),
+               ("BackFoot.R", 0.80, 0.88, 0, 0), ("BackFoot.L", 0.85, 0.93, 0, 0),
+               ("FrontFoot.L", 0.82, 0.89, 0, 0), ("FrontFoot.R", 0.88, 0.96, 0, 0)]),
     "alert": dict(
         n=38, lag=0.03,
-        yaw=[(0, 0), (1.0, 0)],
+        yaw=Z0,
         tail=[(0, 0), (0.25, -6), (0.75, -6), (1.0, 0)],
         lift=[(0, 0), (0.25, 12), (0.75, 12), (1.0, 0)],
         crouch=[(0, 0), (0.25, 0.012), (0.75, 0.012), (1.0, 0)],
-        roll=[(0, 0), (1.0, 0)],
+        roll=Z0,
         head=[(0, 0), (0.22, 16), (0.78, 16), (1.0, 0)],
         tremble=(0.28, 0.72, 3.0, 5.0)),
     "sleep": dict(
         n=60, lag=0.04,
-        yaw=[(0, 0), (1.0, 0)],
+        yaw=Z0,
         tail=[(0, 0), (0.25, 0), (0.65, 13), (1.0, 13)],
         lift=[(0, 0), (0.3, 0), (0.6, -4), (1.0, -4)],
         crouch=[(0, 0), (0.15, 0.004), (0.55, 0.04), (1.0, 0.04)],
-        roll=[(0, 0), (1.0, 0)],
+        roll=Z0,
         head=[(0, 0), (0.35, 0), (0.7, -14), (1.0, -14)],
         splay=[(0, 0), (0.15, 0), (0.55, 0.035), (1.0, 0.035)],
         reach=[(0, 0), (0.15, 0), (0.55, 0.03), (1.0, 0.03)],  # front paws forward, hind paws back: legs lie out flat
@@ -100,9 +140,18 @@ pbs = arm.pose.bones
 for pb in pbs:
     pb.rotation_mode = "QUATERNION"
 upd = bpy.context.view_layer.update
-fl, fr = arm.data.bones["FrontFoot.L"].head_local, arm.data.bones["FrontFoot.R"].head_local
-PIVOT = Vector(((fl.x + fr.x) / 2, (fl.y + fr.y) / 2, 0.0))  # between the front feet
+fl = arm.data.bones["FrontFoot.L"].head_local
+bl = arm.data.bones["BackFoot.L"].head_local
+# Yaw pivot: a quarter of the way from the front feet to the hind feet, so the shoulders barely move over planted front
+# feet and the hips (which step) carry the swing.
+PIVOT = Vector((0.0, fl.y + 0.25 * (bl.y - fl.y), 0.0))
 Z, X, Y = Vector((0, 0, 1)), Vector((1, 0, 0)), Vector((0, 1, 0))
+gi = {g.index: g.name for g in skin.vertex_groups}
+TAIL_V = [v.index for v in skin.data.vertices if v.groups and gi[max(v.groups, key=lambda g: g.weight).group] in TAILS]
+for pb in pbs:
+    pb.matrix_basis.identity()
+upd()
+REST_FOOT = {foot: pbs[foot].matrix.copy() for _, _, foot in LEGS}
 
 
 def about(pb, axis, deg, piv=None):
@@ -133,56 +182,97 @@ def solve_leg(up, low, foot):  # same analytic two-bone solve as transfer_clips.
         upd()
 
 
-def pose(c, u, du):
+def plant(foot, yaw, out):
+    m = Matrix.Translation(PIVOT) @ Matrix.Rotation(math.radians(yaw), 4, Z) @ Matrix.Translation(-PIVOT) @ REST_FOOT[foot]
+    m.translation.x += out * (1 if foot.endswith("L") else -1)
+    return m
+
+
+def foot_at(c, foot, u):
+    """The foot's matrix at u: planted on its latest landed step, or lifted on the arc of the step in progress."""
+    cur = (0.0, 0.0)
+    m, lift = None, 0.0
+    for f, u0, u1, yaw, out in sorted((s for s in c.get("steps", []) if s[0] == foot), key=lambda s: s[1]):
+        if u >= u1:
+            cur = (yaw, out)
+            continue
+        if u > u0:
+            t = (u - u0) / (u1 - u0)
+            m = plant(foot, *cur).lerp(plant(foot, yaw, out), smooth(t))
+            lift = 0.022 * math.sin(math.pi * t)
+        break
+    if m is None:
+        m = plant(foot, *cur)
+    for f, u0, u1, h in c.get("stamps", []):
+        if f == foot and u0 < u < u1:
+            lift = h * math.sin(math.pi * (u - u0) / (u1 - u0))
+    m = m.copy()
+    m.translation.z += lift
+    return m
+
+
+def low_z(idx=None):
+    ev = skin.evaluated_get(bpy.context.evaluated_depsgraph_get())
+    me = ev.to_mesh()
+    vs = me.vertices if idx is None else [me.vertices[i] for i in idx]
+    z = min((skin.matrix_world @ v.co).z for v in vs)
+    ev.to_mesh_clear()
+    return z
+
+
+def pose(c, u):
     for pb in pbs:
         pb.matrix_basis.identity()
     upd()
     yaw = keys(u, c["yaw"])
-    # feet: follow the body yaw about the pivot; lift while the yaw moves fast (scrambling steps), hind more than front
-    speed = abs(keys(min(u + du, 1), c["yaw"]) - keys(max(u - du, 0), c["yaw"])) / (2 * du) / 400.0
-    R = Matrix.Translation(PIVOT) @ Matrix.Rotation(math.radians(yaw), 4, Z) @ Matrix.Translation(-PIVOT)
-    for i, (_, _, foot) in enumerate(LEGS):
-        hind = foot.startswith("Back")
-        phase = (u * 9.0 + (0.5 if foot.endswith("R") else 0.0) + (0.25 if hind else 0.0)) % 1.0
-        lift = min(1.0, speed) * (0.016 if hind else 0.008) * max(0.0, math.sin(math.pi * phase * 2.0))
-        m = R @ pbs[foot].matrix.copy()
-        m.translation.z += lift
-        if "splay" in c:  # feet slide out to the sides as the body settles (legs fold out, not through the belly)
+    for _, _, foot in LEGS:
+        m = foot_at(c, foot, u)
+        if "splay" in c:  # sleep: feet slide out to the sides as the body settles (legs fold out, not through the belly)
             m.translation.x += keys(u, c["splay"]) * (1 if foot.endswith("L") else -1)
         if "reach" in c:
-            m.translation.y += keys(u, c["reach"]) * (1 if hind else -1)
+            m.translation.y += keys(u, c["reach"]) * (1 if foot.startswith("Back") else -1)
         pbs[foot].matrix = m
         upd()
+    R = Matrix.Translation(PIVOT) @ Matrix.Rotation(math.radians(yaw), 4, Z) @ Matrix.Translation(-PIVOT)
     body = pbs["Body"]
     body.matrix = Matrix.Translation((0, 0, -keys(u, c["crouch"]))) @ R @ body.matrix
     upd()
     fwd = (Matrix.Rotation(math.radians(yaw), 3, Z) @ Y)
     about(body, fwd, keys(u, c["roll"]), body.matrix.translation.copy())
-    # head counter-turns to keep facing the target, and pitches
-    about(pbs["Shoulders"], Z, -0.55 * yaw)
-    about(pbs["Neck"], Z, -0.30 * yaw)
+    # head counter-turns against the body yaw and looks toward the swing side (+look = right, a negative Z turn)
+    look = keys(u, c.get("look"))
+    about(pbs["Shoulders"], Z, -0.55 * yaw - 0.4 * look)
+    about(pbs["Neck"], Z, -0.30 * yaw - 0.6 * look)
     side = Matrix.Rotation(math.radians(yaw * 0.15), 3, Z) @ X
     hp = keys(u, c["head"])
     about(pbs["Neck"], side, -0.6 * hp)  # rotating about +X lifts +Y; the head points -Y, so nose up is negative
     about(pbs["Head"], side, -0.4 * hp)
-    # tail: lift at the root, then the lagged yaw down the chain (the club whips after the root)
-    about(pbs["Tail1"], Matrix.Rotation(math.radians(yaw), 3, Z) @ X, keys(u, c["lift"]))
+    # tail: lift at the root, curl down the chain, then the lagged yaw (the club whips after the root)
+    tside = Matrix.Rotation(math.radians(yaw), 3, Z) @ X
+    about(pbs["Tail1"], tside, keys(u, c["lift"]))
+    curl = keys(u, c.get("curl"))
     tr = c["tremble"]
     for i, t in enumerate(TAILS):
+        if i and curl:
+            about(pbs[t], pbs[t].matrix.to_3x3().col[0].normalized(), curl)
         ang = keys(max(0.0, u - c["lag"] * i), c["tail"])
         if tr and tr[0] < u < tr[1]:
             s = (u - tr[0]) / (tr[1] - tr[0])
             ang += tr[3] * math.sin(2 * math.pi * tr[2] * s) * math.sin(math.pi * s) * (0.4 + 0.15 * i)
         about(pbs[t], Z, ang)
+    # the club rests on the ground at most: a slam that would bury it raises the tail root until the skin touches 0
+    for _ in range(12):
+        if low_z(TAIL_V) >= 0.0:
+            break
+        about(pbs["Tail1"], tside, 1.5)
     for up, low, foot in LEGS:
         solve_leg(up, low, foot)
-    # floor pass: a crouch or a scramble must not push knee or belly skin through the ground; lift the Body (feet stay)
-    ev = skin.evaluated_get(bpy.context.evaluated_depsgraph_get())
-    me = ev.to_mesh()
-    low_z = min((skin.matrix_world @ v.co).z for v in me.vertices)
-    ev.to_mesh_clear()
-    if low_z < -0.0005:
-        m = body.matrix.copy(); m.translation.z -= low_z; body.matrix = m
+    # floor pass: a crouch must not push knee or belly skin through the ground; lift the Body (feet stay)
+    for _ in range(4):  # re-solving the legs after a lift can tilt a shin under again: repeat until it holds
+        lz = low_z()
+        if lz >= -0.0005:
+            break
+        m = body.matrix.copy(); m.translation.z -= lz; body.matrix = m
         upd()
         for up, low, foot in LEGS:
             solve_leg(up, low, foot)
@@ -195,8 +285,7 @@ for name in WANT:
     n = c["n"]
     frames = []
     for f in range(n):
-        u = f / (n - 1)
-        pose(c, u, 1.0 / (n - 1))
+        pose(c, f / (n - 1))
         frames.append({pb.name: (pb.location.copy(), pb.rotation_quaternion.copy()) for pb in pbs})
     act = bpy.data.actions.new(name)
     arm.animation_data_create()
