@@ -249,7 +249,7 @@ def antler_texture():
     bsdf.inputs["Roughness"].default_value = 0.62
     return mat
 
-def tube(bm, uvl, pts, radii, us, ring=8):
+def tube(bm, uvl, pts, radii, us, ring=8, cap_start=False):
     rings = []
     for i, p in enumerate(pts):
         d = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
@@ -259,6 +259,11 @@ def tube(bm, uvl, pts, radii, us, ring=8):
         for k in range(ring):
             f = bm.faces.new((rings[i][k], rings[i][(k + 1) % ring], rings[i + 1][(k + 1) % ring], rings[i + 1][k]))
             for lp, uu in zip(f.loops, (us[i], us[i], us[i + 1], us[i + 1])): lp[uvl].uv = (uu, 0.5)
+    if cap_start:  # MEGAJOUST: a tine root sunk through the palm showed an open ring on the far face
+        rootv = bm.verts.new(pts[0] - (pts[1] - pts[0]).normalized() * radii[0] * 0.6)
+        for k in range(ring):
+            f = bm.faces.new((rings[0][(k + 1) % ring], rings[0][k], rootv))
+            for lp in f.loops: lp[uvl].uv = (us[0], 0.5)
     tipv = bm.verts.new(pts[-1] + (pts[-1] - pts[-2]).normalized() * radii[-1] * 1.5)
     for k in range(ring):
         f = bm.faces.new((rings[-1][k], rings[-1][(k + 1) % ring], tipv))
@@ -268,55 +273,73 @@ def bez(p0, p1, p2, n):
     return [p0 * (1 - t) ** 2 + p1 * 2 * t * (1 - t) + p2 * t * t for t in (i / (n - 1) for i in range(n))]
 
 def build_antler(sx):
-    """One palmate antler in the animal frame (metres from its pedicle; +X out for sx=1): a short beam out, up
-    and back, a brow tine forward, then a broad cupped palm reaching ~2.4 m out with tines along its rim."""
+    """One palmate antler in the animal frame (metres from its pedicle; +X out for sx=1), shaped on the owner's stag
+    sheet (MEGAJOUST): a short thick beam out and up, a brow tine curling forward over the face, then a broad fan
+    palm that spreads out, back and up and cups toward the sky and the front, its back/upper rim lined with long
+    tines that curl upward, its outer end splayed into tines that reach out and droop, two shorter tines hooking
+    forward off the front rim. Broad from the front, the side and above, as in the sheet's three views."""
     bm = bmesh.new(); uvl = bm.loops.layers.uv.new("UVMap")
     X = lambda x, y, z: Vector((x * sx, y, z))
-    beam = bez(X(0, 0, -0.05), X(0.34, 0.06, 0.16), X(0.74, 0.20, 0.27), 7)
-    tube(bm, uvl, beam, [0.13, 0.12, 0.115, 0.11, 0.105, 0.10, 0.10], [0.05 * i for i in range(7)], 10)
-    brow = bez(X(0.14, 0.0, 0.12), X(0.30, -0.35, 0.18), X(0.40, -0.62, 0.42), 6)
-    tube(bm, uvl, brow, [0.07, 0.06, 0.05, 0.04, 0.025, 0.012], [0.2, 0.4, 0.55, 0.7, 0.85, 1.0], 8)
-    # palm: grid over (u along, v across), centreline from the beam end outward, up and back
-    U = X(1.0, 0.38, 0.16).normalized()
-    Vraw = Vector((0, 1.0, 0.65)); Vd = (Vraw - U * U.dot(Vraw)).normalized()
-    N = U.cross(Vd).normalized()
-    if N.z < 0: N = -N
-    L = 1.95; nu, nv = 18, 9
-    base = beam[-1] - Vd * 0.05
-    def width(u): return 0.26 + 0.8 * math.sin(min(u, 0.92) / 0.92 * math.pi * 0.62) - 0.35 * max(0.0, u - 0.8) / 0.2
+    up = Vector((0, 0, 1))
+    beam = bez(X(0, 0, -0.05), X(0.30, 0.04, 0.12), X(0.60, 0.10, 0.30), 7)
+    tube(bm, uvl, beam, [0.16, 0.15, 0.14, 0.135, 0.13, 0.13, 0.13], [0.04 * i for i in range(7)], 10)
+    brow = bez(X(0.20, -0.02, 0.10), X(0.42, -0.50, 0.16), X(0.52, -0.92, 0.46), 7)
+    tube(bm, uvl, brow, [0.085, 0.075, 0.062, 0.05, 0.036, 0.022, 0.01], [0.2, 0.35, 0.5, 0.65, 0.78, 0.9, 1.0], 8)
+    # palm frame: U out along the palm (out, a little back, up), W across it (back and up), N its face (up/forward)
+    U = X(1.0, 0.30, 0.40).normalized()
+    def frame(u):  # the palm twists along its length: upright at the root, laid back toward the end
+        Wr = Vector((0, 0.45 + 1.0 * max(0.0, u), 1.0)); W = (Wr - U * U.dot(Wr)).normalized()
+        N = U.cross(W).normalized()
+        return W, (N if N.z >= 0 else -N)
+    W, N = frame(0.5)
+    L = 2.3; nu, nv = 20, 11
+    base = beam[-1] - U * 0.12
+    def width(u): return 0.30 + 1.35 * math.sin(min(max(u, 0.0), 1.0) * math.pi * 0.5) ** 1.4
+    def thick(u): return 0.075 * (1 - 0.45 * u)
     def pt(u, v):
-        w = width(u); c = base + U * (L * u) + N * (0.18 * u * u)  # the palm rises toward its end
-        return c + Vd * ((v - 0.5) * w) - N * (0.22 * w * (v - 0.5) ** 2) * 1.0  # cupped: the rims curl down
+        w = width(u); W, N = frame(u)
+        c = base + U * (L * u) - up * (0.30 * u * u)  # the end droops a little, as in the front view
+        ridge = 0.025 * w * math.sin(v * math.pi * 7) * min(1.0, u * 2)  # grooves fanning out to the tines, as in the sheet
+        return c + W * ((v - 0.5) * w) - N * (0.20 * w * (2 * (v - 0.5)) ** 2 - ridge)  # cupped: both rims curl away from the face
     top, bot = [], []
-    for side_off, store in ((0.028, top), (-0.028, bot)):
-        store.extend([[bm.verts.new(pt(i / (nu - 1), j / (nv - 1)) + N * side_off) for j in range(nv)] for i in range(nu)])
+    for side, store in ((1, top), (-1, bot)):
+        store.extend([[bm.verts.new(pt(i / (nu - 1), j / (nv - 1)) + frame(i / (nu - 1))[1] * side * thick(i / (nu - 1)) * (1 - 0.6 * (2 * (j / (nv - 1) - 0.5)) ** 2))
+                       for j in range(nv)] for i in range(nu)])
     def quad(vs, uvs, flip):
         f = bm.faces.new(vs[::-1] if flip else vs)
         for lp, uu in zip(f.loops, uvs[::-1] if flip else uvs): lp[uvl].uv = (uu, 0.5)
+    uof = lambda i: 0.28 + 0.40 * i / (nu - 1)
     for i in range(nu - 1):
         for j in range(nv - 1):
-            us = [0.3 + 0.45 * i / (nu - 1), 0.3 + 0.45 * i / (nu - 1), 0.3 + 0.45 * (i + 1) / (nu - 1), 0.3 + 0.45 * (i + 1) / (nu - 1)]
+            us = [uof(i), uof(i), uof(i + 1), uof(i + 1)]
             quad([top[i][j], top[i][j + 1], top[i + 1][j + 1], top[i + 1][j]], us, sx < 0)
             quad([bot[i][j], bot[i][j + 1], bot[i + 1][j + 1], bot[i + 1][j]], us, sx > 0)
     rim = [(i, 0) for i in range(nu)] + [(nu - 1, j) for j in range(nv)] + [(i, nv - 1) for i in range(nu - 1, -1, -1)] + [(0, j) for j in range(nv - 1, -1, -1)]
     for (i0, j0), (i1, j1) in zip(rim, rim[1:]):
         if (i0, j0) == (i1, j1): continue
-        uu = 0.3 + 0.45 * i0 / (nu - 1)
-        quad([top[i0][j0], top[i1][j1], bot[i1][j1], bot[i0][j0]], [uu] * 4, sx < 0)
-    # tines: along the back/upper rim (v=1) and round the end, curving up; two on the front rim
-    # tines fan out from the palm's middle like fingers and curl up at the tips; the long ones on the back rim
-    tines = [(0.22, 1.0, 0.50), (0.36, 1.0, 0.72), (0.50, 1.0, 0.86), (0.63, 1.0, 0.92), (0.75, 1.0, 0.88),
-             (0.86, 0.95, 0.82), (0.95, 0.78, 0.76), (1.0, 0.52, 0.70), (0.97, 0.25, 0.62), (0.88, 0.04, 0.55),
-             (0.72, 0.0, 0.46), (0.55, 0.0, 0.36)]
-    hub = pt(0.42, 0.5)
-    up = Vector((0, 0, 1))
-    for k, (u, v, ln) in enumerate(tines):
-        p0 = pt(u, v)
-        rad = (p0 - hub); rad -= N * rad.dot(N); rad.normalize()
-        d1 = (rad + up * 0.25).normalized(); d2 = (rad * 0.45 + up).normalized()
+        quad([top[i0][j0], top[i1][j1], bot[i1][j1], bot[i0][j0]], [uof(i0)] * 4, sx < 0)
+    # tines (u, v, length, kind): fanned from a hub at the palm's root, each curling as the sheet shows
+    tines = [(0.16, 1.0, 0.95, "up"), (0.30, 1.0, 1.25, "up"), (0.44, 1.0, 1.45, "up"), (0.57, 1.0, 1.50, "up"),
+             (0.70, 1.0, 1.45, "up"), (0.82, 1.0, 1.35, "up"), (0.93, 0.92, 1.30, "end"), (1.0, 0.70, 1.30, "end"),
+             (1.0, 0.45, 1.20, "end"), (0.98, 0.20, 1.10, "droop"), (0.88, 0.0, 0.95, "fwd"), (0.70, 0.0, 0.80, "fwd")]
+    hub = pt(-0.25, 0.45)
+    for k, (u, v, ln, kind) in enumerate(tines):
+        p0 = pt(u, v); W, N = frame(u)
+        rad = p0 - hub; rad -= N * rad.dot(N); rad.normalize()
+        if kind == "up":
+            # the fan leans forward over the face near the root and back toward the end (the sheet's side view)
+            lean = Vector((0, (u - 0.45) * 3.2, 0))
+            d1 = (rad + up * 0.3 + lean * 0.8).normalized(); d2 = (rad * 0.4 + up + U * 0.2 + lean).normalized()
+        elif kind == "end":
+            d1 = (rad + U * 0.4).normalized(); d2 = (rad + U * 0.5 + up * 0.45).normalized()
+        elif kind == "droop":
+            d1 = (rad + U * 0.3).normalized(); d2 = (rad + U * 0.6 - up * 0.35).normalized()
+        else:  # off the front rim: forward, then hooking up
+            d1 = (rad + Vector((0, -1.2, 0))).normalized(); d2 = (Vector((0, -1.0, 0)) + up * 0.5 + U * 0.3).normalized()
         ln *= 1.0 + 0.12 * math.sin(k * 2.3)
-        pts = bez(p0 - rad * 0.08, p0 + d1 * ln * 0.6, p0 + d1 * ln * 0.6 + d2 * ln * 0.5, 6)
-        tube(bm, uvl, pts, [0.075, 0.062, 0.048, 0.034, 0.02, 0.008], [0.62, 0.72, 0.8, 0.88, 0.95, 1.0], 7)
+        pts = bez(p0 - rad * 0.28, p0 + d1 * ln * 0.55, p0 + d1 * ln * 0.55 + d2 * ln * 0.5, 7)
+        r0 = 0.13 if kind != "fwd" else 0.10  # wide roots that web into the palm rim
+        tube(bm, uvl, pts, [r0, r0 * 0.82, r0 * 0.64, r0 * 0.48, r0 * 0.33, r0 * 0.2, 0.008], [0.6, 0.68, 0.76, 0.83, 0.9, 0.96, 1.0], 8, cap_start=True)
     me = bpy.data.meshes.new("Antler" + ("L" if sx > 0 else "R")); bm.to_mesh(me); bm.free()
     for p in me.polygons: p.use_smooth = True
     return me
@@ -327,6 +350,9 @@ if "antlers" in cfg:
     bm_all = bmesh.new()
     for sx in (1, -1):
         me = build_antler(sx)
+        if "span_m" in cfg["antlers"]:  # MEGAJOUST: sized so tip-to-tip span matches the variant json
+            half = max(abs(v.co.x) for v in me.vertices)
+            me.transform(Matrix.Scale((cfg["antlers"]["span_m"] / 2 - ped.x) / half, 4))
         me.transform(Matrix.Translation(Vector((ped.x * sx, ped.y, ped.z))))
         bm_all.from_mesh(me)
     me = bpy.data.meshes.new("Antlers"); bm_all.to_mesh(me); bm_all.free()

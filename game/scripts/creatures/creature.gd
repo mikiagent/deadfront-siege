@@ -749,6 +749,8 @@ func _make_brain() -> void:
 		brain = TyrantBrain.new()
 	elif def and def.archetype in [&"club_tail", &"spiked_tail"]:
 		brain = ClubTailBrain.new()  # ANKYLOAI: tail toward the threat, rare hard club hits; STEGOSPIN: the stegosaurus too
+	elif JoustBrain.wants(def):
+		brain = JoustBrain.new()  # MEGAJOUST: tactics.joust opts in: charge through, wheel wide, charge again
 	elif def and TacticalBrain.has_tactics(def):
 		brain = TacticalBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":

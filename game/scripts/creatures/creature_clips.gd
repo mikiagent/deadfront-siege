@@ -6,7 +6,7 @@ const CONTRACT: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert", &"feed",
 ]
-const LOOPING: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint", &"charge", &"strafe_left", &"strafe_right", &"walk_back", &"investigate", &"stalk"]
+const LOOPING: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint", &"charge", &"strafe_left", &"strafe_right", &"walk_back", &"investigate", &"stalk", &"run_turn_left", &"run_turn_right"]
 ## Authored on some species only; loaded when the GLB exists, CreatureAnim falls back to idle where
 ## missing. bite_combo: deinonychus chomp, Chomp, CHOMP (three hit fracs in anim_events.json).
 ## hop_back / leap_back: short and long backward leaps, pounce: the forward leap (airborne fracs in
@@ -27,9 +27,10 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"
 ## bull_windup: head down, a foot pawing twice with snorts, before a charge (pachycephalosaurus, tactics.display_clip).
 ## spin_* / pivot_* (a turn the brain does in code in step with the clip), rear_slam, hind_stomp_*: the stegosaurus' and
 ## ankylosaurus' STEGOSPIN moves; tackle_lunge: the tackle's leap; about_*: the ankylosaurus' 180 deg ABOUT-FACE.
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"grab", &"big_stomp", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right"]
 ## grab: the megatherium's bear-hug windup (tactics.pounce_windup_clip, played timed before the pounce).
 ## big_stomp: the shared big-dinosaur stomp (BigStomp, BIGSTOMP).
+## run_turn_left/right: the gallop on an arc, planted feet following it (megaloceros joust wheel, MEGAJOUST).
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"grab", &"big_stomp", &"run_turn_left", &"run_turn_right", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
