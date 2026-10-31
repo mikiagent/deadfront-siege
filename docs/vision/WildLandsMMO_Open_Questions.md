@@ -566,6 +566,9 @@ Owner: "yes allosaurus" (build it, be creative with its fight moves). Report `do
 | **AL4** | Reach: `tactics.reach_m` 7.0 (the jaws are ~7 m ahead of its centre at the bite; the same hook as SP-TARBOSAURUS). Each hit also needs its part (`pipeline.hit_parts`). | tactics, `TacticalBrain.contact_reach` | Move to the hitbox system when it lands. |
 | **AL5** | The grab pins with PINFEEL's pinned pose (she lies on the ground and the bites come down to her), not a lift in the hands. | `grab_bite` clip | A held-aloft pose would need survivor clips. |
 | **AL6** | Not tameable (as before); no saddle, no alpha skin (no alpha sheet: genetics recolour only), no eye glow. | `allosaurus.json` | Owner's call. |
+| **AL7** | ALLOFEEL new moves: arm rake (`claw_rake`, x1.1, prey 3.5-5.2 m in front, cd 6 s), hatchet slash (`slash_bite`, x1.3, 5.2-6.8 m, cd 9 s, Bleed rides on it with the hatchet via `tactics.status_clips`), shoulder-check (`check_left/right`, x0.9, prey 45-120 deg off its facing within 3.2 m, shoves her 3.5 m sideways, cd 5 s). | `allosaurus.json` `tactics.moves` | Damage, cooldowns and ranges are first guesses; whether the slash should bleed. |
+| **AL8** | ClawTip hit rows are the Hand bone + a 0.64 m offset (no ClawTip bone: the approved model is not re-exported), radius 0.45 m; the rake's left tip (0.86 m), the slash's jaw (1.34 m) and the check's stepping foot (1.48 / 1.59 m) are calibrated wider. | `hitboxes.json` | Add real ClawTip bones the next time the rig is rebuilt. |
+| **AL9** | The shoulder-check lands through the stepping foot and shin: the allosaurus' chest is ~4 m up, above a 1.78 m survivor, so a literal shoulder only reaches a big creature. | `check_*` clips, hitboxes | Owner may prefer a hip-swing or tail-sweep for the flank. |
 
 ### SP-CERATOSAURUS (2026-10-31) — a new species: Ceratosaurus, with gore, slashing bite, tail swipe and a water-edge lunge (claude/mmo-sp-ceratosaurus)
 
