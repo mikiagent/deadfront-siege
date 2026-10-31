@@ -1659,6 +1659,26 @@
       },
       {
        "bone": "Head"
+      },
+      {
+       "bone": "Hand.L",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.L"
+      },
+      {
+       "bone": "Hand.R",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.R"
       }
      ]
     },
@@ -1671,6 +1691,26 @@
       },
       {
        "bone": "Jaw"
+      },
+      {
+       "bone": "Hand.L",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.L"
+      },
+      {
+       "bone": "Hand.R",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.R"
       }
      ]
     },
@@ -1688,6 +1728,26 @@
       },
       {
        "bone": "Head"
+      },
+      {
+       "bone": "Hand.L",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.L"
+      },
+      {
+       "bone": "Hand.R",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.R"
       }
      ]
     },
@@ -1702,10 +1762,186 @@
       },
       {
        "bone": "Neck1"
+      },
+      {
+       "bone": "Hand.R",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.R"
+      }
+     ]
+    },
+    "claw_rake": {
+     "parts": [
+      {
+       "bone": "Hand.L",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.86,
+       "_part": "ClawTip.L",
+       "calibrated": true
+      },
+      {
+       "bone": "Hand.R",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.R"
+      },
+      {
+       "bone": "Hand.L"
+      },
+      {
+       "bone": "Hand.R"
+      }
+     ]
+    },
+    "slash_bite": {
+     "parts": [
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 1.34,
+       "calibrated": true
+      },
+      {
+       "bone": "Hand.L",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.L"
+      },
+      {
+       "bone": "Hand.R",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.R"
+      }
+     ]
+    },
+    "check_left": {
+     "parts": [
+      {
+       "bone": "Shin.L"
+      },
+      {
+       "bone": "Metatarsal.L",
+       "radius": 1.48,
+       "calibrated": true
+      },
+      {
+       "bone": "Thigh.L"
+      },
+      {
+       "bone": "Chest"
+      },
+      {
+       "bone": "Hand.L",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.L"
+      }
+     ]
+    },
+    "check_right": {
+     "parts": [
+      {
+       "bone": "Shin.R"
+      },
+      {
+       "bone": "Metatarsal.R",
+       "radius": 1.59,
+       "calibrated": true
+      },
+      {
+       "bone": "Thigh.R"
+      },
+      {
+       "bone": "Chest"
+      },
+      {
+       "bone": "Hand.R",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.R"
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "Hand.L",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 0.45,
+       "_part": "ClawTip.L"
+      },
+      {
+       "bone": "Hand.R",
+       "offset": [
+        0,
+        0.64,
+        0
+       ],
+       "radius": 1.32,
+       "_part": "ClawTip.R",
+       "calibrated": true
+      }
+     ]
+    },
+    "charge": {
+     "parts": [
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 2.17,
+       "calibrated": true
+      },
+      {
+       "bone": "Chest"
       }
      ]
     }
-   }
+   },
+   "_note_allofeel": "ALLOFEEL: ClawTip rows = a part at the tip of the three claws: the Hand bone + offset along it (the rig has no ClawTip bone and the approved model is not re-exported; 0.64 m = the Hand bone's length at size 1). # ASSUMPTION radius 0.45 m (the spread claws). They sit on every move where the hands reach the prey at the hit frame: the bite, the hatchet, the grab, the ram (right hand), the rake, the slash and the shoulder-checks (near hand). Calibrated (t_hitboxes --calibrate, the part that needs the least): the rake's left claw tip 0.86 m, the slash's jaw 1.34 m, the shoulder-checks' stepping foot (Metatarsal) 1.48 / 1.59 m: at survivor height only the legs are there (its chest is 4 m up). CARNOFEEL kit: bite_combo's right claw tip 1.32 m and the charge's Jaw 2.17 m calibrated (the charge plays the run clip with the head carried high; the body running her down, _body_over, is the other contact)."
   },
   "dilophosaurus": {
    "_note": "SP-DILOPHOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",

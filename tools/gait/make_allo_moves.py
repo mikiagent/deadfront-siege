@@ -18,7 +18,8 @@ Hit fractions match game/data/creatures/anim_events.json (attack_primary 0.42, a
 grab_bite [0.3, 0.55, 0.8]). The Jaw opens with +X (add_jaw.py --x-side), so jaw angles are applied as +deg.
 
 usage: Blender -b -P tools/gait/make_allo_moves.py -- <base.glb> <clip> <out.glb>
-  clip: idle | alert | attack_primary | attack_heavy | grab_bite | kick | hit_react | knockdown | death | sleep | feed
+  clip: idle | alert | attack_primary | attack_heavy | grab_bite | kick | hit_react | knockdown | death | sleep | feed |
+        claw_rake | slash_bite | check_left | check_right | bite_combo (ALLOFEEL)
 """
 import math
 import sys
@@ -204,6 +205,27 @@ PLANT = {"L": (0, 0, 0, 0), "R": (0, 0, 0, 0)}
 ARMS_IN = {"Arm.L": (0, 0, 0), "Arm.R": (0, 0, 0)}
 
 
+Z = [(0, 0)]
+
+
+def arm_keys(u, **tr):
+    """ALLOFEEL (owner 2026-10-31: "the arms should be moving as part of the attack animation"): both arms keyed as
+    tracks (clip fractions, smoothstep between keys, degrees), raptor_overlay.py's arm language on this rig:
+      up    + = the arm swings forward and up at the shoulder
+      out   + = the elbow swings out from the body
+      elbow + = the forearm folds up, - = it straightens to reach
+      wrist + = the hand flips forward, the three claws presented and spread; - = they curl down and back (the rake,
+              the clench). The rig has no finger bones: the claws spread and clench through the wrist.
+    A _L / _R suffix overrides one side."""
+    out = {}
+    for sd, sg in (("L", 1.0), ("R", -1.0)):
+        g = lambda k: track(u, tr.get(k + "_" + sd, tr.get(k, Z)))
+        out["Arm." + sd] = (g("up"), sg * g("out"), 0.0)
+        out["Forearm." + sd] = (g("elbow"), 0.0, 0.0)
+        out["Hand." + sd] = (g("wrist"), 0.0, 0.0)
+    return out
+
+
 def arms(pitch, fore=0.0, hand=0.0, spread=0.0):
     """Both arms: shoulder pitch (+ = forward/up), forearm and hand pitch, yaw outward."""
     return {"Arm.L": (pitch, spread, 0), "Arm.R": (pitch, -spread, 0), "Forearm.L": (fore, 0, 0), "Forearm.R": (fore, 0, 0),
@@ -259,7 +281,13 @@ def attack_primary(u):
         "body": {"dy": dy - 0.05 * tug, "dz": dz, "pitch": pitch},
         "turns": merge({
             "Chest": (-0.3 * pitch, 0, 0), "Neck1": (neck, 0, 0), "Neck2": (neck * 0.5, 0, 0), "Head": (head, 4 * tug, -6 * tug),
-        }, arms(10 * smooth(rf / 0.38)), tail_set(-pitch * 0.25)),
+        }, arm_keys(u,  # ALLOFEEL: cocked back with the claws curled, thrust out with the head, claws spread, raked down on the bite
+                    up=[(0, 0), (0.22, -18), (0.36, 58), (H, 64), (0.56, 18), (0.78, 4), (1, 0)],
+                    up_L=[(0, 0), (0.25, -18), (0.39, 54), (0.46, 60), (0.6, 16), (0.8, 4), (1, 0)],
+                    out=[(0, 0), (0.22, 10), (H, 6), (1, 0)],
+                    elbow=[(0, 0), (0.22, 30), (0.36, -46), (H, -42), (0.56, 24), (0.78, 8), (1, 0)],
+                    wrist=[(0, 0), (0.22, -26), (0.36, 42), (H, 30), (0.52, -44), (0.78, -10), (1, 0)]),
+            tail_set(-pitch * 0.25)),
         "jaw": track(u, [(0, 2), (0.3, 38), (0.38, 40), (H, 1), (0.6, 2), (0.75, 8), (1, 2)]),
         "feet": {"L": (0, 0, 0, 0), "R": (rl, rf, 0, 0)},
     }
@@ -281,7 +309,13 @@ def attack_heavy(u):
             "Chest": (5 * rear - 6 * chop, 0, 0),
             "Neck1": (12 * rear - 22 * chop + 6 * drag, 0, 0), "Neck2": (4 * rear - 12 * chop, 0, 0),
             "Head": (-6 * rear - 18 * chop + 1.5 * tremble, 0, 2 * tremble),
-        }, arms(15 * rear - 10 * chop, 20 * rear), tail_set(-1.5 * rear + 4.5 * chop)),
+        }, arm_keys(u,  # ALLOFEEL: raised and spread wide with the claws open through the held gape (the telegraph), slammed
+                    # down and forward with the chop, the claws hooking in on the hit, then dragged back to the chest, tearing
+                    up=[(0, 0), (0.3, 40), (0.58, 44), (0.68, 70), (H, 58), (0.8, 30), (0.88, -6), (1, 0)],
+                    out=[(0, 0), (0.3, 26), (0.58, 28), (H, 8), (0.88, 4), (1, 0)],
+                    elbow=[(0, 0), (0.3, -10), (0.58, -14), (0.68, -44), (H, -30), (0.8, 20), (0.88, 34), (1, 0)],
+                    wrist=[(0, 0), (0.3, 44), (0.58, 48), (0.68, 30), (H, -30), (0.8, -46), (0.88, -30), (1, 0)]),
+            {"Hand.L": (5 * tremble, 0, 0), "Hand.R": (-5 * tremble, 0, 0)}, tail_set(-1.5 * rear + 4.5 * chop)),
         "jaw": track(u, [(0, 2), (0.3, 46), (0.58, 48), (H, 40), (0.8, 30), (0.9, 4), (1, 2)]),
         "feet": {"L": (0, 0, 0, 0), "R": (rl, rf, 0, 0)},
     }
@@ -305,7 +339,13 @@ def grab_bite(u):
             "Chest": (-6 * low, 0, 0),
             "Neck1": (14 * low * (1 - bite) - 30 * bite, 0, 0), "Neck2": (6 * low - 16 * bite, 0, 0),
             "Head": (8 * low - 20 * bite, 0, 5 * tug),
-        }, arms(50 * reach, -20 * reach, -15 * reach, 6 * reach), tail_set(3.5 * low)),
+        }, arm_keys(u,  # ALLOFEEL: reach out wide with the claws spread, clamp shut on the prey at 0.3, haul her to the jaws on each
+                    # bite (elbows fold), fling open on the release
+                    up=[(0, 0), (0.12, 20), (0.24, 66), (0.3, 64), (0.42, 56), (0.55, 44), (0.64, 54), (0.8, 44), (0.86, 52), (0.9, 30), (1, 0)],
+                    out=[(0, 0), (0.18, 30), (0.26, 22), (0.3, -4), (0.88, -4), (0.93, 24), (1, 0)],
+                    elbow=[(0, 0), (0.2, -46), (0.26, -42), (0.3, -30), (0.55, -6), (0.64, -20), (0.8, -6), (0.88, -14), (0.93, -24), (1, 0)],
+                    wrist=[(0, 0), (0.2, 48), (0.26, 50), (0.3, -36), (0.88, -30), (0.93, 40), (1, 0)]),
+            tail_set(3.5 * low)),
         "jaw": jaw,
         "feet": {"L": (0, 0, 0, 0), "R": (rl, rf, 0, 0)},
     }
@@ -326,9 +366,149 @@ def kick(u):
         "turns": merge({
             "Chest": (0, -8 * ram, 6 * ram),
             "Neck1": (6 * ram, 14 * ram - 6 * wind, 0), "Neck2": (4 * ram, 10 * ram, 0), "Head": (6 * ram, 6 * ram, -6 * ram),
-        }, arms(10 * wind - 10 * ram, 10 * wind), tail_set(1.5 * ram, 5 * ram - 3 * wind)),
+        }, arm_keys(u,  # ALLOFEEL: both tucked and clenched in the wind; the right arm drives out with the shoulder, claws spread,
+                    # and rakes down through her after the hit; the left swings back for balance
+                    up=[(0, 0), (0.3, -18), (1, 0)],
+                    up_R=[(0, 0), (0.3, -22), (H, 58), (0.6, 36), (0.85, 0), (1, 0)],
+                    up_L=[(0, 0), (0.3, -22), (H, -40), (0.6, -16), (1, 0)],
+                    out_R=[(0, 0), (0.3, -4), (H, 36), (0.6, 26), (1, 0)],
+                    out_L=[(0, 0), (0.3, 0), (H, 18), (0.7, 6), (1, 0)],
+                    elbow=[(0, 0), (0.3, 30), (1, 0)],
+                    elbow_R=[(0, 0), (0.3, 30), (H, -34), (0.6, 10), (1, 0)],
+                    elbow_L=[(0, 0), (0.3, 30), (H, 40), (1, 0)],
+                    wrist=[(0, 0), (0.3, -30), (1, 0)],
+                    wrist_R=[(0, 0), (0.3, -30), (0.42, 40), (0.52, -44), (0.66, -20), (1, 0)]),
+            tail_set(1.5 * ram, 5 * ram - 3 * wind)),
         "jaw": track(u, [(0, 2), (0.3, 6), (H, 20), (0.7, 6), (1, 2)]),
         "feet": {"L": (0, 0, 0, 0), "R": (rl, rf, rs, 0)},
+    }
+
+
+def claw_rake(u):
+    """ALLOFEEL arm rake, 1.1 s, hit at 0.5 (windup held 0.18-0.36: the telegraph): rears a little with the head drawn
+    back and up out of the way, jaws open hissing, both arms raised high with the claws spread; then it pitches forward
+    with a step of the right foot and both arms rake down and back through the prey under its chest, the left a beat
+    ahead of the right, the claws curling shut. Hits from the claw tips (hitboxes.json Hand + offset rows)."""
+    H = 0.5
+    rear = track(u, [(0, 0), (0.18, 1), (0.36, 1), (H, 0), (1, 0)])
+    lunge = track(u, [(0, 0), (0.36, 0), (H, 1), (0.66, 0.8), (0.9, 0), (1, 0)])
+    tremble = wave(u, 8) * track(u, [(0, 0), (0.18, 1), (0.34, 1), (0.38, 0), (1, 0)])
+    rf = track(u, [(0, 0), (0.34, 0), (0.46, 0.3), (0.8, 0.3), (0.97, 0), (1, 0)])
+    rl = max(0.0, track(u, [(0, 0), (0.34, 0), (0.4, 0.14), (0.46, 0), (0.8, 0), (0.88, 0.12), (0.97, 0), (1, 0)]))
+    return {
+        "body": {"pitch": 7 * rear - 20 * lunge, "dz": 0.02 * rear - 0.12 * lunge, "dy": -0.05 * rear + 0.2 * lunge},
+        "turns": merge({
+            "Chest": (4 * rear - 8 * lunge, 0, 0),
+            "Neck1": (10 * rear + 12 * lunge, 0, 0), "Neck2": (4 * rear + 6 * lunge, 0, 0), "Head": (2 * rear - 6 * lunge, 0, 1.5 * tremble),
+        }, arm_keys(u,
+                    up=[(0, 0), (0.18, 74), (0.36, 78), (0.44, 58), (H, 22), (0.62, 4), (0.8, 2), (1, 0)],
+                    up_L=[(0, 0), (0.18, 74), (0.34, 78), (0.42, 54), (0.47, 20), (0.6, 2), (0.8, 2), (1, 0)],
+                    out=[(0, 0), (0.18, 22), (0.36, 24), (H, 10), (0.7, 6), (1, 0)],
+                    elbow=[(0, 0), (0.18, -30), (0.36, -34), (0.44, -46), (H, -40), (0.62, 20), (0.8, 10), (1, 0)],
+                    wrist=[(0, 0), (0.18, 46), (0.36, 50), (0.44, 24), (H, -10), (0.6, -52), (0.8, -16), (1, 0)]),
+            {"Hand.L": (4 * tremble, 0, 0), "Hand.R": (-4 * tremble, 0, 0)}, tail_set(-1.2 * rear + 3.5 * lunge)),
+        "jaw": track(u, [(0, 2), (0.18, 22), (0.36, 24), (H, 14), (0.7, 4), (1, 2)]),
+        "feet": {"L": (0, 0, 0, 0), "R": (rl, rf, 0, 0)},
+    }
+
+
+def slash_bite(u):
+    """ALLOFEEL hatchet slash, 1.3 s, hit at 0.42 (windup held 0.16-0.3): the slash-and-retreat bite (the hatchet-
+    jaw hypothesis: open-mouthed strikes that wound, then back off and let the prey bleed). The head cocks high and to
+    its left with the jaws gaping, the arms raised with the claws spread; a quick step in with the right foot and the
+    OPEN upper jaw slashes down and across to its right through the prey, the arms raking with it; the jaws shut after
+    the hit and it pulls back off the prey, stepping the right foot back to its print."""
+    H = 0.42
+    cock = track(u, [(0, 0), (0.16, 1), (0.3, 1), (H, 0), (1, 0)])
+    slash = track(u, [(0, 0), (0.3, 0), (H, 1), (0.52, 0.85), (0.66, 0.2), (1, 0)])
+    back = track(u, [(0, 0), (0.5, 0), (0.68, 1), (0.88, 0.6), (1, 0)])
+    sweep = track(u, [(0, 0), (0.16, 1), (0.3, 1), (H, 0), (0.55, -1), (0.72, -0.6), (1, 0)])  # + its left; through the middle on the hit
+    rf = track(u, [(0, 0), (0.26, 0), (0.38, 0.34), (0.62, 0.34), (0.82, 0), (1, 0)])
+    rl = max(0.0, track(u, [(0, 0), (0.26, 0), (0.32, 0.14), (0.38, 0), (0.62, 0), (0.72, 0.12), (0.82, 0), (1, 0)]))
+    return {
+        "body": {"pitch": 5 * cock - 14 * slash + 4 * back, "yaw": 7 * sweep, "roll": -3 * sweep,
+                 "dz": 0.02 * cock - 0.08 * slash, "dy": -0.04 * cock + 0.24 * slash - 0.1 * back},
+        "turns": merge({
+            "Chest": (2 * cock - 6 * slash, 4 * sweep, 0),
+            "Neck1": (14 * cock - 20 * slash + 6 * back, 13 * sweep, 0),
+            "Neck2": (6 * cock - 12 * slash, 9 * sweep, 0),
+            "Head": (-4 * cock - 14 * slash, 7 * sweep, 9 * sweep),
+        }, arm_keys(u,
+                    up=[(0, 0), (0.16, 34), (0.3, 38), (H, 56), (0.56, 14), (0.75, 0), (1, 0)],
+                    out=[(0, 0), (0.16, 18), (0.3, 20), (H, 4), (1, 0)],
+                    elbow=[(0, 0), (0.16, -6), (0.3, -10), (H, -34), (0.56, 22), (0.75, 10), (1, 0)],
+                    wrist=[(0, 0), (0.16, 38), (0.3, 42), (H, 10), (0.52, -44), (0.75, -12), (1, 0)]),
+            tail_set(-1.0 * cock + 3.5 * slash, -4 * cock + 6 * slash)),
+        "jaw": track(u, [(0, 2), (0.16, 44), (0.3, 46), (H, 40), (0.5, 30), (0.58, 3), (0.75, 6), (1, 2)]),
+        "feet": {"L": (0, 0, 0, 0), "R": (rl, rf, 0, 0)},
+    }
+
+
+def check(u, sgn):
+    """ALLOFEEL shoulder-check to one side (sgn +1 = its right, -1 = its left), 1.0 s, hit at 0.45 (windup held 0.18-0.32):
+    for prey beside its flank (a big animal's blind side). It leans away with the head turned off and the arms tucked,
+    then slams its chest, shoulder and hip sideways into her, the near arm lashing out with the claws spread and
+    raking down. At survivor height only its legs are there (the chest is 4 m up), so the near foot steps out sideways
+    into her as the body lurches over it (a hip-and-shoulder check), and steps back to its print."""
+    H = 0.45
+    lean = track(u, [(0, 0), (0.18, 1), (0.32, 1), (H, 0), (1, 0)])
+    slam = track(u, [(0, 0), (0.32, 0), (H, 1), (0.6, 0.8), (0.9, 0), (1, 0)])
+    near, far = ("R", "L") if sgn > 0 else ("L", "R")
+    out_ = track(u, [(0, 0), (0.3, 0), (H, 0.22), (0.66, 0.22), (0.9, 0), (1, 0)])
+    lift = max(0.0, track(u, [(0, 0), (0.3, 0), (0.38, 0.16), (H, 0), (0.66, 0), (0.78, 0.12), (0.9, 0), (1, 0)]))
+    return {
+        "body": {"dx": sgn * (-0.07 * lean + 0.22 * slam), "roll": sgn * (-6 * lean + 15 * slam), "yaw": sgn * (4 * lean - 6 * slam),
+                 "dz": -0.03 * lean - 0.08 * slam},
+        "turns": merge({
+            "Chest": (0, sgn * (4 * lean - 6 * slam), sgn * (-3 * lean + 6 * slam)),
+            "Neck1": (6 * slam, sgn * (8 * lean + 16 * slam), 0), "Neck2": (4 * slam, sgn * (4 * lean + 10 * slam), 0),
+            "Head": (6 * slam, sgn * 6 * slam, sgn * -6 * slam),
+        }, arm_keys(u, **{
+            "up": [(0, 0), (0.25, -16), (1, 0)], "elbow": [(0, 0), (0.25, 30), (1, 0)], "wrist": [(0, 0), (0.25, -28), (1, 0)],
+            "up_" + near: [(0, 0), (0.25, -20), (0.38, 14), (H, 52), (0.6, 30), (0.85, 0), (1, 0)],
+            "out_" + near: [(0, 0), (0.25, -6), (H, 56), (0.6, 40), (0.85, 4), (1, 0)],
+            "elbow_" + near: [(0, 0), (0.25, 30), (H, -36), (0.6, 8), (1, 0)],
+            "wrist_" + near: [(0, 0), (0.25, -28), (0.4, 40), (0.52, -40), (0.7, -16), (1, 0)],
+            "up_" + far: [(0, 0), (0.25, -20), (H, -24), (0.7, -8), (1, 0)],
+            "out_" + far: [(0, 0), (0.25, 0), (H, 16), (0.7, 6), (1, 0)],
+            "wrist_" + far: [(0, 0), (0.25, -28), (H, 0), (0.7, -14), (1, 0)],
+        }), tail_set(1.0 * slam, sgn * (-4 * lean + 9 * slam))),
+        "jaw": track(u, [(0, 2), (0.3, 8), (H, 22), (0.7, 6), (1, 2)]),
+        "feet": {near: (lift, 0.04 * out_, sgn * out_, 0), far: (0, 0, 0, 0)},
+    }
+
+
+def bite_combo(u):
+    """ALLOFEEL x CARNOFEEL chomp combo, 2.75 s on the shared bite_combo timing (anim_events hits 0.092 / 0.338 / 0.815,
+    tell 0.5-0.667): coils with the jaws gaping, chomps down to its left with the left arm raking, chomps to its right
+    with the right arm, rears up with the jaws wide and trembling and both arms raised, claws spread (the tell, held to
+    0.76), then slams a MEGA chomp down through the middle with both arms raking and shakes its head. Feet planted."""
+    lunge = track(u, [(0, 0), (0.06, -0.3), (0.092, 1), (0.16, 0.3), (0.27, -0.2), (0.338, 1), (0.42, 0.3), (0.5, 0),
+                      (0.667, -0.4), (0.76, -0.4), (0.815, 1.15), (0.88, 0.8), (1, 0)])
+    yaw = track(u, [(0, 0), (0.06, 10), (0.092, 18), (0.16, 10), (0.27, -10), (0.338, -18), (0.42, -10), (0.5, 0), (1, 0)])  # + its left
+    rear = track(u, [(0, 0), (0.5, 0), (0.6, 1), (0.76, 1), (0.815, 0), (1, 0)])
+    trem = wave(u, 14) * track(u, [(0, 0), (0.58, 0), (0.6, 1), (0.74, 1), (0.76, 0), (1, 0)])
+    shake = wave(u, 4) * track(u, [(0, 0), (0.815, 0), (0.84, 1), (0.92, 1), (0.95, 0), (1, 0)])
+    ln = max(lunge, 0.0)
+    return {
+        "body": {"dy": 0.28 * lunge - 0.06 * rear, "dz": -0.13 * ln + 0.02 * rear, "pitch": -16 * lunge + 10 * rear,
+                 "yaw": 0.3 * yaw, "roll": -0.15 * yaw + 2 * shake},
+        "turns": merge({
+            "Chest": (-0.3 * (-16 * lunge + 10 * rear), 0.2 * yaw, 0),
+            "Neck1": (-22 * lunge + 14 * rear + 1.5 * trem, 0.7 * yaw + 8 * shake, 0), "Neck2": (-10 * lunge + 6 * rear, 0.4 * yaw, 0),
+            "Head": (-12 * lunge - 4 * rear, 0.3 * yaw, 8 * shake),
+        }, arm_keys(u,
+                    up_L=[(0, 0), (0.06, -12), (0.092, 64), (0.16, 22), (0.338, 10), (0.5, 0), (0.6, 60), (0.76, 64), (0.815, 50), (0.88, 14), (1, 0)],
+                    up_R=[(0, 0), (0.092, 10), (0.27, -12), (0.338, 64), (0.42, 22), (0.5, 0), (0.6, 60), (0.76, 64), (0.83, 48), (0.9, 14), (1, 0)],
+                    out=[(0, 0), (0.6, 20), (0.76, 22), (0.815, 6), (1, 0)],
+                    elbow_L=[(0, 0), (0.06, 24), (0.092, -40), (0.16, 20), (0.5, 0), (0.6, -26), (0.76, -30), (0.815, -40), (0.88, 24), (1, 0)],
+                    elbow_R=[(0, 0), (0.27, 24), (0.338, -40), (0.42, 20), (0.5, 0), (0.6, -26), (0.76, -30), (0.83, -40), (0.9, 24), (1, 0)],
+                    wrist_L=[(0, 0), (0.06, 30), (0.092, -20), (0.14, -46), (0.3, -10), (0.5, 0), (0.6, 44), (0.76, 48), (0.815, -16), (0.87, -50), (1, 0)],
+                    wrist_R=[(0, 0), (0.27, 30), (0.338, -20), (0.39, -46), (0.5, 0), (0.6, 44), (0.76, 48), (0.83, -16), (0.89, -50), (1, 0)]),
+            tail_set(3 * ln - 2 * rear, -0.5 * yaw)),
+        "jaw": track(u, [(0, 2), (0.06, 38), (0.092, 0), (0.14, 8), (0.27, 40), (0.338, 0), (0.4, 8), (0.5, 14), (0.6, 46),
+                         (0.76, 46), (0.8, 40), (0.815, 0), (0.88, 4), (1, 2)]),
+        "feet": PLANT,
     }
 
 
@@ -413,7 +593,9 @@ def feed(u):
 CLIPS = {"idle": (idle, 60, True), "alert": (alert, 38, False), "attack_primary": (attack_primary, 22, False),
          "attack_heavy": (attack_heavy, 38, False), "grab_bite": (grab_bite, 53, False), "kick": (kick, 26, False),
          "hit_react": (hit_react, 14, False), "knockdown": (knockdown, 50, False), "death": (death, 43, False),
-         "sleep": (sleep, 48, False), "feed": (feed, 48, True)}
+         "sleep": (sleep, 48, False), "feed": (feed, 48, True),
+         "bite_combo": (bite_combo, 66, False), "claw_rake": (claw_rake, 26, False), "slash_bite": (slash_bite, 31, False),
+         "check_left": (lambda u: check(u, -1.0), 24, False), "check_right": (lambda u: check(u, 1.0), 24, False)}
 if CLIP == "pose":  # debugging: one static pose from $POSE (the apply() dict as JSON), 2 frames
     import json, os
     CLIPS["pose"] = (lambda u: json.loads(os.environ["POSE"]), 2, False)
