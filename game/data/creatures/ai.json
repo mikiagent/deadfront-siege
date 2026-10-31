@@ -610,12 +610,125 @@
     },
     "antlered": {
       "is_herbivore": true,
-      "attack_range": 1.9,
+      "attack_range": 3.2,
       "weak_to": [
         "blunt"
       ],
       "resists": [],
-      "temperament": "skittish"
+      "temperament": "skittish",
+      "tactics": {
+        "_about": "GIANT DEER (megaloceros; owner 2026-10-31: 'flee ONCE then turn territorial and engage, flee again only when weak'). Template: horned_charger. Stag: alert is the rut roar then the antlers lowered and shaken (the display tell) into a straight antler ram on a locked line (charge clip, head down); point blank the rear-up stomp (attack_heavy, forehooves land in front), the rear kick when the prey is behind, or the antler hook (attack_primary). The doe overrides this per variant (megaloceros.json model_variants.doe.tactics): no ram. The flee-once-then-fight switch is CLAUDE/coelomoves' shared behaviour; retreat_frac 0.3 is the 'flee again when weak'. Every number is an ASSUMPTION.",
+        "sequences": [
+          {
+            "name": "display_charge",
+            "steps": [
+              "display",
+              "charge"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "charge",
+            "steps": [
+              "charge"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_left_charge",
+            "steps": [
+              "strafe_left",
+              "charge"
+            ],
+            "weight": 0.5
+          },
+          {
+            "name": "strafe_right_charge",
+            "steps": [
+              "strafe_right",
+              "charge"
+            ],
+            "weight": 0.5
+          }
+        ],
+        "point_blank": [
+          "heavy",
+          "kick",
+          "bite"
+        ],
+        "ring_m": 10.0,
+        "circle_speed_frac": 0.55,
+        "circle_step_deg": 22.0,
+        "circle_min_s": 1.0,
+        "circle_max_s": 2.0,
+        "contact_after_s": 1.2,
+        "flip_chance": 0.15,
+        "bite_cd": 4.0,
+        "heavy_cd": 6.0,
+        "heavy_mult": 2.0,
+        "heavy_s": 1.1,
+        "kick_cd": 4.0,
+        "kick_mult": 1.5,
+        "charge_cd": 7.0,
+        "charge_straight": true,
+        "charge_speed_mult": 1.6,
+        "charge_max_s": 2.6,
+        "charge_through_m": 3.0,
+        "charge_mult": 2.2,
+        "_charge_shove": "ASSUMPTION (same ram rule as pack_mule, owner 2026-10-29): a landed charge shoves the survivor charge_shove_m along the charge line over charge_shove_stagger_s, in which she cannot act. The big ceratopsian shoves harder and the stagger lasts longer.",
+        "charge_shove_m": 4.5,
+        "charge_shove_stagger_s": 0.9,
+        "charge_miss_recover_s": 2.0,
+        "display_s": 2.2,
+        "display_charge_m": 5.0,
+        "strafe_m": 1.5,
+        "strafe_s": 0.6,
+        "dodge_height_per_m": 0.0,
+        "backoff": "scurry",
+        "scurry_s": 0.8,
+        "hop_m": 2.0,
+        "hop_cd": 3.0,
+        "leap_back_m": 2.0,
+        "max_retreat_m": 12.0,
+        "w_hold": 0.8,
+        "w_strafe": 0.4,
+        "w_dodge": 0.0,
+        "w_feint": 0.0,
+        "w_hop": 0.1,
+        "hold_min_s": 1.2,
+        "hold_max_s": 2.2,
+        "wait_max_s": 1.2,
+        "opening_swing_cd_s": 0.2,
+        "retreat_mode": "flee",
+        "retreat_frac": 0.3,
+        "retreat_cd": 14.0,
+        "flee_s": 5.0,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.25,
+        "pack_gap_s": 1.0,
+        "herd_defend": true,
+        "defend_s": 10.0,
+        "guard_m": 20.0,
+        "stand_ground_natures": [
+          "brave"
+        ],
+        "flee_natures": [
+          "timid"
+        ],
+        "alone": {
+          "w_feint": 1.5,
+          "retreat_frac_mult": 1.4,
+          "cooldown_mult": 1.3
+        },
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_charge": 1.5,
+          "combo_seq_mult": 1.3,
+          "beat_mult": 0.7,
+          "wait_mult": 0.5
+        }
+      },
+      "_attack_range": "ASSUMPTION: 3.2 (was 1.9): the 3.4 m-withers stag's head is 2.5 m ahead of its centre and its forehooves land ~1.7 m ahead; contact reach 3.5 m"
     },
     "club_tail": {
       "is_herbivore": true,

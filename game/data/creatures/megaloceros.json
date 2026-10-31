@@ -2,15 +2,15 @@
   "species": "Megaloceros",
   "clade": "Cervidae",
   "period": "Pleistocene",
-  "real_length_m": 3.0,
-  "height_meters": 2.1,
+  "real_length_m": 6.0,
+  "height_meters": 3.95,
   "rig": "quadruped",
   "tier": 30,
   "climate": "tundra",
   "archetype": "antlered",
   "tameable": true,
   "capture_tier": 2,
-  "verb": "antler gore, flees",
+  "verb": "antler charge, rear-up stomp, rear kick; flees once, then turns territorial",
   "status_applied": [
     "knockdown"
   ],
@@ -26,78 +26,76 @@
     "mount",
     "bag"
   ],
-  "look": "giant deer standing 2.1 meters at the shoulder with enormous palmate antlers spanning wide, long legs, thick brown winter coat with a pale rump and a dark shoulder hump,",
-  "texture_prompt": "thick brown winter fur, pale rump and belly, dark shoulder hump, bone-coloured antlers, matte surface",
+  "look": "giant Irish elk: stag with enormous palmate antlers (span ~6 m in game), dark brown back, cream neck ruff, tan legs; antlerless doe in tan with a grey-brown cape and cream throat",
+  "texture_prompt": "stag: brown back, cream ruff, bone antlers with dark bases; doe: tan coat, grey-brown cape, cream throat",
   "clips": {
-    "attack_primary": "Giant deer lowers its antlers and jabs forward",
-    "attack_heavy": "Giant deer rears on its hind legs, holds, then drops and gores forward",
-    "knockdown": "Giant deer stumbles and falls on its side",
-    "alert": "Giant deer raises its head high with ears forward"
+    "attack_primary": "stag: antler hook, head drops then rips up and sideways through the target (hit 0.42); doe: forehoof strike",
+    "attack_heavy": "rear-up stomp: rises ~40 deg on the hocks, forelegs folded and pawing (the tell), crashes forward, both forehooves slam down (hit 0.72)",
+    "kick": "rear kick: weight onto the forelegs, both hind hooves fire straight back and up (hit 0.45)",
+    "charge": "stag only: gallop with the head down and the antlers forward like a ram",
+    "alert": "stag: rut roar, then antlers lowered at the threat and shaken (charge telegraph); doe: head high, two warning stamps",
+    "knockdown": "forelegs buckle, rolls onto the right side",
+    "death": "forelegs buckle, rolls onto the right side, head down",
+    "sleep": "kneels in front first, then lies sternal with the legs folded",
+    "feed": "head down to graze, crops and chews"
   },
   "pipeline": {
-    "route": "skeleton_transplant_v3",
+    "route": "tripo_multiview_custom_deer_rig",
     "forward_axis": "+Z",
-    "version": 1,
-    "mesh_source": "res://assets/creatures/megaloceros/work/megaloceros_i2m_v1.glb",
-    "reference": {
-      "side": "01a0b1de-aad6-76e0-810b-8345154cb80f",
-      "front": "01a0b1df-0cd9-7228-bb19-9987633eff5b"
+    "version": 2,
+    "source_height_m": 3.95,
+    "size_note": "ASSUMPTION: stag withers 3.36 m (a big Irish elk's ~2.1 m x the 1.6 house exaggeration, claude-raptorscale.md); doe ~15 % smaller (2.85 m withers). Both GLBs are built in game metres (scale 1). real_length_m 6.0 = the roster's 2x of ~3 m, keeps the small taming pen.",
+    "mesh_source": {
+      "stag": "res://assets/creatures/megaloceros/work/megaloceros_stag_tripo.glb",
+      "doe": "res://assets/creatures/megaloceros/work/megaloceros_doe_tripo.glb"
     },
-    "i2m": "01a0b1df-6ebd-7340-98b8-91772d84526f",
-    "i2m_params": {
-      "model": "meshy-7 multi-image",
-      "polycount": 20000,
-      "texture": "2k PBR"
+    "tripo": {
+      "stag": "bcfbeaa9-7512-43e7-8dc4-d468de798bd3",
+      "doe": "0ed68442-1cbd-43f6-a33b-9f9ef7a682da",
+      "model": "P1-20260311 multiview, texture+PBR, face_limit 15000",
+      "credits": 100
     },
-    "credits_spent": 48,
-    "donor_rig": "tools/standins/quaternius/Triceratops.fbx",
-    "transplant_tool": "tools/transplant_rig.py",
-    "source_height_m": 1.8108,
-    "source_length_m": 1.902,
-    "repair": {
-      "loose_removed": 942,
-      "doubles_merged": 20053,
-      "holes_filled": 149,
-      "verts_before": 31426,
-      "islands": 5790,
-      "verts_after": 10431
-    },
-    "warp": {
-      "mode": "quadruped_landmarks",
-      "front_foot_y": -0.12199598640068361,
-      "back_foot_y": 0.7580102418477719,
-      "foot_half_width": 0.09659601747989655,
-      "hip_z": 0.9950553059577941,
-      "shoulder_z": 1.5728487491607666,
-      "head_z": 1.2507591247558594
-    },
-    "weights": {
-      "direct_fraction": 1.0,
-      "method": "continuous anatomical spine and single-limb weights, max four"
-    },
+    "reference": "owner sheets megaloceros_owner_sheet_stag.png / _doe.png; stag views: Codex, antlers removed (ref/stag_tripo_*.png); doe views cropped from her sheet (ref/doe_tripo_*.png)",
+    "build": "tools/gait/megaloceros/build.sh (build_rig.py: deer skeleton with carpus/hock/fetlock, Jaw, geometric weights, Blender-built palmate antlers skinned to Head; clips.py: every clip authored on that rig)",
     "clips": [
-      "alert",
-      "attack_heavy",
-      "attack_primary",
-      "death",
-      "hit_react",
       "idle",
-      "knockdown",
+      "walk",
       "run",
-      "walk"
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "alert",
+      "attack_primary",
+      "attack_heavy",
+      "kick",
+      "hit_react",
+      "knockdown",
+      "death",
+      "sleep",
+      "feed",
+      "charge"
     ],
-    "authored_clips": {
-      "knockdown": "90-degree side collapse ending with grounded hold",
-      "hit_react": "0.6s dedicated recoil; fixed foot targets; no body roll",
-      "alert": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "attack_heavy": "0.36s held anticipation then head thrust",
-      "death": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "idle": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "walk": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "run": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps",
-      "attack_primary": "anatomically fitted quadruped; analytic two-segment legs; baked at 24fps"
+    "model_variants": {
+      "stag": {
+        "texture": ""
+      },
+      "doe": {
+        "model": "doe/megaloceros_doe.glb",
+        "anim": "doe/anim",
+        "tactics": {
+          "_about": "ASSUMPTION: the doe has no antlers, so no ram: she runs in to a forehoof strike (a homing charge into attack_primary) and at point blank rears up and stomps or kicks.",
+          "charge_straight": false,
+          "point_blank": [
+            "heavy",
+            "kick",
+            "bite"
+          ]
+        },
+        "mount": "doe/mount"
+      }
     },
-    "rig_revision": 3
+    "variant_note": "ASSUMPTION: sex is picked per animal by CreatureView.pick_variant (deterministic from the spawn spot, ~50/50). Both share one bone layout; the doe has her own mesh and clip folder.",
+    "previous": "skeleton_transplant_v3 (Meshy i2m 01a0b1df-6ebd-7340-98b8-91772d84526f, replaced 2026-10-31)"
   },
   "taming": {
     "preferred_food": [
@@ -125,7 +123,7 @@
         "id": "saddle",
         "weight": 2.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "stripes",
@@ -137,7 +135,7 @@
         "id": "countershade",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "",

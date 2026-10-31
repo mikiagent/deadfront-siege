@@ -3,66 +3,66 @@
  "saddle": "saddle.glb",
  "socket": "Torso",
  "rider_offset": [
-  -0.9980769753456116,
-  -0.018974430859088898,
-  0.05901302769780159,
+  1.0,
+  -2.0887222615569023e-15,
+  1.5099580252808664e-07,
   0.0,
-  0.011159314773976803,
-  -0.9914453029632568,
-  -0.13004334270954132,
+  3.2143047040212105e-14,
+  -1.0,
+  -2.1287377194312285e-07,
   0.0,
-  0.060975704342126846,
-  -0.12913531064987183,
-  0.9897503852844238,
+  1.5099580252808664e-07,
+  2.375040537572204e-07,
+  -1.0,
   0.0,
-  -0.04045367240905762,
-  0.11724481731653214,
-  -0.6441655158996582,
+  -6.602264956967474e-09,
+  0.6159998774528503,
+  0.04372492805123329,
   1.0
  ],
  "seat": {
-  "y": 0.2101,
-  "top": 1.2315,
-  "half_len": 0.2414,
-  "half_w": 0.1689,
-  "back_z": 1.1763
+  "y": 0.4022,
+  "top": 3.1351,
+  "half_len": 0.56,
+  "half_w": 0.2598,
+  "back_z": 3.0712
  },
- "hips_above_socket_m": -0.1788,
- "seat_above_socket_m": -0.2788,
+ "hips_above_socket_m": 0.5372,
+ "seat_above_socket_m": 0.4372,
  "stirrups": {
   "L": [
-   0.2478,
-   0.0756,
-   0.9012
+   0.7029,
+   0.2463,
+   2.7524
   ],
   "R": [
-   -0.2499,
-   0.0756,
-   0.9012
+   -0.6993,
+   0.2463,
+   2.7524
   ]
  },
  "scale": {
-  "height_meters": 2.1,
-  "source_height_m": 1.8108,
-  "game_m_per_source": 1.15969
+  "height_meters": 3.95,
+  "source_height_m": 3.9474,
+  "game_m_per_source": 1.00065
  },
  "notes": "seat and straps are skinned to Torso (the back just behind the shoulders), the neck strap and its leads blend to Neck; rider_offset is the rider armature root relative to Torso in Blender's imported bone frame, column-major; rider_in_mount (added by mount_to_model_space.py) is the same pose in the mount's glTF model space and is what the game uses",
  "rider_in_mount": [
   1.0,
-  6.984919309616089e-10,
-  1.3969838619232178e-09,
+  -4.499862532288471e-22,
   0.0,
-  -4.656612873077393e-10,
+  0.0,
+  0.0,
   1.0,
-  1.2223608791828156e-09,
+  -5.108667463127499e-21,
   0.0,
-  -4.656612873077393e-10,
-  1.4493707567453384e-08,
+  -8.470329472543003e-22,
+  -4.84396966711053e-21,
   1.0,
   0.0,
-  3.4924596548080444e-09,
-  0.8167347311973572,
-  -0.21013930439949036,
+  1.554312234475219e-14,
+  2.654456615447998,
+  -0.4021819233894348,
   1.0
  ],
  "rider_in_mount_note": "rider armature root in the mount's glTF model space (Y-up), mount rest pose; preferred over rider_offset"

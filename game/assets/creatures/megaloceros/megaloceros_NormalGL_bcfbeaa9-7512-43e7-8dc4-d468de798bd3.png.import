@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bvajveogow4ln"
-path="res://.godot/imported/megaloceros_Image_3.jpg-45447f645fc910b4201c3e2c9b46858f.ctex"
+uid="uid://cnsjht86eu141"
+path="res://.godot/imported/megaloceros_NormalGL_bcfbeaa9-7512-43e7-8dc4-d468de798bd3.png-58e8291bc0507eb7ef6715fb36b37d09.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "81ebb4623582bff3442837f1583c3515"
+"md5": "2a96f19532035700cc2079735e152820"
 }
 
 [deps]
 
-source_file="res://assets/creatures/megaloceros/megaloceros_Image_3.jpg"
-dest_files=["res://.godot/imported/megaloceros_Image_3.jpg-45447f645fc910b4201c3e2c9b46858f.ctex"]
+source_file="res://assets/creatures/megaloceros/megaloceros_NormalGL_bcfbeaa9-7512-43e7-8dc4-d468de798bd3.png"
+dest_files=["res://.godot/imported/megaloceros_NormalGL_bcfbeaa9-7512-43e7-8dc4-d468de798bd3.png-58e8291bc0507eb7ef6715fb36b37d09.ctex"]
 
 [params]
 
