@@ -368,7 +368,9 @@ def hit_react(u):
 
 FOLD = {"L": (38, -70, 62, 30), "R": (38, -70, 62, 30)}  # thigh, shin, metatarsal, toe: a bird sitting on its hocks
 LIMP = {"L": (22, -40, 34, 20), "R": (30, -50, 40, 24)}
-TUCK = arms(-35, -5, 0, 60, 0, -50)  # lying: arms folded back along the flanks, claws curled back (never under it)
+TUCK = arms(-70, 0, 0, 0, 0, -60)  # lying: arms swung back along the flanks, claws curled back (never under it or skyward)
+# rolled onto its right side: both arms fold in under the chest, so neither claw set sticks up off the fallen body
+TUCK_SIDE = merge(arms(-70, -55, 0, 0, 0, -60, sides="L"), arms(-70, -40, 0, 0, 0, -60, sides="R"))
 
 
 def collapse(u, end_roll, head_drop, hold_from):
@@ -377,7 +379,7 @@ def collapse(u, end_roll, head_drop, hold_from):
     legs = {sd: tuple(v * buckle for v in LIMP[sd]) for sd in "LR"}
     if c < 0.02:
         return {"feet": PLANT, "turns": CARRY_ARMS}
-    tuck = {k: tuple(x * buckle for x in v) for k, v in TUCK.items()}
+    tuck = {k: tuple(x * buckle for x in v) for k, v in TUCK_SIDE.items()}
     return {
         "body": {"roll": end_roll * c, "pitch": -4 * c},
         "turns": merge(CARRY_ARMS, tuck,
