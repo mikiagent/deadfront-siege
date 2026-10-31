@@ -390,7 +390,7 @@ def bite_combo(u):
     side = 0.015 * w1 - 0.015 * w2
     rl = max(0.0, track(u, [(0.18, 0), (0.22, 0.12), (0.27, 0)]))
     return {
-        "body": {"dy": l1 + l2 + 0.12 * lean, "dz": -0.05 * w + 0.04 * smooth(lift / 0.6), "pitch": 5 * cock - 14 * w - 6 * max(0.0, lean) + 8 * smooth(lift / 0.6),
+        "body": {"dy": l1 + l2 + 0.3 * max(0.0, lean) + 0.06 * min(0.0, lean), "dz": -0.05 * w + 0.04 * smooth(lift / 0.6), "pitch": 5 * cock - 14 * w - 6 * max(0.0, lean) + 8 * smooth(lift / 0.6),
                  "yaw": 2 * w1 - 2 * w2, "dx": -0.04 * smooth(lift / 0.6)},
         "turns": merge(neck_s(cock), arms(-10 * cock + 15 * w - 20 * abs(lean), 25 * abs(lean)),
                        {"Neck1": (-8 * max(0.0, lean), 0, 0), "Head": (-10 * max(0.0, lean), 0, 0)}, tail_set(-6 * cock + 10 * w - 4 * smooth(lift / 0.6))),
