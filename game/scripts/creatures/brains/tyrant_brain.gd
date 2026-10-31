@@ -41,7 +41,7 @@ func _think(delta: float) -> void:
 		if phase == &"windup":
 			_impact()
 			phase = &"recovery"
-			phase_left = 2.0 if windup_clip == &"attack_heavy" else 1.0
+			phase_left = _recovery_s(windup_clip)
 			# The clip keeps playing through its follow-through (snap, slam, whip); _end_phase returns to idle.
 			_clear_telegraph()
 		else:
@@ -64,24 +64,50 @@ func _do_attack() -> void:
 	facing.y = 0.0
 	var behind := offset.length_squared() > 0.0001 and offset.normalized().dot(facing.normalized()) < TAIL_DOT
 	locked_target = attack_target
-	if behind and creature.anim.has_state(&"tail_swipe"):
+	if _special_attack(offset):
+		return
+	if behind and _tail_ok() and creature.anim.has_state(&"tail_swipe"):
 		locked_forward = facing.normalized()  # the whip swings from where she stands; no turn
 		windup_clip = &"tail_swipe"
 		phase = &"windup"
-		phase_left = 0.9
+		phase_left = _windup_s(windup_clip)
 		creature.anim.play_timed_attack(windup_clip, phase_left)
 		telegraph = Telegraph.show_tyrant(creature, contact_reach() + 0.3, phase_left, windup_clip)
 		return
 	locked_forward = offset.normalized() if offset.length_squared() > 0.0001 else -creature.global_basis.z
 	creature.face_towards(creature.global_position + locked_forward, get_physics_process_delta_time())
 	attack_number += 1
-	windup_clip = &"attack_heavy" if attack_number % 3 == 0 else &"attack_primary"
+	windup_clip = _pick_attack()
 	phase = &"windup"
-	phase_left = 1.2 if windup_clip == &"attack_heavy" else 0.7
+	phase_left = _windup_s(windup_clip)
 	creature.anim.play_timed_attack(windup_clip,phase_left)
 	telegraph = Telegraph.show_tyrant(creature,contact_reach()+0.3,phase_left,windup_clip)
 
+## MEGAREX hooks (MegaRexBrain overrides them); the tyrannosaurus keeps these defaults.
+## A move that replaces the attack this turn (the boss roar); true when it started one.
+func _special_attack(_offset: Vector3) -> bool:
+	return false
+
+## Whether a target behind her draws the tail whip.
+func _tail_ok() -> bool:
+	return true
+
+## The front attack: every third is the stomp, else the bite.
+func _pick_attack() -> StringName:
+	return &"attack_heavy" if attack_number % 3 == 0 else &"attack_primary"
+
+func _windup_s(clip: StringName) -> float:
+	return {&"attack_heavy": 1.2, &"tail_swipe": 0.9}.get(clip, 0.7)
+
+func _recovery_s(clip: StringName) -> float:
+	return 2.0 if clip == &"attack_heavy" else 1.0
+
+## A move whose impact is not a plain hit on the locked target; true when it handled the impact.
+func _impact_special() -> bool:
+	return false
+
 func _impact() -> void:
+	if _impact_special(): return
 	if not is_instance_valid(locked_target): return
 	# A roll does not make her immune for its whole length: CreatureAttack judges the hit against
 	# the opening window (RollRules) exactly as it does a bite, and pays the Defense XP for it.
@@ -111,7 +137,7 @@ func blunt_counter() -> void:
 	creature.status_float.emit(&"stagger")
 
 func opening_label() -> String:
-	if phase == &"windup": return "%s %.1fs" % [{&"attack_heavy": "STOMP", &"tail_swipe": "TAIL"}.get(windup_clip, "BITE"),phase_left]
+	if phase == &"windup": return "%s %.1fs" % [{&"attack_heavy": "STOMP", &"tail_swipe": "TAIL", &"bite_shake": "BITE & SHAKE", &"alert": "ROAR"}.get(windup_clip, "BITE"),phase_left]
 	if phase == &"stagger": return "STAGGER %.1fs" % phase_left
 	if phase == &"recovery": return "PUNISH %.1fs  BLUNT %d/%d%s" % [phase_left,counter_hits,3 if creature.statuses.has(&"poisoned_target") else 6,"  IMMUNE" if stagger_immunity > 0 else ""]
 	return "BLUNT %d/%d%s" % [counter_hits,3 if creature.statuses.has(&"poisoned_target") else 6,"  IMMUNE %.0fs" % stagger_immunity if stagger_immunity > 0 else ""]

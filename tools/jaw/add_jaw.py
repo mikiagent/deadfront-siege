@@ -29,8 +29,8 @@ ap.add_argument("--pivot", type=float, nargs=2, default=None, metavar=("T", "Z")
 ap.add_argument("--split", type=float, default=None, help="with --pivot: the jaw/skull boundary is the line through the pivot at this angle (deg, negative = down toward the tip); for wide-open beaked mouths where a straight lip line cuts the beak")
 ap.add_argument("--close", type=float, default=None, help="with --open: close the mouth by this many degrees instead of the measured gape minus --part")
 ap.add_argument("--blend", type=float, default=0.0, help="jaw skin fades in over +/- this many mesh units around the mouth corner instead of switching there (stops a crack behind the corner when --close is large)")
+ap.add_argument("--x-side", action="store_true", help="roll the new Jaw so its local X is the animal's left (+X): positive X opens on every rig. A jaw that points level or up (carnotaurus, ceratosaurus) came out with X flipped or pointing down, which the side check below cannot see (X is square to the side), so --open closed the mouth the wrong way, key_jaw's positive angles shut it, or a +X key yawed the jaw instead of opening it")
 ap.add_argument("--weld", action="store_true", help="weld the glTF's UV-seam vertex copies on import, so the rigid tooth/lip islands are real islands and coincident copies get the same weights (a split mesh cracks open along every seam at the lips)")
-ap.add_argument("--x-side", action="store_true", help="roll the new Jaw so its local X is the animal's left (+X): positive X opens on every rig. A jaw that points level (carnotaurus, ceratosaurus) came out with X pointing down, which the side check below cannot see (X is square to the side), so a +X key yawed the jaw instead of opening it")
 ap.add_argument("--debug", action="store_true")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
@@ -127,11 +127,12 @@ inv = aw.inverted()
 eb.head, eb.tail = inv @ pivot, inv @ chin
 eb.parent = arm.data.edit_bones[a.head]
 eb.roll = 0
-if eb.x_axis.dot(inv.to_3x3() @ side) > 0:
-    eb.roll = 3.141592653589793  # a +X turn opens the jaw on every rig: local X must point to the animal's left (-side); +Y-facing rigs need the flip
 if a.x_side:
     from mathutils import Vector as _V
     eb.align_roll(inv.to_3x3() @ _V((0, 0, -1)))  # Z down, so X = Y x Z = +X (the side axis) for a forward jaw
+else:
+    if eb.x_axis.dot(inv.to_3x3() @ side) > 0:
+        eb.roll = 3.141592653589793  # a +X turn opens the jaw on every rig: local X must point to the animal's left (-side); +Y-facing rigs need the flip
 bpy.ops.object.mode_set(mode="OBJECT")
 
 jaw_g = ob.vertex_groups.get("Jaw") or ob.vertex_groups.new(name="Jaw")

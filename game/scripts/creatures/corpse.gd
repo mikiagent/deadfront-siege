@@ -47,7 +47,7 @@ func setup(c: Creature) -> void:
 	_label_species = c.def.species
 	name = "Corpse_%s" % species
 	poison_spoiled = c.statuses.has_flag(&"meat_inedible")
-	alpha = c.is_alpha()
+	alpha = c.is_alpha() or (c.def != null and c.def.id == &"megarex")  # MEGAREX: the boss always drops the alpha loot
 	_roll_loot()
 	# The body is placed by the ragdoll (Corpse.place_settled), not snapped to the tile centre.
 	# BUTCHER (spec 12 §2): the cut budget is the killer's, fixed at death like the loot roll.

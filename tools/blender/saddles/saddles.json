@@ -105,6 +105,17 @@
    "seat_half_len_m": 0.3,
    "cushion_m": 0.06,
    "skirt_m": 0.16
+  },
+  "raptor": {
+   "seat_half_w_m": 0.24,
+   "seat_half_len_m": 0.28,
+   "cushion_m": 0.055,
+   "skirt_m": 0.12,
+   "probe_x_m": 0.12,
+   "neck_strap": false,
+   "seat_frac": 0.15,
+   "torso_len_frac": 0.35,
+   "girth_frac": 0.5
   }
  }
 }
