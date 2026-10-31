@@ -26,7 +26,7 @@ signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -83,6 +83,9 @@ var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the poun
 var _charge_to := Vector3.ZERO
 var _charge_dir := Vector3.FORWARD
 var _charge_hit := false
+## CHARGE TURN (tactics.charge_turn, carnotaurus): the charge's return pass is running (one per charge).
+var _charge_return := false
+var _turn_from := 0.0
 var _tossing := false  ## WOOLLY RHINO: standing at the impact point while the toss clip plays
 var _crouch := false  ## coiling in charge_crouch before the run
 ## SKITTISH-TERRITORIAL (tactics.territorial, owner 2026-10-31: "engage the player after running away once"):
@@ -440,6 +443,7 @@ func _think(delta: float) -> void:
 		&"hold": _hold(delta)
 		&"dodge": _dodge(delta)
 		&"charge": _charge(delta)
+		&"charge_turn": _charge_turn(delta)
 		&"display": _display(delta)
 		&"pin": _pin(delta)
 
@@ -845,7 +849,8 @@ func _dodge(delta: float) -> void:
 ## Charge: run at the prey (the run clip) into a bite. tactics.charge_straight: a horn charge on a
 ## line locked at the start, through the prey's spot by charge_through_m; contact in front of it is
 ## one impact (charge_mult, the heavy hit's roll rules); a sidestep makes it miss and stagger.
-func _start_charge() -> void:
+func _start_charge(return_pass: bool = false) -> void:
+	_charge_return = return_pass
 	_set_state(&"charge")
 	_left = _t("charge_max_s", 1.6)
 	_just_disengaged = false
@@ -901,6 +906,24 @@ func _charge(delta: float) -> void:
 	elif _left <= 0.0:
 		_enter_circle()
 
+## A contact hit of this brain's animal landed (Creature._on_hit). tactics.heavy_shove_m: the horn ram
+## (attack_heavy) throws the survivor back along the line from the animal to her, like the charge's shove.
+## tactics.bite_pin (majungasaurus): a landed crushing bite (attack_primary) holds on: the grab (_start_pin;
+## pin_stab shakes the held prey), off pin_cd.
+func landed(clip: StringName, target: Node) -> void:
+	if clip == &"attack_primary" and tac.get("bite_pin", false) and target == attack_target and _ready_to(&"pin"):
+		_start_cd(&"pin")
+		_start_pin.call_deferred()  # after the bite's attack_hit returns: started inside it, pin_stab skipped its first hit
+		return
+	if clip != &"attack_heavy" or _t("heavy_shove_m", 0.0) <= 0.0 or not target is Player:
+		return
+	var pl := target as Player
+	var away := pl.global_position - creature.global_position
+	away.y = 0.0
+	if pl.sim and away.length_squared() > 0.0001:
+		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6))
+		tactic.emit(&"heavy_shove")
+
 func _charge_impact() -> void:
 	_charge_hit = true
 	var mult := _t("charge_mult", 1.8)
@@ -919,12 +942,26 @@ func _charge_impact() -> void:
 		var pl := attack_target as Player
 		pl.receive_creature_hit(creature, &"attack_heavy")
 		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
+		# tactics.charge_toss_deg (carnotaurus): the horns hook her that far off the line, to the side she is on,
+		# so the runner can carry on through (straight ahead she stood in its path and stopped it dead).
+		var push := _charge_dir
+		var toss := deg_to_rad(_t("charge_toss_deg", 0.0))
+		if toss != 0.0:
+			var side := Vector3(-_charge_dir.z, 0.0, _charge_dir.x)
+			var s := signf(side.dot(pl.global_position - creature.global_position))
+			push = _charge_dir.rotated(Vector3.UP, -toss * (s if s != 0.0 else 1.0))
 		if pl.sim:
-			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
+			pl.sim.shove(push * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).
 func _charge_end() -> void:
+	# CHARGE TURN: a fast runner that cannot turn at speed (turn_rate) plants at the end of the line, hops round
+	# (the charge_turn clip) and charges straight back through her, once per charge.
+	if tac.get("charge_turn", false) and not _charge_return and creature.anim.has_state(&"charge_turn") and _valid_target() \
+			and creature.can_sprint() and _flat_dist(attack_target) <= _t("charge_turn_max_m", 18.0):
+		_start_charge_turn()
+		return
 	if _charge_hit:
 		if not _strike(_flat_dist(attack_target), ["kick"]):
 			_back_off()
@@ -932,6 +969,30 @@ func _charge_end() -> void:
 	tactic.emit(&"charge_miss")
 	creature.stagger_left = maxf(creature.stagger_left, _t("charge_miss_recover_s", 1.5))
 	_start_hold()
+
+func _start_charge_turn() -> void:
+	_set_state(&"charge_turn")
+	creature.stop_move()
+	_turn_from = creature.rotation.y
+	# Its momentum carries it on along the old line while it is in the air; the yaw swings only then.
+	_jump_begin(creature.global_position + _charge_dir * _t("charge_turn_skid_m", 2.0), &"charge_turn", 0.7, 0.0, _t("charge_turn_height_per_m", 0.05))
+	tactic.emit(&"charge_turn")
+	_log("[ai] %s charge turn" % creature.def.id)
+
+## Swing the body round to face the prey inside the clip's airborne window only (anim_events charge_turn.airborne),
+## always turning to its left like the clip; on the ground the yaw holds, so the planted feet never skid.
+func _charge_turn(delta: float) -> void:
+	var to := attack_target.global_position - creature.global_position
+	var want := atan2(-to.x, -to.z)
+	var left := fposmod(want - _turn_from, TAU)  # counter-clockwise from above = to its left
+	var done := _jump_tick(delta)
+	var u := clampf((_j_t / maxf(0.01, _j_len) - _j_air.x) / maxf(0.01, _j_air.y - _j_air.x), 0.0, 1.0)
+	creature.rotation.y = _turn_from + left * u * u * (3.0 - 2.0 * u)
+	if not done:
+		return
+	_jump_end()
+	_start_charge(true)
+	tactic.emit(&"charge_return")
 
 ## The prey is in its rear arc (the hind kick's side).
 func _prey_behind() -> bool:
@@ -1342,7 +1403,7 @@ func _jump_end() -> void:
 	_j_loop = &""
 	if creature and creature.view:
 		creature.view.position.y = 0.0
-	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right"]:
+	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right", &"charge_turn"]:
 		creature.anim.release_oneshot()  # landed: the clip's last frame must not hold the next strike
 	if _j_timed:
 		_j_timed = false
@@ -1413,13 +1474,6 @@ func _end_pounce() -> void:
 ## act; PINFEEL lays it down in its pinned pose) and is held pin_reach_m in front of the body while pin_stab drives the
 ## sabres in (anim_events pin_stab hit_fracs, x pin_mult each, from the Head part). It lets go when the clip ends, the
 ## prey is no longer Pinned, or either dies. Prey bigger than itself is not pinned.
-## A contact hit of this brain's animal landed (Creature._on_hit). tactics.bite_pin (majungasaurus): a landed
-## crushing bite (attack_primary) holds on: the grab (_start_pin; pin_stab shakes the held prey), off pin_cd.
-func landed(clip: StringName, target: Node) -> void:
-	if clip == &"attack_primary" and tac.get("bite_pin", false) and target == attack_target and _ready_to(&"pin"):
-		_start_cd(&"pin")
-		_start_pin.call_deferred()  # after the bite's attack_hit returns: started inside it, pin_stab skipped its first hit
-
 func _start_pin() -> bool:
 	var tgt := attack_target
 	if not tac.get("pin", false) or not creature.anim.has_state(&"pin_stab"):
