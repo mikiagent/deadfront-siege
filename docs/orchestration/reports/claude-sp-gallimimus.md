@@ -2,7 +2,7 @@
 
 Owner (verbatim): "Gallimimus is fast but the model isn't great, animations aren't great and its behavior sucks. Animals that run away from you should get territorial and attack you if you chase them."
 
-Branch `claude/mmo-sp-gallimimus`, cut from `origin/claude/mmo-overhaul` 1066e9c9. Canon a3fa0f45 (hopstrafe, spinosaurus, allosaurus, knockroot and others) is merged in. Pushed, not merged to canon. This is a replacement: the id, the stats, the spawn rows (desert_35 gathering/working/crater, desert_50 gathering), taming and the saddle role are unchanged.
+Branch `claude/mmo-sp-gallimimus`, cut from `origin/claude/mmo-overhaul` 1066e9c9. Canon a0cc474d (hopstrafe, spinosaurus, allosaurus, megatherium, knockroot and others) is merged in. Pushed, not merged to canon. This is a replacement: the id, the stats, the spawn rows (desert_35 gathering/working/crater, desert_50 gathering), taming and the saddle role are unchanged.
 
 ## Credits
 **Tripo: 50.** One P1 multiview generation, no retry. Balance went from 1805 to 1755. No Meshy, no Tripo rig, anim or retexture. Codex drew one image (free).
@@ -81,7 +81,7 @@ What read wrong and was fixed:
 - the combo kick stopped dead on its hit frame (an eased key on the hit).
 - In the lab, the death pose carries into the next clip, so sleep was shot in its own run.
 
-## Gates (after merging canon a3fa0f45)
+## Gates (after merging canon a0cc474d)
 - `tools/gait/check_galli.py --height 3.8` (new, adapted from check_pachy): **GALLI_CHECK PASS**, 20 clips. It checks:
   - stretch at most 7.4 (gate 8);
   - no sinking or floating;
