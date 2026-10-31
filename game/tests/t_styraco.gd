@@ -80,6 +80,7 @@ func _run() -> void:
 	_free(brave)
 	# A clean slate for the direct-charge sections: clear the knockdown and the auto-retaliation
 	# the first fight left on her, so a charge starts from a known pose.
+	player.sim.knock.cancel()  # KNOCKDOWN: no knockdown or throw still running from the first fight
 	player.statuses.clear_all()
 	player.anim.release_knockdown()
 	if player.hunt:

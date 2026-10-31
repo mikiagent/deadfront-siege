@@ -30,7 +30,9 @@ var _gather_clip: StringName = &"gather"
 ## Mood idles (owner 2026-10-28: cold shiver, heat fanning/sweating, tired, exhausted), optional survivor
 ## clips (assets/characters/survivor/anim/idle_*.glb); while one is missing the next in line plays, then idle.
 ## ASSUMPTION: priority exhausted > cold / heat (the stronger) > tired > idle.
-const MOOD_IDLES: Array[StringName] = [&"idle_exhausted", &"idle_cold", &"idle_heat", &"idle_tired"]
+const MOOD_IDLES: Array[StringName] = [&"idle_exhausted", &"idle_cold", &"idle_heat", &"idle_tired", &"winded"]
+## KNOCKDOWN (PlayerKnock drives them): thrown, the fall onto her butt and back, lying winded, getting up.
+const KNOCK_CLIPS: Array[StringName] = [&"airborne", &"fall_back", &"lie", &"get_up"]
 ## Weather feel (WorldWeather.cold / heat, 0..1) at which the cold or heat idle takes over. ASSUMPTION.
 const MOOD_AT := 0.5
 ## Fatigue strain of spec 01's tiers: tired from 50 %, exhausted from 75 % (Vitals.exhausted).
@@ -80,6 +82,8 @@ func idle_clip() -> StringName:
 	var strain := v.fatigue / maxf(1.0, v.effective_max_fatigue()) if v else 0.0
 	var rt: Node = World.runtime if is_instance_valid(World.runtime) else null
 	var w: WorldWeather = rt.get("weather") if rt else null
+	if player and player.statuses and player.statuses.has(&"winded") and rig and rig.has_clip(&"winded"):
+		return &"winded"  # KNOCKDOWN: hands on knees, catching her breath
 	return pick_idle(func (c: StringName) -> bool: return rig != null and rig.has_clip(c), strain, w.cold if w else 0.0, w.heat if w else 0.0)
 
 static func pick_idle(has: Callable, strain: float, cold: float, heat: float) -> StringName:
@@ -384,8 +388,8 @@ func _ground_sleep_visual(asleep: bool, delay: float = 0.0) -> void:
 	_sleep_ground_tween.tween_property(player.visual, "position:y", y, 0.25)
 
 func on_damaged() -> void:
-	if is_pinned_pose():
-		return  # PINFEEL: under the foot she keeps struggling; a flinch would stand her up
+	if is_pinned_pose() or current_clip in KNOCK_CLIPS:
+		return  # PINFEEL / KNOCKDOWN: down on the ground she stays down; a flinch would stand her up
 	# REST: hurt while sitting, she gets up; a standing flinch from the floor would pop the pose.
 	if _sitting:
 		stand_up()
@@ -494,6 +498,33 @@ func _tick_pinned() -> bool:
 		rig.play(&"pinned", 1.0, PIN_BLEND)
 	return true
 
+## KNOCKDOWN: PlayerKnock's clips, held (busy, forced) until end_knock. from_s: start that far into the clip.
+func play_knock(clip: StringName, blend: float, from_s: float = 0.0) -> void:
+	if _dead:
+		return
+	_ground_sleep_visual(false)
+	_sleeping = false
+	_waking = false
+	_sitting = false
+	_busy = true
+	_forced = true
+	_requested_clip = clip
+	current_clip = _resolve(clip)
+	if rig:
+		rig.play(current_clip, 1.0, blend)
+		if from_s > 0.0 and rig.anim_player and rig.anim_player.current_animation == current_clip:
+			rig.anim_player.seek(from_s, true)
+	_sync_satchel(current_clip, 1.0)
+	_sync_hammer(current_clip)
+
+## She is up (or something else took over): back to the idle, which is the winded one while Winded lasts.
+func end_knock() -> void:
+	if current_clip not in KNOCK_CLIPS and _requested_clip not in KNOCK_CLIPS:
+		return
+	_busy = false
+	_forced = false
+	play_idle()
+
 ## On the ground for a pin: the struggle loop, or the fall into it.
 func is_pinned_pose() -> bool:
 	return current_clip == &"pinned" or (current_clip == &"knockdown" and player != null and player.statuses != null and player.statuses.has(&"pinned"))
@@ -541,6 +572,8 @@ func _play(clip: StringName) -> void:
 	var blend := 0.18 if (resolved in loco and current_clip in loco) else 0.0
 	if (resolved == &"idle" or resolved in MOOD_IDLES) and (current_clip == &"idle" or current_clip in MOOD_IDLES):
 		blend = IDLE_BLEND
+	if current_clip == &"get_up":
+		blend = 0.3  # stood up: ease into the winded hunch
 	if resolved in loco and (current_clip in [&"punch", &"attack_primary", &"attack_heavy", &"kick", &"tackle"] or current_clip in GATHER_CLIPS):
 		blend = 0.12  # trimmed one-shots end mid-pose; ease back into locomotion
 	if resolved != current_clip and (resolved in [&"rummage_in", &"kick_dirt"] or resolved in WORK_CLIPS
@@ -632,8 +665,8 @@ func _on_missing_done(clip: StringName) -> void:
 	play_idle()
 
 func _on_clip_finished(clip: StringName) -> void:
-	if current_clip != clip:
-		return
+	if current_clip != clip or clip in KNOCK_CLIPS:
+		return  # PlayerKnock times its own clips
 	if clip == &"sleep_down" and _sleeping:
 		play_clip(&"sleep", true)
 		return
