@@ -102,6 +102,7 @@ func _test_view() -> void:
 	root.add_child(view)
 	view.setup(def, &"alpha")  # an alpha spawn's variant (Creature.spawn picks it for alphas)
 	view.apply_coloration(load("res://scripts/creatures/creature_coloration.gd").neutral())
+	sk = view.rig.skeleton  # the first view (and its skeleton) is freed
 	var alpha := _albedo(view)
 	_expect(CV.model_variants(def).has("alpha") and not CV.pick_variant(def, "x") in [&"alpha"], "the alpha skin is pipeline.model_variants.alpha, never rolled for a normal spawn")
 	_expect(regular != null and alpha != null and alpha != regular and alpha.resource_path.ends_with("carnotaurus_alpha_albedo.jpg"), "the alpha's albedo is the alpha map (%s)" % (alpha.resource_path if alpha else "none"))

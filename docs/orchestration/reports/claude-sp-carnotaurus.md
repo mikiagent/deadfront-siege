@@ -88,6 +88,12 @@ What read wrong and was fixed:
 - Kept: charge_turn, the sideways charge toss (now combined with the rhino's toss lift), heavy_shove, every species' anim_events rows, and the dynamic `>= 21` species counts from canon.
 - After this merge these pass: t_sp_carnotaurus, t_sp_woolly_rhino, t_sp_megaloceros, t_noboxes, t_combat, t_canim, t_data, t_ai, t_labspawn, t_coelomoves, t_compyfeel, t_zebra and t_tactical. run_all gives `[tests] PASS`, smoke gives SMOKE PASS.
 
+## Third canon merge (d915e67f: smilodon)
+- Every species' rows and both sides' code are kept. The clip and move lists hold charge_turn next to stalk, pin, pin_stab and toss. anim_events.json has pin_stab, toss, charge_turn and every natural_speeds row.
+- My first resolution of the const arrays broke `creature_anim.gd` (a parse error), so I fixed it in a follow-up commit.
+- t_sp_carnotaurus reused a freed skeleton after the alpha-view check. The feet checks after it were skipped, yet it still printed PASS. Fixed, and all its checks run now.
+- After the merge these pass: t_sp_carnotaurus, t_sp_smilodon, t_sp_woolly_rhino, t_sp_megaloceros, t_noboxes, t_combat, t_canim, t_ai, t_labspawn, t_coelomoves and t_compyfeel. run_all gives `[tests] PASS`, smoke gives SMOKE PASS.
+
 ## Gates (after merging canon aba7ecc3)
 - `tools/gait/check_carno.py --height 5.74` (new, adapted from check_ankylo): **CARNO_CHECK PASS**, 16 clips. It checks:
   - stretch (worst 9.7 in sleep);
