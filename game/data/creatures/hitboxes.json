@@ -217,6 +217,7 @@
    }
   },
   "deinonychus": {
+   "_note": "SP-DEINONYCHUS v4: the jaws (Jaw, Head) and the hand claws (ClawTip.L/R, non-deforming markers at the hand bones' ends; 0.25 m # ASSUMPTION) strike in the bites, the combo and the pounce; the right sickle foot in the slash; calibrated: true from t_hitboxes.gd -- --calibrate on the v4 clips",
    "parts": [
     {
      "bone": "Jaw"
@@ -226,14 +227,64 @@
     }
    ],
    "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.69,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.83,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R",
+       "radius": 0.74,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.82,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.25
+      },
+      {
+       "bone": "ClawTip.R",
+       "radius": 0.25
+      }
+     ]
+    },
     "pounce": {
      "parts": [
       {
        "bone": "Jaw"
       },
       {
-       "bone": "Head",
-       "radius": 0.95,
+       "bone": "Head"
+      },
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.97,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R",
+       "radius": 0.97,
        "calibrated": true
       },
       {
@@ -258,39 +309,27 @@
       }
      ]
     },
-    "attack_primary": {
+    "attack_heavy": {
      "parts": [
       {
-       "bone": "Jaw"
+       "bone": "BackFoot.R"
       },
       {
-       "bone": "Head",
-       "radius": 0.76,
+       "bone": "BackFoot.R_end",
+       "radius": 0.32,
        "calibrated": true
       }
      ]
     },
-    "attack_heavy": {
+    "pin_stab": {
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.82,
+       "radius": 1.34,
        "calibrated": true
       },
       {
        "bone": "Head"
-      }
-     ]
-    },
-    "bite_combo": {
-     "parts": [
-      {
-       "bone": "Jaw"
-      },
-      {
-       "bone": "Head",
-       "radius": 0.87,
-       "calibrated": true
       }
      ]
     }

@@ -21,7 +21,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 | [Raptor (black/gold)](#raptor-blackgold) | New species, no model yet | 2 |
 | [Troodon](#troodon) | New species, no model yet | 2 |
 | [Herrerasaurus](#herrerasaurus) | New species, no model yet | 1 |
-| [Utahraptor](#utahraptor) | In game with a model | 1 |
+| [Deinonychus](#deinonychus) | In game with a model (v4 built from this sheet, SP-DEINONYCHUS) | 1 |
 | [Tyrannosaurus rex](#tyrannosaurus-rex) | In game with a model | 2 |
 | [Tarbosaurus](#tarbosaurus) | Tripo model, rigged and animated (SP-TARBOSAURUS) | 1 |
 | [Carnotaurus](#carnotaurus) | No model yet | 3 |
@@ -53,7 +53,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 
 ## Raptor (black/gold)
 
-**Status:** New species, no model yet. Its own rideable species, separate from Velociraptor and Deinonychus. Colour and feather variants, including green. Deinonychus keeps its current feathered model (in game, no sheet here). Velociraptor (in game) is not rideable.
+**Status:** New species, no model yet. Its own rideable species, separate from Velociraptor and Deinonychus. Colour and feather variants, including green. Deinonychus has its own sheet below. Velociraptor (in game) is not rideable.
 
 ![Regular: black/gold](../art/species/raptor/raptor_owner_sheet_1_black_gold.jpg)
 *Regular: black/gold* (`raptor_owner_sheet_1_black_gold`)
@@ -78,12 +78,15 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 ![Regular](../art/species/herrerasaurus/herrerasaurus_owner_sheet_1.jpg)
 *Regular* (`herrerasaurus_owner_sheet_1`)
 
-## Utahraptor
+## Deinonychus
 
-**Status:** In game with a model.
+**Status:** In game with a model. The v4 model (SP-DEINONYCHUS, 2026-10-31) is built from this sheet.
 
-![Regular](../art/species/utahraptor/utahraptor_owner_sheet_1.jpg)
-*Regular* (`utahraptor_owner_sheet_1`)
+This sheet was filed under the utahraptor as "Feathered Utahraptor Turnaround Sheet". The owner corrected it: "this is
+deinonychus, fix". The utahraptor's model was never built from it, so the utahraptor now has no sheet here.
+
+![Regular](../art/species/deinonychus/deinonychus_owner_sheet_1.jpg)
+*Regular* (`deinonychus_owner_sheet_1`)
 
 ## Tyrannosaurus rex
 

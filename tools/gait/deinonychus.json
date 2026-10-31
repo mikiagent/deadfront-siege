@@ -5,10 +5,10 @@
     0
   ],
   "body": "Body",
-  "view_size": 1.0,
+  "view_size": 0.55,
   "view_centre": [
     0.0,
-    0.3
+    0.2
   ],
   "legs": {
     "L": {
@@ -31,6 +31,11 @@
       "key": "head",
       "axis": "pitch"
     },
+    "Tail1": {
+      "key": "tailp",
+      "axis": "pitch",
+      "phase": 0.1
+    },
     "Tail2": {
       "key": "tail",
       "axis": "yaw",
@@ -40,77 +45,119 @@
       "key": "tail",
       "axis": "yaw",
       "phase": 0.4
+    },
+    "FrontLeg.L": {
+      "key": "arm",
+      "axis": "pitch",
+      "phase": 0.0
+    },
+    "FrontLeg.R": {
+      "key": "arm",
+      "axis": "pitch",
+      "phase": 0.5
+    },
+    "FrontFoot.L": {
+      "key": "hand",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "FrontFoot.R": {
+      "key": "hand",
+      "axis": "pitch",
+      "phase": 0.6
     }
   },
   "clips": {
     "walk": {
-      "cycle_s": 1.0,
-      "duty": 0.6,
-      "stride": 0.28,
-      "phases": {
-        "L": 0.0,
-        "R": 0.5
-      },
-      "lift_hind": 0.035,
-      "swing_curl_hind": 30,
+      "lift_hind": 0.032,
+      "swing_curl_hind": 15,
       "toe_roll": 25,
       "legroot_hind": 0.0,
       "foot_offset_hind": 0.0,
-      "bob": 0.005,
-      "bob_harmonic": 2,
-      "roll_deg": 1.5,
-      "sway": 0.004,
-      "wiggle_head": 4.0,
-      "wiggle_harmonic_head": 2,
-      "wiggle_tail": 3.0
-    },
-    "run": {
-      "cycle_s": 0.5,
-      "duty": 0.34,
-      "stride": 0.66,
       "phases": {
         "L": 0.0,
         "R": 0.5
       },
-      "lift_hind": 0.11,
+      "cycle_s": 1.0,
+      "duty": 0.6,
+      "stride": 0.155,
+      "bob": 0.004,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5,
+      "sway": 0.003,
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 4.0,
+      "wiggle_tailp": 1.5,
+      "wiggle_harmonic_tailp": 2,
+      "wiggle_arm": 7.0,
+      "wiggle_hand": 6.0,
+      "swing_toe_pivot": 1
+    },
+    "run": {
+      "lift_hind": 0.06,
       "swing_curl_hind": 15,
       "toe_roll": 35,
       "legroot_hind": 0.0,
       "foot_offset_hind": 0.0,
-      "crouch": 0.06,
-      "bob": 0.01,
-      "bob_harmonic": 2,
-      "bob_phase": 0.0,
-      "roll_deg": 1.5,
-      "sway": 0.005,
-      "wiggle_head": 2.0,
-      "wiggle_harmonic_head": 2,
-      "wiggle_tail": 2.0,
-      "lean_deg": 12
-    },
-    "charge": {
-      "cycle_s": 0.4,
-      "duty": 0.3,
-      "stride": 0.82,
       "phases": {
         "L": 0.0,
         "R": 0.5
       },
-      "lift_hind": 0.12,
+      "cycle_s": 0.5,
+      "duty": 0.34,
+      "stride": 0.36,
+      "crouch": 0.03,
+      "bob": 0.006,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5,
+      "sway": 0.003,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 3.0,
+      "wiggle_tailp": 2.0,
+      "wiggle_harmonic_tailp": 2,
+      "wiggle_arm": 10.0,
+      "wiggle_hand": 8.0,
+      "lean_deg": 10,
+      "hold": {
+        "FrontUpLeg.L": [
+          "pitch",
+          -25
+        ],
+        "FrontUpLeg.R": [
+          "pitch",
+          -25
+        ]
+      },
+      "swing_toe_pivot": 1
+    },
+    "charge": {
+      "lift_hind": 0.065,
       "swing_curl_hind": 15,
       "toe_roll": 0,
       "legroot_hind": 0.0,
       "foot_offset_hind": 0.0,
-      "crouch": 0.13,
-      "bob": 0.012,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "cycle_s": 0.4,
+      "duty": 0.3,
+      "stride": 0.44,
+      "crouch": 0.045,
+      "bob": 0.007,
       "bob_harmonic": 2,
-      "bob_phase": 0.0,
       "roll_deg": 1.5,
-      "sway": 0.005,
+      "sway": 0.003,
       "wiggle_head": 1.0,
       "wiggle_harmonic_head": 2,
       "wiggle_tail": 1.5,
-      "lean_deg": 24,
+      "wiggle_tailp": 2.0,
+      "wiggle_harmonic_tailp": 2,
+      "wiggle_arm": 6.0,
+      "wiggle_hand": 6.0,
+      "lean_deg": 18,
       "hold": {
         "Neck": [
           "pitch",
@@ -120,20 +167,54 @@
           "pitch",
           8
         ],
-        "Tail1": [
-          "pitch",
-          16
-        ],
         "FrontUpLeg.L": [
           "pitch",
-          -60
+          -45
         ],
         "FrontUpLeg.R": [
           "pitch",
-          -60
+          -45
         ]
-      }
+      },
+      "swing_toe_pivot": 1
+    },
+    "strafe": {
+      "lift_hind": 0.04,
+      "swing_curl_hind": 15,
+      "toe_roll": 25,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "cycle_s": 0.8,
+      "duty": 0.62,
+      "stride": 0.21,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 3.5,
+      "sway": 0.0,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 5.0,
+      "wiggle_tailp": 1.5,
+      "wiggle_harmonic_tailp": 2,
+      "wiggle_arm": 6.0,
+      "wiggle_hand": 6.0,
+      "hold": {
+        "FrontLeg.L": [
+          "roll",
+          -14
+        ],
+        "FrontLeg.R": [
+          "roll",
+          14
+        ]
+      },
+      "swing_toe_pivot": 1,
+      "spread_hind": 0.02
     }
   },
-  "note": "COMPYFEEL 2026-10-31 (owner: the deinonychus charge 'glides instead of running'): swing_curl 45 with a high toe_roll dragged the toe tips 3-4 cm off the ground and 10-22 cm into it, a shuffle. Run and charge: curl 15, lift 0.11-0.12 (32-52 cm toe clearance at 2.87 m), toe roll pivots on the real toe tip (make_gait.py). Stride and cycle unchanged, so natural speeds hold. The walk (and the strafes built from it) is unchanged."
+  "note": "SP-DEINONYCHUS 2026-10-31: the v4 deinonychus (Tripo mesh from the owner's sheet) is a transplant of the same Quaternius Velociraptor donor as the Raptor, at the same Tripo units, so it walks on raptor.json's gaits. STRAFE (owner, HOPSTRAFE: 'the strafe is too small of a step ... looks like twinkletoes'): the deinonychus stays a strafer-hopper mix (bulk 17.2), so its strafe takes fewer, bigger steps: stride 0.13 -> 0.21 (about 1.3 m a step at 2.87 m), cycle 0.6 -> 0.8 s, duty 0.55 -> 0.62 (at the longer step both feet left the floor 9 cm). # ASSUMPTION. The pre-v4 gaits are in git history (COMPYFEEL note: walk/run/charge on the old rig)."
 }

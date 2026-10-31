@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://btsa7035mv1r5"
-path="res://.godot/imported/deinonychus_NormalGL_03ec4543-f2c9-4950-af90-b11306db9cb8.png-693a8119b5b7b47d7a83f1c630ac3b84.ctex"
+uid="uid://cxeqr6ucqx28s"
+path="res://.godot/imported/deinonychus_NormalGL_18b9c322-1d35-48ed-beec-632399315f00.png-407b5856da9a467534bdaf947cddfe8d.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "01de3f498124a56d7412d7617dd26a0f"
+"md5": "f97f3d692cda3d8b067db1eb0093f80f"
 }
 
 [deps]
 
-source_file="res://assets/creatures/deinonychus/deinonychus_NormalGL_03ec4543-f2c9-4950-af90-b11306db9cb8.png"
-dest_files=["res://.godot/imported/deinonychus_NormalGL_03ec4543-f2c9-4950-af90-b11306db9cb8.png-693a8119b5b7b47d7a83f1c630ac3b84.ctex"]
+source_file="res://assets/creatures/deinonychus/deinonychus_NormalGL_18b9c322-1d35-48ed-beec-632399315f00.png"
+dest_files=["res://.godot/imported/deinonychus_NormalGL_18b9c322-1d35-48ed-beec-632399315f00.png-407b5856da9a467534bdaf947cddfe8d.ctex"]
 
 [params]
 

@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c2u8i0ova87i4"
-path="res://.godot/imported/deinonychus_feathers.png-8631f4ee8225b720b7d955fa050ada99.ctex"
+uid="uid://dppdunkbcptal"
+path="res://.godot/imported/deinonychus_ORM_18b9c322-1d35-48ed-beec-632399315f00.jpg-11fbf67f36e835a8d3f0c4ffb554ed23.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "a4e07f4b3c06bd541cb426b885589b01"
+"md5": "08f92b414f5dcdabdf13a2075df4b173"
 }
 
 [deps]
 
-source_file="res://assets/creatures/deinonychus/deinonychus_feathers.png"
-dest_files=["res://.godot/imported/deinonychus_feathers.png-8631f4ee8225b720b7d955fa050ada99.ctex"]
+source_file="res://assets/creatures/deinonychus/deinonychus_ORM_18b9c322-1d35-48ed-beec-632399315f00.jpg"
+dest_files=["res://.godot/imported/deinonychus_ORM_18b9c322-1d35-48ed-beec-632399315f00.jpg-11fbf67f36e835a8d3f0c4ffb554ed23.ctex"]
 
 [params]
 

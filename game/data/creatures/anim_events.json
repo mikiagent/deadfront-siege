@@ -12,7 +12,8 @@
       "windup": true,
       "windup_hold": 0.6,
       "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
-      "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (pipeline.status_clips)"
+      "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (pipeline.status_clips)",
+      "note_deinonychus": "deinonychus (SP-DEINONYCHUS): the Raptor's sickle slash on the v4 rig, held at windup_hold 0.6 with the foot cocked, hit 0.72 from BackFoot.R"
     },
     "hit_react": {
       "speed": 2.0
@@ -132,7 +133,8 @@
       ],
       "windup": false,
       "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)",
-      "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)"
+      "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)",
+      "note_deinonychus": "deinonychus (SP-DEINONYCHUS): the Raptor's pin_stab on the v4 rig (make_raptor_moves.py): right foot stamps onto the pinned prey, the wings flap for balance, two bites at 0.38 and 0.74 from the jaws"
     },
     "charge_turn": {
       "airborne": [
@@ -304,16 +306,24 @@
       "charge_len": 0.333
     },
     "deinonychus": {
-      "height_m": 2.0,
-      "run_l": 4.432,
+      "height_m": 2.87,
+      "run_l": 4.354,
       "run_len": 0.5,
-      "run_r": 4.432,
-      "walk_l": 0.94,
+      "run_r": 4.354,
+      "walk_l": 0.937,
       "walk_len": 1.0,
-      "walk_r": 0.94,
-      "walk": 0.94,
-      "run": 4.432,
-      "charge": 6.6
+      "walk_r": 0.937,
+      "walk": 0.937,
+      "run": 4.354,
+      "charge": 6.652,
+      "charge_len": 0.4167,
+      "strafe_left": 1.587,
+      "strafe_left_len": 0.7917,
+      "strafe_right": 1.587,
+      "strafe_right_len": 0.7917,
+      "walk_back": 0.937,
+      "walk_back_len": 1.0,
+      "_note": "SP-DEINONYCHUS 2026-10-31: the v4 model's own make_gait.py gaits (tools/gait/deinonychus.json): ground speed = planned stride / cycle x 6.047 (game m per mesh unit at 2.87 m); walk/run match bake_clip_speeds.py --dry-run. The strafe takes fewer, longer steps (1.59 m/s at 0.79 s a cycle)."
     },
     "gallimimus": {
       "height_m": 3.8,
