@@ -35,6 +35,11 @@
    "skirt_m": 0.16
   },
   "gallimimus": {
+   "_note": "SP-GALLIMIMUS: the rig_biped.py skeleton (was Torso on the v1 transplant); the neck strap rides Neck1",
+   "socket": "Spine1",
+   "shoulder_bone": "Chest",
+   "neck_bone": "Neck1",
+   "seat_frac": 0.5,
    "seat_half_w_m": 0.2,
    "seat_half_len_m": 0.26,
    "cushion_m": 0.05,

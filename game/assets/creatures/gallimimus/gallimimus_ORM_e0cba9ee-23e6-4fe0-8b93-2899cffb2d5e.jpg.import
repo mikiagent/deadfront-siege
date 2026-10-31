@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dncof4k22uaqo"
-path="res://.godot/imported/compsognathus_Color_e9f3b219-7fdb-4812-b2ab-b27b830a84f4.jpg-9de0f36b8e26dfba438c309632ccebdd.ctex"
+uid="uid://om3i0il1kbf8"
+path="res://.godot/imported/gallimimus_ORM_e0cba9ee-23e6-4fe0-8b93-2899cffb2d5e.jpg-3c56f8db4623d09884f8e56eefaace3f.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "621c195b2b8abf9944e6624b89347baf"
+"md5": "28fe27264cd41802973689f8f3e04f19"
 }
 
 [deps]
 
-source_file="res://assets/creatures/compsognathus/compsognathus_Color_e9f3b219-7fdb-4812-b2ab-b27b830a84f4.jpg"
-dest_files=["res://.godot/imported/compsognathus_Color_e9f3b219-7fdb-4812-b2ab-b27b830a84f4.jpg-9de0f36b8e26dfba438c309632ccebdd.ctex"]
+source_file="res://assets/creatures/gallimimus/gallimimus_ORM_e0cba9ee-23e6-4fe0-8b93-2899cffb2d5e.jpg"
+dest_files=["res://.godot/imported/gallimimus_ORM_e0cba9ee-23e6-4fe0-8b93-2899cffb2d5e.jpg-3c56f8db4623d09884f8e56eefaace3f.ctex"]
 
 [params]
 

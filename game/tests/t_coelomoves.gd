@@ -1,7 +1,7 @@
 extends SceneTree
 ## COELOMOVES (owner 2026-10-31): coelophysis gets the deinonychus move set (TacticalBrain, the same
-## sequences, ambush, pounce, combo, leaps) and gallimimus the same template as a skittish-territorial
-## omnivore (no pounce; kicks, pecks, a peck flurry, dodges; flees once, then fights, flees again when weak).
+## sequences, ambush, pounce, combo, leaps) and gallimimus the same template without the pounce (its own clips, the
+## chase-to-fight behaviour and its fight are SP-GALLIMIMUS's: tests/t_sp_gallimimus.gd).
 ## Megaloceros gets the territorial brain data only. Checks: the move lists, every fight clip loads, each
 ## move fires and lands on a stationary survivor, the body stays on the ground outside its leaps.
 ## Usage: godot --headless --path game --script res://tests/t_coelomoves.gd  -> "[t_coelomoves] PASS"
@@ -75,7 +75,6 @@ func _run() -> void:
 	await _test_raptor(&"coelophysis", 9.0)
 	await _test_raptor(&"utahraptor", 16.0)
 	await _test_raptor(&"velociraptor", 7.0)
-	await _test_gallimimus()
 	load("res://scripts/combat/combat_tuning.gd").reset_overrides()
 	Engine.time_scale = 1.0
 	if failures.is_empty():
@@ -114,7 +113,7 @@ func _test_data() -> void:
 		finishers[st[-1]] = true
 	_expect(not galli.is_empty() and not finishers.has("pounce") and finishers.has("charge") and finishers.has("combo"),
 		"gallimimus: deinonychus template without the pounce (finishers %s)" % [finishers.keys()])
-	_expect(galli.has("territorial") and not galli.get("ambush", false), "gallimimus is skittish-territorial, no ambush")
+	_expect(not galli.has("territorial") and galli.has("cornered") and not galli.get("ambush", false), "gallimimus turns on a chaser (cornered), not after one flight; no ambush")
 	var mega: Dictionary = TB.tactics_for_def(data.creature(&"megaloceros"))
 	_expect(mega.has("territorial") and float(mega["territorial"].get("weak_frac", 0)) == 0.3, "megaloceros gets the territorial brain (weak_frac 0.3)")
 
@@ -211,57 +210,5 @@ func _test_raptor(id: StringName, at: float) -> void:
 		_expect(int(r.landed.get(k, 0)) > 0, "%s %s lands" % [id, k])
 	_expect(int(r.fired.get(&"hop", 0)) + int(r.fired.get(&"dodge", 0)) > 0, "%s leaps back or power-strafes" % id)
 	_expect(r.lift < 0.25, "%s stays on the ground outside its leaps (%.2f m)" % [id, r.lift])
-	c.queue_free()
-	await physics_frame
-
-func _test_gallimimus() -> void:
-	player.global_position = Vector3(0, 0.9, 0)
-	var c = _spawn(&"gallimimus", Vector3(0, 0.1, 12), &"loyal")
-	var b = c.brain
-	_expect(b.get_script().get_global_name() == &"TacticalBrain", "gallimimus gets the TacticalBrain")
-	var want: Array[StringName] = DEINO_CLIPS.duplicate()
-	want.erase(&"pounce")
-	_clips(c, "gallimimus", want)
-	# Skittish-territorial: the first sight sends it running, then it turns and fights.
-	var seen := {}
-	var on_t := func(k: StringName) -> void: seen[k] = true
-	b.tactic.connect(on_t)
-	b._spot(player)
-	var fled := false
-	Engine.time_scale = TIME_SCALE
-	var step := 1.0 / float(Engine.physics_ticks_per_second) * TIME_SCALE
-	var t := 0.0
-	while t < 12.0 and not b.territorial:
-		await physics_frame
-		t += step
-		_keep_player_alive()
-		fled = fled or b.state == &"flee"
-		if OS.has_environment("CM_TRACE"):
-			print("[trace] %.2f %s tgt=%s flee_left=%.2f fled_s=%.2f d=%.1f prov=%s" % [t, b.state, b.attack_target != null, b._flee_left, b._terr_fled_s, c.global_position.distance_to(player.global_position), b._provoked()])
-	Engine.time_scale = 1.0
-	_expect(fled, "gallimimus runs from the first threat")
-	_expect(b.territorial and seen.has(&"territorial"), "gallimimus turns territorial after one flight (%.1f s)" % t)
-	var r := await _fight(c, 70.0, 1.4)
-	print("[t_coelomoves] gallimimus fired %s landed %s lift %.2f" % [r.fired, r.landed, r.lift])
-	for k in [&"combo", &"heavy", &"charge"]:
-		_expect(int(r.fired.get(k, 0)) > 0, "gallimimus %s fires" % k)
-	for k in [&"combo", &"heavy", &"charge_bite"]:
-		_expect(int(r.landed.get(k, 0)) > 0, "gallimimus %s lands" % k)
-	_expect(int(r.fired.get(&"pounce", 0)) == 0, "gallimimus never pounces")
-	_expect(int(r.fired.get(&"flee", 0)) == 0, "gallimimus does not run while healthy and territorial")
-	_expect(r.lift < 0.25, "gallimimus stays on the ground outside its leaps (%.2f m)" % r.lift)
-	# Weak: under 30 % it runs again.
-	c.health.hp = c.health.max_hp * 0.2
-	var r2 := await _fight(c, 4.0, 0.0, false)
-	_expect(r2.states.has(&"flee") and not r2.states.has(&"attack") and not r2.states.has(&"combo"), "gallimimus runs again under 30 %% HP (states %s)" % [r2.states.keys()])
-	# The threat gone: back to grazing, the cycle resets.
-	player.global_position = c.global_position + Vector3(150, 0, 0)
-	for i in 30:
-		await physics_frame
-	b.flight.let_go()
-	for i in 20:
-		await physics_frame
-	_expect(not b.territorial, "gallimimus forgets the fight once the threat is gone")
-	b.tactic.disconnect(on_t)
 	c.queue_free()
 	await physics_frame

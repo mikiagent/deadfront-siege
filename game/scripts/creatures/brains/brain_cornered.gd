@@ -11,6 +11,7 @@ var cfg: Dictionary = {}
 var pressure := 0.0  ## seconds of pursuit (hits add hit_s)
 var chased_m := 0.0  ## metres the threat covered while pressing
 var fight_until := -1.0
+var _last_press := -INF  ## when the threat last pressed it (carry_s)
 var _b: CreatureBrain
 var _prev := Vector3.INF
 
@@ -64,19 +65,25 @@ func tick(dt: float) -> void:
 	_prev = here
 	if pressing:
 		pressure += dt
+		_last_press = _b._now_s()
 	else:
 		pressure = maxf(0.0, pressure - dt * _f("decay", 0.5))
 	if (pressure >= _f("pressure_s", 3.0) or chased_m >= _f("chase_m", 20.0)) and not _weak():
 		_turn(threat)
 
+## carry_s (SP-GALLIMIMUS): a runner fast enough to outrun every chase in one burst stops, is caught up with and bolts
+## again; its pressure and metres carry over between those flights while the last press is under carry_s old.
 func _reset() -> void:
+	_prev = Vector3.INF
+	if _b._now_s() - _last_press < _f("carry_s", 0.0):
+		return
 	pressure = 0.0
 	chased_m = 0.0
-	_prev = Vector3.INF
 
 ## Stop, face the threat in the display clip, then the provoked fight (alert -> approach) runs on the brain's
 ## own attacks. fight_s is a provocation, so every existing "provoked" rule (stand down, flee again) applies.
 func _turn(threat: Node3D) -> void:
+	_last_press = -INF
 	_reset()
 	fight_until = _b._now_s() + _f("fight_s", 12.0)
 	_b._provoked_until = maxf(_b._provoked_until, fight_until)

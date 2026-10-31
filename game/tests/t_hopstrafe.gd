@@ -81,8 +81,10 @@ func _test_styles() -> void:
 		_expect(TB.reposition_style(data.creature(sp)) == &"hop", "%s hops (bulk %.1f)" % [sp, _bulk(sp)])
 	for sp in [&"triceratops", &"stegosaurus", &"tyrannosaurus"]:
 		_expect(TB.reposition_style(data.creature(sp)) == &"strafe", "%s strafes (bulk %.1f)" % [sp, _bulk(sp)])
-	for sp in [&"deinonychus", &"gallimimus", &"raptor"]:
+	for sp in [&"deinonychus", &"raptor"]:
 		_expect(TB.reposition_style(data.creature(sp)) == &"mixed", "%s keeps its authored mix (bulk %.1f)" % [sp, _bulk(sp)])
+	# SP-GALLIMIMUS: a light runner, set to hop by its own tactics (bulk 45.6 would make it a strafer)
+	_expect(TB.reposition_style(data.creature(&"gallimimus")) == &"hop", "gallimimus hops by override (bulk %.1f)" % _bulk(&"gallimimus"))
 	var v = data.creature(&"velociraptor")
 	_expect(v.height_meters >= 1.3, "velociraptor stands %.2f m (>= 1.3, raised from 1.06)" % v.height_meters)
 
