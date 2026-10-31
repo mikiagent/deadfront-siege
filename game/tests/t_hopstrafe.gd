@@ -81,8 +81,10 @@ func _test_styles() -> void:
 		_expect(TB.reposition_style(data.creature(sp)) == &"hop", "%s hops (bulk %.1f)" % [sp, _bulk(sp)])
 	for sp in [&"triceratops", &"stegosaurus", &"tyrannosaurus"]:
 		_expect(TB.reposition_style(data.creature(sp)) == &"strafe", "%s strafes (bulk %.1f)" % [sp, _bulk(sp)])
-	for sp in [&"deinonychus", &"gallimimus", &"raptor"]:
+	for sp in [&"deinonychus", &"raptor"]:
 		_expect(TB.reposition_style(data.creature(sp)) == &"mixed", "%s keeps its authored mix (bulk %.1f)" % [sp, _bulk(sp)])
+	# SP-GALLIMIMUS: a light runner, set to hop by its own tactics (bulk 45.6 would make it a strafer)
+	_expect(TB.reposition_style(data.creature(&"gallimimus")) == &"hop", "gallimimus hops by override (bulk %.1f)" % _bulk(&"gallimimus"))
 	var v = data.creature(&"velociraptor")
 	_expect(v.height_meters >= 1.3, "velociraptor stands %.2f m (>= 1.3, raised from 1.06)" % v.height_meters)
 
@@ -199,7 +201,8 @@ func _test_fight(sp: StringName, secs: float) -> void:
 		var lim: float = LAND_SLIDE_FRAC * c.def.height_meters * c.size_scale()
 		_expect(land_frames >= 3 and land_slide <= lim, "%s lands planted: toes move %.1f cm over %d landed frames (<= %.1f cm)" % [sp, land_slide * 100.0, land_frames, lim * 100.0])
 	elif sp == &"triceratops":
-		_expect(strafes >= 2 and hops == 0 and airborne == 0, "triceratops strafes, never bounds: %d strafes, %d hops, %d airborne frames" % [strafes, hops, airborne])
+		# MEGAJOUST: the triceratops runs the JoustBrain (wheels and charges, no strafes); it still never bounds.
+		_expect(hops == 0 and airborne == 0, "triceratops never bounds: %d strafes, %d hops, %d airborne frames" % [strafes, hops, airborne])
 	else:
 		_expect(hops == 0 and airborne == 0, "%s never leaves the ground: %d hops, %d airborne frames" % [sp, hops, airborne])
 	c.queue_free()

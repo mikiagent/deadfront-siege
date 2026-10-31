@@ -11,5 +11,5 @@
   "front": {"fetlock_z": 0.065, "carpus_z": 0.215, "elbow_dz": 0.34, "elbow_back": 0.035, "shoulder_z": 0.46, "shoulder_fwd": 0.09, "scap_top_z": 0.60, "scap_back": 0.12, "scap_x": 0.05, "toe_fwd": 0.06},
   "hind": {"fetlock_z": 0.065, "hock_z": 0.20, "hock_back": 0.008, "stifle_z": 0.35, "stifle_fwd": 0.105, "hip": [0.37, 0.50], "hip_x": 0.075, "toe_fwd": 0.06},
   "ymid": 0.1,
-  "antlers": {"pedicle": [0.045, -0.31, 0.755], "span_m": 5.4}
+  "antlers": {"pedicle": [0.045, -0.31, 0.755], "span_m": 7.6}
 }

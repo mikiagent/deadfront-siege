@@ -299,43 +299,62 @@
   "gallimimus": {
    "parts": [
     {
-     "bone": "Head"
+     "bone": "Head",
+     "length": 0.55,
+     "radius": 0.3
+    },
+    {
+     "bone": "Jaw"
     }
    ],
    "moves": {
-    "attack_heavy": {
-     "parts": [
-      {
-       "bone": "BackFoot.L"
-      },
-      {
-       "bone": "BackFoot.R",
-       "radius": 1.27,
-       "calibrated": true
-      },
-      {
-       "bone": "Head"
-      }
-     ],
-     "_note": "the spring-and-rake kick (COELOMOVES CM2)"
-    },
     "attack_primary": {
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.1,
-       "calibrated": true
+       "length": 0.55,
+       "radius": 0.3
+      },
+      {
+       "bone": "Jaw"
       }
-     ]
+     ],
+     "_note": "SP-GALLIMIMUS beak peck: the skull capsule runs the 0.55 m beak (Head bone axis)"
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Toe.R",
+       "length": 0.5,
+       "radius": 0.3
+      },
+      {
+       "bone": "Metatarsal.R"
+      }
+     ],
+     "_note": "SP-GALLIMIMUS spring-and-rake kick: the right claws (Toe.R capsule along the toes) and the foot"
     },
     "bite_combo": {
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.13,
+       "length": 0.55,
+       "radius": 0.3
+      },
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Toe.R",
+       "length": 0.5,
+       "radius": 0.7,
        "calibrated": true
+      },
+      {
+       "bone": "Metatarsal.R"
       }
-     ]
+     ],
+     "_note": "SP-GALLIMIMUS peck-peck-kick: beak on the first two hits, the right claws on the third. Toe.R radius 0.7 calibrated: a small animal (genetic size 0.9) kicks 0.2 m short of her at the 3.1 m contact reach"
     }
    }
   },
@@ -437,9 +456,12 @@
          "bone": "BackFoot.L"
         },
         {
-         "bone": "BackFoot.R"
+         "bone": "BackFoot.R",
+         "radius": 1.0,
+         "calibrated": true
         }
-       ]
+       ],
+       "_note": "MEGAJOUST x HITBOXES (integrator): the doe's joust-era hind kick, calibrated"
       }
      }
     }
