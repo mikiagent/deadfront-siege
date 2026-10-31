@@ -4,6 +4,8 @@
   - the rear: hips rise and the chest pitches up at the peak
   - the sweep: the head's heading (its bone axis on the ground plane) sweeps >= 180 deg
   - the jaw: opens >= 25 deg from its rest against the head
+A spacing_stomp clip (the file name says so) is judged instead on: the left foot within 5 cm of its print every frame,
+the right foot hauled up >= 0.3 m and back on its print (5 cm) at the hit frame (anim_events 0.4) and at the end, no sinking.
 usage: Blender -b -P tools/gait/check_thero_roar.py -- <base.glb> <roar.glb> --height <m>
 Prints THEROROAR_CHECK PASS|FAIL and the numbers.
 """
@@ -87,6 +89,25 @@ for f in range(f0, f1 + 1):
     rise = max(rise, ((mw @ pbs["Hips"].head).z - hip0) * SCALE)
     heads.append(heading())
     jaws.append(jaw_open() - jaw0)
+if "spacing_stomp" in clip:
+    hit = f0 + round(0.4 * (f1 - f0))
+    left = right_hit = right_end = lift = 0.0
+    for f in range(f0, f1 + 1):
+        bpy.context.scene.frame_set(f)
+        for k in JOINTS:
+            d = (joint(*k) - start[k]).length * SCALE
+            if k[0].endswith(".L"):
+                left = max(left, d)
+            else:
+                lift = max(lift, (joint(*k) - start[k]).z * SCALE)
+                if f == hit:
+                    right_hit = max(right_hit, d)
+                if f == f1:
+                    right_end = max(right_end, d)
+    ok = left <= 0.05 and right_hit <= 0.05 and right_end <= 0.05 and lift >= 0.3 and sink <= 0.02
+    print("THEROROAR_CHECK %s %s frames %d: left foot drift %.3f m, right foot lift %.2f m, on its print at the hit %.3f m and the end %.3f m, sink %.3f m"
+          % ("PASS" if ok else "FAIL", clip.split("/")[-1], f1 - f0 + 1, left, lift, right_hit, right_end, sink))
+    sys.exit(0)
 h = np.unwrap(np.radians(heads))
 sweep = math.degrees(h.max() - h.min())
 gape = max(jaws)

@@ -76,6 +76,21 @@ static func tier_for(push_m: float, lift_mps: float, who: Creature) -> int:
 		return Tier.THROW
 	return Tier.KNOCKDOWN if force >= KNOCKDOWN_FORCE else Tier.LIGHT
 
+## [push metres, lift m/s] that leave her want_m from where she stood once the whole reaction is over (lift 0: no
+## lift of its own). A knockdown slides the push exactly. A throw flies its push and then tumbles on
+## (TUMBLE_KEEP x flight speed x TUMBLE_S), so its push is shortened by that; under THROW_MIN_M of flight it flies the
+## minimum on a higher, slower arc whose tumble makes up the rest. SPACING STOMP lands her at a bite's reach with it.
+## # ASSUMPTION: gravity 9.8 (the project default); the arc's lift is capped at 2x THROW_LIFT_MPS.
+static func push_to_land(want_m: float, who: Creature) -> Array:
+	if tier_for(want_m, 0.0, who) != Tier.THROW:
+		return [want_m, 0.0]
+	var k := TUMBLE_KEEP * TUMBLE_S
+	var flown := want_m / (1.0 + k / (2.0 * THROW_LIFT_MPS / 9.8))
+	if flown >= THROW_MIN_M:
+		return [flown, THROW_LIFT_MPS]
+	var lift := 9.8 * k * THROW_MIN_M / (2.0 * maxf(0.01, want_m - THROW_MIN_M))
+	return [THROW_MIN_M, minf(lift, 2.0 * THROW_LIFT_MPS)]
+
 ## A shove landed (PlayerSim.shove). Returns the tier it reacted with; LIGHT leaves the shove to the caller.
 func hit(push: Vector3, lift_mps: float, who: Creature) -> int:
 	push.y = 0.0

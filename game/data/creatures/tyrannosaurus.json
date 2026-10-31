@@ -67,7 +67,8 @@
       "feed",
       "tail_swipe",
       "sleep",
-      "roar"
+      "roar",
+      "spacing_stomp"
     ],
     "provenance": "work/pipeline.json, work/REPORT.md"
   },

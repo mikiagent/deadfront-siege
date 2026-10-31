@@ -47,9 +47,16 @@ static func try_roar(c: Creature) -> bool:
 	c.stop_move()
 	c.anim.play_clip(CLIP)
 	var at := duration(c) * CreatureClips._hit_frac(CLIP)
-	c.get_tree().create_timer(at, false, true).timeout.connect(func() -> void:
-		if is_instance_valid(c) and not c.health.dead and c.anim.current_clip == CLIP:
+	var tm := Timer.new()  # a child of the animal: freed with it, so it never fires for a body that is gone
+	tm.one_shot = true
+	tm.wait_time = maxf(0.01, at)
+	tm.process_callback = Timer.TIMER_PROCESS_PHYSICS
+	c.add_child(tm)
+	tm.timeout.connect(func() -> void:
+		tm.queue_free()
+		if not c.health.dead and c.anim.current_clip == CLIP:
 			burst(c))
+	tm.start()
 	print("[ai] %s roars (%.1fs)" % [c.def.id, duration(c)])
 	return true
 
@@ -68,13 +75,19 @@ static func burst(c: Creature) -> float:
 	bursts += 1
 	var h := height(c)
 	fx(c.view, h, c)
-	last_shake = 0.0
-	var local := PlayerRegistry.local()
-	if local and not local.dead:
-		last_shake = shake_at(c.def, h, Vector2(local.global_position.x - c.global_position.x, local.global_position.z - c.global_position.z).length())
-		if last_shake > 0.0:
-			IsoCamera.shake(local, last_shake)
+	last_shake = shake_local(c.def, h, c.global_position)
 	return last_shake
+
+## The ground shake on the local survivor from something `h` metres tall at `at` (the roar's burst, the spacing stomp's
+## slam): shake_at by her distance. Returns the amount asked of IsoCamera.
+static func shake_local(def: CreatureDef, h: float, at: Vector3) -> float:
+	var local := PlayerRegistry.local()
+	if local == null or local.dead:
+		return 0.0
+	var amount := shake_at(def, h, Vector2(local.global_position.x - at.x, local.global_position.z - at.z).length())
+	if amount > 0.0:
+		IsoCamera.shake(local, amount)
+	return amount
 
 ## Shake for a survivor `dist` metres from a roaring animal `h` metres tall: the size picks between the two shake
 ## numbers, and it fades to nothing at shake_range_h body heights.
@@ -115,10 +128,16 @@ static func fx(view: Node3D, h: float, c: Creature) -> void:
 	breath.look_at(mouth + aim, Vector3.UP if absf(aim.dot(Vector3.UP)) < 0.95 else Vector3.FORWARD)
 	breath.rotate_object_local(Vector3.RIGHT, PI / 2.0)
 	_grow(breath, 0.45 * ring_r / (0.08 * h), 0.55, mouth + aim * 0.6 * h)
-	# the shockwave on the ground, and the dust it raises
-	var wave := _ring(parent, feet + Vector3.UP * 0.15, 0.1 * h, Color(1.0, 0.92, 0.75, 0.6))
+	ground_fx(parent, feet, h, ring_r)
+
+## A shockwave ring on the ground at `at` growing to ring_r, and the dust it raises (the roar's burst, the spacing stomp's
+## slam). Nothing on a headless run.
+static func ground_fx(parent: Node, at: Vector3, h: float, ring_r: float) -> void:
+	if parent == null or DisplayServer.get_name() == "headless":
+		return
+	var wave := _ring(parent, at + Vector3.UP * 0.15, 0.1 * h, Color(1.0, 0.92, 0.75, 0.6))
 	_grow(wave, ring_r / (0.1 * h), 0.7, wave.global_position)
-	_dust(parent, feet, h, ring_r)
+	_dust(parent, at, h, ring_r)
 
 static func _ring(parent: Node, at: Vector3, r: float, col: Color) -> MeshInstance3D:
 	var m := MeshInstance3D.new()

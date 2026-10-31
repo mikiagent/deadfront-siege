@@ -110,10 +110,11 @@ static func touch(attacker: Node3D, from: Vector3, to: Vector3, radius: float, t
 
 ## aim_down_m / aim_up_m (a move's data): when the sweep where it plays misses, it is tried lower (higher) in
 ## AIM_STEP_M steps up to that far, as a swing bends into a low animal or reaches for a leg. Only the height
-## changes: a target beside or behind the sweep is still missed.
-static func _aim_offsets(spec: Dictionary) -> Array[float]:
+## changes: a target beside or behind the sweep is still missed. aim_down_downed_m (SPACING STOMP): the reach down to a
+## target lying knocked down (a standing-height bite bending to the ground); only then, so standing fights cost nothing.
+static func _aim_offsets(spec: Dictionary, downed: bool = false) -> Array[float]:
 	var out: Array[float] = [0.0]
-	var down := float(spec.get("aim_down_m", 0.0))
+	var down := maxf(float(spec.get("aim_down_m", 0.0)), float(spec.get("aim_down_downed_m", 0.0)) if downed else 0.0)
 	var up := float(spec.get("aim_up_m", 0.0))
 	var k := 1
 	while float(k) * AIM_STEP_M <= maxf(down, up) + 0.001:
@@ -166,7 +167,9 @@ static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_inde
 		hurt_box = hurt_box.expand(c["wa"]).expand(c["wb"])
 		hurt_r = maxf(hurt_r, float(c["wr"]))
 	sweep_box = sweep_box.grow(part_r + hurt_r)  # the two radii together: a touch at the bounds' edge still counts
-	for dy in _aim_offsets(move_spec(attacker, move, hit_index, weapon)):
+	var st: Variant = target.get(&"statuses")
+	var downed: bool = st != null and (st as Object).has_method(&"has") and bool((st as Object).call(&"has", &"knockdown"))
+	for dy in _aim_offsets(move_spec(attacker, move, hit_index, weapon), downed):
 		if not draw and not sweep_box.intersects(AABB(hurt_box.position + Vector3(0.0, -dy, 0.0), hurt_box.size)):
 			continue
 		var found := _sweep(samples, Transform3D(Basis.IDENTITY, Vector3(0.0, dy, 0.0)) * xf, hurt, draw)

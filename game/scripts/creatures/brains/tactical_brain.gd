@@ -307,6 +307,10 @@ func _holds_flee() -> bool:
 func _full_rate() -> bool:
 	return state in MOVES
 
+## SPACING STOMP waits out a body-carrying move: a leap, a charge, a pin, a pounce, a grab.
+func _body_committed() -> bool:
+	return _leaping or state in [&"pounce", &"lunge", &"charge", &"charge_turn", &"pin", &"bound", &"flank", &"dodge", &"hop"]
+
 func _pre_think(dt: float) -> bool:
 	# Before the shared rules (a disengage would skip the think): a packmate just died, the rest scatter.
 	var pack_now := _pack_members().size()

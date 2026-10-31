@@ -12,6 +12,7 @@
   "survivor.moves: swing (attack_primary clip; weapons.<tool_class or damage_type> adds the blade), heavy (attack_heavy), punch, kick, tackle. Dodge-roll has none. armed: the move takes the weapon's parts.",
   "calibrated: true marks a radius widened (tests/t_hitboxes.gd calibration) so the part reaches a survivor standing in front (behind, for kick and tail_swipe) at the brain's contact reach: the clip itself stops short or passes overhead. Shrink it when the clip or the AI spacing is fixed.",
   "aim_down_m / aim_up_m: a sweep wholly over (under) the target's body is lowered (raised) by up to this much, as a swing bends into a low animal; the survivor's moves use it, so a compy or a raptor at her knees is hit by the swing that reaches it.",
+  "aim_down_downed_m (SPACING STOMP): the extra reach down, only against a target lying knocked down (a standing-height bite bending to the ground), so standing fights pay no extra sweeps.",
   "species.<id>.variants.<model variant>: parts / moves for that model (megaloceros doe), over the species row.",
   "A species with no row (or no row for a move) takes the bones of its own pipeline.hit_parts.<move> as that move's parts, so new species plug in from their JSON; calibrated radii still need a row here."
  ],
@@ -1287,7 +1288,8 @@
        "radius": 0.67,
        "calibrated": true
       }
-     ]
+     ],
+     "aim_down_downed_m": 2.2
     },
     "pounce": {
      "parts": [
@@ -1352,7 +1354,8 @@
       {
        "bone": "Head"
       }
-     ]
+     ],
+     "aim_down_downed_m": 3.58
     },
     "attack_heavy": {
      "parts": [
@@ -1460,7 +1463,8 @@
       {
        "bone": "Head"
       }
-     ]
+     ],
+     "aim_down_downed_m": 2.75
     },
     "attack_heavy": {
      "parts": [
@@ -1519,7 +1523,8 @@
       {
        "bone": "Head"
       }
-     ]
+     ],
+     "aim_down_downed_m": 4.95
     },
     "attack_heavy": {
      "parts": [

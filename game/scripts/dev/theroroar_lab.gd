@@ -9,6 +9,8 @@ extends Node3D
 ## Saves DIR/<species>_<clip>_<pct>_<cam>.png.
 ## Run windowed off-screen: Godot --path game --position 6000,3000 -- --skip-charcreate --lab=theroroar_lab --out=DIR
 ##   [--species=ceratosaurus,megarex] [--clip=roar] [--pcts=10,35,60,85] [--cams=tq,behind]
+## --stomp: SPACING STOMP live instead: each species fights the survivor tucked under its chest (the real brain, GOD on);
+## saves <species>_stomp_hit.png just after the slam (dust ring) and <species>_stomp_bite.png at the follow-up bite's hit.
 
 const SPECIES: Array[String] = ["ceratosaurus", "tyrannosaurus", "megarex", "allosaurus", "majungasaurus", "tarbosaurus", "spinosaurus"]
 
@@ -18,6 +20,7 @@ var _clip := &"roar"
 var _pcts: Array[int] = [10, 35, 60, 85]
 var _cam_names: Array[String] = ["tq"]
 var _caption: Label
+var _stomp := false
 
 func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
@@ -31,6 +34,8 @@ func _ready() -> void:
 			_pcts.clear()
 			for p in a.substr(7).split(","):
 				_pcts.append(int(p))
+		elif a == "--stomp":
+			_stomp = true
 		elif a.begins_with("--cams="):
 			_cam_names.assign(a.substr(7).split(","))
 	if _out == "":
@@ -64,6 +69,10 @@ func _sheet() -> void:
 	var cam := Camera3D.new()
 	add_child(cam)
 	cam.current = true
+	if _stomp:
+		await _stomp_live(player, cam)
+		get_tree().quit(0)
+		return
 	for id in _species:
 		var def: CreatureDef = Data.creature(StringName(id))
 		if def == null:
@@ -126,3 +135,60 @@ func _place(cam: Camera3D, name: String, h: float) -> void:
 		_:
 			cam.fov = 38.0
 			cam.look_at_from_position(Vector3(-3.0 * h, 1.3 * h, 3.0 * h), Vector3(-0.4 * h, 0.7 * h, 0.0))
+
+## SPACING STOMP live: the survivor tucked a third of the way out to the jaws; the brain stomps, she is thrown or knocked
+## out to bite reach, and it bites. Shots at the slam (plus a few frames for the dust) and at the bite's hit.
+func _stomp_live(player: Player, cam: Camera3D) -> void:
+	Game.god_mode = true
+	for id in _species:
+		var def: CreatureDef = Data.creature(StringName(id))
+		if def == null:
+			continue
+		var c: Creature = load("res://scenes/creatures/creature.tscn").instantiate()
+		add_child(c)
+		c.global_position = Vector3(0, 0.1, 0)
+		c.spawn(def)
+		c.look_at(Vector3(-10, 0.1, 0), Vector3.UP)  # head toward -X, left flank toward +Z (the cameras)
+		c.set_meta(&"thero_roar_at", Time.get_ticks_msec() * 0.001)  # no roar: the stomp is under review
+		player.statuses.clear_all()
+		for _f in 3:
+			await get_tree().physics_frame
+		var st := c.brain.spacing
+		if st == null:
+			print("[theroroar] %s has no spacing stomp" % id)
+			c.queue_free()
+			continue
+		var h := def.height_meters
+		player.global_position = c.global_position + Vector3(-1, 0, 0) * st.bite_reach(player) * 0.35 + Vector3.UP * 0.1
+		c.brain.attack_target = player
+		c.brain._combat_memory_left = 30.0
+		_place(cam, "side", h)
+		var mid := -0.5 * st.bite_reach(player)  # between the feet and where she lands
+		cam.look_at_from_position(Vector3(mid, 0.45 * h, 2.4 * h), Vector3(mid, 0.3 * h, 0.0))
+		var t := 0.0
+		var hit_shot := false
+		var bit := [false]
+		c.anim.attack_hit.connect(func(_clip: StringName) -> void: bit[0] = true)  # a TacticalBrain bite's hit frame
+		while t < 6.0:
+			await get_tree().physics_frame
+			t += 1.0 / Engine.physics_ticks_per_second
+			if not hit_shot and st.phase == &"after":
+				for _f in 6:
+					await get_tree().process_frame
+				_caption.text = "%s  SPACING STOMP: the slam (dust ring, ground shake %.2f)" % [id, st.last_shake]
+				await _snap("%s_stomp_hit" % id)
+				hit_shot = true
+				bit[0] = false
+			# the follow-up's hit frame: the clip's attack_hit, or a TyrantBrain's windup turning into its recovery
+			var tyrant_hit: bool = c.brain is TyrantBrain and (c.brain as TyrantBrain).phase == &"recovery"
+			if hit_shot and st.followed != &"" and (bit[0] or tyrant_hit):
+				_caption.text = "%s  follow-up %s at its hit: pushed %.1f m to the jaws' reach %.1f m" % [id, st.followed, st.last_push, st.last_reach]
+				await _snap("%s_stomp_bite" % id)
+				break
+		c.queue_free()
+		player.statuses.clear_all()
+		if player.sim:
+			player.sim.knock.cancel()
+		for _f in 30:
+			await get_tree().physics_frame
+	Game.god_mode = false

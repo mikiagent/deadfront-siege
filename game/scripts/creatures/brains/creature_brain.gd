@@ -98,6 +98,10 @@ func _provoked() -> bool:
 func _holds_flee() -> bool:
 	return false
 
+## SPACING STOMP: the overhanging theropods' stomp that shoves prey tucked under the chest out to bite reach (null for an
+## animal without one); ticked before the brain's own think.
+var spacing: SpacingStomp
+
 func setup(c: Creature) -> void:
 	creature = c
 	profile = _profile(c.def.archetype)
@@ -110,6 +114,7 @@ func setup(c: Creature) -> void:
 	# Start walking promptly. The old full roam delay made newly spawned dinosaurs look frozen.
 	_roam_cd = randf_range(0.1, 0.6)
 	_think_phase = randi() % _think_every()
+	spacing = SpacingStomp.for_creature(c)
 	cornered.setup()
 
 ## The player stays on the ground until respawn. Relocate every dinosaur that was fighting
@@ -189,6 +194,14 @@ func aggro_radius() -> float:
 	return maxf(26.0 if StructureHealth.is_structure(attack_target) else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
 
 ## True while this creature is actively on the survivor (ring shown).
+## SPACING STOMP: free to stomp: fighting a live target, no one-shot playing, no move of its own carrying the body.
+func spacing_ready() -> bool:
+	return state in COMBAT_STATES and _valid_target() and not creature.anim.is_busy() and not _body_committed()
+
+## A move of the brain's own that owns the body right now (TyrantBrain's timed phases, TacticalBrain's leaps and charges).
+func _body_committed() -> bool:
+	return false
+
 func hunting_player() -> bool:
 	if attack_target == null or not is_instance_valid(attack_target):
 		return false
@@ -215,6 +228,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if creature.pin_victim != null:
 		return  # PINFEEL: holding a victim under its foot; Creature._tick_pin owns the body until the pin ends
+	if spacing != null and spacing.tick(delta, self):
+		return  # SPACING STOMP: the stomp owns the body until its clip ends and the follow-up bite starts
 	_think_dt += delta
 	_face_target(delta)
 	_frame_n += 1

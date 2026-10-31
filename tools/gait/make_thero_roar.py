@@ -16,7 +16,14 @@ The beats (fractions of the clip; anim_events.json roar hit_frac 0.34 is the bur
 Feet never leave their prints: the IK solves every frame to the rest ankle, and the rise is clamped to 0.97 of the
 leg's reach so the knee never locks short of the print.
 
-usage: Blender -b -P tools/gait/make_thero_roar.py -- <base.glb> <species> <out.glb>
+SPACING STOMP (owner 2026-10-31: "for animals that have weird hitboxes (like trex style where they hang over their legs)
+add a stomp mechanic that tosses the player backwards to the perfect range of a chomp style attack. Make the ground
+shake"): the same script authors clip `spacing_stomp` (1.0 s, anim_events hit_frac 0.4) with `spacing_stomp` as the
+4th argument: the weight rocks onto the left leg, the right foot is hauled up (toes hanging) and slammed back down on its
+own print at the hit frame with the body dropping into it and the head looking down at the prey; the left foot never
+leaves its print and the right one ends on its print.
+
+usage: Blender -b -P tools/gait/make_thero_roar.py -- <base.glb> <species> <out.glb> [roar|spacing_stomp]
 """
 import json
 import math
@@ -28,11 +35,12 @@ from mathutils import Matrix, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 BASE, SPECIES, OUT = argv[:3]
+CLIP = argv[3] if len(argv) > 3 else "roar"
 CFG = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "thero_roar.json")))
 ROW = dict(CFG["default"])
 ROW.update(CFG["species"].get(SPECIES, {}))
 FPS = 24
-N = int(round(ROW["secs"] * FPS))
+N = int(round((ROW["secs"] if CLIP == "roar" else ROW["stomp_secs"]) * FPS))
 UP = Vector((0, 0, 1))
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -126,7 +134,8 @@ def reach_ok(b):
 
 
 def apply(p):
-    """p: body {dx, dy, dz, pitch, roll, yaw}, turns {bone: (pitch, yaw, roll)}, jaw (deg open). Feet stay on their prints."""
+    """p: body {dx, dy, dz, pitch, roll, yaw}, turns {bone: (pitch, yaw, roll)}, jaw (deg open), feet {L/R: (lift, fwd)}
+    in hip heights off the print (default: on it)."""
     for pb in pbs:
         pb.matrix_basis = Matrix.Identity(4)
     bpy.context.view_layer.update()
@@ -147,8 +156,11 @@ def apply(p):
     cur = pbs["Jaw"].matrix.copy()
     set_m("Jaw", rot_about(cur.translation, axis.normalized(), math.radians(p.get("jaw", 0.0))) @ cur)
     for sd, leg in LEGS.items():
-        solve_leg(leg, leg["ankle0"])
-        fm = bones[leg["foot"]].matrix_local.copy()  # the foot keeps its rest orientation on its print
+        lift, fwd = p.get("feet", {}).get(sd, (0.0, 0.0))
+        solve_leg(leg, leg["ankle0"] + (UP * lift + FWD * fwd) * U)
+        # the foot keeps its rest orientation on its print; lifted, the toes hang
+        # (only once the foot is well up: a toe tipped down a few cm off the floor goes through it)
+        fm = rot_about(Vector((0, 0, 0)), SIDE, math.radians(-25.0 * smooth((lift - 0.06) / 0.14))) @ bones[leg["foot"]].matrix_local
         fm.translation = pbs[leg["low"]].tail
         set_m(leg["foot"], fm)
         tm = bones["Toe." + sd].matrix_local.copy()
@@ -200,12 +212,37 @@ def roar(u):
     }
 
 
+def spacing_stomp(u):
+    """1.0 s, hit at 0.4: rock onto the left leg, haul the right foot up, slam it down on its print, recover."""
+    H = 0.4
+    shift = track(u, [(0, 0), (0.18, 1), (H, 0.6), (0.7, 0.2), (1, 0)])
+    lift = track(u, [(0, 0), (0.1, 0), (0.28, 1), (0.33, 1), (H, 0), (1, 0)]) * ROW["stomp_lift"]
+    slam = track(u, [(0, 0), (0.33, 0), (H, 1), (0.55, 0.7), (0.85, 0), (1, 0)])
+    look = track(u, [(0, 0), (0.2, 1), (0.7, 1), (1, 0)])
+    turns = {n: (-3 * slam / len(SPINE), 0.0, 0.0) for n in SPINE}
+    turns["Neck1"] = (-8 * look - 4 * slam, 4 * shift, 0.0)
+    turns["Neck2"] = (-4 * look, 2 * shift, 0.0)
+    turns["Head"] = (-10 * look + 6 * slam, 0.0, 0.0)
+    for i, t in enumerate(TAILS):
+        turns[t] = (-(6 * slam + 4 * shift) * 0.85 ** i, 4 * shift * 0.9 ** i, 0.0)  # the tail lifts clear (a long one drags)
+    for sd in "LR":
+        turns["Arm." + sd] = (20 * look, 0.0, 0.0)
+        turns["Forearm." + sd] = (25 * look, 0.0, 0.0)
+    return {
+        "body": {"dx": -0.07 * shift, "roll": -4 * shift, "pitch": 5 * shift * (1 - slam) - 4 * slam, "dz": -0.05 * slam},
+        "turns": turns,
+        "jaw": 1 + 12 * look + 6 * slam,
+        "feet": {"R": (lift, 0.0)},
+    }
+
+
+POSE = roar if CLIP == "roar" else spacing_stomp
 arm.animation_data_create()
-act = bpy.data.actions.new("roar")
+act = bpy.data.actions.new(CLIP)
 arm.animation_data.action = act
 rises = []
 for f in range(N + 1):
-    b = apply(roar(f / N))
+    b = apply(POSE(f / N))
     rises.append(b.get("dz", 0.0))
     for pb in pbs:
         pb.rotation_mode = "QUATERNION"
@@ -215,14 +252,14 @@ for f in range(N + 1):
 sc = bpy.context.scene
 sc.render.fps = FPS
 sc.frame_start, sc.frame_end = 0, N
-print(f"THEROROAR {SPECIES} {N} frames ({N / FPS:.3f} s) fwd {tuple(FWD)} rise asked {ROW['rise']:.3f} got {max(rises):.3f} hip heights")
+print(f"THEROROAR {SPECIES} {CLIP} {N} frames ({N / FPS:.3f} s) fwd {tuple(FWD)} rise asked {ROW['rise']:.3f} got {max(rises):.3f} hip heights")
 
 for o in list(bpy.data.objects):
     if o is not arm:
         bpy.data.objects.remove(o, do_unlink=True)
 arm.select_set(True)
 bpy.context.view_layer.objects.active = arm
-act.name = "roar"
+act.name = CLIP
 bpy.ops.export_scene.gltf(
     filepath=OUT, export_format="GLB", export_apply=False, export_yup=True,
     use_selection=True, export_animations=True, export_animation_mode="ACTIONS",

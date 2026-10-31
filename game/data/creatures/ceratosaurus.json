@@ -160,7 +160,8 @@
       "death",
       "sleep",
       "feed",
-      "roar"
+      "roar",
+      "spacing_stomp"
     ]
   },
   "tactics": {

@@ -73,7 +73,7 @@ func _test_view() -> void:
 		view.free()
 		return
 	var clips: Array = def.pipeline.get("clips", [])
-	_expect(clips.size() == 18, "species lists its clips (%d, with THERO-ROAR's roar)" % clips.size())
+	_expect(clips.size() == 19, "species lists its clips (%d, with THERO-ROAR's roar and spacing_stomp)" % clips.size())
 	for clip in clips:
 		var authored := ResourceLoader.exists("res://assets/creatures/majungasaurus/anim/%s.glb" % clip)
 		_expect(authored and view.rig.has_clip(StringName(clip)), "clip %s authored and loaded" % clip)
