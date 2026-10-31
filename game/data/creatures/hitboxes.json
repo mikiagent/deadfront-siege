@@ -385,7 +385,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 2.01,
+       "radius": 2.06,
        "calibrated": true
       }
      ]
@@ -394,7 +394,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 2.0,
+       "radius": 2.05,
        "calibrated": true
       }
      ]
@@ -403,7 +403,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 2.02,
+       "radius": 2.05,
        "calibrated": true
       }
      ]
