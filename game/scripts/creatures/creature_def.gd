@@ -138,7 +138,7 @@ func mapped_archetype() -> StringName:
 func is_herbivore_diet() -> bool:
 	# Keep in sync with game/data/creatures/ai.json herbivore archetypes.
 	match archetype:
-		&"pack_mule", &"spiked_tail", &"runner", &"antlered", &"club_tail", &"horned_charger", &"titan":
+		&"pack_mule", &"spiked_tail", &"runner", &"antlered", &"club_tail", &"horned_charger", &"titan", &"claw_guardian":
 			return true
 		_:
 			return false

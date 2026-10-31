@@ -8,6 +8,8 @@ D=game/assets/creatures/woolly_rhino; M=tools/gait/woolly_rhino
 T=${T:-$(mktemp -d)}; mkdir -p "$T"
 run() { "$BL" -b "$@" > "$T/log_$RANDOM.txt" 2>&1 || { echo "FAILED: $*"; exit 1; }; }
 run -P $M/build_rig.py -- $D/work/woolly_rhino_tripo_v1.glb $M/rhino.json $T/rig.blend $D/woolly_rhino.glb
+# RHINOHOLE: close the hide holes build_rig leaves (spine slit, rump, flanks) in the exported glb; bones untouched
+run -P $M/patch_holes.py -- $D/woolly_rhino.glb $D/woolly_rhino.glb
 run -P $M/clips.py -- $T/rig.blend $T/anim
 # a frame whose skin dips under the floor lifts the root by the deficit (STEGOFIX tool)
 mkdir -p $T/g $D/anim
