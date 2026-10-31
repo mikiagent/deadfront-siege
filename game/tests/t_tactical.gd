@@ -374,8 +374,9 @@ func _test_fight() -> void:
 func _test_pounce_damage() -> void:
 	var b = dino.brain
 	dino.global_position = player.global_position + Vector3(0, -0.8, -1.5)
+	dino.look_at(Vector3(player.global_position.x, dino.global_position.y, player.global_position.z), Vector3.UP)
 	b.attack_target = player
-	b._pounce_dir = Vector3(0, 0, 1)  # landed facing her
+	b._pounce_dir = Vector3(0, 0, 1)  # landed facing her (HITBOXES: the body too, so its jaws and claws reach her)
 	_keep_player_alive()
 	var hp0: float = player.vitals.health
 	b._pounce_land()

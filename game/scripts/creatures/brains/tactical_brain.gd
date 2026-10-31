@@ -1038,6 +1038,9 @@ func _charge_impale(delta: float) -> void:
 			creature.stop_move()
 			if _phase_t >= _phase_len:
 				_charge_cleanup()
+				# ASSUMPTION (HITBOXES merge): the charge cooldown runs from the end of the recover, so a missed charge
+				# never paws into the next one the frame it stands up (t_styrafix's A->B->A check caught it).
+				_start_cd(&"charge")
 				if not _strike(_flat_dist(attack_target), ["kick"]):
 					_after_charge()
 
@@ -1079,7 +1082,15 @@ func _impale_contact() -> bool:
 func _impale_hit() -> void:
 	_charge_hit = true
 	impale_gap = _flat_between(horn_tip(), attack_target.global_position)
-	if impale_gap > _t("impale_r_m", 1.6) + 0.8:
+	var horned := {}
+	if Hitbox.applies(creature, attack_target):
+		# HITBOXES: the impale clip's horns (hitboxes.json <species>.moves.impale) must reach her hurtboxes.
+		horned = Hitbox.strike(creature, &"impale", attack_target)
+		if horned.is_empty():
+			tactic.emit(&"charge_miss")
+			return
+		Hitbox.mark(attack_target, horned)
+	elif impale_gap > _t("impale_r_m", 1.6) + 0.8:
 		tactic.emit(&"charge_miss")  # she got clear between contact and the hit frame
 		return
 	var mult := _t("charge_mult", 1.8)
@@ -1203,7 +1214,7 @@ func _charge(delta: float) -> void:
 		var to := attack_target.global_position - creature.global_position
 		to.y = 0.0
 		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
-				and creature.part_hit(&"charge", attack_target):
+				and (Hitbox.applies(creature, attack_target) or creature.part_hit(&"charge", attack_target)):
 			_charge_impact()
 		if _flat_dist_to(_charge_to) <= 1.0 or _left <= 0.0:
 			_charge_end()
@@ -1242,6 +1253,13 @@ func landed(clip: StringName, target: Node) -> void:
 			tactic.emit(&"hook_pull")
 
 func _charge_impact() -> void:
+	# HITBOXES: the ram lands when the head and horns (the charge part) reach her body, not at the reach ring.
+	var hit := {}
+	if Hitbox.applies(creature, attack_target):
+		hit = Hitbox.strike(creature, &"charge", attack_target)
+		if hit.is_empty():
+			return  # still closing: the next frame tries again
+		Hitbox.mark(attack_target, hit)
 	_charge_hit = true
 	var mult := _t("charge_mult", 1.8)
 	tactic_hit.emit(&"charge", 0, mult)
@@ -1657,15 +1675,25 @@ func _pounce_land(clip: StringName = &"pounce") -> void:
 	_pounce_landed = false
 	var ahead := tgt.global_position - creature.global_position
 	ahead.y = 0.0
-	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close. A species with pounce
-	# hit parts (pipeline.hit_parts) must also reach it with them (the smilodon's sabres).
-	if _flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0 or not creature.part_hit(clip, tgt):
+	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close. With hurtboxes the
+	# pounce clip's parts decide below instead (the smilodon's sabres included); else a species with pounce hit
+	# parts (pipeline.hit_parts) must also reach it with them.
+	if not Hitbox.applies(creature, tgt) and (_flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0 or not creature.part_hit(clip, tgt)):
 		_log("[ai] %s pounce missed" % creature.def.id)
 		if tgt is Player or tgt is Creature:
 			CombatAvoid.avoided(tgt, creature, &"miss")
 		return
 	if tgt is Player and (tgt as Player).dead:
 		return
+	# HITBOXES: the jaws and claws of the pounce clip must sweep through her hurtboxes.
+	if Hitbox.applies(creature, tgt):
+		var hit := Hitbox.strike(creature, clip, tgt)
+		if hit.is_empty():
+			_log("[ai] %s pounce missed (no part touched)" % creature.def.id)
+			if tgt is Player or tgt is Creature:
+				CombatAvoid.avoided(tgt, creature, &"miss")
+			return
+		Hitbox.mark(tgt, hit)
 	# A roll is judged by CreatureAttack against the roll's opening window (RollRules), as for any bite.
 	var mult := _t("pounce_mult", 2.5)
 	_pounce_landed = true

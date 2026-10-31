@@ -431,6 +431,7 @@ func _eat_quick(i: int) -> void:
 ## Debug items: perf line top-left, creature state labels, HP numbers on plates, path lines.
 func _toggle_debug() -> void:
 	Game.debug_overlay = not Game.debug_overlay
+	Hitbox.debug_draw = Game.debug_overlay  # HITBOXES: the debug toggle shows hurt/hit boxes too
 	_inspect_hex.selected = Game.debug_overlay
 	_inspect_hex.visible = Game.debug_overlay
 	_inspect_hex.queue_redraw()

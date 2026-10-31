@@ -113,13 +113,19 @@ func _impact() -> void:
 	# the opening window (RollRules) exactly as it does a bite, and pays the Defense XP for it.
 	if locked_target is Player and (locked_target as Player).dead: return
 	if locked_target is FieldCatapult and (locked_target as FieldCatapult).hp <= 0: return
-	var offset := locked_target.global_position-creature.global_position
-	offset.y = 0
-	if offset.length() > reach_to(locked_target)+0.3: return
-	var dot := offset.normalized().dot(locked_forward)
-	if windup_clip == &"tail_swipe":
-		if dot > 0.2: return  # the tail sweeps behind and beside her, never in front
-	elif dot < (-0.4 if windup_clip == &"attack_heavy" else 0.15): return
+	if Hitbox.applies(creature, locked_target):
+		# HITBOXES: the bite's jaws, the stomp's feet, the whip's tail must sweep through her hurtboxes.
+		var hit := Hitbox.strike(creature, windup_clip, locked_target)
+		if hit.is_empty(): return
+		Hitbox.mark(locked_target, hit)
+	else:
+		var offset := locked_target.global_position-creature.global_position
+		offset.y = 0
+		if offset.length() > reach_to(locked_target)+0.3: return
+		var dot := offset.normalized().dot(locked_forward)
+		if windup_clip == &"tail_swipe":
+			if dot > 0.2: return  # the tail sweeps behind and beside her, never in front
+		elif dot < (-0.4 if windup_clip == &"attack_heavy" else 0.15): return
 	CreatureAttack.apply_for(creature,windup_clip,locked_target)
 	if locked_target is Player: (locked_target as Player).receive_creature_hit(creature,windup_clip)
 
