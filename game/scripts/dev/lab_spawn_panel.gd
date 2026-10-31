@@ -132,6 +132,7 @@ func _refresh() -> void:
 func spawn(sp: StringName, n: int, nat: StringName = &"", is_alpha: bool = false) -> Array[Creature]:
 	if Data.creature(sp) == null or player == null:
 		return []
+	CreatureDef.allow_placeholder = true  # NOBOXES: the lab panel may drop model-less species as boxes
 	var fwd := -player.visual.global_basis.z if player.visual else Vector3.FORWARD
 	fwd.y = 0.0
 	fwd = fwd.normalized() if fwd.length_squared() > 0.01 else Vector3.FORWARD

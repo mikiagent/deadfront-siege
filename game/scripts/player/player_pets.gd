@@ -111,6 +111,9 @@ func summon(index: int = 0) -> Creature:
 		p.notice("Only %d pets can be out at once." % MAX_OUT)
 		return null
 	var def := Data.creature(rec.species)
+	if not CreatureDef.has_model(rec.species) and not CreatureDef.allow_placeholder:
+		p.notice("%s cannot be summoned yet: its model is not in the game." % str(rec.species).capitalize())  # NOBOXES
+		return null
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	# Placed before it enters the tree: a body added at the parent's origin is simulated there for
 	# a step and gets launched out of whatever it overlaps (phys-spawn-01, ~90 m/s).

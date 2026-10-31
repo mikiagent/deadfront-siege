@@ -128,7 +128,7 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	variant = p_variant
 	using_glb = false
 	_tint = TINTS.get(str(def.id), Color(0.55, 0.5, 0.4))
-	var glb := "res://assets/creatures/%s/%s.glb" % [def.id, def.id]
+	var glb := CreatureDef.model_path(def.id)
 	if ResourceLoader.exists(glb):
 		rotation = Vector3.ZERO
 		rig = RiggedModel.new()
@@ -144,15 +144,12 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 			rig.fill_missing(CreatureClips.CONTRACT)
 			_apply_model_variant()
 		else:
-			push_error("CreatureView: %s has a model but it failed to load; drawing the box placeholder" % glb)
+			push_error("CreatureView: %s has a model but it failed to load" % glb)
 			rig.queue_free()
 			rig = null
-			rotation_degrees.y = 180.0
-			_build_placeholder()
+			_placeholder_if_allowed()
 	else:
-		# Placeholder nose sits at +Z; yaw the view so it still faces Godot -Z like before.
-		rotation_degrees.y = 180.0
-		_build_placeholder()
+		_placeholder_if_allowed()
 	apply_coloration(coloration)
 	# Coloration recursively replaces mesh materials. Add the shared eyeshine material afterwards;
 	# the old order stripped it and left the oversized spheres as plain blue-grey geometry.
@@ -487,6 +484,16 @@ func set_status_fx(darken: float, tint: Color, wobble: float) -> void:
 func flash_damage(seconds: float = 0.1) -> void:
 	_hit_flash_left = maxf(_hit_flash_left, seconds)
 	_apply_fx()
+
+## NOBOXES: the generic boxes only where a lab or test asked (CreatureDef.allow_placeholder); in
+## normal play a model-less view stays empty (spawns already filter those species out).
+func _placeholder_if_allowed() -> void:
+	if not CreatureDef.allow_placeholder:
+		push_warning("CreatureView: %s has no model; no placeholder in normal play" % def.id)
+		return
+	# Placeholder nose sits at +Z; yaw the view so it still faces Godot -Z like before.
+	rotation_degrees.y = 180.0
+	_build_placeholder()
 
 func _build_placeholder() -> void:
 	var h := def.height_meters

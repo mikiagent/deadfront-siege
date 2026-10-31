@@ -15,6 +15,7 @@ func _arg(key: String, fallback: String) -> String:
 	return fallback
 
 func _ready() -> void:
+	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	ProcessStation.clock_skew_s = 0.0
 	var kit := LabKit.build(self, 60.0)
 	_player = kit["player"]

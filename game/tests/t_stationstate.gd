@@ -83,6 +83,7 @@ func _captured(sp: String) -> Variant:
 
 func _test_pen_insert_and_overhang() -> void:
 	var TP: GDScript = load("res://scripts/world/taming_pen.gd")
+	load("res://scripts/creatures/creature_def.gd").allow_placeholder = true  # NOBOXES: the model-less ankylosaurus is measured as boxes
 	var small: Node3D = TP.make(&"makeshift_taming_pen")
 	small.position = Vector3(-8, 0, 0)
 	_host.add_child(small)

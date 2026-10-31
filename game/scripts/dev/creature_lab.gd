@@ -26,6 +26,7 @@ var _sheet_dir := ""
 var _sheet_clips: Array[StringName] = [&"investigate", &"sniff"]
 
 func _ready() -> void:
+	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	Game.lab_force_clips = true
 	Game.lab_flat_attack = true
 	_player = LabKit.build(self)["player"] as Player
