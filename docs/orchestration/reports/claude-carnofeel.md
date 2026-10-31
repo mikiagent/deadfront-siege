@@ -74,7 +74,26 @@ Reviewed by eye:
 - The lab rolled the alpha skin in this run.
 
 ## Gates (final tree, after merging origin/claude/mmo-overhaul 91f348a6)
-See the reply / the table at the end of this file.
+- `t_sp_carnotaurus` PASS. New checks:
+  - the combo is a point-blank move and opens with its tell (ring, no chomp yet);
+  - 3 chomps land (3 hit frames, 3 damage events);
+  - for a landed hit and for a damage roll that misses: contact knocks her down (knockdown/throw tier); it runs
+    through her (pass-through on, lowest speed after contact 15.4 m/s, about 5 m past her); it arcs round (yaw
+    1.40 rad/s against turn_rate 1.40, radius at least 6.7 m against the 5 m limit, slip 0.0 deg); it charges back;
+  - after its charges land it closes in for the combo;
+  - the exception is gone once the animal is.
+  - With the pass-through switched off, the run-through check FAILS (the speed drops to 6.1 m/s), so it catches the snag.
+- `t_hitboxes` PASS, `t_knockdown` PASS, `t_styraco` PASS, `t_combat` PASS.
+- `run_all` `[tests] PASS`. `tools/smoke.sh --no-import` SMOKE PASS.
+- `tools/gait/check_carno.py --height 5.74`: CARNO_CHECK PASS (17 clips).
+- **`t_noteleport` is flaky, on canon as well.** Three runs on this branch failed on different species each time:
+  - compsognathus kick;
+  - gallimimus hop, megarex bite, raptor kick and woolly rhino kick (that run was under load from run_all);
+  - raptor flank.
+
+  Two runs alone on a clean `origin/claude/mmo-overhaul` 91f348a6 worktree failed the same way: deinonychus kick and
+  gallimimus leap_back, then coelophysis kick. A third, earlier canon run passed. None of the failures involves a
+  carnotaurus or a straight charge.
 
 ## ASSUMPTIONs
 CF1-CF4 in `docs/vision/WildLandsMMO_Open_Questions.md`:
