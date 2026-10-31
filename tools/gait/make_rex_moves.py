@@ -477,7 +477,7 @@ def pin_foot(u):
 
 # The pinning foot's hold, metres in the rig (FWD / SIDE / UP from the right foot's print). PIN_LIFT puts the sole
 # on a lying survivor's chest (~0.3 m); PinHold moves the victim, never the foot, so these only shape the pose.
-PIN_LIFT, PIN_FWD, PIN_SIDE = 0.30, 1.8, -0.55
+PIN_LIFT, PIN_FWD, PIN_SIDE = 0.45, 1.8, -0.55  # v2: 0.45 (the v2 toes hang lower than the v1 toes)
 
 
 CLIPS = {"idle": (idle, 96), "alert": (alert, 58), "attack_primary": (attack_primary, 40),
