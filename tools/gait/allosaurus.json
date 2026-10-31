@@ -52,12 +52,12 @@
       "phase": 0.4
     }
   },
-  "note": "SP-ALLOSAURUS 2026-10-31: rig_biped.py rig (Thigh/Shin/Metatarsal/Toe, faces -Y, hip 0.275 mesh units). The metatarsal is posed as the foot: IK solves thigh+shin to its head. A 14 m theropod: long, slow walk with the head carried level and the tail swinging; run with a forward lean; arms tucked.",
+  "note": "SP-ALLOSAURUS 2026-10-31: rig_biped.py rig (Thigh/Shin/Metatarsal/Toe, faces -Y, hip 0.275 mesh units). The metatarsal is posed as the foot: IK solves thigh+shin to its head. A 14 m theropod: long, slow walk with the head carried level and the tail swinging; run with a forward lean; arms tucked. Speeds match the game's move speed (stats speed 520 = 5.2 m/s run, 2.6 m/s walk): walk 0.26/1.4, run 0.38/0.9 mesh units/s x 14.28.",
   "clips": {
     "walk": {
-      "cycle_s": 1.25,
+      "cycle_s": 1.4,
       "duty": 0.62,
-      "stride": 0.3,
+      "stride": 0.26,
       "phases": {
         "L": 0.0,
         "R": 0.5
@@ -95,9 +95,9 @@
       "crouch": 0.006
     },
     "run": {
-      "cycle_s": 0.72,
-      "duty": 0.4,
-      "stride": 0.62,
+      "cycle_s": 0.9,
+      "duty": 0.42,
+      "stride": 0.38,
       "phases": {
         "L": 0.0,
         "R": 0.5

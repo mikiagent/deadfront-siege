@@ -18,9 +18,9 @@ run --python tools/jaw/add_jaw.py -- $T/rig.glb $D/allosaurus.glb --open --x-sid
 mkdir -p $T/x $T/g
 run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/walk.glb
 run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G run $T/x/run.glb
-run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/strafe_left.glb --as strafe_left --travel 1,0,0 --set stride=0.18
-run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/strafe_right.glb --as strafe_right --travel -1,0,0 --set stride=0.18
-run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/walk_back.glb --as walk_back --travel 0,1,0 --set stride=0.18
+run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/strafe_left.glb --as strafe_left --travel 1,0,0 --set stride=0.16
+run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/strafe_right.glb --as strafe_right --travel -1,0,0 --set stride=0.16
+run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/walk_back.glb --as walk_back --travel 0,1,0 --set stride=0.16
 pids=()
 for c in idle alert attack_primary attack_heavy grab_bite kick hit_react knockdown death sleep feed; do
   run -P tools/gait/make_allo_moves.py -- $D/allosaurus.glb $c $T/x/$c.glb & pids+=($!)

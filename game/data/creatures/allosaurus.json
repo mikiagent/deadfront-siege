@@ -89,7 +89,7 @@
     "reference_sheet": "game/assets/creatures/allosaurus/ref/allosaurus_owner_sheet_1.png",
     "rig": "tools/gait/rig_biped.py with tools/gait/allosaurus_rig.json (joints read off ortho renders; foot_level drops the right foot 5.6 cm onto the floor)",
     "jaw": "tools/jaw/add_jaw.py --open --x-side --snout 0.135 --pivot 0.03 0.365 --blend 0.008",
-    "gaits": "tools/gait/make_gait.py tools/gait/allosaurus.json: walk, run; strafe_left/right and walk_back from the walk plan (stride 0.18)",
+    "gaits": "tools/gait/make_gait.py tools/gait/allosaurus.json: walk (0.26 units / 1.42 s), run (0.38 / 0.92 s); strafe_left/right and walk_back from the walk plan (stride 0.16)",
     "clips_from": {
       "idle,alert,attack_primary,attack_heavy,grab_bite,kick,hit_react,knockdown,death,sleep,feed": "tools/gait/make_allo_moves.py (feet IK-planted; lying clips rest on the floor)"
     },

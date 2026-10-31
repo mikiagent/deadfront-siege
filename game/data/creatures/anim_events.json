@@ -393,14 +393,17 @@
     },
     "allosaurus": {
       "height_m": 6.5,
-      "walk": 3.428,
-      "walk_len": 1.25,
-      "run": 12.502,
-      "run_len": 0.708,
-      "strafe_left": 2.057,
-      "strafe_right": 2.057,
-      "walk_back": 2.057,
-      "_note": "SP-ALLOSAURUS: make_gait stride / cycle x height_meters / source height (0.455), not a Godot bake"
+      "walk": 2.621,
+      "walk_len": 1.417,
+      "run": 5.921,
+      "run_len": 0.917,
+      "strafe_left": 1.613,
+      "strafe_left_len": 1.417,
+      "strafe_right": 1.613,
+      "strafe_right_len": 1.417,
+      "walk_back": 1.613,
+      "walk_back_len": 1.417,
+      "_note": "SP-ALLOSAURUS: make_gait stride / clip length x height_meters / source height (0.455), not a Godot bake; tuned so the run (5.9 m/s) and walk (2.6 m/s) sit at the stats' 5.2 / 2.6 m/s"
     }
   }
 }
