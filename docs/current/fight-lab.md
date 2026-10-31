@@ -34,6 +34,7 @@ It runs the canon worktree (`mmo-overhaul`), windowed.
 | F, 1-4, Q, Shift | Attack, tactics, roll, sprint (as in play, see [controls.md](controls.md)) |
 | 1-9 outside a fight | Force the nearest creature's clips |
 | N | Enrage the nearest creature (enraged cooldowns are shorter than normal play) |
+| H (or `--hitboxes`) | Hitbox debug draw: every hurtbox green, each attack's swept hitbox red, yellow where it touched ([hitboxes.md](hitboxes.md)) |
 | 0 | Play bite_combo on the nearest creature that has one |
 
 Buttons are 64 px tap targets; mouse, keyboard and touch all work.
@@ -65,8 +66,9 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Woolly rhino | TacticalBrain (horned_charger, species tactics) | paws the ground, charges and tosses with its horn | paw (display), charge + horn toss, horn sweep point blank, forefoot stamp | alert, attack_primary, attack_heavy, charge, toss | |
 | Giant ground sloth | TacticalBrain (titan, species tactics on horned_charger) | rears up on its tail, hooks with its claws and crushes in a bear hug | tripod display, bear hug (grab windup -> hug -> pin + two squeezes), lumbering upright advance (super armour, topples onto her), two-arm overhead swipe (bleeds) and hooking claw pull point blank | alert, grab, pounce, pin_stab, charge, toss, attack_heavy, attack_primary | |
 | Utahraptor | TacticalBrain (apex_raptor; the deinonychus profile, distances x1.4) | one devastating claw strike | backstep, strafe, pounce (x3.0), charge, combo, ambush from cover, leap-in, back-leaps | alert, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
-| Velociraptor | TacticalBrain (pack_raptor; the deinonychus profile, distances x0.75, no tree ambush) | pounce knockdown from off-screen | sniff, then the investigate hold (3 s), then backstep, strafe, pounce, charge, combo, leap-in, back-leaps; lighter hits (pounce x2.0, combo x0.8) | alert, investigate, sniff, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
+| Velociraptor | TacticalBrain (pack_raptor; the deinonychus profile, distances x0.75, no tree ambush) | pounce knockdown from off-screen | sniff, then the investigate hold (3 s), then backstep, side bounds round you (HOPSTRAFE), pounce, charge, combo, leap-in, back-leaps; arms grab and rake on every attack; 1.35 m tall; lighter hits (pounce x2.0, combo x0.8) | alert, investigate, sniff, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | hops + arms + size per owner 2026-10-31 (HOPSTRAFE), re-test |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
+| Survivor hit reactions (KNOCKDOWN, any species) | PlayerKnock (`game/scripts/player/player_knock.gd`) | knocked on her butt, thrown | from the hit, not the species: force = shove metres x attacker height / 3 m (0.6-1.5); light (< 2) the old shove + flinch, knockdown (>= 2: zebraceratops no, pachy ram yes, a heavy hit's Knockdown token) falls on her butt then back, lies 1 s, gets up; throw (>= 5 or any horn lift: triceratops, carnotaurus charge and horn ram, woolly rhino toss, styracosaurus impale, megaloceros stag charge) flies a 3-9 m arc, lands, tumbles, gets up; then Winded 3 s (-40 % move, no sprint, no attack); throw-tier hits unseat a rider; GOD shows it all, no damage | survivor: fall_back, airborne, lie, get_up, winded | new 2026-10-31, test |
 
 ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
 archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
@@ -78,6 +80,13 @@ authored hit_react the body rattles on the bones (head chain pitch + yaw, tail s
 one, the clip plays and the feet's drift is taken off the root bone. Code: `game/scripts/creatures/planted_flinch.gd`
 (a SkeletonModifier3D on every rigged creature); test `game/tests/t_plantedflinch.gd` (run with `--fixed-fps 60`);
 review shots `--lab=plantedflinch_lab --out=DIR`.
+
+HOPSTRAFE (owner 2026-10-31: "smaller animals hop around more than they strafe, big and heavy dinosaurs strafe more than
+they hop"): `TacticalBrain.reposition_style` from bulk (real_length_m x height_meters) or `tactics.reposition`. Hoppers
+(compsognathus, velociraptor, coelophysis) circle in body-length side bounds with planted pauses and only sometimes
+strafe-walk; strafers (triceratops, utahraptor and every TacticalBrain body of bulk 40+; gallimimus overridden to mixed) side-step on foot and
+back off at a scurry, never airborne; the rest (deinonychus, raptor, megaloceros, woolly rhino) as authored. Test:
+`game/tests/t_hopstrafe.gd`; numbers HS1-HS4 in the Open Questions.
 
 No glide (owner 2026-10-31): a body never moves under a one-shot. Attacks play in place; alert, sniff and hit_react
 give way to the stride-matched gait when the brain moves the body; leaps move on their own arc. Test:
@@ -94,6 +103,10 @@ are the deinonychus clips moved onto each rig (`tools/gait/transfer_clips.py --f
 Skittish-territorial (Gallimimus, Megaloceros; `tactics.territorial` in `ai.json`): the first threat sends it running;
 after 3 s, or when the flight outruns the leash, it turns on the threat (within 30 m) and fights while the threat stays.
 Under 30 % HP it runs again; once the threat is gone it grazes and the cycle restarts. Test: `game/tests/t_coelomoves.gd`.
+
+Knock shots: `-- --lab=creature_lab --god --skip-charcreate --species=triceratops --knockshots=DIR` (windowed, off screen
+with `--position 6000,3000`) fires the brain's charge impact on the survivor and saves one shot per phase (airborne,
+fall, lie, get_up, winded), then quits. Clips: `tools/make_knockdown_clips.py`. Test: `game/tests/t_knockdown.gd`.
 
 Cornered (owner 2026-10-31: "Animals that run away from you should get territorial and attack you if you chase them";
 `BrainCornered`, on every brain): any animal that is fleeing (skittish grazers on sight, defensive grazers and Timid

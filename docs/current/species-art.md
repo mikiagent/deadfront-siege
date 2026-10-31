@@ -30,7 +30,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 | [Giganotosaurus](#giganotosaurus) | No model yet | 1 |
 | [Spinosaurus](#spinosaurus) | No model yet | 1 |
 | [Baryonyx](#baryonyx) | No model yet | 2 |
-| [Dilophosaurus](#dilophosaurus) | No model yet | 2 |
+| [Dilophosaurus](#dilophosaurus) | In game with a model (regular + alpha skin) | 2 |
 | [Therizinosaurus](#therizinosaurus) | No model yet | 1 |
 | [Triceratops](#triceratops) | In game with a model (regular) | 2 |
 | [Ankylosaurus](#ankylosaurus) | In game with a model | 4 |
@@ -155,7 +155,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 
 ## Dilophosaurus
 
-**Status:** No model yet.
+**Status:** In game with a model (SP-DILOPHOSAURUS): Tripo body from frill-less views, the frill built in Blender on rib bones (folded at rest, flared to telegraph); alpha = sheet 2 as a recolour.
 
 ![Regular: tan](../art/species/dilophosaurus/dilophosaurus_owner_sheet_1.jpg)
 *Regular: tan* (`dilophosaurus_owner_sheet_1`)

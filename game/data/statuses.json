@@ -349,6 +349,32 @@
       }
     },
     {
+      "id": "winded",
+      "display_name": "Winded",
+      "kind": "effect",
+      "desc": "The wind knocked out of you: moving -40%, no sprint and no attacks until you catch your breath.",
+      "dps": 0.0,
+      "duration": 3.0,
+      "max_stacks": 1,
+      "flags": [
+        "no_sprint",
+        "no_attack"
+      ],
+      "move_mult": 0.6,
+      "defense_mult": 1.0,
+      "accuracy_mult": 1.0,
+      "_note": "KNOCKDOWN (owner 2026-10-31: 'wind knocked out of him'): PlayerKnock applies it when she gets up from a knockdown or a throw. ASSUMPTION: 3 s, -40 % move, no sprint, no attack (roll still allowed).",
+      "weakness_rank": 5,
+      "cleared_by": [],
+      "fx": {
+        "body": "none",
+        "color": "#c9d4dc",
+        "icon": "winded",
+        "particles": "cough",
+        "vignette": false
+      }
+    },
+    {
       "id": "smoke_inhalation",
       "display_name": "Smoke Inhalation",
       "kind": "effect",

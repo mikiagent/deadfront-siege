@@ -14,10 +14,22 @@ static func apply_for(attacker: Creature, clip: StringName, target: Node, mult: 
 		return false
 	if not _deal_damage(attacker, target, clip, mult):
 		return false
-	if (clip == &"attack_heavy" or clip == &"attack_primary") and not _target_dead(target):
+	if _carries_status(attacker, clip) and not _target_dead(target):
 		for tok in attacker.def.status_applied:
 			_apply_token(tok, clip, target, attacker)
 	return true
+
+## The hits that carry the species' statuses: its tactics.status_clips when it lists them (SP-DILOPHOSAURUS: Venom rides
+## on the spit only, not the bite or the rake), else both attacks.
+static func _carries_status(attacker: Creature, clip: StringName) -> bool:
+	var only: Variant = (attacker.brain as TacticalBrain).tac.get("status_clips") if attacker.brain is TacticalBrain else null
+	if only is Array:
+		return str(clip) in only
+	# tactics.statuses_heavy_only (allosaurus): the species statuses ride on the telegraphed heavy only (the hatchet bite's Bleed)
+	if bool(attacker.def.tactics.get("statuses_heavy_only", false)):
+		return clip == &"attack_heavy"
+	# arm_bite: the utahraptor's bite with arms (UTAHARMS)
+	return clip == &"attack_heavy" or clip == &"attack_primary" or clip == &"arm_bite"
 
 static func _target_dead(target: Node) -> bool:
 	if target is Player:
@@ -54,7 +66,12 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 		# dodge/agency. Deafened and damage still land; incomplete/low-level kits do not help.
 		if source.def.id == &"tyrannosaurus" and id in [&"fracture", &"pinned"] and (target as Player).inventory.has_raid_protection():
 			return
-		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
+		var pl := target as Player
+		# KNOCKDOWN: a basic bite's Knockdown token stays the old stand-still status (light hit: flinch); the heavy
+		# hit's token (charges, rams, the impale) lays her down (PlayerKnock.on_knockdown_status).
+		pl.sim.knock.token_light = id == &"knockdown" and clip != &"attack_heavy"
+		pl.statuses.apply(id, source, int(parsed["stacks"]))
+		pl.sim.knock.token_light = false
 		if foot_pin and (target as Player).statuses.has(&"pinned"):
 			source.start_pin(target as Player)
 

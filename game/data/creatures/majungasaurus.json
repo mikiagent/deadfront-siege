@@ -1,0 +1,148 @@
+{
+ "species": "Majungasaurus crenatissimus",
+ "clade": "Abelisauridae",
+ "period": "Late Cretaceous",
+ "real_length_m": 13.0,
+ "height_meters": 5.0,
+ "rig": "biped",
+ "tier": 45,
+ "climate": "savannah",
+ "archetype": "opportunist",
+ "tameable": true,
+ "capture_tier": 4,
+ "verb": "circles wounded prey; crushing bite that grabs and shakes, skull-knob headbutt, low tail swipe",
+ "status_applied": [
+  "bleed"
+ ],
+ "stats": {
+  "hp": 5600,
+  "attack": 330,
+  "defense": 170,
+  "speed": 500
+ },
+ "turn_rate": 2.5,
+ "tamed_role": [
+  "combat"
+ ],
+ "prompt": "Majungasaurus from the owner's sheet: stocky abelisaurid biped, deep short skull with knobby brow bumps and a small rounded knob on top of the skull, tiny vestigial arms tucked to the chest, rows of osteoderm studs down the neck, back and tail, warm brown and tan hide with dark brown stripes, cream belly and throat, long tail, mouth open",
+ "look": "10 meter Majungasaurus, deep short stocky skull with knobby brow bumps and a small skull knob, tiny arms, thick legs, long tail, warm brown and tan with dark stripes and a cream belly, osteoderm studs down the back,",
+ "texture_prompt": "warm brown and tan hide with dark brown stripes, cream belly and throat, dark osteoderm studs, matte surface",
+ "clips": {
+  "attack_primary": "Crushing bite: rocks back with the jaws gaping, darts forward and down to a survivor's height, clamps shut (hit 0.42) and wrenches back. A landed bite turns into the grab (pin_stab)",
+  "pin_stab": "Grab and shake: the jaws stay clamped on the prey held low in front, two violent side-to-side shakes (hits 0.38 and 0.74), then it lets go",
+  "attack_heavy": "Skull-knob headbutt: rears back with the chin tucked so the knob faces the prey, paws the ground with a hind foot (telegraph), then a stepping drive knob first (hit 0.72)",
+  "kick": "Low tail swipe: the hips pivot and the stiff tail sweeps round low at a prey behind it (hit 0.45)",
+  "charge": "The run with the body level and the jaws pushed out ahead: the rush at wounded prey that ends in the crushing bite",
+  "alert": "Roar: head rears up, then thrusts forward with the jaws wide and shaking, a stamp of the right foot",
+  "knockdown": "Knees buckle, topples onto its right side and lies there"
+ },
+ "taming": {
+  "preferred_food": [
+   "raw_meat"
+  ],
+  "accepted_food": [
+   "fish",
+   "raptor_meat"
+  ],
+  "feeds_needed": 6,
+  "window_seconds": 45,
+  "requires_pen": true
+ },
+ "coloration": {
+  "hue_deg": 8,
+  "sat": 0.12,
+  "val": 0.1,
+  "rare_chance": 0.02,
+  "rare_morphs": [
+   "dark",
+   "pale"
+  ],
+  "patterns": [
+   {
+    "id": "",
+    "weight": 5.0
+   },
+   {
+    "id": "countershade",
+    "weight": 1.0,
+    "scale": 1.0,
+    "strength": 0.25
+   }
+  ]
+ },
+ "pipeline": {
+  "forward_axis": "+Z",
+  "source_height_m": 0.482,
+  "source_length_m": 0.998,
+  "route": "rig_biped_v1",
+  "mesh": "Tripo P1 multiview (front and left drawn by Codex from the owner's sheet with the arms redrawn small and tucked, right = mirrored left), task 6480a614-155b-4fe6-b906-f572daf7ea62, 50 Tripo credits (2026-10-31), accepted first try",
+  "mesh_source": "res://assets/creatures/majungasaurus/work/majungasaurus_tripo_v1.glb",
+  "mesh_views": "ref/majungasaurus_view_{front,left,right}.png",
+  "reference_sheet": "ref/majungasaurus_sheet.png (owner sheet 1)",
+  "rig": "tools/gait/rig_biped.py with tools/gait/majungasaurus_rig.json (joints read off ortho renders)",
+  "jaw": "tools/jaw/add_jaw.py --open --x-side --pivot 0.05 0.385 --mid 0.3 --reach 1.0 --blend 0.01",
+  "gaits": "tools/gait/make_gait.py tools/gait/majungasaurus.json: walk, run, charge, strafe_left/right and walk_back from the walk plan",
+  "clips_from": {
+   "idle,alert,attack_primary,attack_heavy,kick,pin_stab,hit_react,knockdown,death,sleep,feed": "tools/gait/make_majunga_moves.py (feet IK-planted; lying clips rest on the floor)"
+  },
+  "build": "tools/gait/build_majungasaurus.sh; gate tools/gait/check_majunga.py --height 5.0",
+  "credits_spent": 50,
+  "_hit_parts": "canon's bone hit check (Creature.part_hit, until claude/mmo-hitboxes lands): at the hit frame one named bone must be within radius_m (x body size) of the target's body",
+  "hit_parts": {
+   "attack_primary": {
+    "bones": [
+     "Jaw",
+     "Head"
+    ],
+    "radius_m": 1.4
+   },
+   "attack_heavy": {
+    "bones": [
+     "Head"
+    ],
+    "radius_m": 1.6
+   },
+   "kick": {
+    "bones": [
+     "Tail3",
+     "Tail4",
+     "Tail5"
+    ],
+    "radius_m": 1.4
+   },
+   "pin_stab": {
+    "bones": [
+     "Jaw",
+     "Head"
+    ],
+    "radius_m": 2.0
+   }
+  },
+  "clips": [
+   "idle",
+   "walk",
+   "run",
+   "charge",
+   "strafe_left",
+   "strafe_right",
+   "walk_back",
+   "alert",
+   "attack_primary",
+   "attack_heavy",
+   "kick",
+   "pin_stab",
+   "hit_react",
+   "knockdown",
+   "death",
+   "sleep",
+   "feed"
+  ],
+  "assumptions": [
+   "# ASSUMPTION: the PRDs are silent on Majungasaurus. Stats between the smilodon/styracosaurus (L45) and the utahraptor: hp 5600, atk 330, def 170 (stocky), speed 500 (slower than the carnotaurus), tier 45, capture tier 4, tamed role combat only (no saddle), carnivore taming food.",
+   "# ASSUMPTION: size: ~6.5 m real -> 10.4 m on screen (house 1.6x), real_length_m 13 (roster 2x convention); height_meters 5.0 is the head-top height at that length.",
+   "# ASSUMPTION: climate savannah (Madagascar's seasonal semi-arid plains); spawns on savannah_45 (working ring and far shore).",
+   "# ASSUMPTION: moves and brain (archetype opportunist): crushing bite that grabs and shakes, skull-knob headbutt, low tail swipe; circles prey and commits when the prey is under 50% health.",
+   "# ASSUMPTION: no alpha sheet: alphas use the genetics recolour only."
+  ]
+ }
+}

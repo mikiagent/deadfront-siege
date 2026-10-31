@@ -88,6 +88,7 @@ func _place(p: Vector3) -> void:
 ## and the longest stretch it stood idle with her up and inside its close zone.
 func _fight(c, at: Vector3, secs: float) -> Dictionary:
 	_place(c.global_transform * at)
+	player.sim.knock.cancel()  # KNOCKDOWN: no knockdown or throw still running from the last fight
 	player.statuses.clear_all()
 	_hits.clear()
 	_t = 0.0
@@ -127,6 +128,7 @@ func _fight(c, at: Vector3, secs: float) -> Dictionary:
 		out["idle"] = maxf(float(out["idle"]), idle)
 	out["first_punch"] = punched[0]
 	player.hunt.stop()
+	player.sim.knock.cancel()  # KNOCKDOWN: no knockdown or throw still running from the last fight
 	player.statuses.clear_all()
 	return out
 
