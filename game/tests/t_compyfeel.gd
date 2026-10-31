@@ -230,7 +230,7 @@ func _test_fight(sp: StringName, secs: float) -> void:
 			crouch_moving += 1 if mps > 0.3 and clip == prev_clip else 0
 		if clip == &"charge" and c.brain.state == &"charge" and mps > 0.5 and c.anim.current_state() == &"charge":
 			charge_frames += 1
-			var want: float = Vector2(c.velocity.x, c.velocity.z).length() / nat
+			var want: float = Vector2(c.velocity.x, c.velocity.z).length() / (nat * c.size_scale())  # natural speeds are at size 1
 			if absf(c.anim.cadence(&"charge") - want) > want * 0.05:
 				cadence_off += 1
 		if c.brain.state == &"circle" and clip in [&"strafe_left", &"strafe_right"]:

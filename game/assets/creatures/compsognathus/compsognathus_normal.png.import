@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://hjy4eot8a1e6"
-path="res://.godot/imported/gallimimus_Image_1.jpg-99e3e78e510e35d86bac479e62570aa3.ctex"
+uid="uid://d02xmr5kkj6m0"
+path="res://.godot/imported/compsognathus_normal.png-44909ea029c72afc37813646e654b03b.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "1c6aac295c7a00bc0ae59e6608720c52"
+"md5": "f666d79dcb10fb30d5b5dbe83460926a"
 }
 
 [deps]
 
-source_file="res://assets/creatures/gallimimus/gallimimus_Image_1.jpg"
-dest_files=["res://.godot/imported/gallimimus_Image_1.jpg-99e3e78e510e35d86bac479e62570aa3.ctex"]
+source_file="res://assets/creatures/compsognathus/compsognathus_normal.png"
+dest_files=["res://.godot/imported/compsognathus_normal.png-44909ea029c72afc37813646e654b03b.ctex"]
 
 [params]
 

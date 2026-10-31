@@ -109,9 +109,9 @@ func set_move_speed(mps: float) -> void:
 	if _natural.is_empty():
 		play_locomotion(mps / LEGACY_TOP_MPS)
 		return
-	mps /= _size()  # MEGARUN: a 1.3x body takes 1.3x strides, so it needs fewer per metre
-	var gait := _pick_gait(mps)
-	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
+	var m := mps / _body_size()
+	var gait := _pick_gait(m)
+	_scale[gait] = clampf(m / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
 	_travel(gait)
 
 ## Direction-aware locomotion (owner 2026-10-28, every species and ridden mounts): the clip follows
@@ -150,8 +150,7 @@ func set_move_velocity(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -
 	var nat: float = float(_natural[clip]) if _natural.has(clip) else CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"walk", 0.0))
-	nat *= _size()
-	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_scale[clip] = clampf(mps / (nat * _body_size()), CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
 ## A named loop (the charge) stride-matched at mps: natural_speeds.<id>.<clip>, else the run's. Falls
@@ -165,8 +164,7 @@ func set_gait_clip(clip: StringName, mps: float, vel: Vector3, basis: Basis) -> 
 	var nat := CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"run", 0.0))
-	nat *= _size()
-	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_scale[clip] = clampf(mps / (nat * _body_size()), CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
 	_travel(clip)
 
 ## Global retime on top of every state's own cadence. Each caller owns a named factor (the limp is
@@ -296,9 +294,10 @@ func end_timed_attack() -> void:
 	_forced = false
 	if not _dead: play_idle()
 
-## MEGARUN: natural speeds are baked at the species' size; the model is scaled by the genetic body size (alphas
-## ~1.3x, normal 0.85-1.15x), and its strides with it.
-func _size() -> float:
+## Natural speeds are baked at body size 1.0; a genome-sized animal (CreatureGenetics.size, 0.85-1.15; MEGARUN: alphas
+## ~1.3x) strides that much longer or shorter, so the cadence divides by it too, once (COMPYREVERT: a 0.91 compy slid
+## 9 % of every step; MEGARUN's alpha megaloceros slipped the same way).
+func _body_size() -> float:
 	var host := get_parent() as Creature
 	return maxf(0.01, host.size_scale()) if host else 1.0
 
