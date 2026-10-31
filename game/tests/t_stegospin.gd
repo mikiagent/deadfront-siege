@@ -9,6 +9,8 @@ extends SceneTree
 ##    (the code turn and the clip's counter-turn agree: no foot slides);
 ## 2. stomps: STOMP and REAR SLAM land on her in front, HIND STOMP beside each flank, each with the body standing still;
 ## 3. close moves: SHOVE beside each shoulder (pushing her off that side), TACKLE in front past the stomp's reach.
+## 3b. STEGOSLAM (owner 2026-10-31: "give stego that body weight slam you have to ankylo"): with her standing 5 m off its
+##    flank the SHOULDER SLAM starts, throws the body at least SLAM_CARRY_M at her and lands.
 ## Ankylosaurus:
 ## 4. TAIL SPIN from the front lands on her (a turn of more than 180 deg, the club and tail swept through the front);
 ## 5. no back-in: with her behind it past the club's reach, it never moves toward her tail first; it turns head first;
@@ -20,6 +22,8 @@ const DT := 1.0 / 60.0
 const MIN_SPINS := 3
 ## ASSUMPTION: a planted toe may drift this much (m) over one planted stretch (a frame of physics/pose lag at most).
 const TOE_SLIDE_MAX := 0.15
+## ASSUMPTION (STEGOSLAM, as the ankylosaurus' t_ankyloclose): about a body length: how far the slam must throw the body.
+const SLAM_CARRY_M := 3.0
 const TOES := {&"stegosaurus": ["front_toe_L", "front_toe_R", "hind_toe_L", "hind_toe_R"],
 	&"ankylosaurus": ["FrontFoot.L", "FrontFoot.R", "BackFoot.L", "BackFoot.R"]}
 
@@ -71,7 +75,9 @@ func _run() -> void:
 		await _test_close(v, &"hind_stomp_left", Vector3(-2.0, 0, 2.0))
 		await _test_close(v, &"shove_right", Vector3(1.5, 0, -1.5))
 		await _test_close(v, &"shove_left", Vector3(-1.5, 0, -1.5))
-		await _test_close(v, &"tackle", Vector3(0, 0, -9.5))
+		await _test_close(v, &"tackle", Vector3(0, 0, -8.7))
+		await _test_slam_range(v, 1.0)
+		await _test_slam_range(v, -1.0)
 	if not OS.get_cmdline_user_args().has("joust"):
 		await _test_anky_front_spin()
 		await _test_anky_no_backin()
@@ -287,7 +293,8 @@ func _test_close(v: StringName, want: StringName, at: Vector3) -> void:
 	_provoke(c)
 	# STEGOSPIN port: she stands on the move's spot (ai.json target_bearing_deg / target_dist_m x body size: where the
 	# clip puts the stomping foot or the slamming shoulder at the hit frame); `at` only for the tackle's run.
-	_place(c.global_transform * at if want == &"tackle" else b.strike_spot(want))
+	# (the tackle: at its body size, inside the front zone and past the leap's reach; genomes vary the size 0.87-1.14)
+	_place(c.global_transform * (at * c.size_scale()) if want == &"tackle" else b.strike_spot(want))
 	var from: Vector3 = player.global_position
 	var start: Vector3 = c.global_position
 	var yaw0: float = c.rotation.y
@@ -435,6 +442,36 @@ func _test_anky_joust() -> void:
 	_expect(beyond >= 3.0, "anky joust: it runs on past where she stood (%.1f m beyond)" % beyond)
 	_expect(arc_seen and runs >= 2, "anky joust: it comes round and charges again (%d runs, arc %s)" % [runs, arc_seen])
 	_expect(hopped == 0, "anky joust: no hop clip (big and heavy: %d frames)" % hopped)
+	player.statuses.clear_all()
+	c.queue_free()
+	await physics_frame
+
+## 3b. The SHOULDER SLAM from its flank range: she stands still 5 m off its flank (side +1 = its right).
+func _test_slam_range(v: StringName, side: float) -> void:
+	var c = await _spawn(&"stegosaurus", v)
+	await physics_frame
+	var b = c.brain
+	_provoke(c)
+	_place(c.global_transform * Vector3(5.0 * side, 0, -1.5))
+	var want := &"shove_right" if side > 0.0 else &"shove_left"
+	var from := Vector3.INF
+	var carry := 0.0
+	var started := []
+	for f in 5 * 60:
+		await physics_frame
+		player.hunt.stop()
+		if b.move_id != &"" and (started.is_empty() or started[-1] != b.move_id):
+			started.append(b.move_id)
+		if b.move_id == want:
+			if from == Vector3.INF:
+				from = c.global_position
+			carry = maxf(carry, Vector2(c.global_position.x - from.x, c.global_position.z - from.z).length())
+		elif from != Vector3.INF:
+			break
+	var landed := _hits.filter(func(h: Array) -> bool: return h[0] == want and h[1] == player)
+	_expect(not started.is_empty() and started[0] == want, "%s: %s starts from 5 m off its flank (%s)" % [v, want, str(started)])
+	_expect(carry >= SLAM_CARRY_M, "%s: %s throws its body %.1f m at her (at least %.1f)" % [v, want, carry, SLAM_CARRY_M])
+	_expect(not landed.is_empty(), "%s: %s lands from that range (%d)" % [v, want, landed.size()])
 	player.statuses.clear_all()
 	c.queue_free()
 	await physics_frame

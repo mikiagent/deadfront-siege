@@ -19,8 +19,9 @@ REAR SLAM rear_slam 2.2 s: rears up on the hind legs (24 deg), both forefeet hig
           (impact 0.62), wide.
 HIND STOMP hind_stomp_left / _right 1.4 s: the hind foot on that side hauled up and out, stamped down beside the flank
           (impact 0.55), body rolled into it, tail swung toward it.
-SHOVE     shove_left / shove_right 1.7 s: the SHOULDER SLAM: momentum step-in, the whole body lurched over and forward
-          into that side with the shoulder dropped (impact 0.40), then it rocks back, re-plants and steadies.
+SHOVE     shove_left / shove_right 1.8 s: the SHOULDER SLAM (the ankylosaurus' one): cocked off, a bound (airborne
+          0.24-0.42, the brain throws the body at her), it lands into her with the shoulder dropped (impact 0.46), then it
+          rocks back, re-plants and steadies.
 TACKLE    tackle 0.9 s: the coil before the body check (crouch, head down, a forefoot paws); the brain runs it up at the
           run gait, then tackle_lunge 1.25 s: gather, a leap (airborne 0.14-0.52, carried by the brain), land, steady.
 
@@ -99,25 +100,28 @@ HSTOMP_R = dict(
     head=[(0, 0), (0.3, 6), (0.56, -8), (1.0, 0)],
     look=[(0, 0), (0.25, 40), (0.7, 35), (1.0, 0)],
     steps=[("hind_foot_R", 0.12, 0.56, 0, 0.55, -0.2, 0.95, "stomp"), ("hind_foot_R", 0.74, 0.94, 0, 0, 0, 0.12)])
-# SHOULDER SLAM (STEGOSPIN port, owner 2026-10-31 on the ankylosaurus' shove: "use its momentum and drop its shoulder ...
-# throw its body weight at the player. Like a proper slam. and then steady itself after"; the stego's shove only swung
-# its head over her): weight cocked off (0-0.26) while the near forefoot and hind foot step in, then the whole body lurches
-# over and forward into that side with the shoulder dropped (impact 0.40), held; it rocks back, re-plants (0.64-0.86) and
-# steadies (a stamp of the far forefoot).
+# SHOULDER SLAM (STEGOSPIN port, owner 2026-10-31 on the ankylosaurus: "use its momentum and drop its shoulder ... throw
+# its body weight at the player ... and then steady itself after"; STEGOSLAM: "give stego that body weight slam you have
+# to ankylo"): the ankylosaurus' slam (make_tail_club.py shove_right) on this rig. Cocked off (0-0.22), then all four feet
+# leave the ground (airborne 0.24-0.42: ClubTailBrain throws the body up to close_moves.shove_*.carry_m at her in exactly
+# that window, anim_events), it lands on its near feet set wide and drives the shoulder down and over into her (impact
+# 0.46), holds; then it rocks back, re-plants (0.66-0.92) and steadies.
 SHOVE_R = dict(
-    n=40, lag=0.04,
-    yaw=[(0, 0), (0.26, 6), (0.40, -8), (0.54, -7), (0.70, 2), (0.84, -1), (1.0, 0)],
-    tail=[(0, 0), (0.26, -12), (0.45, 14), (0.70, 6), (1.0, 0)],
-    lift=[(0, 0), (0.3, 4), (1.0, 0)],
-    crouch=[(0, 0), (0.26, 0.12), (0.40, 0.30), (0.52, 0.32), (0.68, 0.06), (0.80, 0.12), (1.0, 0)],
-    roll=[(0, 0), (0.26, -6), (0.40, 13), (0.52, 14), (0.68, -3), (0.82, 1), (1.0, 0)],
-    shift=[(0, 0), (0.26, -0.25), (0.40, 0.62), (0.52, 0.64), (0.68, 0.0), (0.82, 0.05), (1.0, 0)],
-    back=[(0, 0), (0.26, 0.15), (0.40, -0.35), (0.52, -0.35), (0.68, 0.05), (1.0, 0)],
-    head=[(0, 0), (0.26, 6), (0.40, -14), (0.55, -10), (0.75, 4), (1.0, 0)],
-    look=[(0, 0), (0.2, 35), (0.4, 30), (0.6, 20), (1.0, 0)],
-    steps=[("front_foot_R", 0.12, 0.30, -4, 0.55, 0.25, 0.3), ("hind_foot_R", 0.20, 0.36, 0, 0.3, 0.15, 0.25),
-           ("front_foot_R", 0.64, 0.80, 0, 0, 0, 0.2), ("hind_foot_R", 0.70, 0.86, 0, 0, 0, 0.2)],
-    stamps=[("front_foot_L", 0.86, 0.95, 0.12)])
+    n=44, lag=0.04,
+    yaw=[(0, 0), (0.22, 6), (0.42, -6), (0.50, -9), (0.62, -7), (0.80, 2), (0.90, -1), (1.0, 0)],
+    tail=[(0, 0), (0.22, -12), (0.45, 14), (0.70, 6), (1.0, 0)],
+    lift=[(0, 0), (0.22, 6), (0.42, 4), (1.0, 0)],
+    crouch=[(0, 0), (0.20, 0.16), (0.26, 0.0), (0.40, 0.02), (0.46, 0.30), (0.56, 0.30), (0.70, 0.06), (0.82, 0.12), (1.0, 0)],
+    roll=[(0, 0), (0.22, -6), (0.42, 5), (0.48, 13), (0.58, 13), (0.72, -3), (0.84, 1), (1.0, 0)],
+    shift=[(0, 0), (0.22, -0.25), (0.42, 0.15), (0.48, 0.55), (0.58, 0.55), (0.72, 0.0), (0.84, 0.05), (1.0, 0)],
+    back=[(0, 0), (0.22, 0.15), (0.42, -0.1), (0.48, -0.3), (0.58, -0.3), (0.72, 0.05), (1.0, 0)],
+    head=[(0, 0), (0.22, 6), (0.42, -8), (0.48, -14), (0.60, -10), (0.78, 4), (1.0, 0)],
+    look=[(0, 0), (0.18, 35), (0.40, 30), (0.60, 20), (1.0, 0)],
+    steps=[("front_foot_R", 0.20, 0.42, -4, 0.5, 0.2, 0.5), ("hind_foot_R", 0.21, 0.43, -2, 0.3, 0.1, 0.5),
+           ("front_foot_L", 0.22, 0.44, -3, -0.2, 0.2, 0.4), ("hind_foot_L", 0.23, 0.45, 0, 0, 0, 0.4),
+           ("front_foot_R", 0.66, 0.80, 0, 0, 0, 0.2), ("hind_foot_R", 0.70, 0.84, 0, 0, 0, 0.2),
+           ("front_foot_L", 0.80, 0.92, 0, 0, 0, 0.15)],
+    stamps=[("hind_foot_L", 0.86, 0.94, 0.12)])
 CLIPS = {
     "spin_right": SPIN_R,
     "pivot_right": PIVOT_R,
