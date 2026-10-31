@@ -114,19 +114,19 @@
         {"bone": "Tail2", "radius": 0.24, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 16, "twist": 6}},
         {"bone": "Tail3", "radius": 0.21, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 6}},
         {"bone": "Tail4", "radius": 0.19, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 6}},
-        {"bone": "Tail5", "to": "Tail5_end", "extend": 1.1, "radius": 0.22, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 6}},
-        {"bone": "BackLeg.L", "radius": 0.26, "joint": {"type": "cone", "swing": 50, "side": 35, "twist": 12}},
-        {"bone": "BackLeg.R", "radius": 0.26, "joint": {"type": "cone", "swing": 50, "side": 35, "twist": 12}},
+        {"bone": "Tail5", "to": "Tail5_end", "extend": 1.1, "radius": 0.4, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 6}},
+        {"bone": "BackLeg.L", "radius": 0.1, "joint": {"type": "cone", "swing": 50, "side": 35, "twist": 12}},
+        {"bone": "BackLeg.R", "radius": 0.1, "joint": {"type": "cone", "swing": 50, "side": 35, "twist": 12}},
         {"bone": "BackUpLeg.L", "radius": 0.29, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15, "max": 80}},
         {"bone": "BackUpLeg.R", "radius": 0.29, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -15, "max": 80}},
         {"bone": "BackLowLeg.L", "to": "BackLowLeg.L_end", "radius": 0.14, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -110, "max": 15}},
         {"bone": "BackLowLeg.R", "to": "BackLowLeg.R_end", "radius": 0.14, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -110, "max": 15}},
         {"bone": "BackFoot.L", "to": "BackFoot.L_end", "radius": 0.2, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 50}},
         {"bone": "BackFoot.R", "to": "BackFoot.R_end", "radius": 0.2, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -40, "max": 50}},
-        {"bone": "FrontLeg.L", "to": "FrontUpLeg.L", "radius": 0.1, "joint": {"type": "cone", "swing": 55, "side": 40, "twist": 20}},
-        {"bone": "FrontLeg.R", "to": "FrontUpLeg.R", "radius": 0.1, "joint": {"type": "cone", "swing": 55, "side": 40, "twist": 20}},
-        {"bone": "FrontUpLeg.L", "to": "FrontLowLeg.L", "radius": 0.09, "joint": {"type": "pin"}},
-        {"bone": "FrontUpLeg.R", "to": "FrontLowLeg.R", "radius": 0.09, "joint": {"type": "pin"}}
+        {"bone": "FrontLeg.L", "to": "FrontUpLeg.L", "radius": 0.12, "joint": {"type": "cone", "swing": 55, "side": 40, "twist": 20}},
+        {"bone": "FrontLeg.R", "to": "FrontUpLeg.R", "radius": 0.12, "joint": {"type": "cone", "swing": 55, "side": 40, "twist": 20}},
+        {"bone": "FrontUpLeg.L", "to": "FrontLowLeg.L", "radius": 0.2, "joint": {"type": "pin"}},
+        {"bone": "FrontUpLeg.R", "to": "FrontLowLeg.R", "radius": 0.2, "joint": {"type": "pin"}}
       ]
     },
     "gallimimus": {

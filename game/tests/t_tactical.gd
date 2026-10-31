@@ -373,12 +373,11 @@ func _test_fight() -> void:
 ## The pounce's resolved hit against the combo's first bite, both on the same survivor (no fight race).
 func _test_pounce_damage() -> void:
 	var b = dino.brain
-	# Where a real pounce lands (TacticalBrain._land_short): SP-DEINONYCHUS v4 is 6 m long, its jaws and hand claws
-	# strike 2.4 m ahead of its centre, so a fixed 1.5 m put her under its chest, inside every part's sweep.
-	dino.global_position = player.global_position + Vector3(0, -0.8, -maxf(1.5, b._land_short()))
+	dino.global_position = player.global_position + Vector3(0, -0.8, -1.5)
 	dino.look_at(Vector3(player.global_position.x, dino.global_position.y, player.global_position.z), Vector3.UP)
 	b.attack_target = player
 	b._pounce_dir = Vector3(0, 0, 1)  # landed facing her (HITBOXES: the body too, so its jaws and claws reach her)
+	dino.view.position.y = 0.0  # landed: the fight this interrupts may have left the body mid-arc (a real landing ends at 0)
 	_keep_player_alive()
 	var hp0: float = player.vitals.health
 	b._pounce_land()
