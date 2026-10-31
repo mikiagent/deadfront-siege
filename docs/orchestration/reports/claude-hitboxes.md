@@ -99,3 +99,24 @@ They come from windowed off-screen runs: `--position 6000,3000 -- --skip-charcre
 - **Physics layer**: the capsules are on layer 20 for other systems (projectiles later). Hitbox itself does not query the physics server, because a shape moved this frame only reaches the broadphase on the next physics step.
 - **Pets**: PetBrain hits go through `_on_hit`, so a tamed ankylosaurus swings its club part through the clip window. AK8 timing is unchanged.
 - **Sides of big animals**: from the pure side of a T. rex, stegosaurus or utahraptor, the collider holds her more than 0.45 m from every hurtbox at her height. She walks to a leg she can reach (`aim_point`). The bigreach approach runs land, but the swing from exactly mid-flank is refused.
+
+## Re-integration (2026-10-31, after the canon gate went red on 8082c43b)
+The coordinator reported that t_hitboxes, t_bigreach and t_sp_megaloceros failed on the merged canon. I merged
+overhaul twice more (sp-tarbosaurus, megaloceros stag and doe, compyfeel, sp-carnotaurus, sp-raptor) and fixed:
+- **New species plug in from their own JSON.** A move with no `hitboxes.json` row takes the species'
+  `pipeline.hit_parts.<move>` bones as its parts. `Creature.part_hit` remains only for targets without hurtboxes.
+  Tarbosaurus, carnotaurus and raptor are covered this way, and calibration adds rows where a radius must grow.
+- **Model variants.** `species.<id>.variants.<variant>` overrides the species row: the megaloceros doe strikes with
+  her forehooves and stomps. t_hitboxes checks each variant that has its own model; colour morphs share one model and
+  are checked once.
+- **Bug: the bounds pre-check grew by the larger radius only, not both radii together.** It skipped touches at the
+  edge of the bounds, the cause of gallimimus attack_primary. Fixed.
+- **Survivor swing.** The hit is judged facing where the swing was aimed, else where she has turned since. The
+  nearest hurtbox can flip to another part mid-swing (the tarbosaurus head).
+- **Calibration.** Per move and bone, at four sizes, in the same state the checks run in, with a 0.2 m margin. The
+  pounce is measured where `TacticalBrain._land_short` lands it (the tarbosaurus lands with its jaws on the prey). The
+  survivor stands back up after the pin_stab check.
+- **t_bigreach.** Each side is touched with the animal at rest; the last side's flinch and grogginess moved the
+  tarbosaurus head.
+- New calibrated outliers: megaloceros doe forehoof about 3 m (her strike barely leaves the body), tarbosaurus pounce,
+  carnotaurus jaw about 2 m. The full table is in `docs/current/hitboxes.md`.

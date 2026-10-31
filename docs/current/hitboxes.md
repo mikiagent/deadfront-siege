@@ -52,7 +52,8 @@ attacking part touching a hit-able part. Code: `game/scripts/combat/hurtboxes.gd
 | TacticalBrain straight charge | charge (window 0-1 of the charge clip, else run) | `TacticalBrain._charge_impact`, every frame in reach until the head reaches her | head, horns |
 | TacticalBrain pounce | pounce | `TacticalBrain._pounce_land` | jaw, head, both hind feet (raptors) |
 | Gallimimus rake, pachycephalosaurus hip check | attack_heavy, kick | `Creature._on_hit` | hind feet + head; Tail2, Tail1, Hips |
-| Smilodon, woolly rhino | swipe / sabres / pin_stab; forefeet / horn | `Creature._on_hit`, pounce, charge | from their `pipeline.hit_parts` bones (`Creature.part_hit` still judges hits on bodies without hurtboxes) |
+| Smilodon, woolly rhino, tarbosaurus, carnotaurus, raptor (any species with `pipeline.hit_parts`) | their moves | `Creature._on_hit`, pounce, charge | a move with no row in `hitboxes.json` takes that species' `pipeline.hit_parts.<move>` bones; `Creature.part_hit` still judges hits on bodies without hurtboxes |
+| Megaloceros doe | attack_primary / heavy / kick | `Creature._on_hit` | `species.megaloceros.variants.doe`: forehooves, hind feet (a model variant overrides the species row) |
 | TyrantBrain | attack_primary (bite), attack_heavy (stomp), tail_swipe | `TyrantBrain._impact` | jaw / head; toes + jaw; tail 5-7 |
 | ClubTailBrain (ankylosaurus) | its club_moves | `ClubTailBrain._tick_move`: the club's live path each physics frame (`Hitbox.touch`), landing at its closest pass | Tail5_end, radius 0.6 m |
 | Survivor swing | punch (bare hands, attack_primary clip), swing, heavy (heavy blunt weapon) | `Hunt._on_swing_hit` | fist 0.3 m; plus `weapons.<tool_class or damage_type>`: knife 0.45 m, slashing 0.7 m, blunt 0.7 m capsules out of the thumb side |
@@ -79,25 +80,30 @@ A part marked `"calibrated": true` was widened so it reaches a survivor standing
 pounces are also checked where the leap lands (body radius + 0.2 m), the gallimimus rake at its `heavy_reach_m`, and
 the smilodon's pin_stab on a survivor lying Pinned at `pin_reach_m`.
 These clips stop short of that distance or pass over her head. Regenerate the radii with
-`godot --headless --path game --script res://tests/t_hitboxes.gd -- --calibrate`, which covers both ends of the
-species' size range. Shrink a radius when the clip or the AI spacing is fixed.
+`godot --headless --path game --script res://tests/t_hitboxes.gd -- --calibrate`. It measures at four body sizes and
+each model variant, adds a 0.2 m margin for idle sway, and prints the radius each part needs. Apply the radius to the
+part that needs the least. Shrink a radius when the clip or the AI spacing is fixed.
 
 | Species | Move, part, radius (m at size 1.0) |
 |---|---|
-| coelophysis | attack_primary Jaw 0.76; attack_heavy Jaw 0.81; bite_combo Jaw 0.76; pounce Head 1.04 |
-| compsognathus | pounce Jaw 0.83; attack_primary Jaw 0.71; attack_heavy Jaw 0.48 |
-| deinonychus | pounce Head 0.82; attack_primary Head 0.64; attack_heavy Jaw 0.72; bite_combo Head 0.74 |
-| gallimimus | attack_heavy BackFoot.R 1.13; attack_primary Head 0.94; bite_combo Head 0.98 |
-| megaloceros | kick BackFoot.R 0.75; charge Head 1.87; attack_primary Head 1.86; attack_heavy Head 1.88 |
-| pachycephalosaurus | charge Jaw 0.73; kick Tail2 2.05; attack_primary Head 0.49; attack_heavy Jaw 0.52 |
-| smilodon | attack_primary FrontFoot.R 0.92; attack_heavy Head 0.71; pounce Head 0.78; pin_stab Head 0.65 |
-| stegosaurus | attack_primary head 1.68; attack_heavy head 1.56 |
-| styracosaurus | kick BackFoot.L 1.30; charge Head 1.00; attack_primary Head 1.04; attack_heavy Head 1.04 |
-| tyrannosaurus | tail_swipe Tail5 3.66; attack_primary Head 5.53 |
-| utahraptor | pounce Head 2.74; attack_primary Head 1.81; attack_heavy Head 2.14; bite_combo Head 1.93 |
-| velociraptor | pounce Jaw 0.49; attack_primary Jaw 0.43; attack_heavy Jaw 0.50; bite_combo Jaw 0.51 |
-| woolly_rhino | attack_primary FrontFoot.R 1.27 |
-| zebraceratops | kick BackFoot.L 0.86; charge Head 1.23; attack_primary Head 1.35; attack_heavy Head 1.33 |
+| carnotaurus | attack_heavy Head 2.27; charge Head 1.75; attack_primary Jaw 2.17 |
+| coelophysis | attack_primary Jaw 0.91; attack_heavy Jaw 0.96; bite_combo Jaw 0.90; pounce Head 1.17 |
+| compsognathus | pounce Jaw 0.97; attack_primary Jaw 0.85; attack_heavy Jaw 0.62 |
+| deinonychus | pounce Head 0.97; attack_primary Head 0.78; attack_heavy Jaw 0.82; bite_combo Jaw 0.70 |
+| gallimimus | attack_heavy BackFoot.R 1.27; attack_primary Head 1.04; bite_combo Head 1.10 |
+| megaloceros | kick BackFoot.R 0.89; charge Head 2.01; attack_primary Head 2.01; attack_heavy Head 2.02 |
+| megaloceros (doe) | attack_primary FrontFoot.R 3.09; attack_heavy Head 2.36 |
+| pachycephalosaurus | charge Jaw 0.87; kick Tail2 2.18; attack_primary Head 0.63; attack_heavy Jaw 0.66 |
+| raptor | attack_primary Head 0.79; bite_combo Head 0.86; pounce Head 1.69; pin_stab Head 1.80 |
+| smilodon | attack_primary FrontFoot.R 1.06; attack_heavy Head 0.85; pounce Head 0.91; pin_stab Head 0.76 |
+| stegosaurus | attack_primary head 1.78; attack_heavy head 1.66 |
+| styracosaurus | kick BackFoot.L 1.44; charge Head 1.13; attack_primary Head 1.17; attack_heavy Head 1.17 |
+| tarbosaurus | attack_primary Head 2.07; attack_heavy Head 1.70; pounce Head 1.96 |
+| tyrannosaurus | tail_swipe Tail5 3.75; attack_primary Head 5.62 |
+| utahraptor | pounce Head 2.84; attack_primary Head 1.97; attack_heavy Head 2.31; bite_combo Head 2.09 |
+| velociraptor | pounce Jaw 0.63; attack_primary Jaw 0.58; attack_heavy Jaw 0.65; bite_combo Jaw 0.65 |
+| woolly_rhino | attack_primary FrontFoot.R 1.42; charge Horn 0.66 |
+| zebraceratops | kick BackFoot.L 1.01; charge Head 1.37; attack_primary Head 1.47; attack_heavy Head 1.45 |
 
 Notes: the T. rex bite never comes below 3.3 m and its tail whip passes 4.5 m up; the stegosaurus tail swings behind while CreatureBrain attacks prey in front.
 
