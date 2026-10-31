@@ -4,6 +4,7 @@
     "attack_primary": {
       "hit_frac": 0.42,
       "windup": false,
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)",
       "note_therizinosaurus": "therizinosaurus (SP-THERIZINOSAURUS, tools/gait/make_theri_moves.py): claw sweep, 1.0 s: the right arm cocks out to its right, the sickle claws sweep low across its front on 0.42 (hit from Claw.R); a landed sweep shoves her back (tactics.primary_shove_m)",
       "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
@@ -12,8 +13,9 @@
       "windup": true,
       "windup_hold": 0.6,
       "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
-      "note_spinosaurus": "spinosaurus (make_spino_moves.py): forearm claw rake, 1.6 s: rears up with both claws cocked (held to windup_hold 0.6), drops forward and rakes both claws down at 0.72; hits from the hands",
-      "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (pipeline.status_clips)"
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)",
+      "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (pipeline.status_clips)",
+      "note_spinosaurus": "spinosaurus (make_spino_moves.py): forearm claw rake, 1.6 s: rears up with both claws cocked (held to windup_hold 0.6), drops forward and rakes both claws down at 0.72; hits from the hands"
     },
     "hit_react": {
       "speed": 2.0
@@ -35,6 +37,7 @@
       "windup": true,
       "note": "chomp left, chomp right, MEGA chomp: the front rears up for 12 frames (frames 33-44 of 66, the tell), then the whole body tips down from the hips like an animal drinking and bites at ground level. Exaggerated on purpose (owner: big by default, tune after). tools/jaw/make_combo.py.",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)",
       "note_therizinosaurus": "therizinosaurus: hook and rake, 3.0 s on the same fracs: the right claws hook on 0.092 and drag her in (tactics.hook_pull_m), a left backhand on 0.338, rears with both arms cocked (the tell, 0.5-0.667), double claw thrust on 0.815",
       "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
@@ -46,6 +49,7 @@
       "note": "0.46 s: crouch, backward leap, landing squash; in place, the game moves the creature back during it. tools/jaw/make_hop_back.py (deinonychus first).",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py hop_back, 0.458 s, IK-planted toes on the ground frames, jaw hisses open 10 deg",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor, coelophysis: rebuilt with tools/gait/make_leap.py (IK-planted toes; the transferred clips slid 7-12 cm on the ground frames). Hoppers (TacticalBrain HOPSTRAFE) stretch it up to 2x so a body-length bound has a real flight time.",
       "note_pachycephalosaurus": "pachycephalosaurus: tools/gait/make_pachy_moves.py hop_back, 0.583 s, crouch, feet tucked in the air, planted squash landing; played twice after every charge (PACHYBULL)"
     },
     "strafe_left": {
@@ -74,6 +78,7 @@
       "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
       "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)",
       "note_tarbosaurus": "tarbosaurus: make_rex_moves.py --tarbo pounce, 1.0 s: the burst out of the stalk, one long low bound (both feet off 0.2-0.65, the game carries the arc), jaws thrust ahead and slammed shut on 0.7; a landed burst is an attack_heavy hit, so it pins (pin_foot)",
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)",
       "note_dilophosaurus": "dilophosaurus: tools/gait/make_dilo_moves.py pounce (the leaping slash), 1.0 s: crouch, legs tucked then thrown forward toes-up in the air, lands feet first ahead of itself and both sickle claws rake down at hit_frac 0.7; the windup is attack_heavy's flared, hissing crouch",
       "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
@@ -88,7 +93,8 @@
       ],
       "note": "explosive sideways dodge to the left, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side left)",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_left, 0.417 s, banks into the jump",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor, coelophysis: rebuilt with tools/gait/make_leap.py (IK-planted toes; the transferred clips slid 7-12 cm on the ground frames). Hoppers (TacticalBrain HOPSTRAFE) stretch it up to 2x so a body-length bound has a real flight time."
     },
     "dodge_right": {
       "airborne": [
@@ -97,7 +103,8 @@
       ],
       "note": "explosive sideways dodge to the right, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side right)",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_right, 0.417 s, banks into the jump",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor, coelophysis: rebuilt with tools/gait/make_leap.py (IK-planted toes; the transferred clips slid 7-12 cm on the ground frames). Hoppers (TacticalBrain HOPSTRAFE) stretch it up to 2x so a body-length bound has a real flight time."
     },
     "kick": {
       "hit_frac": 0.45,
@@ -119,7 +126,8 @@
     },
     "charge": {
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_hopstrafe": "velociraptor: hand-claw arms layered on with tools/gait/add_arm_strikes.py (cock and flare before each hit, rake forward and down on it; bite_combo alternates the leading arm; pounce flares in the air; charge holds the arms out, grasping)"
     },
     "bite_shake": {
       "hit_frac": 0.3,
@@ -272,17 +280,6 @@
       "strafe_right_len": 1.0,
       "walk_back": 1.941,
       "walk_back_len": 1.0
-    },
-    "spinosaurus": {
-      "height_m": 9.0,
-      "run_l": 14.355,
-      "run_len": 0.667,
-      "run_r": 14.337,
-      "walk_l": 4.653,
-      "walk_len": 1.208,
-      "walk_r": 4.655,
-      "walk": 4.654,
-      "run": 14.346
     },
     "coelophysis": {
       "height_m": 2.0,
@@ -578,6 +575,17 @@
       "strafe_right_len": 1.208,
       "walk_back": 2.194,
       "walk_back_len": 1.208
+    },
+    "spinosaurus": {
+      "height_m": 9.0,
+      "run_l": 14.355,
+      "run_len": 0.667,
+      "run_r": 14.337,
+      "walk_l": 4.653,
+      "walk_len": 1.208,
+      "walk_r": 4.655,
+      "walk": 4.654,
+      "run": 14.346
     },
     "majungasaurus": {
       "height_m": 5.0,
