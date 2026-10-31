@@ -601,6 +601,8 @@ func apply_counter_hit(w: ItemStack, victim: Creature) -> void:
 
 ## Fixed aim at launch, real projectile collision. Auto and Fire context share this action.
 ## `ammo` overrides the weapon's own ammo (a Tranquilizer Dart from the "Dart" hex).
+## PARTCOMBAT: the shot flies at the picked body section (aim_section, else ranged.unaimed_section) where it is when the
+## shot leaves, with spread (aimed_shot). A bow draws (wpn_bow_draw), looses at the end of the draw (wpn_bow_release).
 func fire_ranged(ammo: StringName = &"") -> bool:
 	if target == null or not is_instance_valid(target) or target.health.dead: return false
 	var weapon := _weapon()
@@ -624,28 +626,84 @@ func fire_ranged(ammo: StringName = &"") -> bool:
 		return false
 	player.clear_nav()
 	player.face_world(target.global_position)
-	player.play_attack(false)
+	var row := HeldModel.weapon_row(def.id)
+	var draw := StringName(str(row.get("draw_clip", "")))
+	var wind := 0.25
+	var clip := &"attack_primary"
+	if draw != &"" and player.rig and player.rig.has_clip(draw):
+		clip = draw
+		wind = player.rig.anim_player.get_animation(draw).length * 0.9  # looses just before the draw clip ends
+		player.anim.play_clip(draw)
+	else:
+		player.play_attack(false)
 	_ranged_pending = true
-	_swing_cd = 1.0 / maxf(0.2, def.attack_rate)
+	_swing_cd = maxf(1.0 / maxf(0.2, def.attack_rate), wind + 0.2)
+	swing_started.emit()
 	var runtime := World.runtime
-	# Snapshot aim at button press, not a homing shot after windup.
-	player.get_tree().create_timer(0.25).timeout.connect(func () -> void:
+	var t := target
+	# Aim at the section where it is when the shot leaves, not a homing shot.
+	player.get_tree().create_timer(wind).timeout.connect(func () -> void:
 		_ranged_pending = false
-		if not is_instance_valid(player) or player.dead or player.rolling or player.inventory.equipped_weapon() != weapon or not is_instance_valid(runtime) or runtime != World.runtime or player.anim.current_clip != &"attack_primary": return
+		if not is_instance_valid(player) or player.dead or player.rolling or player.inventory.equipped_weapon() != weapon or not is_instance_valid(runtime) or runtime != World.runtime: return
+		if player.anim.current_clip != clip and player.anim._busy: return  # a hit or a roll cut the draw short
+		if not is_instance_valid(t) or t.health.dead: return
 		if not player.inventory.consume(ammo_id, 1): return
-		var shot := StoneProjectile.new()
-		shot.source = player
-		shot.weapon = weapon
-		shot.velocity = StoneProjectile.launch_velocity(offset)
-		shot.damage = weapon.scaled_damage()
+		var release := StringName(str(row.get("release_clip", "")))
+		if release != &"" and player.rig and player.rig.has_clip(release):
+			player.anim.play_clip(release)
+		var shot := aimed_shot(player, weapon, t, aim_section, ammo_id, runtime)
 		if ammo_id == TRANQ_DART:
 			shot.damage *= CombatTuning.num("torpor", "dart_damage_mult", 0.25)
 			shot.torpor = CombatTuning.num("torpor", "dart", 30.0)
-		# The arc flies past the weapon's straight range so a lobbed stone can land on a target at
-		# the edge; the multiplier is tuning, not code (combat_tuning.json ranged.arc_range_mult).
-		shot.range_left = def.range_m * float(CombatTuning.section("ranged").get("arc_range_mult", 1.5))
-		shot.skill_level = maxi(0, player.skills.level_of("ranged") - SkillState.MIN_LEVEL) if player.skills else 0
-		runtime.add_child(shot)
-		shot.global_position = origin
 	)
 	return true
+
+## The shot's spread at the target, metres (a 2D normal's sigma): it grows with distance and the target's speed, and
+## shrinks with the projectile's speed. ASSUMPTION (PC6): combat_tuning ranged.sigma_per_m, ref_speed, move_sigma_k.
+static func shot_sigma(dist: float, speed: float, target_speed: float) -> float:
+	var tune := CombatTuning.section("ranged")
+	var flight := dist / maxf(1.0, speed)
+	return float(tune.get("sigma_per_m", 0.012)) * dist * float(tune.get("ref_speed", 18.0)) / maxf(1.0, speed) \
+		+ float(tune.get("move_sigma_k", 0.35)) * target_speed * flight
+
+static func projectile_speed(ammo_id: StringName) -> float:
+	return float((CombatTuning.section("ranged").get("projectile_speed", {}) as Dictionary).get(str(ammo_id), StoneProjectile.SPEED))
+
+## Seeded by tests; the game draws from its own.
+static var shot_rng := RandomNumberGenerator.new()
+
+## One aimed shot from her bow or sling at a body section of t, launched now into `parent`: it flies at the section's
+## live point (its crit spot, if it holds one) plus a miss drawn from shot_sigma across the line of fire; the target
+## keeps moving while it flies. Returns the projectile (tests read its result).
+static func aimed_shot(p: Player, weapon: ItemStack, t: Creature, section: StringName, ammo_id: StringName, parent: Node) -> StoneProjectile:
+	var origin := p.global_position + Vector3(0, 1.4, 0)
+	var sec := section if section != &"" else StringName(str(CombatTuning.section("ranged").get("unaimed_section", "torso")))
+	if Hurtboxes.of(t) == null or not sec in BodySections.names(t):
+		sec = &""
+	var aim := BodySections.aim_point(t, sec) if sec != &"" else t.global_position + Vector3(0, minf(1.0, t.def.height_meters * 0.4), 0)
+	var speed := projectile_speed(ammo_id)
+	var line := aim - origin
+	var tv := Vector3(t.velocity.x, 0.0, t.velocity.z) if "velocity" in t else Vector3.ZERO
+	var sigma := shot_sigma(line.length(), speed, tv.length())
+	var side := line.cross(Vector3.UP).normalized()
+	var up := side.cross(line).normalized()
+	# A 2D normal miss (Box-Muller) across the line of fire.
+	var r := sigma * sqrt(-2.0 * log(maxf(1e-9, shot_rng.randf())))
+	var a := TAU * shot_rng.randf()
+	aim += side * r * cos(a) + up * r * sin(a)
+	var shot := StoneProjectile.new()
+	shot.source = p
+	shot.weapon = weapon
+	shot.ammo = ammo_id
+	shot.aimed_section = sec
+	shot.radius = float((CombatTuning.section("ranged").get("shot_radius", {}) as Dictionary).get(str(ammo_id), 0.08))
+	shot.velocity = StoneProjectile.launch_velocity(aim - origin, speed)
+	shot.damage = weapon.scaled_damage() if weapon else 10.0
+	# The arc flies past the weapon's straight range so a lobbed stone can land on a target at
+	# the edge; the multiplier is tuning, not code (combat_tuning.json ranged.arc_range_mult).
+	var range_m: float = weapon.def().range_m if weapon and weapon.def() else 12.0
+	shot.range_left = range_m * float(CombatTuning.section("ranged").get("arc_range_mult", 1.5))
+	shot.skill_level = maxi(0, p.skills.level_of("ranged") - SkillState.MIN_LEVEL) if p.skills else 0
+	parent.add_child(shot)
+	shot.global_position = origin
+	return shot
