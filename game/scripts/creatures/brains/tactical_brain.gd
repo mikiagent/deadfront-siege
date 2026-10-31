@@ -193,6 +193,11 @@ static func has_tactics(def: CreatureDef) -> bool:
 func setup(c: Creature) -> void:
 	super.setup(c)
 	tac = tactics_for_def(c.def)
+	# A variant's own moves (megaloceros doe: no antlers, so no ram; kick and stomp only).
+	var over: Variant = CreatureView.variant_row(c.def, c.variant).get("tactics", {})
+	if over is Dictionary and not (over as Dictionary).is_empty():
+		tac = tac.duplicate(true)
+		tac.merge(over, true)
 	rng.randomize()
 	_circle_sign = _flank_sign
 	state_changed.connect(_on_state_changed)

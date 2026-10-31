@@ -381,6 +381,15 @@ Owner reference: velociraptor 1.8 m, deinonychus 3 m, utahraptor 7 m long. In-ga
 | **PC3** | Dome reach: at the butt's hit frame the dome is 2.18 m ahead of the animal's centre; attack_range stays 1.8 (contact reach 2.1, hit accepted to 2.4 m), so hits land where the dome reaches. | `ai.json` pack_mule `attack_range` | Survivor-to-dome distance decides misses. |
 | **PC4** | Size kept: dome top 1.8 m; the new mesh is 3.66 m long (was 4.33 m). | `height_meters` | "pony-sized" per the look. |
 | **PC5** | Not on any island spawn table (it wasn't before); reachable through the fight lab and SPAWN. | `docs/current/biome-spawns.md` | Where it lives in the world is the owner's call. |
+## 2026-10-31 — Megaloceros stag and doe (claude/mmo-sp-megaloceros)
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **MG1** | Stag withers 3.36 m (a big Irish elk's ~2.1 m x the 1.6 house factor), head 3.95 m, antlers ~6 m across; doe ~15 % smaller (2.85 m withers). The survivor reaches about the stag's elbow. | `tools/gait/megaloceros/{stag,doe}.json`, `megaloceros.json` height_meters 3.95 | Reads as a giant next to the survivor. Without the 1.6 factor (2.1 m withers) the survivor's head would be just below its back. |
+| **MG2** | `real_length_m` 6.0 (2 x ~3 m true length): keeps the small taming pen (max 6.0), capsule radius 0.72 m. | `megaloceros.json` | 6.2 (exact 2x) would move it to the medium pen. |
+| **MG3** | Sex is picked per animal, ~50/50 by spawn spot (`CreatureView.pick_variant`), not one stag per herd. | `megaloceros.json` pipeline.model_variants | A herd-with-one-stag rule needs Spawner code. |
+| **MG4** | The doe has no straight ram: her charge runs in to a forehoof strike (attack_primary); point blank she rears and stomps or kicks. The stag keeps the antler ram, rear-up stomp, rear kick and antler hook. | `megaloceros.json` model_variants.doe.tactics, `ai.json` antlered.tactics | Owner asked for "kick and stomp only" on the doe; the forehoof strike is a stomp with one hoof. |
+| **MG5** | `antlered` attack_range 1.9 -> 3.2 (contact reach 3.5 m): the head is 2.5 m ahead of the body centre and the stomp lands ~1.7 m ahead. All tactics numbers copy horned_charger with a harder ram. | `ai.json` antlered | At 150 attack a stomp, kick or ram one-shots a fresh 100 hp survivor in god-off tests (force_accuracy). Balance call. |
 ### RETIREPROTO (2026-10-31) — the protoceratops is removed (claude/mmo-retireproto)
 
 Owner: "protoceratops needs to be removed, the animations suck and the model is unappealing". Model, clips, saddle and textures are deleted (`game/assets/creatures/protoceratops/`, git history keeps them). Report `docs/orchestration/reports/claude-retireproto.md`.
