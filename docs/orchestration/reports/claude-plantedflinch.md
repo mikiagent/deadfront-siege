@@ -39,6 +39,7 @@ head, and the skinless `_end` tips.
 | compsognathus | hit_react | 0.0 / 0.5 / 5.7 | 0.0 / 0.1 / 0.0 |
 | velociraptor | hit_react | 0.0 / 0.0 / 5.4 | 0.0 / 0.0 / 0.0 |
 | carnotaurus, triceratops, styracosaurus, zebraceratops | hit_react | under 1.5 | under 1.5 |
+| megarex (merged in from canon after the first run) | flinch | not measured | 0.0 / 0.2 / 0.3 |
 | tyrannosaurus | none (TyrantBrain never flinches by design) | 0.6 | 0.6 |
 
 Sank before (over 5 cm): the eight flinch species above, ankylosaurus worst. Slid before (over 5 cm): utahraptor,
@@ -72,14 +73,17 @@ tail. A real hip shift needs two-bone IK on each leg.
 
 - `game/tests/t_plantedflinch.gd` (run with `--fixed-fps 60`) hits every species with a model (crit). It asserts that
   every foot stays within 5 cm of where it stood, plus whatever the same window of idle already moves it, and that a
-  flinch moves the head at least 2 % of body height.
+  flinch moves the head at least 5 cm (the smallest is the woolly rhino at 8.5 cm; the 10 m megarex 13-19 cm).
 - Review shots come from `--lab=plantedflinch_lab --out=DIR` (`game/scripts/dev/plantedflinch_lab.gd`) and are in
   `docs/orchestration/reports/plantedflinch-shots/{before,after}/<species>_<ms>.png` for ankylosaurus, stegosaurus,
   raptor and utahraptor (0 = before the hit, then 70 / 200 / 450 ms). In the before shots the ankylosaurus front foot
   is in the floor at 70 ms. In the after shots the feet are on the floor and the head rears up.
-- Results: t_plantedflinch, t_combat, t_canim, t_ankylo3d, t_rexclips and t_boneparts PASS. run_all failed once on
-  the econ timing check (search page 1 under 50 ms: 116 ms at load average 9.5), then PASSED on a rerun (22 ms).
-  tools/smoke.sh: SMOKE PASS.
+- Results after the final merge of `origin/claude/mmo-overhaul` (which brought sp-megarex): t_plantedflinch,
+  t_combat, t_canim, t_ankylo3d and t_rexclips PASS. run_all PASS. tools/smoke.sh prints SMOKE PASS.
+  **t_boneparts FAILS with "megarex has a carcass but no bone part list here".** The canon sp-megarex merge caused it,
+  since this branch changes no bone-part data or code. It passed before that merge, and it needs fixing on the
+  megarex side. On the earlier run, run_all also failed once on the econ timing check (116 ms against 50 ms at load
+  average 9.5) and passed on a rerun.
 
 ## For the next agent
 

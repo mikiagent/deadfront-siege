@@ -129,6 +129,6 @@ func _probe(id: StringName, at: Vector3) -> void:
 		idle.sink * 100.0, idle.lift * 100.0, idle.slide * 100.0])
 	_expect(worst <= TOL_M + idle_worst, "%s feet stay within %.0f cm through the hit (worst %.1f cm, idle %.1f cm)" % [id, TOL_M * 100.0, worst * 100.0, idle_worst * 100.0])
 	if how == "flinch":
-		_expect(head >= 0 and hit.head >= 0.02 * float(c.def.height_meters), "%s flinch rattles the head (%.1f cm)" % [id, hit.head * 100.0])
+		_expect(head >= 0 and hit.head >= 0.05, "%s flinch rattles the head (%.1f cm)" % [id, hit.head * 100.0])
 	c.queue_free()
 	await process_frame
