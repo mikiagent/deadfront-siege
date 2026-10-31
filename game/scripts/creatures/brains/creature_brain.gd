@@ -59,6 +59,8 @@ var _dt: float = 0.0
 var _awake_until: float = -1.0
 ## Flight, leash and temporary home (see BrainFlight).
 var flight := BrainFlight.new(self)
+## Chase pressure: a fleeing animal that keeps being chased turns and fights (see BrainCornered).
+var cornered := BrainCornered.new(self)
 
 ## ENRAGE x natures (owner 2026-10-28: "timid dinosaurs when they get enraged they run away"): an
 ## enraged animal whose nature has enrage_flee panics and runs from its attacker, and comes back to
@@ -106,6 +108,7 @@ func setup(c: Creature) -> void:
 	# Start walking promptly. The old full roam delay made newly spawned dinosaurs look frozen.
 	_roam_cd = randf_range(0.1, 0.6)
 	_think_phase = randi() % _think_every()
+	cornered.setup()
 
 ## The player stays on the ground until respawn. Relocate every dinosaur that was fighting
 ## them so the camp/respawn point cannot become a permanent death trap.
@@ -271,6 +274,7 @@ func _pre_think(dt: float) -> bool:
 	if state == &"downed":
 		_set_state(&"alert" if _valid_target() else &"roam")
 	flight.track(dt)
+	cornered.tick(dt)
 	if state == &"sleep":
 		BrainRest.sleep_tick(self)
 		return state == &"sleep"
@@ -317,6 +321,7 @@ func note_damage(amount: float) -> void:
 		_hits_taken = 0
 	_last_hit_s = now
 	_hits_taken += 1
+	cornered.on_hit()
 	if _is_herbivore() and _hits_taken >= int(profile.get("provoke_hits", PROVOKE_HITS)) and not _provoked():
 		_provoked_until = now + PROVOKE_SECONDS
 		_log("[ai] %s provoked: fights back for %.0fs" % [creature.def.id, PROVOKE_SECONDS])
