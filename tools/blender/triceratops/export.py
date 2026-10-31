@@ -1,6 +1,8 @@
 # Export the package: <out>/triceratops.glb (mesh + rig at rest, textures) and <out>/anim/<clip>.glb (rig + skin, one
 # action, no mesh, no images). Blender -b anim.blend --factory-startup -P export.py -- <outdir>
-import bpy, sys, os
+import bpy, sys, os, importlib
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+NAME = os.environ.get("TRIKE_NAME", "triceratops")  # triceratops_alpha: the Alpha body
 out = sys.argv[sys.argv.index("--") + 1]; os.makedirs(out + "/anim", exist_ok=True)
 arm = bpy.data.objects["Armature"]; mesh = bpy.data.objects["SM_Triceratops"]
 for o in list(bpy.data.objects):
@@ -11,9 +13,9 @@ for pb in arm.pose.bones: pb.rotation_mode = "QUATERNION"; pb.rotation_quaternio
 bpy.context.view_layer.update()
 COMMON = dict(export_format="GLB", use_selection=True, export_yup=True, export_skins=True, export_def_bones=False, export_morph=False)
 bpy.ops.object.select_all(action="DESELECT"); arm.select_set(True); mesh.select_set(True); bpy.context.view_layer.objects.active = arm
-bpy.ops.export_scene.gltf(filepath=f"{out}/triceratops.glb", export_animations=False, export_image_format="AUTO", export_materials="EXPORT", **COMMON)
+bpy.ops.export_scene.gltf(filepath=f"{out}/{NAME}.glb", export_animations=False, export_image_format="AUTO", export_materials="EXPORT", **COMMON)
 print("WROTE base")
-clips = ["idle", "walk", "run", "attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert"]
+clips = list(importlib.import_module(os.environ.get("TRIKE_CLIPS", "clips")).CLIPS)
 bpy.ops.object.select_all(action="DESELECT"); arm.select_set(True); bpy.context.view_layer.objects.active = arm
 for c in clips:
     act = bpy.data.actions[c]

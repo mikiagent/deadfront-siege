@@ -1235,7 +1235,9 @@ func _charge_impact() -> void:
 			var s := signf(side.dot(pl.global_position - creature.global_position))
 			push = _charge_dir.rotated(Vector3.UP, -toss * (s if s != 0.0 else 1.0))
 		if pl.sim:
-			pl.sim.shove(push * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
+			# SP-TRIKEALPHA: a toss with toss_side_m throws her sideways, to the animal's right (the clip's twist).
+			var throw := Vector3(-_charge_dir.z, 0.0, _charge_dir.x) * (_t("toss_side_m", 0.0) if tossing else 0.0)
+			pl.sim.shove(push * _t("charge_shove_m", 0.0) + throw, _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).
