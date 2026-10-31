@@ -30,6 +30,8 @@ var strafe_face: Node3D
 var gait_clip: StringName = &""
 ## TACTICS: non-zero drives the body straight along this flat direction, no pathing (a committed horn charge).
 var line_dir := Vector3.ZERO
+## CARNOFEEL: the brain yaws the body itself while it moves (the arc after a charge); Creature does not face the velocity.
+var own_yaw := false
 
 var creature: Creature
 var state: StringName = &"roam"

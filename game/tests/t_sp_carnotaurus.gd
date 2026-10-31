@@ -4,8 +4,12 @@ extends SceneTree
 ## standing clips; and its signature moves fire and hit in a real fight against a survivor:
 ##   snap bite (attack_primary): the jaws (Jaw bone at the hit frame) land on her in front, and miss her at its flank;
 ##   horn ram (attack_heavy): lands and throws her back (tactics.heavy_shove_m);
-##   sprint charge with a sharp turn: the straight charge hits and shoves her, at the end of the line it hops round
-##     (charge_turn), turning only while airborne, and charges back through.
+##   sprint charge (CARNOFEEL): the charge's contact knocks her down (knockdown or throw tier), even when the damage
+##     roll misses, and the carnotaurus runs on past her through her body (no snag); at the end of the line it wheels
+##     round on its turning radius (yaw rate <= speed / charge_arc_r_m and <= turn_rate 1.4, travelling where it faces:
+##     no skid) and charges back through once;
+##   chomp combo (CARNOFEEL): point blank, a slowed coil with a ring (the tell), then three chomps that land via the
+##     hitboxes; after its charges land it dashes in for it (tactics.charge_follow).
 ## It spawns where islands.json says (desert_35 far shore, desert_50 working ring) and the creature lab lists it.
 ## Run: Godot --headless --path game --script res://tests/t_sp_carnotaurus.gd  -> "[t_sp_carnotaurus] PASS", exit 0.
 
@@ -112,7 +116,7 @@ func _test_view() -> void:
 	var rest := {}
 	for b in FEET:
 		rest[b] = _bone(sk, b, true)
-	for clip in [&"idle", &"attack_primary", &"alert", &"hit_react", &"feed"]:
+	for clip in [&"idle", &"attack_primary", &"bite_combo", &"alert", &"hit_react", &"feed"]:
 		sk.reset_bone_poses()
 		ap.play(clip)
 		var a := ap.get_animation(clip)
@@ -171,6 +175,15 @@ func _sim(secs: float) -> void:
 		player.vitals.dead = false
 		player.dead = false
 	Engine.time_scale = 1.0
+
+## Her standing on her feet at the origin, no knock, no statuses (the ram or the charge threw her).
+func _stand_up() -> void:
+	player.process_mode = Node.PROCESS_MODE_INHERIT
+	player.sim.knock.cancel()
+	player.statuses.clear_all()
+	player.anim.release_knockdown()
+	player.global_position = Vector3(0, 0.9, 0)
+	player.velocity = Vector3.ZERO
 
 func _free(c) -> void:
 	if is_instance_valid(c):
@@ -242,42 +255,87 @@ func _test_fight() -> void:
 		"horn ram: lands and throws her back %.2f m (%s)" % [pushed, log])
 	await _free(c)
 
-	# 3. Sprint charge with a sharp turn: hit and shove, hop round in the air only, charge back through.
-	# KNOCKDOWN x HITBOXES: the ram threw her; she must be up (standing hurtboxes) before the charge, not lying.
-	player.sim.knock.cancel()
-	player.statuses.clear_all()
-	player.anim.release_knockdown()
-	player.global_position = Vector3(0, 0.9, 0)
-	player.velocity = Vector3.ZERO
-	# 6.8 m out: with no navmesh in the test a goal past 12 m is not steered to (the charge runs on 5 m past her)
-	c = _spawn(Vector3(0, 0.1, -6.8), Vector3(0, 0, 0))
-	# The run-through and shove scaled into the test's 12 m: she must end up behind it, as in the game (9 m past, 3.5 m shove)
-	c.brain.tac = c.brain.tac.duplicate()
-	c.brain.tac["charge_through_m"] = 4.5
-	c.brain.tac["charge_shove_m"] = 1.5
+	# 3. CARNOFEEL chomp combo: point blank, the tell (slowed coil + ring), then three chomps on her via the hitboxes.
+	_stand_up()
+	c = _spawn(Vector3(0, 0.1, -4.5), Vector3(0, 0, 0))
+	await _sim(0.05)
 	log = []
 	c.brain.tactic.connect(func(kind: StringName) -> void: log.append(kind))
-	var yaw0: float = c.rotation.y
-	var turn := {"yaw_ground_max": 0.0, "yaw_total": 0.0, "from": 0.0}
-	c.brain._start_charge()
-	var in_turn := false
-	for i in 120:
-		await _sim(0.05)
-		if c.brain.state == &"charge_turn":
-			if not in_turn:
-				in_turn = true
-				turn["from"] = c.brain._turn_from
-			var u: float = c.brain._j_t / maxf(0.01, c.brain._j_len)
-			var turned := absf(angle_difference(float(turn["from"]), c.rotation.y))
-			if u < c.brain._j_air.x - 0.02:
-				turn["yaw_ground_max"] = maxf(turn["yaw_ground_max"], turned)
-			turn["yaw_total"] = maxf(turn["yaw_total"], turned)
-		if log.has(&"charge_return") and not c.brain.state in [&"charge", &"charge_turn"]:
-			break
-	_expect(log.has(&"charge") and log.has(&"charge_hit"), "the straight charge hits her (%s)" % [log])
-	_expect(log.has(&"charge_turn") and log.has(&"charge_return") and log.count(&"charge") >= 2, "at the end of the line it turns sharply and charges back (%s)" % [log])
-	_expect(float(turn["yaw_total"]) > deg_to_rad(120.0) and float(turn["yaw_ground_max"]) < deg_to_rad(3.0),
-		"the turn swings %.0f deg, only in the air (%.1f deg before take-off)" % [rad_to_deg(turn["yaw_total"]), rad_to_deg(turn["yaw_ground_max"])])
+	var chomps := [0]
+	c.anim.attack_hit.connect(func(clip: StringName) -> void:
+		if clip == &"bite_combo":
+			chomps[0] += 1)
+	hurt[0] = 0
+	d = c.brain._flat_dist(player)
+	_expect((tac.get("point_blank", []) as Array).has("combo") and c.brain.attack_available(&"combo", d), "the chomp combo is a point-blank move and available in front (%.1f m)" % d)
+	c.brain._strike(d, ["combo"])
+	await _sim(0.1)
+	var TG: GDScript = load("res://scripts/combat/telegraph.gd")
+	_expect(log.has(&"combo_tell") and TG.live_for(c) >= 1 and chomps[0] == 0, "the combo opens with its tell: a ring at the snout, no chomp yet (%s)" % [log])
+	await _sim(3.6)
+	_expect(log.has(&"combo") and chomps[0] == 3 and hurt[0] == 3, "chomp combo: 3 chomps land on her (hit frames %d, damage events %d)" % [chomps[0], hurt[0]])
 	await _free(c)
+
+	# 4. CARNOFEEL charge contact: knocks her down and runs on through her, then arcs round. Twice: a landed hit, and a
+	#    damage roll that misses (a passive dodge / GOD mode used to leave her standing in its path: the snag).
+	for acc in [1.0, 0.0]:
+		_stand_up()
+		load("res://scripts/combat/combat_tuning.gd").force_accuracy = acc
+		c = _spawn(Vector3(0, 0.1, -12.0), Vector3(0, 0, 0))
+		c.brain.tac = c.brain.tac.duplicate()
+		c.brain.tac["charge_through_m"] = 6.0  # the test floor is 160 m, but keep the line short
+		log = []
+		c.brain.tactic.connect(func(kind: StringName) -> void: log.append(kind))
+		c.brain._start_charge()
+		var knocked := false
+		var passed := false
+		var through := false
+		var min_v := INF
+		var past := -INF
+		var arc := {"max_rate": 0.0, "max_slip": 0.0, "min_r": INF, "frames": 0}
+		var prev_yaw: float = c.rotation.y
+		var step := TIME_SCALE / float(Engine.physics_ticks_per_second)  # one physics frame of game time
+		for i in 400:
+			await _sim(step)
+			if player.sim.knock.active() and player.sim.knock.tier in [1, 2]:  # PlayerKnock.Tier.KNOCKDOWN / THROW
+				knocked = true
+			if c.brain.state == &"charge" and not c.brain._charge_return:
+				through = through or c.brain.passes_through(player)
+				if c.brain._charge_hit:
+					min_v = minf(min_v, Vector2(c.velocity.x, c.velocity.z).length())
+				past = maxf(past, c.global_position.z)  # the line runs toward +z, she stood at z = 0
+			if c.brain.state == &"charge_arc":
+				var v := Vector2(c.velocity.x, c.velocity.z)
+				var rate := absf(angle_difference(prev_yaw, c.rotation.y)) / step
+				if v.length() > 0.5:
+					arc["frames"] += 1
+					arc["max_rate"] = maxf(arc["max_rate"], rate)
+					# the frame's move ran on the heading it had then: before or after this frame's yaw step
+					var slip := minf(absf(Vector2(-sin(c.rotation.y), -cos(c.rotation.y)).angle_to(v)), absf(Vector2(-sin(prev_yaw), -cos(prev_yaw)).angle_to(v)))
+					arc["max_slip"] = maxf(arc["max_slip"], slip)
+					if rate > 0.01:
+						arc["min_r"] = minf(arc["min_r"], v.length() / rate)
+			prev_yaw = c.rotation.y
+			if log.has(&"charge_return"):
+				break
+		passed = past >= 6.0 - 1.5  # the line ends within 1 m of charge_through_m
+		var what := "hit" if acc > 0.0 else "damage roll missed"
+		_expect(log.has(&"charge_hit") and knocked, "charge contact (%s) knocks her down (%s)" % [what, log])
+		_expect(through and min_v >= 0.6 * c.move_speed_mps() and passed,
+			"charge (%s) runs on through her body: lowest speed after contact %.1f m/s, reached %.1f m past her" % [what, min_v, past])
+		var r_min: float = c.brain.arc_radius()
+		_expect(log.has(&"charge_arc") and int(arc["frames"]) > 10 and float(arc["max_rate"]) <= c.turn_rate() + 0.02 and c.turn_rate() <= 1.4 + 0.001
+				and float(arc["min_r"]) >= r_min - 0.1 and float(arc["max_slip"]) < deg_to_rad(2.0),
+			"after the charge (%s) it arcs round: yaw %.2f rad/s (turn_rate %.2f), radius >= %.1f m (limit %.1f), slip %.1f deg" % [what, arc["max_rate"], c.turn_rate(), arc["min_r"], r_min, rad_to_deg(arc["max_slip"])])
+		_expect(log.has(&"charge_return"), "wheeled round, it charges back through her (%s)" % [log])
+		if acc > 0.0:  # between charges: after the landed return pass and its arc it dashes in for the chomps
+			for i in 200:
+				await _sim(0.05)
+				if log.has(&"combo"):
+					break
+			_expect(log.has(&"combo") and log.find(&"combo") > log.rfind(&"charge_arc"), "after its charges land it closes in for the chomp combo (%s)" % [log])
+		await _free(c)
+		_expect(not player.get_collision_exceptions().any(func(b) -> bool: return is_instance_valid(b) and b.is_in_group(&"creatures")), "the pass-through exception is gone once the animal is")
+	load("res://scripts/combat/combat_tuning.gd").force_accuracy = 1.0
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	host.free()

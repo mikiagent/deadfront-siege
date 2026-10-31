@@ -25,6 +25,9 @@ extends Node3D
 ## --knockshots=DIR (with --species=X, a TacticalBrain charger): KNOCKDOWN. The brain's real charge on the survivor (GOD
 ## on, hits forced) from 12 m: impact, airborne / fall, lying, getting up and Winded, from a side camera, saved as
 ## DIR/knock_<k>_<phase>.png (one shot as each PlayerKnock phase starts, plus the winded idle); then the lab quits.
+## --carnoshots=DIR (with --species=carnotaurus, or another straight charger): CARNOFEEL. GOD on, hits forced, HUD hidden.
+## The brain's real charge from 16 m: the contact, the body passing her as she falls, the arc round after it (high
+## camera); then the chomp combo point blank, one shot at each chomp's hit frame. DIR/carno_<k>_<what>.png, then quits.
 ## --lineup=DIR [--species=a,b,c]: those species (default the three raptors) side-on in a row at body size 1.0
 ## beside the survivor, each mesh's measured length and height printed, DIR/lineup.png saved, then quits.
 ## --impaleshots=DIR: STYRAFIX. One Aggressive styracosaurus 22 m off a standing survivor, a side camera. It paws,
@@ -89,6 +92,8 @@ func _ready() -> void:
 			Hitbox.debug_draw = true
 		elif a.begins_with("--knockshots="):
 			_knockshots.call_deferred(a.substr(13), StringName(only.get_slice(",", 0)))
+		elif a.begins_with("--carnoshots="):
+			_carnoshots.call_deferred(a.substr(13), StringName(only.get_slice(",", 0)))
 		elif a.begins_with("--pinshots="):
 			_pinshots.call_deferred(a.substr(11), StringName(only.get_slice(",", 0)))
 		elif a == "--enrage":
@@ -411,6 +416,132 @@ func _knockshots(dir: String, id: StringName) -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("%s/knock_%d_winded.png" % [dir, k])
 	print("[knockshots] winded survivor=%s winded=%s; wrote %s" % [_player.anim.current_clip, _player.statuses.has(&"winded"), dir])
+	get_tree().quit()
+
+func _carnoshots(dir: String, id: StringName) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	await get_tree().create_timer(1.5).timeout
+	var c: Creature = null
+	for n in get_tree().get_nodes_in_group("creatures"):
+		if n is Creature and (n as Creature).def.id == id and not (n as Creature).is_pet:
+			c = n
+	var tb := c.brain as TacticalBrain if c else null
+	if tb == null:
+		push_error("[carnoshots] no %s with a TacticalBrain" % id)
+		get_tree().quit(1)
+		return
+	for n in find_children("*", "CanvasLayer", true, false):
+		(n as CanvasLayer).visible = false
+	CombatTuning.force_accuracy = 1.0
+	CombatTuning.force_dodge = 0.0
+	var start := Vector3(-22, 0, 14)  # the lab floor's open middle, clear of its crates
+	c.global_position = start
+	c.rotation.y = -PI / 2.0  # faces +X, at her
+	_player.global_position = start + Vector3(16.0, 0.9, 0.0)
+	_player.face_world(c.global_position)
+	if _player.hunt:
+		_player.hunt.process_mode = Node.PROCESS_MODE_DISABLED  # no auto-attack swings in the shots
+	var her := _player.global_position - Vector3(0, 0.9, 0)
+	var side := Camera3D.new()
+	add_child(side)
+	side.fov = 45.0
+	side.global_position = her + Vector3(-1.0, 4.0, 19.0)
+	side.look_at(her + Vector3(-1.0, 1.5, 0.0))
+	side.current = true
+	var shots := [0]
+	var shoot := func(what: String) -> void:
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/carno_%d_%s.png" % [dir, shots[0], what])
+		print("[carnoshots] %d %s state=%s clip=%s survivor=%s knock=%d" % [shots[0], what, tb.state, c.anim.current_clip, _player.anim.current_clip, _player.sim.knock.phase])
+		shots[0] += 1
+	tb.attack_target = _player
+	tb._combat_memory_left = 60.0
+	# its track on the ground, a dot every 0.1 s (orange on the line, red round the arc), so the arc reads from above
+	var dot_mat := StandardMaterial3D.new()
+	dot_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	dot_mat.albedo_color = Color(1.0, 0.6, 0.1)
+	var arc_mat := dot_mat.duplicate() as StandardMaterial3D
+	arc_mat.albedo_color = Color(0.9, 0.1, 0.1)
+	var trail := Timer.new()
+	trail.wait_time = 0.1
+	add_child(trail)
+	trail.timeout.connect(func() -> void:
+		if not tb.state in [&"charge", &"charge_arc"]:
+			return
+		var m := MeshInstance3D.new()
+		var sph := SphereMesh.new()
+		sph.radius = 0.25
+		sph.height = 0.5
+		m.mesh = sph
+		m.material_override = arc_mat if tb.state == &"charge_arc" else dot_mat
+		add_child(m)
+		m.global_position = Vector3(c.global_position.x, 0.25, c.global_position.z))
+	trail.start()
+	tb._start_charge()
+	var waited := 0.0
+	while not tb._charge_hit and waited < 6.0:
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	await shoot.call("contact")
+	await get_tree().create_timer(0.25).timeout
+	await shoot.call("passing_her_falling")
+	await get_tree().create_timer(0.2).timeout
+	await shoot.call("run_through")
+	while tb.state != &"charge_arc" and waited < 12.0:
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	var top := Camera3D.new()
+	add_child(top)
+	top.fov = 50.0
+	var mid := her + Vector3(4.0, 0.0, 0.0)
+	top.global_position = mid + Vector3(0.0, 42.0, 14.0)
+	top.look_at(mid)
+	top.current = true
+	for k in 4:
+		await shoot.call("arc_%d" % k)
+		await get_tree().create_timer(0.7).timeout
+		if tb.state != &"charge_arc":
+			break
+	await shoot.call("arc_done_%s" % tb.state)
+	trail.stop()
+	# The chomp combo, point blank, a side camera on its snout and her; a shot on each chomp's hit frame.
+	c.set_physics_process(false)  # the body still while she gets up
+	tb.process_mode = Node.PROCESS_MODE_DISABLED  # and the brain (its own physics step)
+	tb._set_state(&"circle")
+	tb.line_dir = Vector3.ZERO  # the arc's heading would keep driving the body
+	tb.own_yaw = false
+	tb.speed_override = -1.0
+	c.stop_move()
+	_player.sim.knock.cancel()
+	_player.statuses.clear_all()
+	_player.anim.release_knockdown()
+	c.global_position = start
+	c.rotation.y = -PI / 2.0
+	c.velocity = Vector3.ZERO
+	_player.global_position = start + Vector3(4.6, 0.9, 0.0)
+	_player.velocity = Vector3.ZERO
+	_player.face_world(c.global_position)
+	side.global_position = start + Vector3(3.0, 3.5, 13.0)
+	side.look_at(start + Vector3(3.0, 2.2, 0.0))
+	side.current = true
+	await get_tree().create_timer(1.2).timeout
+	var bites := [0]
+	c.anim.attack_hit.connect(func(clip: StringName) -> void:
+		if clip == &"bite_combo":
+			bites[0] += 1
+			get_viewport().get_texture().get_image().save_png("%s/carno_chomp_%d.png" % [dir, bites[0]]))
+	c.set_physics_process(true)
+	tb.process_mode = Node.PROCESS_MODE_INHERIT
+	c.global_position = start
+	c.rotation.y = -PI / 2.0
+	await get_tree().physics_frame
+	tb._cd.clear()
+	print("[carnoshots] combo from %.2f m (bite reach %.2f) c=%s her=%s" % [tb._flat_dist(_player), tb._bite_reach(), c.global_position, _player.global_position])
+	tb._strike(tb._flat_dist(_player), ["combo"])
+	await get_tree().create_timer(0.15).timeout
+	await shoot.call("combo_tell")
+	await get_tree().create_timer(3.4).timeout
+	print("[carnoshots] chomps=%d; wrote %s" % [bites[0], dir])
 	get_tree().quit()
 
 func _pinshot(dir: String, k: int, what: String, camera: Camera3D, c: Creature, wait: float) -> void:
