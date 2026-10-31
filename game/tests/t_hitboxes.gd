@@ -90,6 +90,11 @@ func _run() -> void:
 			else:
 				for v in mv:
 					species.append(StringName("%s/%s" % [id, v]))
+	if "--bones" in OS.get_cmdline_user_args():
+		for id in species:
+			await _dump_bones(id)
+		quit(0)
+		return
 	if calibrate:
 		for id in species:
 			await _calibrate_species(id)
@@ -484,6 +489,22 @@ func _calibrate_species(id: StringName) -> void:
 		await _frames(1)
 	for key in done:
 		_calib.append([str(id), "%s|%.2f" % [key, done[key][1]], snappedf(float(done[key][0]), 0.01)])
+
+## --bones (crit-spot placement, data/creatures/hitboxes.json crit_spots): every hurtbox and bone of the species at
+## size 1 in the REST pose, in its own frame (x right, y up, z forward, metres from its feet); one "BONE" line each.
+func _dump_bones(id: StringName) -> void:
+	var c = _spawn(id, Vector3.ZERO, false, 1.0)
+	await _frames(3)
+	var sk: Skeleton3D = HB.skeleton_of(c)
+	var to_body: Transform3D = c.global_transform.affine_inverse() * sk.global_transform
+	var flip := func(v: Vector3) -> String: return "%.3f %.3f %.3f" % [v.x, v.y, -v.z]
+	for cap in HB.of(c).caps:
+		var rest: Transform3D = sk.get_bone_global_rest(int(cap["bone"]))
+		print("[t_hitboxes] BONE %s cap %s %s %.3f" % [id, cap["part"], flip.call(to_body * (rest * ((cap["a"] + cap["b"]) * 0.5))), float(cap["r"]) * sk.global_basis.get_scale().x])
+	for b in sk.get_bone_count():
+		print("[t_hitboxes] BONE %s bone %s %s" % [id, sk.get_bone_name(b), flip.call(to_body * sk.get_bone_global_rest(b).origin)])
+	c.queue_free()
+	await _frames(1)
 
 ## Each part's closest pass to the survivor where she stands now, into done ("move|bone|radius" -> need, at size 1).
 func _calib_need(c, sk: Skeleton3D, row: Array, size: float, done: Dictionary) -> void:

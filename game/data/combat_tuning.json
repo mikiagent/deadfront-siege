@@ -103,7 +103,8 @@
     "max_offset_m": 0.45,
     "heavy_hit": 0.6,
     "player_hit": 0.35,
-    "player_heavy_swing": 0.25
+    "player_heavy_swing": 0.25,
+    "weak_spot": 0.45
   },
   "movement": {
     "_about": "ASSUMPTION (owner 2026-10-28: run faster, cost more, refill faster by exhaustion): the survivor's run and sprint x run_speed_mult, their stamina drain x run_stamina_mult; stamina refill x stamina_regen_by_strain by fatigue strain tier (< 25 %, < 50 %, < 75 %, >= 75 %), was 1.0/0.5/0.35/0.2.",
