@@ -93,7 +93,8 @@ What read wrong and was fixed:
   - the opportunist commits on 56 of 200 healthy picks and 50 of 50 weak ones;
   - the spawn rows.
 - t_noboxes, t_combat, t_canim, t_data, t_ai, t_labspawn, t_tactical, t_boneparts, t_sp_smilodon and t_sp_pachycephalosaurus: PASS.
-- `run_all.gd` and `tools/smoke.sh --no-import`: see the merge section below.
+- `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: SMOKE PASS.
+- Canon merge: `origin/claude/mmo-overhaul` was still at d915e67f when I fetched right before reporting, so the merge was already up to date and every other species' rows are untouched. claude/mmo-hitboxes is not on canon (no `docs/current/hitboxes.md`), so the hits use `pipeline.hit_parts`.
 
 ## For the next agent / known issues
 - **Merge with claude/mmo-sp-carnotaurus:**
