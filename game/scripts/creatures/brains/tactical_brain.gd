@@ -83,6 +83,7 @@ var _open_left := 0.0  ## seconds the ambush keeps waiting to open with the poun
 var _charge_to := Vector3.ZERO
 var _charge_dir := Vector3.FORWARD
 var _charge_hit := false
+var _tossing := false  ## WOOLLY RHINO: standing at the impact point while the toss clip plays
 var _crouch := false  ## coiling in charge_crouch before the run
 ## SKITTISH-TERRITORIAL (tactics.territorial, owner 2026-10-31: "engage the player after running away once"):
 ## the first threat sends it running for flee_once_s, then it turns and fights while the threat stays.
@@ -193,6 +194,11 @@ static func has_tactics(def: CreatureDef) -> bool:
 func setup(c: Creature) -> void:
 	super.setup(c)
 	tac = tactics_for_def(c.def)
+	# A variant's own moves (megaloceros doe: no antlers, so no ram; kick and stomp only).
+	var over: Variant = CreatureView.variant_row(c.def, c.variant).get("tactics", {})
+	if over is Dictionary and not (over as Dictionary).is_empty():
+		tac = tac.duplicate(true)
+		tac.merge(over, true)
 	rng.randomize()
 	_circle_sign = _flank_sign
 	state_changed.connect(_on_state_changed)
@@ -820,6 +826,7 @@ func _start_charge() -> void:
 	_just_disengaged = false
 	_seq = []
 	_charge_hit = false
+	_tossing = false
 	_charge_dir = -_to_me()
 	_charge_to = attack_target.global_position + _charge_dir * _t("charge_through_m", 2.5)
 	# A rig with a charge_crouch clip coils first (owner 2026-10-31, compy: "it should lower its center of gravity
@@ -831,6 +838,14 @@ func _start_charge() -> void:
 	tactic.emit(&"charge")
 
 func _charge(delta: float) -> void:
+	if _tossing:
+		# No glide: the toss plays in place where the horn met her; the line ends when the clip does.
+		creature.stop_move()
+		if creature.anim.current_clip == &"toss" and creature.anim.is_busy():
+			return
+		_tossing = false
+		_charge_end()
+		return
 	if _crouch:
 		creature.stop_move()
 		creature.face_towards(attack_target.global_position, delta)
@@ -846,7 +861,8 @@ func _charge(delta: float) -> void:
 		creature.move_to(_charge_to)
 		var to := attack_target.global_position - creature.global_position
 		to.y = 0.0
-		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2:
+		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
+				and creature.part_hit(&"charge", attack_target):
 			_charge_impact()
 		if _flat_dist_to(_charge_to) <= 1.0 or _left <= 0.0:
 			_charge_end()
@@ -866,12 +882,20 @@ func _charge_impact() -> void:
 	tactic_hit.emit(&"charge", 0, mult)
 	tactic.emit(&"charge_hit")
 	_mark_pack()
+	# WOOLLY RHINO: a rig with a toss clip hooks the horn up through the target at impact (the clip is cosmetic: the
+	# hit is this impact) and the shove lifts her off her feet (tactics.toss_lift_mps, ASSUMPTION 5.5 m/s ~ 1.5 m).
+	var tossing := creature.anim.has_state(&"toss")
+	if tossing:
+		creature.stop_move()
+		creature.anim.play_clip(&"toss")
+		_tossing = true
+		tactic.emit(&"toss")
 	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult) and attack_target is Player:
 		var pl := attack_target as Player
 		pl.receive_creature_hit(creature, &"attack_heavy")
 		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
 		if pl.sim:
-			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6))
+			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).

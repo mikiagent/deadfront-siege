@@ -46,7 +46,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 | [Daeodon](#daeodon) | No model yet | 1 |
 | [Megaloceros](#megaloceros) | In game with a model | 2 |
 | [Giant sloth (Megatherium)](#giant-sloth-megatherium) | No model yet | 1 |
-| [Woolly rhino](#woolly-rhino) | No model yet | 2 |
+| [Woolly rhino](#woolly-rhino) | In game with a model | 2 |
 | [Teleoceras](#teleoceras) | No model yet | 2 |
 | [Toxodon](#toxodon) | No model yet | 1 |
 | [Moeritherium](#moeritherium) | No model yet | 1 |
@@ -303,7 +303,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 
 ## Woolly rhino
 
-**Status:** No model yet.
+**Status:** In game with a model (claude/mmo-sp-woolly_rhino): the regular sheet is the Tripo model, the alpha sheet its alpha skin.
 
 ![Regular](../art/species/woolly_rhino/woolly_rhino_owner_sheet_1.jpg)
 *Regular* (`woolly_rhino_owner_sheet_1`)

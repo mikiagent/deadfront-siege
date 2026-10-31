@@ -494,6 +494,32 @@
       "rare": [],
       "_generated": "size-class default (9.0 m); tune per species"
     },
+    "woolly_rhino": {
+      "base": [
+        {
+          "id": "raw_meat",
+          "min": 4,
+          "max": 6
+        },
+        {
+          "id": "large_leg_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "raw_hide",
+          "min": 2,
+          "max": 3
+        },
+        {
+          "id": "brow_horn",
+          "min": 1,
+          "max": 1
+        }
+      ],
+      "rare": [],
+      "_generated": "ASSUMPTION (SP-WOOLLY_RHINO): the styracosaurus-class yield for a 7.4 m (2x) body; the nose horn drops as brow_horn and the wool as extra raw_hide until the items list has rhino parts"
+    },
     "styracosaurus": {
       "base": [
         {

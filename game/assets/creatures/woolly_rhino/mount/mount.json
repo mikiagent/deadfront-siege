@@ -1,0 +1,69 @@
+{
+ "mount": "woolly_rhino",
+ "saddle": "saddle.glb",
+ "socket": "Torso",
+ "rider_offset": [
+  1.0,
+  -1.2746856521694827e-14,
+  1.5099580252808664e-07,
+  0.0,
+  2.917257703309063e-14,
+  -1.0,
+  -1.9320124522437254e-07,
+  0.0,
+  1.5099580252808664e-07,
+  2.266712186838049e-07,
+  -1.0,
+  0.0,
+  6.126396101535647e-08,
+  0.6787232756614685,
+  -0.40573275089263916,
+  1.0
+ ],
+ "seat": {
+  "y": 0.0617,
+  "top": 2.7382,
+  "half_len": 0.617,
+  "half_w": 0.3003,
+  "back_z": 2.6641
+ },
+ "hips_above_socket_m": 0.9864,
+ "seat_above_socket_m": 0.8864,
+ "stirrups": {
+  "L": [
+   0.6186,
+   -0.0944,
+   2.3549
+  ],
+  "R": [
+   -0.64,
+   -0.0944,
+   2.3549
+  ]
+ },
+ "scale": {
+  "height_meters": 2.95,
+  "source_height_m": 2.9525,
+  "game_m_per_source": 0.99914
+ },
+ "notes": "seat and straps are skinned to Torso (the back just behind the shoulders), the neck strap and its leads blend to Neck; rider_offset is the rider armature root relative to Torso in Blender's imported bone frame, column-major; rider_in_mount (added by mount_to_model_space.py) is the same pose in the mount's glTF model space and is what the game uses",
+ "rider_in_mount": [
+  1.0,
+  -2.4616895029578104e-21,
+  0.0,
+  0.0,
+  0.0,
+  1.0,
+  -3.255782891008717e-21,
+  0.0,
+  8.470329472543003e-22,
+  -4.393983413881683e-21,
+  1.0,
+  0.0,
+  1.7993222319409195e-15,
+  2.2567968368530273,
+  -0.06170216575264931,
+  1.0
+ ],
+ "rider_in_mount_note": "rider armature root in the mount's glTF model space (Y-up), mount rest pose; preferred over rider_offset"
+}

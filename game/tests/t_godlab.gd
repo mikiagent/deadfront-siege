@@ -91,9 +91,16 @@ func _run() -> void:
 	(panel.get_node("SpawnPanel").find_child("StandIns", true, false) as Button).pressed.emit()
 	for b in ["GodToggle", "NextSpecies"]:
 		_expect((panel.get_node(b) as Button).custom_minimum_size.y >= 64.0, "%s is a 64 px tap target" % b)
+	# a species with several bodies (megaloceros stag, doe) comes up once per body
+	var bodies: Array = []
+	for id in modelled:
+		var vs: Array = PANEL.variants_of(id)
+		for vid in (vs if not vs.is_empty() else [""]):
+			bodies.append([id, StringName(vid)])
+	var want: Array = bodies.map(func(b: Array) -> StringName: return b[0])
 	var seen: Array = []
 	var all_ok := true
-	for k in modelled.size():
+	for k in bodies.size():
 		(panel.get_node("NextSpecies") as Button).pressed.emit()
 		await physics_frame
 		var wild: Array = []
@@ -101,16 +108,16 @@ func _run() -> void:
 			if not n.is_pet and not n.is_queued_for_deletion():
 				wild.append(n)
 		var c = wild[0] if wild.size() == 1 else null
-		var ok: bool = c != null and c.def.id == modelled[k] and c.view.rig != null and c.nature == &"aggressive" and c.brain.attack_target == player
+		var ok: bool = c != null and c.def.id == want[k] and (bodies[k][1] == &"" or c.variant == bodies[k][1]) and c.view.rig != null and c.nature == &"aggressive" and c.brain.attack_target == player
 		var line: String = panel.info.text
-		ok = ok and line.contains(str(modelled[k]).capitalize()) and line.contains("clips:")
+		ok = ok and line.contains(str(want[k]).capitalize()) and line.contains("clips:")
 		if not ok:
 			all_ok = false
-			print("[t_godlab] FAIL NEXT #%d want %s got %s (wild %d) info '%s'" % [k, modelled[k], c.def.id if c else "-", wild.size(), line])
+			print("[t_godlab] FAIL NEXT #%d want %s got %s (wild %d) info '%s'" % [k, bodies[k], c.def.id if c else "-", wild.size(), line])
 		else:
 			print("[t_godlab] %s" % line)
 		seen.append(c.def.id if c else &"")
-	_expect(all_ok and seen == modelled, "NEXT cycles all %d modelled species, one aggressive model each" % modelled.size())
+	_expect(all_ok and seen == want, "NEXT cycles all %d modelled species (%d bodies), one aggressive model each" % [modelled.size(), bodies.size()])
 	(panel.get_node("GodToggle") as Button).pressed.emit()
 	_expect(not game.god_mode, "the GOD button turns it off")
 	print("[t_godlab] %s" % ("PASS" if failures.is_empty() else "FAIL %d" % failures.size()))

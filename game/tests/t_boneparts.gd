@@ -18,6 +18,7 @@ const PARTS := {
 	"zebraceratops": ["stout_leg_bone", "brow_horn", "frill_plate"],
 	"triceratops": ["large_leg_bone", "brow_horn", "frill_plate"],
 	"styracosaurus": ["large_leg_bone", "brow_horn", "frill_plate"],
+	"woolly_rhino": ["large_leg_bone", "brow_horn"],
 	"stegosaurus": ["large_leg_bone", "tail_spike", "dorsal_plate"],
 	"ankylosaurus": ["large_leg_bone", "tail_club", "armor_scute"],
 	"allosaurus": ["large_leg_bone"],

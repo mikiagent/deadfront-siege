@@ -181,8 +181,20 @@ func _test_town_dress(rt: Node3D, camp: Vector3) -> void:
 	# Pen animals carry their eye rims (hidden, energy 0 until a threat): only lights that are on count.
 	var lights: Array = town.find_children("*", "Light3D", true, false).filter(func (l: Node) -> bool: return (l as Light3D).visible and (l as Light3D).light_energy > 0.0)
 	_expect(lights.size() <= 4, "at most 4 real lights in town (%s)" % [lights.map(func (l: Node) -> String: return str(l.get_parent().name) + "/" + str(l.name))])
-	var mmis: Array = town.find_children("*", "MultiMeshInstance3D", false, false)
-	_expect(mmis.size() >= 20 and mmis.size() <= 220 and int(st["instances"]) > 800, "the town is batched: %d MultiMeshes, %d instances" % [mmis.size(), st["instances"]])
+	# ISOCAM streaming: only chunks within TownDress.STREAM_R of the player are in the tree; the budget
+	# counts the batches loaded around her (the town's total is st["mmi"]).
+	var p: Node3D = get_first_node_in_group(&"player") as Node3D  # not PlayerRegistry: this script compiles before the autoloads
+	if p:
+		town.call("stream", p.global_position)
+	var batches := func () -> Array: return town.find_children("Town_*", "MultiMeshInstance3D", false, false)
+	var mmis: Array = batches.call()
+	_expect(mmis.size() >= 20 and mmis.size() <= 220 and mmis.size() == int(town.call("loaded_batches")) and int(st["instances"]) > 800,
+		"the town is batched: %d MultiMeshes loaded around the player (%d in all), %d instances" % [mmis.size(), st["mmi"], st["instances"]])
+	if p:  # far from town nothing of it is loaded; walking back loads it again
+		town.call("stream", p.global_position + Vector3(2000, 0, 0))
+		var gone: int = (batches.call() as Array).size()
+		town.call("stream", p.global_position)
+		_expect(gone == 0 and (batches.call() as Array).size() == mmis.size(), "town chunks stream out far away (%d left) and back in" % gone)
 	var far_ok := true
 	for m in mmis:
 		far_ok = far_ok and (m as GeometryInstance3D).visibility_range_end > 0.0

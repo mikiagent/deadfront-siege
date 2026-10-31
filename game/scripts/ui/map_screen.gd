@@ -648,7 +648,7 @@ func _draw() -> void:
 		var goal: Vector2 = to_map.call(player._path_goal)
 		draw_arc(goal, 6.0, 0.0, TAU, 24, Color(1, 1, 1, 0.9), 2.0, true)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	# Compass: a dark disc left of ✕ (the atlas is north-up, and so is the HUD minimap: it turns with the camera, which looks north).
+	# Compass: a dark disc left of ✕ (the atlas is north-up; the HUD minimap turns with the camera and carries its own N marker).
 	var np := Vector2(_close.position.x - 40.0, _close.position.y + 32.0)
 	draw_circle(np, 24.0, Color(0.02, 0.025, 0.03, 0.9))
 	draw_colored_polygon(PackedVector2Array([np + Vector2(0, -16), np + Vector2(-6, -6), np + Vector2(6, -6)]), Color.WHITE)

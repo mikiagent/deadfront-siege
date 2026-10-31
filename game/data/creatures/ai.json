@@ -615,7 +615,7 @@
     },
     "antlered": {
       "is_herbivore": true,
-      "attack_range": 1.9,
+      "attack_range": 3.2,
       "weak_to": [
         "blunt"
       ],
@@ -630,8 +630,27 @@
           "flee_once_s": 3.0,
           "leash_m": 30.0,
           "weak_frac": 0.3
-        }
-      }
+        },
+        "point_blank": [
+          "heavy",
+          "kick",
+          "bite"
+        ],
+        "ring_m": 10.0,
+        "heavy_mult": 2.0,
+        "heavy_cd": 6.0,
+        "kick_cd": 4.0,
+        "kick_mult": 1.5,
+        "charge_cd": 7.0,
+        "charge_speed_mult": 1.6,
+        "charge_mult": 2.2,
+        "charge_shove_m": 4.5,
+        "display_s": 2.2,
+        "w_hold": 0.8,
+        "w_strafe": 0.4,
+        "_sp_megaloceros": "SP-MEGALOCEROS clips (2026-10-31): display = the stag's rut roar then antlers lowered and shaken; charge = head-down antler ram; point blank heavy = rear-up stomp (forehooves land ahead), kick = rear kick, bite = antler hook. The doe overrides per variant (megaloceros.json model_variants.doe.tactics): no straight ram, a run-in forehoof strike. ASSUMPTION numbers: Open Questions MG5."
+      },
+      "_attack_range": "ASSUMPTION: 3.2 (was 1.9): the 3.4 m-withers stag's head is 2.5 m ahead of its centre and its forehooves land ~1.7 m ahead; contact reach 3.5 m"
     },
     "club_tail": {
       "is_herbivore": true,
@@ -648,7 +667,10 @@
         "whip": {
           "clip": "attack_primary",
           "label": "TAIL WHIP",
-          "strike": [0.5, 0.72],
+          "strike": [
+            0.5,
+            0.72
+          ],
           "target_bearing_deg": 120.0,
           "target_dist_m": 3.0,
           "hit_radius_m": 1.1,
@@ -659,7 +681,10 @@
         "smash": {
           "clip": "attack_heavy",
           "label": "TAIL SMASH",
-          "strike": [0.62, 0.76],
+          "strike": [
+            0.62,
+            0.76
+          ],
           "slam": true,
           "slam_height_m": 0.9,
           "target_bearing_deg": 165.0,
@@ -675,7 +700,10 @@
         "sweep": {
           "clip": "tail_swipe",
           "label": "CLUB SWEEP",
-          "strike": [0.44, 0.78],
+          "strike": [
+            0.44,
+            0.78
+          ],
           "target_bearing_deg": 180.0,
           "target_dist_m": 2.8,
           "hit_radius_m": 1.1,
