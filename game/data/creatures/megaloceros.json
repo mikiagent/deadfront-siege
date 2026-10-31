@@ -81,6 +81,11 @@
       "run_turn_left",
       "run_turn_right"
     ],
+    "disabled_clips": [
+      "strafe_left",
+      "strafe_right"
+    ],
+    "disabled_clips_note": "MEGARUN (owner 2026-10-31: 'megaloceros doe strafe left animation is cursed... strafe right too'): CreatureAnim builds no strafe states, so a sideways step plays the forward walk. The joust brain never strafes; the GLBs stay for the clip viewer.",
     "model_variants": {
       "stag": {
         "texture": ""
@@ -88,6 +93,12 @@
       "doe": {
         "model": "doe/megaloceros_doe.glb",
         "anim": "doe/anim",
+        "natural_speeds": {
+          "run": 8.539,
+          "walk": 2.452,
+          "walk_back": 2.452
+        },
+        "natural_speeds_note": "MEGARUN: her run strides 0.85x the stag's (tools/gait/megaloceros/clips.py DOE_STRIDE), and the game draws her GLB 1.069x (fitted to height_meters), so 0.85 x 1.069 x anim_events natural_speeds.megaloceros.run (9.406 -> 8.539; t_megarun checks it). Her walk is in stag metres, so only the 1.069: 2.295 -> 2.452. Rebake both together.",
         "tactics": {
           "_about": "ASSUMPTION: the doe has no antlers, so no ram. MEGAJOUST (owner 2026-10-31: 'have the doe tackle mainly, like a give it your all tackle, low center of gravity, and have it joust like the male ... scared and desperate, running away and then charging/tackling but more running than charging'): her charge clip is the low tackle run, her pass a straight tackle through the threat (a lighter hit and shove than the stag's ram); after every pass she runs straight on away for joust.run_off_s before she wheels round (JoustBrain), her first flight is longer (territorial.flee_once_s) and she opens without a display. Point blank she still strikes, stomps or kicks. ASSUMPTION numbers: Open Questions MJ2.",
           "charge_straight": true,

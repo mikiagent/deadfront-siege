@@ -96,6 +96,19 @@ def two_bone(A, B, l1, l2, pole):
     return A + u * (l1 * ca) + w * (l1 * math.sqrt(1 - ca * ca)), A + u * dl
 
 
+HOCK_MARGIN = 3.0  # deg: the least bend the hock / carpus keeps in its own direction
+
+
+def signed_bend(knee, top, fet, side):
+    """Bend (deg) at top between knee->top and top->fet, signed about side."""
+    d1 = (top - knee).normalized(); d2 = (fet - top).normalized()
+    return math.degrees(math.atan2(side.dot(d1.cross(d2)), d1.dot(d2)))
+
+
+for _k, _L in LEGS.items():  # each leg's rest bend direction at the hock / carpus (+1 or -1)
+    _L["bend"] = 1.0 if signed_bend(HEAD[_L["low"]], HEAD[_L["can"]], HEAD[_L["foot"]], X) >= 0 else -1.0
+
+
 def apply(s):
     for pb in PB: pb.matrix_basis.identity()
     bpy.context.view_layer.update()
@@ -129,6 +142,15 @@ def apply(s):
             A = PB[L["up"]].matrix.translation.copy()
             pole = -(rot.to_3x3() @ Y)  # stifle points forward
         knee, top2 = two_bone(A, top, LEN[L["up"]], LEN[L["low"]], pole)
+        # MEGARUN (owner: "the legs are getting mangled"): the hock and the carpus never bend past straight the wrong
+        # way. A reaching or tucked leg could put the fetlock where the set cannon tilt overextended the joint; turn the
+        # cannon about the fetlock until the joint bends its rest way again (HOCK_MARGIN past straight).
+        for _ in range(6):
+            ang = signed_bend(knee, top2, fet, side)
+            if ang * L["bend"] >= HOCK_MARGIN: break
+            cdir = (R(side, -(ang - L["bend"] * HOCK_MARGIN) * 0.9).to_3x3() @ cdir).normalized()
+            top = fet + cdir * LEN[L["can"]]
+            knee, top2 = two_bone(A, top, LEN[L["up"]], LEN[L["low"]], pole)
         set_dir(PB[L["up"]], A, knee - A)
         set_dir(PB[L["low"]], knee, top2 - knee)
         fet2 = top2 + (fet - top)  # unreachable target: the cannon keeps its angle, the hoof lifts
@@ -177,7 +199,6 @@ def gait(t, cyc, duty, stride, phases, lift, travel=-Y, curl=55, tilt_f=40, tilt
 
 
 PH_WALK = {"HL": 0.0, "FL": 0.75, "HR": 0.5, "FR": 0.25}  # lateral sequence: LH, LF, RH, RF a quarter apart
-PH_GALLOP = {"HL": 0.0, "HR": 0.12, "FL": 0.52, "FR": 0.62}  # transverse gallop: hinds, suspension, fores
 
 
 def walk(t, T, travel=-Y, sideways=False):
@@ -191,14 +212,74 @@ def walk(t, T, travel=-Y, sideways=False):
     return s
 
 
+# MEGARUN (owner 2026-10-31: "the run animation is cursed too, especially obvious on the alpha variant"): a deer's
+# transverse gallop with one gathered suspension. Touchdowns HL 0, HR .1, FL .34, FR .44 of the cycle (PH = 1 - that),
+# each hoof planted for DUTY; after the right fore pushes off all four legs gather under the body in the air. A planted
+# hoof slides back at exactly stride / (DUTY x T) and its toe stays put through the heel-off (the fetlock turns about
+# the toe), so the game's stride match keeps it still on the ground. The old run flung the hind legs out behind (lift
+# off 1.2 m back, then a symmetric swing that lingered there): now the hind stance sits further forward and the hoof
+# tucks forward under the belly right after push-off, then retracts a little before it lands.
+PH_GALLOP = {"HL": 0.0, "HR": 0.9, "FL": 0.66, "FR": 0.56}
+DUTY = 0.34
+# The doe gallops in her own metres (stag strides overreached her shorter legs: hooves landed late and dragged in the
+# swing); her natural run speed is megaloceros.json model_variants.doe.natural_speeds.run = DOE_STRIDE x the stag's.
+DOE_STRIDE = 0.85
+G = 1.0 if STAG else DOE_STRIDE
+STRIDE = 0.70 * SH * G  # ground swept under a planted hoof
+REACH = {True: -0.06 * SH * G, False: 0.0}  # stance centre ahead of home (-Y is forward), front / hind
+
+
+HEEL = 20  # heel-off roll (deg)
+TOE_PIVOT = 1.45
+RETRACT = {True: 0.6, False: 0.9}  # touchdown speed back toward the body, x ground speed: front / hind
+
+
 def gallop(t, T, head_low=0.0, turn=0.0):
-    s = gait(t, T, 0.34, (0.76 * SH, 0.76 * SH), PH_GALLOP, (0.24, 0.20), -Y, curl=85, tilt_f=70, tilt_h=55, roll_toe=0.2, turn=turn)
+    """MEGARUN gallop; turn: arc radius (m, + = to the left) for MEGAJOUST's turning gallop (planted hooves follow
+    the arc through ground(), the swing hoof is carried along it the same way)."""
+    s = St()
+    for k, L in LEGS.items():
+        ph = (t / T + PH_GALLOP[k]) % 1.0
+        front = L["front"]
+        y0 = L["home"].y + REACH[front]
+        if ph < DUTY:
+            u = ph / DUTY
+            p = L["home"].copy(); p.y = y0 + STRIDE * (u - 0.5)
+            # heel off: the pastern rolls up over the toe, which stays planted
+            r = smooth((u - 0.78) / 0.22)
+            c = -HEEL * r
+            tip = p + L["toe"] * TOE_PIVOT  # the hoof's front edge, a little past the bone tip
+            p = tip - R(X, -c).to_3x3() @ (L["toe"] * TOE_PIVOT)
+            s.curl[k] = c
+        else:
+            u = (ph - DUTY) / (1 - DUTY)
+            # the hind leg leaves its push-off behind fast instead of trailing; the warp keeps slope 1 at touchdown
+            uy = u if front else u + 1.5 * u * (1 - u) ** 2
+            # Hermite in y: leaves still moving back (follow-through), arrives moving back at a fraction of ground speed
+            # (the retraction before touchdown), so it neither pops nor stabs forward at the ground
+            p0, p1 = y0 + STRIDE / 2, y0 - STRIDE / 2
+            m = STRIDE * (1 - DUTY) / DUTY  # ground speed in swing-u units
+            h00 = 2 * uy ** 3 - 3 * uy ** 2 + 1; h10 = uy ** 3 - 2 * uy ** 2 + uy; h01 = -2 * uy ** 3 + 3 * uy ** 2; h11 = uy ** 3 - uy ** 2
+            p = L["home"].copy(); p.y = h00 * p0 + h10 * 0.1 * m + h01 * p1 + h11 * RETRACT[front] * m
+            # the hind hoof peaks early (tucked under the belly), the fore mid-swing (folded at the carpus)
+            v = u ** (0.75 if not front else 1.0)
+            p.z += (0.20 if front else 0.17) * H * math.sin(math.pi * v) ** 0.9
+            b = math.sin(math.pi * min(1.0, v * (1.3 if front else 1.12))) ** 1.1  # a fore unfolds early to reach
+            s.curl[k] = (85 if front else 70) * b
+            s.tilt[k] = (70 if front else -48) * b
+        if turn:
+            # MEGAJOUST x MEGARUN: the straight foot's travel along y, bent onto the arc about its centre (ground())
+            q = L["home"].copy(); q.y = y0
+            d = p.y - y0
+            p = ground(q, d, turn) + (p - (q + Y * d))
+        s.feet[k] = p
     w = 2 * math.pi * t / T
-    # the back rocks: nose up as the forelegs land (gather), croup up as the hinds push off
-    s.pitch = 6.0 * math.sin(w - 0.5)
-    s.off.z = -0.02 * H + 0.035 * H * math.sin(2 * w - 0.8)
-    s.chest = 3 * math.sin(w)
-    s.neck[0] = -4 - 6 * math.sin(w - 0.2) - head_low; s.head = 4 * math.sin(w + 0.5) - head_low * 0.4
+    # one bounce per stride: lowest over the overlapping stances, highest in the gathered suspension (~0.89)
+    s.off.z = -0.025 * H + 0.025 * H * math.cos(w - 2 * math.pi * 0.89)
+    # nose up while the hinds drive and the fores reach (~0.2), down while the fores carry the weight (~0.7)
+    s.pitch = 5.0 * math.cos(w - 2 * math.pi * 0.2)
+    s.chest = 3 * math.cos(w - 2 * math.pi * 0.6)
+    s.neck[0] = -4 - 6 * math.cos(w - 2 * math.pi * 0.6) - head_low; s.head = 4 * math.cos(w - 2 * math.pi * 0.1) - head_low * 0.4
     s.tail[0] = 12 + 6 * math.sin(w)
     return s
 
@@ -206,7 +287,7 @@ def gallop(t, T, head_low=0.0, turn=0.0):
 def charge(t, T):
     s = gallop(t, T, head_low=0.0)
     # head down, antlers forward like a battering ram; the body lower and the neck stretched out
-    s.neck[0] -= 30; s.neck[1] -= 18; s.head -= 22; s.off.z -= 0.03 * H; s.pitch -= 2
+    s.neck[0] -= 18; s.neck[1] -= 26; s.head -= 22; s.off.z -= 0.03 * H; s.pitch -= 2  # MEGARUN: 18/26 (was 30/18): the new gallop's forelegs reach further under the neck (skin stretch)
     s.jaw = 6
     return s
 
@@ -220,7 +301,9 @@ def run_turn(t, T, sgn):
     """Turning gallop, sgn +1 = to the left: planted hooves follow the arc (ground() about the arc centre), the body
     banks into the turn and the spine and head look round it."""
     s = gallop(t, T, turn=sgn * TURN_R)
-    bank = 1.0 if STAG else 0.0  # the doe's run already sits at the stretch limit (11.8 of 12) at the hips: no bank
+    # MEGARUN merge: 0.6 (was 1.0): with the new gallop's fore reach a full 9 deg bank wrung the stag's forefeet past
+    # t_megarun's 30 deg twist limit. The doe's run already sits at the stretch limit (11.8 of 12) at the hips: no bank.
+    bank = 0.6 if STAG else 0.0
     s.roll += 9 * sgn * bank; s.spine_yaw = 5 * sgn * bank; s.head_yaw = 9 * sgn
     s.tail_yaw[0] = -6 * sgn
     return s
@@ -470,7 +553,14 @@ for name, (T, fn, loop) in CLIPS.items():
     if ONLY and name not in ONLY: continue
     act = bpy.data.actions.new(name)
     arm.animation_data_create(); arm.animation_data.action = act
-    N = max(2, int(round(T * FPS)))
+    # MEGARUN: a fast loop (the gallops) is keyed at 48 fps: at 24 the game's slerp between keys dipped a landing hoof
+    # 3 cm through its planted height
+    fps = 48 if loop and T < 1.0 else FPS
+    sc.render.fps = fps
+    N = max(2, int(round(T * fps)))
+    # MEGARUN: a loop is keyed from frame 0 (glTF time 0). Keyed from frame 1, its first key sat at 1/24 s and the game
+    # held that pose for 1/24 s every cycle: a hitch, and 40 cm of slide under the hooves planted at the seam.
+    f0 = 0 if loop else 1
     for f in range(N + 1):
         t = T * f / N
         s = fn(t % T if loop else t, T) if not loop else fn(t if f < N else 0.0, T)
@@ -492,9 +582,9 @@ for name, (T, fn, loop) in CLIPS.items():
                 q.z = max(q.z, LEGS[k]["home"].z * 0.9)
                 s.feet[k] = q
         apply(s)
-        key(f + 1)
+        key(f + f0)
     act.use_fake_user = True
-    sc.frame_start, sc.frame_end = 1, N + 1
+    sc.frame_start, sc.frame_end = f0, N + f0
     bpy.ops.object.select_all(action="DESELECT"); arm.select_set(True)
     bpy.context.view_layer.objects.active = arm
     path = os.path.join(OUT, name + ".glb")
