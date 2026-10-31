@@ -7,11 +7,12 @@ extends Node3D
 ## Godot --path game --position 6000,3000 -- --skip-charcreate --lab=stegospin_lab --out=DIR [--species=ankylosaurus]
 ##   [--variant=ochre] [--moves=spin_right,stomp]
 
-const STEGO: Array[StringName] = [&"spin_right", &"pivot_left", &"stomp", &"rear_slam", &"hind_stomp_right", &"shove_left", &"tackle"]
-const ANKY: Array[StringName] = [&"spin_left", &"joust"]
+const STEGO: Array[StringName] = [&"spin_right", &"pivot_left", &"stomp", &"rear_slam", &"hind_stomp_right", &"shove_left", &"shove_right", &"tackle"]
+## tail_whip / tail_smash: she stands in front inside tail_radius_m; it about-faces, then the planned whip or smash.
+const ANKY: Array[StringName] = [&"stomp", &"shove_right", &"shove_left", &"tackle", &"tail_whip", &"tail_smash", &"spin_left", &"joust"]
 ## Where she stands per move, body frame (+x its right, -z ahead), for the moves that have no aim spot of their own.
 const AT := {&"spin_right": Vector3(-4.0, 0, 6.0), &"spin_left": Vector3(0.6, 0, -4.4), &"pivot_left": Vector3(-6.0, 0, 9.0),
-	&"tackle": Vector3(0, 0, -7.5)}
+	&"tackle": Vector3(0, 0, -9.5), &"tail_whip": Vector3(0.3, 0, -3.4), &"tail_smash": Vector3(0.3, 0, -3.4)}
 
 var _out := ""
 var _species := &"stegosaurus"
@@ -83,6 +84,7 @@ func _run() -> void:
 		for _f in 10:
 			await get_tree().physics_frame
 		var b := c.brain as ClubTailBrain
+		b.stomp = null  # BIGSTOMP has its own shots (t_bigstomp); here each move is shown on its own
 		b.attack_target = player
 		b._provoked_until = b._now_s() + 60.0
 		if id == &"joust":
@@ -97,8 +99,14 @@ func _run() -> void:
 	get_tree().quit(0)
 
 func _move(c: Creature, b: ClubTailBrain, player: Player, cam: Camera3D, id: StringName, k: float) -> void:
+	var shot_id := id
+	if str(id).begins_with("tail_"):
+		b._move_n = 0 if id == &"tail_whip" else 2  # club_sequence whip, whip, smash
+		id = &"about_right"
 	var mv: Dictionary = b.moves[id]
-	var at: Vector3 = AT[id] if AT.has(id) else c.global_transform.affine_inverse() * b.strike_spot(id)
+	var at: Vector3 = AT[shot_id] if AT.has(shot_id) else c.global_transform.affine_inverse() * b.strike_spot(id)
+	if id == &"tackle" and _species == &"ankylosaurus":
+		at = Vector3(0, 0, -6.5)  # the run-up is short: she is just past the leap's reach
 	var spot := c.global_transform * at
 	player.global_position = Vector3(spot.x, 0.0, spot.z)
 	player.look_at(Vector3(0, 0, 0), Vector3.UP)
@@ -112,12 +120,23 @@ func _move(c: Creature, b: ClubTailBrain, player: Player, cam: Camera3D, id: Str
 			get_tree().paused = true
 			_caption.text = "%s %s  HIT at %.2f s%s" % [_species, mv.get("label", id), b.move_t, " (knockdown)" if mv.get("knockdown", false) else ""]
 	b.club_hit.connect(on_hit)
+	b._still_t = 1.0  # standing since the spawn: the brain's settle gate would hold a move started from a cold brain
 	b._start(id)
 	var marks := [60.0, 120.0, 180.0] if mv.has("turn_deg") else []
 	var windup := float((mv.get("strike", [0.5]) as Array)[0]) * b.move_len * 0.7
 	var shot_w := false
+	var shot_air := false
 	while b.move_id != &"":
 		await get_tree().physics_frame
+		if b.move_id != id and b.move_id != &"":
+			mv = b.moves[b.move_id]  # the about-face handed on to the tail move
+		if not shot_air and b._leap_t >= 0.0 and b._leap_t / b._leap_len >= lerpf(b._leap_air.x, b._leap_air.y, 0.5):
+			shot_air = true
+			_caption.text = "%s %s  airborne: thrown %.1f m of %.1f" % [_species, mv.get("label", id), (c.global_position - b._leap_from).length(), (b._leap_to - b._leap_from).length()]
+			get_tree().paused = true
+			await get_tree().process_frame
+			await _snap("%s_airborne" % shot_id)
+			get_tree().paused = false
 		if not _hit and player.statuses.has(&"knockdown") == false and not mv.has("turn_deg"):
 			player.global_position = Vector3(spot.x, 0.0, spot.z)  # she holds her spot until it lands
 		if not shot_w and b.move_t >= windup:
@@ -125,18 +144,18 @@ func _move(c: Creature, b: ClubTailBrain, player: Player, cam: Camera3D, id: Str
 			_caption.text = "%s %s  wind-up %.1f s%s" % [_species, mv.get("label", id), b.move_t, "" if b.pivots.has(id) else " (ring + name)"]
 			get_tree().paused = true
 			await get_tree().process_frame
-			await _snap("%s_windup" % id)
+			await _snap("%s_windup" % shot_id)
 			get_tree().paused = false
-		if not marks.is_empty() and absf(b.turn_applied) >= float(marks[0]):
-			_caption.text = "%s %s  turned %.0f deg about its %s front foot" % [_species, mv.get("label", id), absf(b.turn_applied), "right" if float(mv["turn_deg"]) < 0.0 else "left"]
+		if not marks.is_empty() and b.move_id == id and absf(b.turn_applied) >= float(marks[0]):
+			_caption.text = "%s %s  turned %.0f deg" % [_species, mv.get("label", id), absf(b.turn_applied)]
 			get_tree().paused = true
 			await get_tree().process_frame
-			await _snap("%s_turn%03d" % [id, int(marks[0])])
+			await _snap("%s_turn%03d" % [shot_id, int(marks[0])])
 			marks.pop_front()
 			get_tree().paused = false
 		if _hit and get_tree().paused:
 			await get_tree().process_frame
-			await _snap("%s_hit" % id)
+			await _snap("%s_hit" % shot_id)
 			get_tree().paused = false  # _hit stays set: one hit shot per move
 	b.club_hit.disconnect(on_hit)
 
