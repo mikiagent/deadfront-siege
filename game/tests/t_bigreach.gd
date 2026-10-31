@@ -169,9 +169,10 @@ func _approach(id: StringName, dir: Vector3, live: bool) -> void:
 	h.hit_landed.connect(cb)
 	h.start(c)
 	var t := 0.0
-	# HITBOXES: with its AI on it charges, knocks her down and turns away, and a swing at a part that moved misses.
-	var limit := APPROACH_S * (2.0 if live else 1.0)
-	while t < limit and landed[0] < 2:
+	# HITBOXES + KNOCKDOWN: with its AI on it charges, knocks her down or throws her (PlayerKnock) and turns away, so she
+	# gets up and walks back in; a swing at a part that moved misses.
+	var budget: float = APPROACH_S * (2.0 if live else 1.0)
+	while t < budget and landed[0] < 2:
 		await physics_frame
 		t += 1.0 / Engine.physics_ticks_per_second
 	h.hit_landed.disconnect(cb)

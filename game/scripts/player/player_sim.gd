@@ -66,10 +66,13 @@ const STARVING_AFTER := 600.0  # ASSUMPTION (memo 1.4): ten minutes on an empty 
 var starving_s := 0.0
 ## Sitting down to rest (the Rest hex, the X key): RestState.
 var rest: RestState
+## KNOCKDOWN: heavy hits knock her down or throw her (PlayerKnock); it owns the body while she is down.
+var knock: PlayerKnock
 
 func _init(player: Player) -> void:
 	p = player
 	rest = RestState.new(player)
+	knock = PlayerKnock.new(player)
 
 ## Dead: no input, only gravity.
 func hold_still(delta: float) -> void:
@@ -176,6 +179,9 @@ func tick(delta: float) -> void:
 	_wake_elapsed = 0.0
 	if p.statuses == null or p.vitals == null:
 		p.move_and_slide()
+		return
+	if knock.tick(delta):
+		p.controls.sync_touch_context()
 		return
 	if not p.is_on_floor() and p.mounted_on == null and not p.swimming:
 		p.velocity += p.get_gravity() * delta
@@ -554,8 +560,8 @@ const HIT_STUN_IMMUNE_S := 0.8
 
 func on_hit() -> bool:
 	var now_s := Time.get_ticks_msec() * 0.001
-	if p.rolling or now_s < _stagger_immune_until:
-		return false
+	if p.rolling or knock.active() or now_s < _stagger_immune_until:
+		return false  # a roll dodged it; knocked down she is already reacting
 	_stagger_left = hurt_stun_seconds()
 	_stagger_immune_until = now_s + _stagger_left + HIT_STUN_IMMUNE_S
 	p.clear_nav()
@@ -564,10 +570,16 @@ func on_hit() -> bool:
 ## Knocked back push metres (flat) over stagger_s, no control meanwhile; walls stop the slide (move_and_slide).
 ## A roll in flight dodged the hit, so it is not shoved.
 ## lift_mps: an upward kick on top (the woolly rhino's horn toss); gravity brings her down during the stagger.
-func shove(push: Vector3, stagger_s: float, lift_mps: float = 0.0) -> void:
+## KNOCKDOWN: a heavy enough push (push x the attacker's size, `who`) or any lift knocks her down or throws her
+## instead (PlayerKnock); only a light one is this slide.
+func shove(push: Vector3, stagger_s: float, lift_mps: float = 0.0, who: Creature = null) -> void:
 	if p.rolling or stagger_s <= 0.0 or push.length_squared() <= 0.0:
 		return
 	push.y = 0.0
+	if knock.hit(push, lift_mps, who) != PlayerKnock.Tier.LIGHT:
+		_stagger_left = 0.0
+		_shove = Vector3.ZERO
+		return
 	if lift_mps > 0.0 and p.mounted_on == null and not p.swimming:
 		p.velocity.y = lift_mps
 	_shove_s = stagger_s

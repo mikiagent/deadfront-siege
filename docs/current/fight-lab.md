@@ -67,6 +67,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Utahraptor | TacticalBrain (apex_raptor; the deinonychus profile, distances x1.4) | one devastating claw strike | backstep, strafe, pounce (x3.0), charge, combo, ambush from cover, leap-in, back-leaps | alert, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Velociraptor | TacticalBrain (pack_raptor; the deinonychus profile, distances x0.75, no tree ambush) | pounce knockdown from off-screen | sniff, then the investigate hold (3 s), then backstep, strafe, pounce, charge, combo, leap-in, back-leaps; lighter hits (pounce x2.0, combo x0.8) | alert, investigate, sniff, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
+| Survivor hit reactions (KNOCKDOWN, any species) | PlayerKnock (`game/scripts/player/player_knock.gd`) | knocked on her butt, thrown | from the hit, not the species: force = shove metres x attacker height / 3 m (0.6-1.5); light (< 2) the old shove + flinch, knockdown (>= 2: zebraceratops no, pachy ram yes, a heavy hit's Knockdown token) falls on her butt then back, lies 1 s, gets up; throw (>= 5 or any horn lift: triceratops, carnotaurus charge and horn ram, woolly rhino toss, styracosaurus impale, megaloceros stag charge) flies a 3-9 m arc, lands, tumbles, gets up; then Winded 3 s (-40 % move, no sprint, no attack); throw-tier hits unseat a rider; GOD shows it all, no damage | survivor: fall_back, airborne, lie, get_up, winded | new 2026-10-31, test |
 
 ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
 archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
@@ -94,6 +95,10 @@ are the deinonychus clips moved onto each rig (`tools/gait/transfer_clips.py --f
 Skittish-territorial (Gallimimus, Megaloceros; `tactics.territorial` in `ai.json`): the first threat sends it running;
 after 3 s, or when the flight outruns the leash, it turns on the threat (within 30 m) and fights while the threat stays.
 Under 30 % HP it runs again; once the threat is gone it grazes and the cycle restarts. Test: `game/tests/t_coelomoves.gd`.
+
+Knock shots: `-- --lab=creature_lab --god --skip-charcreate --species=triceratops --knockshots=DIR` (windowed, off screen
+with `--position 6000,3000`) fires the brain's charge impact on the survivor and saves one shot per phase (airborne,
+fall, lie, get_up, winded), then quits. Clips: `tools/make_knockdown_clips.py`. Test: `game/tests/t_knockdown.gd`.
 
 Cornered (owner 2026-10-31: "Animals that run away from you should get territorial and attack you if you chase them";
 `BrainCornered`, on every brain): any animal that is fleeing (skittish grazers on sight, defensive grazers and Timid
