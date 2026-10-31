@@ -258,7 +258,7 @@ func _test_heavy_far(id: StringName) -> void:
 			await physics_frame
 		var foot: Vector3 = PH.foot_point(c)
 		var ahead: Vector3 = -c.global_basis.z
-		_reset_player(foot - Vector3(0, foot.y, 0) + (Vector3(0.3, 0, 0) if near else ahead * 4.0 + c.global_basis.x * 2.0))
+		_reset_player(foot - Vector3(0, foot.y, 0) + (Vector3(0.3, 0, 0) if near else ahead * 9.0))
 		CA._apply_token(&"pinned", &"attack_heavy", player, c)
 		var pinned: bool = c.pin_victim == player
 		if near:

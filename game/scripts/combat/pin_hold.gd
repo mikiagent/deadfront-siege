@@ -8,7 +8,8 @@ extends RefCounted
 ## BIGSTOMP (owner 2026-10-31: "the trexes would pin me and it would teleport me under their feet"): the old exponential
 ## snap pulled a victim from anywhere the stomp's wide hit reached, metres per frame. Now a pin only starts on a victim
 ## already within pin_reach_frac x body height of the foot (can_start; the stomp that lands on her, or the jaws/pounce
-## that put her there), and she is pressed under the claws at most pin_slide_mps (ai.json big_stomp): no jump.
+## that put her there: the tarbosaurus' burst clamps her in its jaws ahead of the foot, so its row lets her be carried
+## further, faster), and she is pressed under the claws at most pin_slide_mps (ai.json big_stomp): no jump.
 
 const TOE_BONE := "Toe.R"
 ## Along Toe.R from the ball of the foot, in skeleton units: the claws (the T. rex Toe.R is 0.944 long).
@@ -28,7 +29,7 @@ static func foot_point(pinner: Creature) -> Vector3:
 
 ## A pin starts only on a victim already close to the pinning foot (no pulling her in from across the stomp's reach).
 static func can_start(pinner: Creature, victim: Node3D) -> bool:
-	var reach := float(BigStomp.section().get("pin_reach_frac", 0.3)) * pinner.def.height_meters * pinner.size_scale()
+	var reach := _num(pinner, "pin_reach_frac", 0.3) * pinner.def.height_meters * pinner.size_scale()
 	return BigStomp.flat(foot_point(pinner), chest_point(victim)) <= maxf(1.0, reach)
 
 ## World chest point of a survivor or creature (its first chest/spine bone), else its origin.
@@ -67,7 +68,11 @@ static func lay_down(pinner: Creature, victim: Node3D) -> void:
 static func snap(pinner: Creature, victim: Node3D, delta: float) -> void:
 	var d := foot_point(pinner) - chest_point(victim)
 	d.y = 0.0
-	victim.global_position += d.limit_length(float(BigStomp.section().get("pin_slide_mps", 3.0)) * delta)
+	victim.global_position += d.limit_length(_num(pinner, "pin_slide_mps", 3.0) * delta)
+
+## ai.json big_stomp: the species row's number, else the shared one (the tarbosaurus' burst carries her further, faster).
+static func _num(pinner: Creature, key: String, fallback: float) -> float:
+	return float(BigStomp.species_row(pinner.def.id).get(key, BigStomp.section().get(key, fallback)))
 
 static func _skeleton(n: Node3D) -> Skeleton3D:
 	if n is Player:

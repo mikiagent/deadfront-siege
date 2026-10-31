@@ -1286,7 +1286,9 @@
           0.337
         ],
         "pin_bone": "Toe.R",
-        "pin_reach": 0.85
+        "pin_reach": 0.85,
+        "pin_reach_frac": 0.8,
+        "pin_slide_mps": 6.0
       },
       "triceratops": {
         "land": [
