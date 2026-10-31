@@ -88,3 +88,33 @@ Multiplier x2.0 unless shown. Heights are at rest and size 1; idle poses carry h
 | zebraceratops | behind_frill | Neck | 0.18 | 2.0 | 1.51 |
 | brachiosaurus (stand-in) | head | none (fallback) | 0.35 | 2.0 | 85 % of height |
 | protoceratops (retired stand-in) | head | none (fallback) | 0.35 | 2.0 | 85 % of height |
+
+The stand-in heights are 85 % of the body's height.
+
+## Shots (`docs/orchestration/reports/critspots/`)
+All shots come from windowed off-screen runs that quit themselves: `--position 6000,3000 -- --skip-charcreate --lab=critspot_lab --out=DIR`.
+- `velociraptor.png`, `tyrannosaurus.png`, `ankylosaurus.png`, `stegosaurus.png`, `triceratops.png`, `woolly_rhino.png`: the H debug view, with hurtboxes in green and crit spots in magenta.
+- `crit_landing.png`: the game camera on the survivor's real auto-attack. The lab moved her around a velociraptor until a swing landed in its head (natural, not scripted; it took 9 to 24 tries across runs). The shot shows the gold "WEAK SPOT -1!" float, the gold flash, and the glow on the spot. The damage is 1 because the lab's raptor has 1e9 HP.
+
+## Gates (final tree, after merging canon at carnofeel + stegoslam)
+- New test `game/tests/t_critspots.gd`: **PASS**. It checks:
+  - Every species in `data/creatures` has 1-3 spots, including the stand-ins. Every modelled species has its own row.
+  - Every spot bone exists on each model (base, triceratops alpha, megaloceros doe), and every spot sits on the body.
+  - A sweep through a spot, run through `Hitbox._sweep`, carries the spot. The swing then crits at exactly the spot's mult (velociraptor, ankylosaurus, T. rex, woolly rhino).
+  - A hit on the body away from every spot carries no spot. It does not crit when the chance crit is 0, and crits at x1.75 when the chance is 1.
+  - A stone through a spot hits at the spot's mult.
+  - The feedback fires: the WEAK SPOT kind, a burst on the spot, the gold flash, the hit-stop holding and then releasing, the glow after the first hit, and magenta in the H view.
+- `t_hitboxes` PASS, `t_combat` PASS, `t_knockdown` PASS.
+- `run_all.gd`: `[tests] PASS`.
+- `tools/smoke.sh --no-import`: SMOKE PASS.
+- No new species landed in the merges. Carnofeel and stegoslam changed only moves.
+
+## For the next agent
+- **A new species**: run `godot --headless --path game --script res://tests/t_hitboxes.gd -- --bones`, then add `crit_spots.species.<id>` with offsets measured from the bone origin. `t_critspots` fails until the row exists.
+- **Reach**: the heads of the big theropods, the styracosaurus frill and the stegosaurus throat are out of reach on foot. Melee gets the hamstrings and bellies; the rest is for ranged or mounts later.
+- **Ranged shortcut (CS6)**: a stone is tested along its flight into the body's collision capsule. A spot outside that capsule, such as a T. rex head, cannot be shot until stones test the hurtboxes on layer 20.
+- **Not done**:
+  - The server's `act.attack` has no hitboxes, so it keeps only the chance crit.
+  - Creature-on-creature and creature-on-survivor hits ignore spots.
+  - The camera shake is not asserted in the test, because a headless run has no IsoCamera. It is visible in the lab.
+- **Balance**: every mult and radius is an ASSUMPTION waiting for the balance pass (systems before balance).
