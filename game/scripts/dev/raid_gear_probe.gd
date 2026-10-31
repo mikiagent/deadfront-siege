@@ -96,7 +96,7 @@ func run(_host: Node) -> void:
 	seed(12345)
 	CombatTuning.rng.seed = 12345
 	CreatureAttack._apply_token(&"fracture", &"attack_primary", player, boss)
-	CreatureAttack._apply_token(&"pinned", &"attack_primary", player, boss)
+	CreatureAttack._apply_token(&"pinned", &"attack_heavy", player, boss)  # PINFEEL: the stomp is what pins
 	CreatureAttack._apply_token(&"deafened", &"attack_primary", player, boss)
 	check(not player.statuses.has(&"fracture") and not player.statuses.has(&"pinned") and player.statuses.has(&"deafened"), "kit keeps deafened, prevents fracture/pinned")
 	if "--raid-gear-shot" in OS.get_cmdline_user_args():
