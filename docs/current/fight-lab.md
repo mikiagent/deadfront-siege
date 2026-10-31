@@ -71,6 +71,12 @@ archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots 
 ANKYLOCLOSE: the close moves and the zone that draws them are `ai.json archetypes.club_tail.close_moves` / `close_zone`;
 test `game/tests/t_ankyloclose.gd`; review shots `--lab=ankyloai_lab --out=DIR --moves=stomp,shove_right,tackle`.
 
+Planted flinch (owner 2026-10-31, "rattled but the feet stay planted"): a hit never moves the feet. Without an
+authored hit_react the body rattles on the bones (head chain pitch + yaw, tail sway; legs and root untouched); with
+one, the clip plays and the feet's drift is taken off the root bone. Code: `game/scripts/creatures/planted_flinch.gd`
+(a SkeletonModifier3D on every rigged creature); test `game/tests/t_plantedflinch.gd` (run with `--fixed-fps 60`);
+review shots `--lab=plantedflinch_lab --out=DIR`.
+
 No glide (owner 2026-10-31): a body never moves under a one-shot. Attacks play in place; alert, sniff and hit_react
 give way to the stride-matched gait when the brain moves the body; leaps move on their own arc. Test:
 `game/tests/t_compyfeel.gd` (planted-toe slide per step, live fights for compsognathus, deinonychus, ankylosaurus).
