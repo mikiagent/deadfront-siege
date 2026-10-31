@@ -3,7 +3,8 @@ extends SceneTree
 ## modelled species fights the GOD survivor (auto-fighting, so her kick and tackle fire) in a lab world with a baked
 ## navmesh, and no physics frame moves its body, or its hips within the body, further than its top speed x dt x 3
 ## (top speed: its run at the charge multiplier, or LEAP_MPS for leaps; a fast turn swinging the hips round is not a
-## jump). Then the survivor kicks each kickable animal: it slides back over the stagger, never in one frame. The cause was the survivor's kick: CombatTactics.kick moved the
+## jump). Then the survivor kicks each kickable animal: it slides back over the stagger, never in one frame.
+## The cause was the survivor's kick: CombatTactics.kick moved the
 ## target its whole push (3.5 m on a pachy or a smilodon) in one move_and_collide; now Creature.shove slides it.
 ## Run: Godot --headless --path game --script res://tests/t_noteleport.gd  -> "[t_noteleport] PASS", exit 0.
 ## Env NOTELEPORT_SPECIES=a,b limits the roster.
@@ -110,25 +111,28 @@ func _hips(c, sk: Skeleton3D, hips: int) -> Vector3:
 		return Vector3.ZERO
 	return c.global_transform.affine_inverse() * (sk.global_transform * sk.get_bone_global_pose(hips)).origin
 
-## The survivor's kick, 2 m in front of her, brain off: the animal ends >= 1 m back, never more than lim in a frame.
+## The survivor's kick, 2 m in front of her, both brains still (her loop and its brain off, its path cleared): the
+## animal slides >= 0.3 m back, never more than lim in a frame.
 func _kick(player, c, lim: float) -> void:
 	c.brain.process_mode = Node.PROCESS_MODE_DISABLED
-	c.global_position = player.global_position + Vector3(0, -0.9, -2.0)
+	c.stop_move()
+	player.process_mode = Node.PROCESS_MODE_DISABLED  # no auto-fight, no hurt clip running on
+	player.rolling = false
+	player.statuses.clear_all()  # a charge may have knocked her down (cannot_act)
+	player.sim._stagger_left = 0.0
+	player.anim._busy = false
+	player.vitals.energy = player.vitals.effective_max_energy()
+	c.global_position = player.global_position + Vector3(0, -0.95, -2.0)
 	c.velocity = Vector3.ZERO
 	c.stagger_left = 0.0
 	await physics_frame
-	player.vitals.energy = player.vitals.effective_max_energy()
+	await physics_frame
 	player.hunt.commit_tactic(&"kick", 0.0, 0.0)
 	player.hunt.start(c)
-	for _w in 120:  # she may still be staggered or in her hurt clip from the fight
-		c.global_position = player.global_position + Vector3(0, -0.9, -2.0)
-		c.velocity = Vector3.ZERO
-		await physics_frame
-		player.hunt.use_kick()
-		if player.hunt.cooldown_left(&"kick") > 0.0:
-			break
+	var p0: Vector3 = c.global_position
+	player.hunt.use_kick()  # the old code moved it right here, inside the call
 	player.hunt.stop()
-	var p0: Vector3 = player.global_position + Vector3(0, -0.9, -2.0)
+	var fired: bool = player.hunt.cooldown_left(&"kick") > 0.0
 	var prev := p0
 	var worst := 0.0
 	for f in 40:
@@ -137,4 +141,5 @@ func _kick(player, c, lim: float) -> void:
 		prev = c.global_position
 		await physics_frame
 	var moved := Vector2(c.global_position.x - p0.x, c.global_position.z - p0.z).length()
-	_expect(worst <= lim and moved >= 0.3, "%s: the kick slides it %.2f m back, worst frame %.2f m <= %.2f m" % [c.def.id, moved, worst, lim])
+	_expect(fired and worst <= lim and moved >= 0.3, "%s: the kick (fired %s, '%s') slides it %.2f m back, worst frame %.2f m <= %.2f m" % [c.def.id, fired, player.hunt.last_notice, moved, worst, lim])
+	player.process_mode = Node.PROCESS_MODE_INHERIT
