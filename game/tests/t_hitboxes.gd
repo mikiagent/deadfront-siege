@@ -77,7 +77,13 @@ func _run() -> void:
 	var PANEL = load("res://scripts/dev/lab_spawn_panel.gd")
 	for id in PANEL.all_species():
 		if CreatureDef.has_model(id):
-			species.append(id)
+			# A species with its own model per variant (megaloceros stag / doe) is checked once per model.
+			var mv: Dictionary = data.creature(id).pipeline.get("model_variants", {})
+			if mv.size() > 1:
+				for v in mv:
+					species.append(StringName("%s/%s" % [id, v]))
+			else:
+				species.append(id)
 	if calibrate:
 		for id in species:
 			await _calibrate_species(id)
@@ -98,14 +104,17 @@ func _run() -> void:
 	print("[t_hitboxes] %s" % ("PASS" if failures.is_empty() else "FAIL %d" % failures.size()))
 	quit(0 if failures.is_empty() else 1)
 
+## id is a species, or "species/variant" for one of its models.
 func _spawn(id: StringName, at: Vector3, brain_on: bool = false, size: float = 0.0):
+	var variant := StringName(str(id).get_slice("/", 1)) if str(id).contains("/") else &""
+	id = StringName(str(id).get_slice("/", 0))
 	var c = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	host.add_child(c)
 	c.global_position = at
 	if size > 0.0:
 		c.genetics = load("res://scripts/creatures/creature_genetics.gd").new()
 		c.genetics.size = size
-	c.spawn(data.creature(id))
+	c.spawn(data.creature(id), variant)
 	c.health.setup(1e9)
 	if not brain_on:
 		c.brain.process_mode = Node.PROCESS_MODE_DISABLED
@@ -156,7 +165,7 @@ func _moves_of(c) -> Array:
 		for st in (sq as Dictionary).get("steps", []):
 			steps[str(st)] = true
 	if steps.has("pounce"):
-		var land: float = c.body_radius() + 0.2  # TacticalBrain lands the leap this far from her centre
+		var land: float = c.brain._land_short()  # TacticalBrain lands the leap this far short of her centre
 		out.append([&"pounce", 0, false, [land, (land + reach) * 0.5, reach]])
 	if steps.has("charge") and tac.get("charge_straight", false):
 		out.append([&"charge", 0, false, [reach]])
@@ -250,7 +259,10 @@ func _bone_track_check(c) -> void:
 			clear = false
 	if clear:
 		var fake = _fake_target(start, 0.1)
-		_expect(HX._sweep(smp, sk.global_transform, fake, false).is_empty(), "%s %s: a target where the part is before the window is not hit" % [c.def.id, mv])
+		var first_part := []
+		for row in smp:
+			first_part.append([row[0]])
+		_expect(HX._sweep(first_part, sk.global_transform, fake, false).is_empty(), "%s %s: a target where the part is before the window is not hit" % [c.def.id, mv])
 		fake.free()
 	c.anim.tree.active = true
 	ap.stop()
@@ -419,7 +431,7 @@ func _calibrate_species(id: StringName) -> void:
 	if id == &"ankylosaurus":
 		return
 	var done := {}
-	var range_: Vector2 = load("res://scripts/creatures/creature_genetics.gd").size_range_for(data.creature(id))
+	var range_: Vector2 = load("res://scripts/creatures/creature_genetics.gd").size_range_for(data.creature(StringName(str(id).get_slice("/", 0))))
 	for size in [range_.x, range_.y]:
 		var c = _spawn(id, Vector3.ZERO, false, size)
 		await _frames(3)

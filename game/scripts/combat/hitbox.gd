@@ -51,9 +51,12 @@ static func move_spec(attacker: Node, move: StringName, hit_index: int = 0, weap
 	var d := data()
 	if attacker is Creature:
 		var sp: Dictionary = (d.get("species", {}) as Dictionary).get(str((attacker as Creature).def.id), {})
-		row = ((sp.get("moves", {}) as Dictionary).get(str(move), {}) as Dictionary).duplicate()
+		# variants.<model variant> (the megaloceros doe's forehooves) overrides the species row move by move.
+		var vr: Dictionary = (sp.get("variants", {}) as Dictionary).get(str((attacker as Creature).variant), {})
+		var mv_row: Variant = (vr.get("moves", {}) as Dictionary).get(str(move), (sp.get("moves", {}) as Dictionary).get(str(move), {}))
+		row = (mv_row as Dictionary).duplicate()
 		if not row.has("parts"):
-			row["parts"] = sp.get("parts", (d.get("creature_defaults", {}) as Dictionary).get("parts", []))
+			row["parts"] = vr.get("parts", sp.get("parts", (d.get("creature_defaults", {}) as Dictionary).get("parts", [])))
 	else:
 		var sv: Dictionary = d.get("survivor", {})
 		row = ((sv.get("moves", {}) as Dictionary).get(str(move), {}) as Dictionary).duplicate()

@@ -110,6 +110,10 @@ func _touch_checks(id: StringName) -> void:
 	var h = player.hunt
 	for side in [["side", Vector3.RIGHT], ["rear", Vector3.BACK], ["front", Vector3.FORWARD]]:
 		var dir: Vector3 = side[1]
+		# HITBOXES: the last side's hit (groggy, its flinch) moves the body; touch the animal at rest.
+		c.statuses.clear_all()
+		c.anim.play_idle()
+		await _frames(20)
 		var d := _touch_dist(c, dir)
 		if d < 0.0:
 			print("[t_bigreach] skip %s %s: its collider holds her off every part at her height" % [id, side[0]])

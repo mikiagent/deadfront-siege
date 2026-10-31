@@ -282,8 +282,11 @@ func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3, mv: Array = [])
 		# HITBOXES: the swing's fist or blade, swept through the clip's window where she stands now.
 		if mv.is_empty():
 			mv = swing_move(w)
-		# She tracks her target through the swing (PlayerSim.face_tick turns her to it every frame).
-		var hit := Hitbox.strike(player, mv[0], t, 0, mv[1], false, aim_point(t) - player.global_position)
+		# Judged facing where the swing was aimed when it started (the reach test's direction), else where
+		# she has turned since (PlayerSim.face_tick tracks the nearest part, which can flip mid-swing).
+		var hit := Hitbox.strike(player, mv[0], t, 0, mv[1], false, forward)
+		if hit.is_empty():
+			hit = Hitbox.strike(player, mv[0], t, 0, mv[1], false, aim_point(t) - player.global_position)
 		if hit.is_empty():
 			CombatAvoid.avoided(t, player, &"miss")
 			return  # it stepped out of the swing
