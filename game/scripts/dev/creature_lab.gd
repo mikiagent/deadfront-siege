@@ -19,6 +19,9 @@ extends Node3D
 ## three-quarter row over a side row) to DIR/<species>_<clip>.png, then quits. Brain off, tree stepped by hand.
 ## --lineup=DIR [--species=a,b,c]: those species (default the three raptors) side-on in a row at body size 1.0
 ## beside the survivor, each mesh's measured length and height printed, DIR/lineup.png saved, then quits.
+## --impaleshots=DIR: STYRAFIX. One Aggressive styracosaurus 22 m off a standing survivor, a side camera. It paws,
+## charges and impales her (the first charge), then she rolls out of the second one (the miss). A frame is saved at
+## every phase (paw, run, impale hit, carried, flung, recover) as DIR/<n>_<phase>.png, then the lab quits.
 
 var _player: Player
 ## The on-screen SPAWN selector (species, count 1-6, nature, Alpha; Spawn / Clear all).
@@ -65,6 +68,9 @@ func _ready() -> void:
 			(func() -> void: spawn_panel.get_node("SpawnPanel").visible = true).call_deferred()
 		elif a.begins_with("--lineup="):
 			_lineup.call_deferred(a.substr(9), only)
+			return
+		elif a.begins_with("--impaleshots="):
+			_impaleshots.call_deferred(a.substr(14))
 			return
 		elif a.begins_with("--clipshots="):
 			_clipshots.call_deferred(a.substr(12), StringName(only.get_slice(",", 0)))
@@ -279,6 +285,66 @@ func _obstacle(pos: Vector3) -> void:
 	cs.shape = sh
 	body.add_child(cs)
 	add_child(body)
+
+func _impaleshots(dir: String) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	for c in get_tree().get_nodes_in_group(&"creatures"):
+		c.queue_free()
+	_player.global_position = Vector3(0, 0.9, 0)
+	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
+	add_child(c)
+	c.global_position = Vector3(0, 0.1, -22)
+	c.spawn(Data.creature(&"styracosaurus"), &"", 0, null, 0, &"aggressive")
+	c.view.apply_genome(1.0, 1.0)
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.fov = 50.0
+	cam.current = true
+	var shots := [0]
+	var b := c.brain as TacticalBrain
+	var snap := func(tag: String) -> void:
+		await RenderingServer.frame_post_draw
+		shots[0] += 1
+		get_viewport().get_texture().get_image().save_png("%s/%02d_%s.png" % [dir, shots[0], tag])
+		print("[impaleshots] %02d_%s phase=%s clip=%s gap=%.2f" % [shots[0], tag, b._charge_phase, c.anim.current_clip, b.impale_gap])
+	var charges := [0]
+	b.tactic.connect(func(kind: StringName) -> void:
+		if kind == &"charge":
+			charges[0] += 1)
+	b.on_aggro(_player)
+	var done: Array[String] = []
+	var t0 := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - t0 < 60000 and done.size() < 9:
+		await get_tree().physics_frame
+		if _player.hunt and _player.hunt.target:
+			_player.hunt.stop()  # she stands: the lab shows the charge, not her fight
+		_player.vitals.health = _player.vitals.effective_max_health()
+		var mid := (c.global_position - c.global_basis.z * 5.0 + _player.global_position) * 0.5  # head and survivor
+		cam.global_position = mid + Vector3(18, 4, 0)  # side-on to the line
+		cam.look_at(mid + Vector3(0, 2.5, 0))
+		var key := "%d_%s" % [charges[0], b._charge_phase]
+		if b._charge_phase == &"paw" and b._phase_t > 0.5 and not done.has(key):
+			done.append(key)
+			await snap.call("paw")
+		elif b._charge_phase == &"run" and b._run_v > 5.0 and not done.has(key):
+			done.append(key)
+			await snap.call("run")
+			if charges[0] == 2:
+				_player.sim.try_roll(b._charge_dir.cross(Vector3.UP).normalized())  # the dodge: the run misses
+		elif b._charge_phase == &"impale" and b._charge_hit and not done.has(key):
+			done.append(key)
+			await snap.call("impale_hit")
+		elif b._charge_phase == &"impale" and b._caught and b._phase_t > 0.45 and not done.has(key + "c"):
+			done.append(key + "c")
+			await snap.call("carried")
+		elif b._charge_phase == &"impale" and b._caught == null and b._charge_hit and b._phase_t > 0.65 and not done.has(key + "f"):
+			done.append(key + "f")
+			await snap.call("flung")
+		elif b._charge_phase == &"recover" and b._phase_t > 0.5 and not done.has(key):
+			done.append(key)
+			await snap.call("recover_miss" if charges[0] == 2 else "recover")
+	print("[impaleshots] done %s" % [done])
+	get_tree().quit()
 
 func _lineup(dir: String, only: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)

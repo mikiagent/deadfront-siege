@@ -787,6 +787,7 @@ func _charge_impale(delta: float) -> void:
 			_charge_to = creature.global_position + _charge_dir * (_flat_dist(attack_target) + _t("charge_through_m", 2.5))
 			_left = _t("charge_max_s", 1.6)
 			_run_v = 0.0
+			creature.anim.release_oneshot()  # a second paw may still be playing: the run clip takes over now
 			_charge_phase = &"run"
 			_phase_t = 0.0
 			tactic.emit(&"charge")
@@ -866,7 +867,8 @@ func _impale_contact() -> bool:
 	var reach := _t("impale_reach_m", 0.0) * creature.size_scale()
 	if reach <= 0.0:
 		return _flat_between(horn_tip(), attack_target.global_position) <= _t("impale_r_m", 1.6)
-	return along <= reach + 0.6 and along >= reach - 0.6 and _flat_between(to, _charge_dir * along) <= _t("impale_r_m", 1.6)
+	# Approached from in front: the first frame inside the window is within one step (~0.15 m) of reach + 0.2.
+	return along <= reach + 0.2 and along >= reach - 0.8 and _flat_between(to, _charge_dir * along) <= _t("impale_r_m", 1.6)
 
 ## The impale's hit frame: she is caught where the horn tip is now (gap = how far she was from it).
 func _impale_hit() -> void:

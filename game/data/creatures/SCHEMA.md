@@ -77,7 +77,10 @@ Optional: `variants[]`, `rig_note`, `stats.bag_slots`, `pipeline{}` (Codex adds
 task ids and accepted file names here so the game can show provenance in the
 codex screen later), `taming{}` (field-tame food and feed counts; see below),
 `turn_rate` (max yaw rate in rad/s; default by `real_length_m`: <= 8 m 5.0, <= 14 m 3.0,
-larger 1.4, see `CreatureDef.default_turn_rate`).
+larger 1.4, see `CreatureDef.default_turn_rate`), `tactics{}` (knobs that override the archetype's
+`ai.json` tactics for this species only; `attack_range` there sets its reach. The styracosaurus uses it for
+its 3x distances and the impale charge: `charge_impale`, `charge_min_m`, `impale_reach_m`, `impale_r_m`,
+`toss_up_mps`, `charge_recover_s`).
 
 `archetype` values the game implements: `apex_raptor`, `raptor_pack`,
 `flock_harass`, `swarm`, `runner`, `venom_ranged`, `pack_mule`, `horned_charger`,
