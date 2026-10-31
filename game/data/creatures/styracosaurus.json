@@ -54,6 +54,8 @@
   "look": "about 5 meter ceratopsian, barrel body on pillar legs, parrot beak, one long straight nose horn, big neck frill ringed by long cream spikes (longest at the top) with small edge spikes and cheek bosses, amber eyes, rust-red hide with broad cream-white tiger stripes on flanks and tail, greenish-grey belly and legs, cream horns with darker tips, dark hoof-claws,",
   "texture_prompt": "rust-red and brown pebbled hide with broad cream-white vertical tiger stripes on flanks and tail, greenish-grey underbelly and legs, cream horns and frill spikes with darker tips, dark blunt hoof-claws, matte surface",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
+    "pin_foot": "BIGSTOMP: the stomping foot pressed down on a pinned victim, held until the pin ends",
     "attack_primary": "Horned dinosaur swings its head sideways",
     "attack_heavy": "Horned dinosaur lowers its horn, holds, then charges",
     "knockdown": "Horned dinosaur topples onto its side",

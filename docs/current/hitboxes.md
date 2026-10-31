@@ -95,11 +95,13 @@ part that needs the least. Shrink a radius when the clip or the AI spacing is fi
 | gallimimus | attack_heavy BackFoot.R 1.27; attack_primary Head 1.04; bite_combo Head 1.10 |
 | majungasaurus | attack_primary Jaw 1.22; attack_heavy (headbutt) Head 1.75; pin_stab Jaw 1.32 |
 | megaloceros | kick BackFoot.R 0.89; charge Head 2.01; attack_primary Head 2.01; attack_heavy Head 2.02 |
-| megaloceros (doe) | attack_primary FrontFoot.R 3.09; attack_heavy Head 2.36 |
+| megaloceros (doe) | attack_primary FrontFoot.R 3.09; attack_heavy Head 2.36; kick BackFoot.R 1.00 |
+| megatherium | attack_primary FrontFoot.R 0.50; attack_heavy FrontFoot.R 0.95; pounce FrontFoot.R 1.02; charge ClawTip.L 2.68; pin_stab ClawTip.L 0.69 |
 | megarex | attack_heavy Toe.R 2.67; tail_swipe Tail5 4.59; attack_primary Head 7.20; bite_shake Head 7.00 |
 | pachycephalosaurus | charge Jaw 0.87; kick Tail2 2.17; attack_primary Head 0.61; attack_heavy Jaw 0.64 |
 | raptor | attack_primary Head 0.77; bite_combo Head 0.83; pounce Head 1.69; pin_stab Head 1.80 |
 | smilodon | attack_primary FrontFoot.R 1.06; attack_heavy Head 0.85; pounce Head 0.91; pin_stab Head 0.76 |
+| spinosaurus | attack_primary Jaw 1.73; attack_heavy (claw rake) Hand.R 3.22; pounce Jaw 3.03; bite_shake Head 1.70 |
 | stegosaurus | attack_primary head 1.78; attack_heavy head 1.66 |
 | styracosaurus | kick BackFoot.L 1.44; charge Head 1.13; attack_primary Head 1.17; attack_heavy Head 1.17 |
 | tarbosaurus | attack_primary Head 2.07; attack_heavy Head 1.70; pounce Head 1.96 |

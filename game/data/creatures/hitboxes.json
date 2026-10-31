@@ -476,9 +476,12 @@
          "bone": "BackFoot.L"
         },
         {
-         "bone": "BackFoot.R"
+         "bone": "BackFoot.R",
+         "radius": 1.0,
+         "calibrated": true
         }
-       ]
+       ],
+       "_note": "MEGAJOUST x HITBOXES (integrator): the doe's joust-era hind kick, calibrated"
       }
      }
     }
@@ -1532,6 +1535,180 @@
       },
       {
        "bone": "Tail5"
+      }
+     ]
+    }
+   }
+  },
+  "spinosaurus": {
+   "_note": "SP-SPINOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.73,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Hand.L"
+      },
+      {
+       "bone": "Hand.R",
+       "radius": 3.22,
+       "calibrated": true
+      },
+      {
+       "bone": "Forearm.L"
+      },
+      {
+       "bone": "Forearm.R"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 3.03,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_shake": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.7,
+       "calibrated": true
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail4"
+      },
+      {
+       "bone": "Tail5"
+      },
+      {
+       "bone": "Tail6"
+      }
+     ]
+    }
+   }
+  },
+  "megatherium": {
+   "_note": "SP-MEGATHERIUM x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "ClawTip.L"
+    },
+    {
+     "bone": "ClawTip.R"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.5,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.95,
+       "calibrated": true
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 1.02,
+       "calibrated": true
+      }
+     ]
+    },
+    "charge": {
+     "parts": [
+      {
+       "bone": "ClawTip.L",
+       "radius": 2.68,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R"
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.69,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R"
       }
      ]
     }

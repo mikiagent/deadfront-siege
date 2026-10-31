@@ -80,9 +80,9 @@ for f in sorted(os.listdir(anim_dir)):
     bad, extra = [], ""
     if stretch > 12.0: bad.append(f"stretch {stretch:.2f}")
     if lo < -0.03: bad.append(f"sinks {lo:.3f}")
-    if clip not in LYING and clip not in ("run", "charge") and hi_low > 0.05: bad.append(f"floats {hi_low:.3f}")
+    if clip not in LYING and clip not in ("run", "charge", "run_turn_left", "run_turn_right") and hi_low > 0.05: bad.append(f"floats {hi_low:.3f}")
     drift = {}
-    if clip in ("walk", "run", "walk_back"):
+    if clip in ("walk", "run", "walk_back", "charge", "run_turn_left", "run_turn_right"):  # MEGAJOUST: the gallops too
         for k, seq in feet.items():
             best, cur = [], []
             for z, y in seq:

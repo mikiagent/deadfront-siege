@@ -31,6 +31,8 @@
   "look": "woolly rhinoceros standing 2.9 meters at the shoulder hump, barrel body under a thick dark grey-brown curly coat, a long pale curved nose horn and a short second horn, short thick legs, small ears, a tufted tail",
   "texture_prompt": "dark grey-brown curly wool, darker legs and face, pale bone-coloured horns, matte surface",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
+    "pin_foot": "BIGSTOMP: the stomping foot pressed down on a pinned victim, held until the pin ends",
     "alert": "Woolly rhino drops its head, snorts and paws the ground three times with a forefoot: the telegraph before its charge",
     "charge": "Head-down gallop with the nose horn levelled forward",
     "toss": "At the charge's impact the head whips up and to the side, hooking the horn up through the target",
@@ -53,6 +55,15 @@
   },
   "tactics": {
     "base": "horned_charger",
+    "joust": {
+      "_about": "MEGAJOUST (owner 2026-10-31: 'the jousting brain is good for many of the four legged animals'): JoustBrain, charge through, wheel wide, charge again; no strafe or hop. ASSUMPTION numbers (Open Questions MJ3). The toss on impact stays; the paw display opens a fight.",
+      "turn_radius_m": 8.0,
+      "overshoot_m": 6.0,
+      "min_run_m": 9.0,
+      "align_deg": 25.0,
+      "wheel_max_s": 10.0,
+      "display": true
+    },
     "_about": "ASSUMPTION (SP-WOOLLY_RHINO): the horned_charger brain (display -> charge, point-blank heavy, basic) with the rhino's moves: display = the paw-the-ground alert clip, a longer charge that tosses (the toss clip on impact, the survivor shoved charge_shove_m and lifted toss_lift_mps), attack_heavy = the wide horn sweep, the basic = the forefoot stamp. No hind kick (no kick clip).",
     "sequences": [
       {"name": "paw_charge", "steps": ["display", "charge"], "weight": 4.0},
@@ -89,7 +100,7 @@
       "attack_heavy": {"bones": ["HornTip", "Horn", "Head"], "radius_m": 1.3},
       "charge": {"bones": ["HornTip", "Horn", "Head"], "radius_m": 1.3}
     },
-    "clips": ["idle", "walk", "run", "charge", "strafe_left", "strafe_right", "walk_back", "alert", "attack_primary", "attack_heavy", "toss", "hit_react", "knockdown", "death", "sleep", "feed"],
+    "clips": ["big_stomp", "pin_foot", "idle", "walk", "run", "charge", "strafe_left", "strafe_right", "walk_back", "alert", "attack_primary", "attack_heavy", "toss", "hit_react", "knockdown", "death", "sleep", "feed"],
     "gate": "Blender -b -P tools/gait/check_woolly_rhino.py -- woolly_rhino.glb anim --height 2.95 (RHINO_CHECK PASS)"
   },
   "coloration": {
