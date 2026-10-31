@@ -38,6 +38,8 @@ const TUMBLE_S := 0.4
 ## fall_back from this far in on landing from a throw: the drop onto the butt (the flight already did the stagger).
 const LAND_FROM_S := 0.3
 const MAX_AIR_S := 3.0
+## A hit this soon after she starts falling is the same impact (its knockdown token arrives a frame apart).
+const SAME_IMPACT_S := 0.1
 const BLEND := 0.12
 
 var p: Player
@@ -85,14 +87,12 @@ func hit(push: Vector3, lift_mps: float, who: Creature) -> int:
 			return Tier.LIGHT  # ASSUMPTION: the mount takes a ram; only a throw unseats her
 		p.dismount()
 	if active():
-		# Already down: a throw launches her again; a ram shoves her along the ground, or back down if she was
-		# getting up. In the air nothing new lands on her.
-		if phase == Phase.AIR:
-			return tier
-		if want != Tier.THROW and phase != Phase.UP:
-			_push(push)  # (also the impact whose own knockdown token laid her down a moment ago)
-			return want
-		_end(false)
+		# ROOTED (owner 2026-10-31: "when the player is knocked down, they should be unable to move from the place
+		# they fell on their ass"): once down she stays where she fell. Only the impact that laid her down a moment
+		# ago (its own knockdown token, same frame or two) may still set her slide; nothing new moves her.
+		if phase == Phase.FALL and _t <= SAME_IMPACT_S and want != Tier.THROW:
+			_push(push)
+		return tier
 	if want == Tier.THROW:
 		_throw(push, lift_mps if lift_mps > 0.0 else THROW_LIFT_MPS, who)  # the move's own metres: size picks the tier only
 	else:

@@ -147,6 +147,12 @@ func _test_ram_knockdown() -> void:
 	_expect(_flat(p.global_position - down_at).length() < 0.05, "she cannot walk while down (moved %.2f m)" % _flat(p.global_position - down_at).length())
 	p.anim.on_damaged()
 	_expect(p.anim.current_clip == &"lie", "a hit while down does not stand her up into a flinch")
+	# ROOTED: rams, shoves and light hits that land while she lies there do not slide her anywhere.
+	var lie_at: Vector3 = p.global_position
+	p.sim.shove(Vector3(_tac(&"pachycephalosaurus", "charge_shove_m"), 0, 0), 0.6, 0.0, pachy)
+	p.sim.shove(Vector3(0, 0, 0.8), 0.4)
+	await _secs(0.15)
+	_expect(_flat(p.global_position - lie_at).length() < 0.05, "hits while down do not move her (moved %.2f m)" % _flat(p.global_position - lie_at).length())
 	var t := 0.0
 	var saw_up := false
 	while p.sim.knock.active() and t < 4.0:
