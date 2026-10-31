@@ -1,0 +1,186 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 1.1,
+  "view_centre": [
+    0.0,
+    0.21
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck1": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head_yaw",
+      "axis": "yaw"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.2
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "note": "SP-SPINOSAURUS 2026-10-31: rig_biped.py rig (Thigh/Shin/Metatarsal/Toe, faces -Y, hip 0.225 mesh units). Heavy semi-aquatic theropod: slower, heavier steps than the ceratosaurus, long low head, tall sail riding the spine, tail swinging. stalk (SP-SPINOSAURUS): the low wading creep the tactics.stalk approach plays: body sunk, neck low, the long snout held level just off the ground like a crocodile's in the shallows.",
+  "clips": {
+    "walk": {
+      "cycle_s": 1.2,
+      "duty": 0.62,
+      "stride": 0.26,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.04,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 3.0,
+      "lean_deg": 1,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -3
+        ],
+        "Head": [
+          "pitch",
+          3
+        ],
+        "Arm.L": [
+          "pitch",
+          -6
+        ],
+        "Arm.R": [
+          "pitch",
+          -6
+        ]
+      },
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 3.0,
+      "wiggle_tail": 3.5,
+      "sway": 0.006,
+      "crouch": 0.004
+    },
+    "run": {
+      "cycle_s": 0.68,
+      "duty": 0.4,
+      "stride": 0.44,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.06,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.008,
+      "bob_harmonic": 2,
+      "roll_deg": 3,
+      "lean_deg": 5,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -8
+        ],
+        "Neck2": [
+          "pitch",
+          -3
+        ],
+        "Head": [
+          "pitch",
+          9
+        ],
+        "Arm.L": [
+          "pitch",
+          -20
+        ],
+        "Arm.R": [
+          "pitch",
+          -20
+        ]
+      },
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.5,
+      "wiggle_tail": 4.0,
+      "sway": 0.006,
+      "crouch": 0.02
+    },
+    "stalk": {
+      "cycle_s": 1.6,
+      "duty": 0.62,
+      "stride": 0.18,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.03,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
+      "bob": 0.003,
+      "bob_harmonic": 2,
+      "roll_deg": 2.0,
+      "lean_deg": -2,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -10
+        ],
+        "Neck2": [
+          "pitch",
+          -4
+        ],
+        "Head": [
+          "pitch",
+          12
+        ],
+        "Arm.L": [
+          "pitch",
+          -15
+        ],
+        "Arm.R": [
+          "pitch",
+          -15
+        ]
+      },
+      "wiggle_head": 0.8,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.5,
+      "wiggle_tail": 4.0,
+      "sway": 0.006,
+      "crouch": 0.035
+    }
+  }
+}

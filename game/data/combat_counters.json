@@ -11,13 +11,14 @@
     "swarm": "fast_hunter",
     "flock_harass": "fast_hunter",
     "saber_cat": "fast_hunter",
-  "horned_hunter": "fast_hunter",
-    "claw_guardian": "giant",
+    "opportunist": "fast_hunter",
+    "horned_hunter": "fast_hunter",
     "runner": "runner",
     "venom_ranged": "venom_hunter",
     "antlered": "antlered",
     "tyrant": "giant",
-    "titan": "giant"
+    "titan": "giant",
+    "claw_guardian": "giant"
   },
   "families": {
     "armored": {
