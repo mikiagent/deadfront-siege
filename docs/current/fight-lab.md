@@ -58,6 +58,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Styracosaurus | TacticalBrain (horned_charger) | horn sweep, knockback | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
 | Triceratops | TacticalBrain (horned_charger) | full charge | display, charge, strafe | alert, attack_primary, attack_heavy | |
 | Tyrannosaurus | TyrantBrain (tyrant) | three-phase raid: stomp, roar, tail | telegraphed bite, stomp every 3rd attack, tail whip from behind, roar on spotting | alert, attack_primary, attack_heavy, tail_swipe | |
+| Woolly rhino | TacticalBrain (horned_charger, species tactics) | paws the ground, charges and tosses with its horn | paw (display), charge + horn toss, horn sweep point blank, forefoot stamp | alert, attack_primary, attack_heavy, charge, toss | |
 | Utahraptor | RaptorPackBrain (apex_raptor) | one devastating claw strike | pack flank, bites, heavy pounce from 4-7 m off-axis | alert, attack_primary, attack_heavy | |
 | Velociraptor | RaptorPackBrain (pack_raptor) | pounce knockdown from off-screen | pack flank, bites, heavy pounce from 4-7 m off-axis | alert, attack_primary, attack_heavy | |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |

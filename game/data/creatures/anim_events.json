@@ -100,6 +100,10 @@
     },
     "charge": {
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run"
+    },
+    "toss": {
+      "hit_frac": 0.3,
+      "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
     }
   },
   "natural_speeds": {
@@ -283,6 +287,23 @@
       "walk_r": 1.541,
       "walk": 1.541,
       "run": 4.106
+    },
+    "woolly_rhino": {
+      "height_m": 2.95,
+      "run_l": 4.016,
+      "run_len": 0.75,
+      "run_r": 4.024,
+      "walk_l": 1.406,
+      "walk_len": 1.333,
+      "walk_r": 1.405,
+      "walk": 1.405,
+      "run": 4.02,
+      "strafe_left": 1.405,
+      "strafe_left_len": 1.333,
+      "strafe_right": 1.405,
+      "strafe_right_len": 1.333,
+      "walk_back": 1.405,
+      "walk_back_len": 1.333
     }
   }
 }

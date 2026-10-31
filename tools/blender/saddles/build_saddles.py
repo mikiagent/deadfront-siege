@@ -109,7 +109,8 @@ CUSHION = float(CFG.get("cushion_m", 0.05)) * SCALE
 PAD = float(CFG.get("pad_m", 0.022)) * SCALE
 LIFT = float(CFG.get("lift_m", 0.004)) * SCALE
 
-BACK_Z = top_z(0.0, SEAT_Y)
+# probe_x_m: probe the back this far off the midline (the woolly rhino's Tripo hide has a slit along the spine)
+BACK_Z = top_z(float(CFG.get("probe_x_m", 0.0)) * SCALE, SEAT_Y)
 if BACK_Z is None:
     raise SystemExit("no back surface at the seat")
 body_hw = side_x(SEAT_Y, BACK_Z * 0.9) or SEAT_HALF_W

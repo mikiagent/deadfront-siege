@@ -39,6 +39,9 @@ extends Resource
 @export var energy: Dictionary = {}
 ## GENETICS: optional per-species genome block {"size_range": [lo, hi]}; empty = ai.json "genetics".
 @export var genetics: Dictionary = {}
+## Species tactics (TacticalBrain.tactics_for_def): {"base": <archetype whose tactics it starts from>, "scale": k,
+## any tactics key to override}. Empty = the archetype's own tactics.
+@export var tactics: Dictionary = {}
 ## RETIREPROTO: a species the owner removed (its model is gone, so it never spawns); tamed ones in
 ## old saves and pens become this species instead. &"" = a live species.
 @export var retired_to: StringName = &""
@@ -109,6 +112,8 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.energy = en if en is Dictionary else {}
 	var gen: Variant = d.get("genetics", {})
 	c.genetics = gen if gen is Dictionary else {}
+	var tac: Variant = d.get("tactics", {})
+	c.tactics = tac if tac is Dictionary else {}
 	c.retired_to = StringName(str(d.get("retired_to", "")))
 	c._apply_taming(d)
 	return c

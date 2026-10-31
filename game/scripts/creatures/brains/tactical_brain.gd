@@ -87,14 +87,43 @@ var _charge_hit := false
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
 	var t: Variant = (row as Dictionary).get("tactics") if row is Dictionary else null
-	return t if t is Dictionary else {}
+	return resolve(t) if t is Dictionary else {}
+
+## A species' tactics: its own block (species JSON "tactics") when it has one, else its archetype's.
+static func tactics_for_def(def: CreatureDef) -> Dictionary:
+	return resolve(def.tactics) if not def.tactics.is_empty() else tactics_for(def.archetype)
+
+## Distances a profile's "scale" multiplies (metres; not times, speeds or damage).
+const SCALED_KEYS: Array[String] = ["ring_m", "strafe_m", "hop_m", "leap_back_m", "leap_in_max_m", "pounce_min_m",
+	"pounce_max_m", "chase_pounce_max_m", "ambush_radius_m", "back_radius_m", "ambush_pounce_max_m", "cover_m",
+	"max_retreat_m", "pounce_radius_m", "pounce_overshoot_m"]
+
+## ONE PROFILE, MANY SPECIES: a tactics block with "base" starts from that archetype's tactics, multiplies its
+## distances by "scale", then takes every other key as an override (a dictionary such as enraged or alpha merges
+## one level).
+static func resolve(t: Dictionary) -> Dictionary:
+	if not t.has("base"):
+		return t
+	var out: Dictionary = tactics_for(StringName(str(t["base"]))).duplicate(true)
+	var k := float(t.get("scale", 1.0))
+	for key in SCALED_KEYS:
+		if out.has(key):
+			out[key] = float(out[key]) * k
+	for key in t:
+		if key == "base" or key == "scale":
+			continue
+		if t[key] is Dictionary and out.get(key) is Dictionary:
+			(out[key] as Dictionary).merge(t[key], true)
+		else:
+			out[key] = t[key]
+	return out
 
 static func has_tactics(def: CreatureDef) -> bool:
-	return not tactics_for(def.archetype).is_empty()
+	return not tactics_for_def(def).is_empty()
 
 func setup(c: Creature) -> void:
 	super.setup(c)
-	tac = tactics_for(c.def.archetype)
+	tac = tactics_for_def(c.def)
 	rng.randomize()
 	_circle_sign = _flank_sign
 	state_changed.connect(_on_state_changed)
@@ -727,7 +756,8 @@ func _charge(delta: float) -> void:
 		creature.move_to(_charge_to)
 		var to := attack_target.global_position - creature.global_position
 		to.y = 0.0
-		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2:
+		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
+				and creature.part_hit(&"charge", attack_target):
 			_charge_impact()
 		if _flat_dist_to(_charge_to) <= 1.0 or _left <= 0.0:
 			_charge_end()
@@ -747,12 +777,18 @@ func _charge_impact() -> void:
 	tactic_hit.emit(&"charge", 0, mult)
 	tactic.emit(&"charge_hit")
 	_mark_pack()
+	# WOOLLY RHINO: a rig with a toss clip hooks the horn up through the target at impact (the clip is cosmetic: the
+	# hit is this impact) and the shove lifts her off her feet (tactics.toss_lift_mps, ASSUMPTION 5.5 m/s ~ 1.5 m).
+	var tossing := creature.anim.has_state(&"toss")
+	if tossing:
+		creature.anim.play_clip(&"toss")
+		tactic.emit(&"toss")
 	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult) and attack_target is Player:
 		var pl := attack_target as Player
 		pl.receive_creature_hit(creature, &"attack_heavy")
 		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
 		if pl.sim:
-			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6))
+			pl.sim.shove(_charge_dir * _t("charge_shove_m", 0.0), _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).

@@ -171,8 +171,10 @@ static func model_variants(p_def: CreatureDef) -> Dictionary:
 	return raw if raw is Dictionary else {}
 
 ## ASSUMPTION: a wild spawn picks its variant deterministically from its identity key (50/50 for two).
+## "alpha" is reserved for alpha spawns (Creature.spawn) and never rolled here.
 static func pick_variant(p_def: CreatureDef, key: String) -> StringName:
 	var ids := model_variants(p_def).keys()
+	ids.erase("alpha")
 	if ids.is_empty():
 		return &""
 	ids.sort()
