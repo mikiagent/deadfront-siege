@@ -516,7 +516,9 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	var mid := (pill.position.x + pill.size.x * 0.5) if pill else BASE_WIDTH * 0.5
 	var bottom := (pill.position.y + pill.size.y) if pill else FULL_H
 	var screen := cam.unproject_position(anchor)
-	root.position = screen - Vector2(mid * scale, bottom * scale + HEAD_GAP)
+	# Clamped: an animal far off screen unprojected to ~1e10 px and float offsets that far out bent the
+	# plate's size (114 read back as 128).
+	root.position = (screen - Vector2(mid * scale, bottom * scale + HEAD_GAP)).clamp(Vector2(-4096, -4096), Vector2(8192, 8192))
 	entry["anchor_px"] = screen
 
 ## WORLDUI: the drawn pill on screen (its plate's position plus the pill's scaled box).
