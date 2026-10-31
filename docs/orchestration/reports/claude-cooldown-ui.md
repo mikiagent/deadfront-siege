@@ -25,7 +25,7 @@ abilities like kick and tackle.
 - Lab: `game/scripts/dev/cooldown_ui_lab.gd` (+ scenes/dev/cooldown_ui_lab.tscn) kicks a frozen
   zebraceratops and saves six frames.
 
-## Gates (merged head, after merging origin/claude/mmo-overhaul at 92dcbc45)
+## Gates (merged head, after merging origin/claude/mmo-overhaul at 6a4b5c78, knockroot + windedenergy)
 
 - run_all: `[tests] PASS`. The new `_test_ability_cooldown_hex` checks the sweep fraction, the
   rounded-up seconds and the disabled state at 6.0 / 2.3 / 0 s left, that the pie runs clockwise,
