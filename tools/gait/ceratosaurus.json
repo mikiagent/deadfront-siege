@@ -1,0 +1,126 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 1.1,
+  "view_centre": [
+    0.0,
+    0.22
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck1": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head_yaw",
+      "axis": "yaw"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.2
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "note": "SP-CERATOSAURUS 2026-10-31: rig_biped.py rig (Thigh/Shin/Metatarsal/Toe, faces -Y, hip 0.24 mesh units). The metatarsal is posed as the foot: IK solves thigh+shin to its head. Mid-size theropod: body level, head carried forward, tail swinging.",
+  "clips": {
+    "walk": {
+      "cycle_s": 1.0,
+      "duty": 0.62,
+      "stride": 0.3,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.045,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
+      "bob": 0.004,
+      "bob_harmonic": 2,
+      "roll_deg": 2.5,
+      "lean_deg": 1,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -3
+        ],
+        "Head": [
+          "pitch",
+          3
+        ]
+      },
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 3.0,
+      "wiggle_tail": 3.0,
+      "sway": 0.006,
+      "crouch": 0.004
+    },
+    "run": {
+      "cycle_s": 0.56,
+      "duty": 0.4,
+      "stride": 0.62,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.08,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.008,
+      "bob_harmonic": 2,
+      "roll_deg": 3,
+      "lean_deg": 6,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -8
+        ],
+        "Neck2": [
+          "pitch",
+          -3
+        ],
+        "Head": [
+          "pitch",
+          9
+        ]
+      },
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.5,
+      "wiggle_tail": 4.0,
+      "sway": 0.006,
+      "crouch": 0.02
+    }
+  }
+}

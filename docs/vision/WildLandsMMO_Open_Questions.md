@@ -467,3 +467,16 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM5** | Alpha skin = the brown sheet as a recolour of the regular texture (same mesh, mane shape unchanged); the alpha's eyeshine stays blue (the eyes block has one colour). | `smilodon_alpha_albedo.jpg`, `Creature.spawn` | A separate alpha mesh or amber alpha eyes would need more work. |
 | **SM6** | Saddle: the shared builder, no neck strap (the mane lets its rays out), seat behind the mane. Rideable (back 1.6 m clears the 1.78/1.6 rule). | `saddles.json`, `mount/` | Riding a sabre cat was in its data (`tamed_role` mount); the owner may prefer combat-only. |
 
+
+
+### SP-CERATOSAURUS (2026-10-31) — a new species: Ceratosaurus, with gore, slashing bite, tail swipe and a water-edge lunge (claude/mmo-sp-ceratosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight"; owner sheets "I made it look more like a ceratosaurus". Report `docs/orchestration/reports/claude-sp-ceratosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **CE1** | Size: ~6 m real at the house 1.6x = 9.7 m nose to tail, `height_meters` 4.0 (top of the brow horns, hips 2.3 m); `real_length_m` 12 (the roster's 2x). | `ceratosaurus.json` | The sheet has no scale figure; a bigger or smaller animal is one number. |
+| **CE2** | Stats between the utahraptor and the allosaurus: tier 45, 5200 HP, attack 360, defense 150, speed 560; tameable in a pen (6 raw-meat feeds), combat role only (no saddle). A fresh 100 HP survivor dies to one gore (x1.8) or one tail swipe (x1.3). | `ceratosaurus.json` | Balance pass; whether it should be rideable. |
+| **CE3** | Moves: slashing bite (attack_primary) applies Bleed x2 and is the only move that bleeds (`pipeline.status_clips`); nose-horn gore (attack_heavy, x1.8, held head-down telegraph); tail swipe in the brain's kick slot (prey behind it, x1.3); lunge = the pounce (x1.5, low surge, telegraphed by the gore crouch under the ground ring). Base profile saber_cat without stalk and pin. | `ceratosaurus.json` tactics, `CreatureAttack._apply_token` | Move set, multipliers and cooldowns are first-pass. |
+| **CE4** | Water-edge ambush: when a dry bank beside the river (within 9 m of its centre line) or the shore is within 40 m of home it lurks there and opens with the lunge (ambush radius 10 m, 15 m for a turned back); with no water near home, or in the lab, it hunts in the open. Spawns: swamp_55 working ring (1) and tropical_40 working ring (1, 60 %). | `TacticalBrain._find_water_edge`, `islands.json` | Where it lives and how sneaky it is. |
+| **CE5** | Alpha = the owner's sheet 2 (camo olive/dark brown/cream, orange throat and belly) as a recolour of the regular texture: same mesh, so the alpha's bigger blocky nasal crest and taller brow horns are not there (no second generation). | `ceratosaurus_alpha_albedo.jpg` | A separate alpha mesh would cost one Tripo generation. |
