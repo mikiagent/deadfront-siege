@@ -259,6 +259,11 @@
           "groups": 1
         },
         {
+          "species": "woolly_rhino",
+          "count": 2,
+          "groups": 1
+        },
+        {
           "species": "velociraptor",
           "count": 3,
           "groups": 1
@@ -621,6 +626,11 @@
       "working": [
         {
           "species": "smilodon",
+          "count": 2,
+          "groups": 1
+        },
+        {
+          "species": "woolly_rhino",
           "count": 2,
           "groups": 1
         },

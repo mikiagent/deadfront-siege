@@ -188,7 +188,7 @@
     "mesh_views": "Codex image generation (free plan): side view from the v02 sheet colours, then front/back/right from that side view; docs/orchestration/reports/zebra2/views.png",
     "reference_sheet": "docs/orchestration/reports/zebra2/views.png (v2); assets/concept-art/creatures/zebraceratops/concept-sheet-v02.png (v1 colours)",
     "jaw": "none on v2 (ASSUMPTION): the closed-beak mesh ripped badly at every mouth line tried (auto and --lip-z 0.405), and a grazer that rams does not need a bite gape",
-    "gaits": "tools/gait/make_gait.py with tools/gait/zebraceratops.json: trot walk 0.83 s, heavy rotary gallop 0.625 s, stride 0.9, duty 0.3 (natural 4.1 m/s: the 4.5 m/s flee plays it at x1.1); strafes via --as, walk_back reversed; charge/kick tools/jaw/make_charge_kick.py --head-drop 42 --crouch 0.06",
+    "gaits": "tools/gait/make_gait.py with tools/gait/zebraceratops.json: trot walk 0.83 s, heavy rotary gallop 0.625 s, stride 0.9, duty 0.3 (natural 4.1 m/s: the 4.5 m/s flee plays it at x1.1); strafes and walk_back via --as with stride 0.3 (natural 1.03 m/s), rebuilt 2026-10-30 by ZEBRAWALK (tools/gait/build_zebraceratops_gaits.sh, leg skin repaired with fix_foot_weights.py, gate check_zebra.py); charge/kick tools/jaw/make_charge_kick.py --head-drop 42 --crouch 0.06",
     "known_issues": "feed and sleep are the v1 rig clips on the same donor skeleton (render-checked on v2, not re-authored); no Jaw bone"
   },
   "look": "bulky docile livestock ceratopsian (cow/horse-like), heavy barrel body, sturdy short legs, small rounded frill, short blunt horns, charcoal hide with irregular ivory zebra stripes,",

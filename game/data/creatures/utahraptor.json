@@ -208,5 +208,16 @@
       1.0,
       0.2
     ]
+  },
+  "tactics": {
+    "base": "pack_flanker",
+    "scale": 1.4,
+    "_about": "COELOMOVES (owner 2026-10-31: 'Give it the deinonychus brain for now and we will workshop it as we go'): the deinonychus brain (ai.json pack_flanker tactics) as one shared profile: TacticalBrain.resolve starts from 'base', multiplies its distances by 'scale', then applies these overrides. ASSUMPTION: distances x1.4 for an 11 m animal (deinonychus 4.8 m; the full 2.3x ratio put the stand-off ring at 18 m); 'one devastating claw strike': pounce x3.0, combo [1.2, 1.5, 2.0]. Keeps the ambush. Open Questions CM4.",
+    "pounce_mult": 3.0,
+    "combo_mults": [
+      1.2,
+      1.5,
+      2.0
+    ]
   }
 }

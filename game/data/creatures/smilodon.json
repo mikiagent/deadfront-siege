@@ -105,25 +105,33 @@
       "knockdown,death": "the Triceratops donor transplant, moved onto the cat legs (transfer_clips.py)"
     },
     "grounding": "tools/gait/ground_clip.py on knockdown, death and the gaits",
-    "hit_bones": {
+    "hit_parts": {
       "attack_primary": {
-        "bone": "FrontFoot.R",
+        "bones": [
+          "FrontFoot.R"
+        ],
         "radius_m": 0.9
       },
       "attack_heavy": {
-        "bone": "Head",
+        "bones": [
+          "Head"
+        ],
         "radius_m": 1.0
       },
       "pounce": {
-        "bone": "Head",
+        "bones": [
+          "Head"
+        ],
         "radius_m": 1.4
       },
       "pin_stab": {
-        "bone": "Head",
+        "bones": [
+          "Head"
+        ],
         "radius_m": 1.2
       }
     },
-    "hit_bones_note": "SP-SMILODON: each hit lands from that bone at the hit frame (Creature.part_reaches), radius in metres at size 1 plus the survivor radius; claude/mmo-hitboxes had not landed on canon. # ASSUMPTION radii",
+    "hit_parts_note": "SP-SMILODON: each hit also needs its part (Creature.part_hit): the swipe the right forepaw, the lunge, pounce and pin stabs the sabres on Head; # ASSUMPTION radii (metres at size 1, plus the target's radius)",
     "model_variants": {
       "regular": "",
       "alpha": "smilodon_alpha_albedo.jpg"

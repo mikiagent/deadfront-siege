@@ -85,6 +85,8 @@ var running: bool = false
 @onready var at: AnimationTree = $AnimationTree
 
 var brain: CreatureBrain
+## PINFEEL: the victim this predator holds Pinned under one foot (pin_foot), or null.
+var pin_victim: Node3D
 var _fx_drip: GPUParticles3D
 var _aggro_ring: MeshInstance3D
 ## Stagger: 0.3 s frozen hurt window after a hit, at most once per second.
@@ -125,6 +127,9 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	platform_wall_layers = 0
 	def = p_def
 	variant = p_variant if p_variant != &"" else CreatureView.pick_variant(p_def, "%s@%v" % [p_def.id, global_position.round()])
+	# An alpha wears the species' alpha skin when it has one (pipeline.model_variants.alpha, the owner's alpha sheet).
+	if p_variant == &"" and (alpha_spawn or (genetics != null and genetics.alpha)) and CreatureView.model_variants(p_def).has("alpha"):
+		variant = &"alpha"
 	_slide_counter += 1
 	_slide_phase = _slide_counter
 	pack_id = p_pack
@@ -138,8 +143,8 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		genetics = CreatureGenetics.for_species(def, null, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
 	if alpha_spawn and not genetics.alpha:
 		genetics.make_alpha()
-	# ALPHA SKIN (SP-SMILODON): a species with an "alpha" model variant wears it on its alphas, and only on them.
-	if is_alpha() and CreatureView.model_variants(def).has("alpha"):
+	# SP-SMILODON: an alpha rolled by the genetics above (not asked for with alpha_spawn) wears the alpha skin too.
+	if p_variant == &"" and is_alpha() and CreatureView.model_variants(def).has("alpha"):
 		variant = &"alpha"
 	view.setup(def, variant)
 	# No visibility range: the iso camera sits 40 m from the survivor (IsoCamera.distance), so the
@@ -570,7 +575,9 @@ func _physics_process(delta: float) -> void:
 		_status_fx()
 		return
 	stagger_left = maxf(0.0, stagger_left - delta)
-	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
+	if pin_victim != null:
+		_tick_pin(delta)
+	if health.dead or pin_victim != null or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		_slide()
@@ -609,6 +616,14 @@ func _physics_process(delta: float) -> void:
 				direct.y = 0.0
 				if direct.length() > 0.3 and direct.length() <= 12.0:
 					locomote = direct.normalized()
+	# No glide (owner 2026-10-31: compy, deinonychus and ankylosaurus charges "glide"): the body never slides
+	# under a one-shot. An attack (or a timed windup) plays in place; any other one-shot (alert, sniff,
+	# hit_react, feed) gives way to the stride-matched gait below. Leaps move the body themselves (_arc_step).
+	if locomote.length_squared() > 0.0 and anim._busy and not anim.current_clip in CreatureAnim.LEAPS:
+		if anim.timed_attack or anim.current_clip in CreatureAnim.ATTACKS:
+			locomote = Vector3.ZERO
+		else:
+			anim.release_oneshot()
 	if locomote.length_squared() > 0.0:
 		var dir := locomote.normalized()
 		velocity.x = dir.x * speed
@@ -706,6 +721,8 @@ func _make_brain() -> void:
 		brain = PetBrain.new()
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
+	elif def and def.archetype == &"club_tail":
+		brain = ClubTailBrain.new()  # ANKYLOAI: tail toward the threat, rare hard club hits
 	elif def and TacticalBrain.has_tactics(def):
 		brain = TacticalBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":
@@ -880,16 +897,16 @@ func _update_label() -> void:
 	label.position.y = def.height_meters * size_scale() + 0.4
 
 func _on_windup(clip: StringName) -> void:
+	if brain is ClubTailBrain: return  # it rings where the club will pass, not ahead of the snout
 	Telegraph.show_for(self, clip)
 
 func _on_hit(clip: StringName) -> void:
-	if brain is TyrantBrain: return
+	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
 	var target := brain.attack_target if brain else null
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
 		var offset := global_position - target.global_position
-		var part := part_reaches(clip, target)
-		if part == 0 or (part < 0 and brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3):
+		if brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
 			if target is Player or target is Creature:
 				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
@@ -898,34 +915,29 @@ func _on_hit(clip: StringName) -> void:
 		if target is Player:
 			(target as Player).receive_creature_hit(self, clip)
 
-## HIT PARTS (SP-SMILODON; species JSON pipeline.hit_bones: clip -> {bone, radius_m}): the clip's hit lands from where
-## that part of the body is on the hit frame (the swiping paw, the sabres), not from the body centre. 1 reaches,
-## 0 misses, -1 no part for this clip (the caller keeps its centre reach).
-## shortcut: flat distance from one bone to the target's axis; replace with the hitbox system (claude/mmo-hitboxes) when it lands.
-func part_reaches(clip: StringName, target: Node3D) -> int:
-	var p: Variant = hit_part_point(clip)
-	if p == null or target == null:
-		return -1
-	var row: Dictionary = (def.pipeline.get("hit_bones", {}) as Dictionary).get(str(clip), {})
-	var r := float(row.get("radius_m", 1.0)) * size_scale() + CreatureBrain._size_excess(target) + CreatureBrain.SURVIVOR_RADIUS
-	var d := Vector2((p as Vector3).x - target.global_position.x, (p as Vector3).z - target.global_position.z).length()
-	return 1 if d <= r else 0
-
-## World position of the clip's hit bone right now, or null when the species names none for it.
-func hit_part_point(clip: StringName) -> Variant:
-	var bones: Variant = def.pipeline.get("hit_bones") if def else null
-	if not bones is Dictionary or not (bones as Dictionary).has(str(clip)):
-		return null
+## Where a move hits (species JSON pipeline.hit_parts.<clip>: {bones, radius_m}; until the hitbox system lands): at
+## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical
+## segment from its feet to its height. True when the species lists no parts for the clip or the rig lacks them.
+func part_hit(clip: StringName, target: Node3D) -> bool:
+	var row: Variant = (def.pipeline.get("hit_parts", {}) as Dictionary).get(str(clip)) if def and def.pipeline.get("hit_parts") is Dictionary else null
 	var sk: Skeleton3D = view.rig.skeleton if view and view.rig else null
-	if sk == null:
-		return null
-	var bone_name := str(((bones as Dictionary)[str(clip)] as Dictionary).get("bone", ""))
-	var b := sk.find_bone(bone_name)
-	if b < 0:
-		b = sk.find_bone(bone_name.replace(".", "_"))  # the glTF importer may rename dots
-	if b < 0:
-		return null
-	return sk.global_transform * sk.get_bone_global_pose(b).origin
+	if not (row is Dictionary) or sk == null or target == null:
+		return true
+	var tr := (target as Creature).body_radius() if target is Creature else 0.35
+	var th := (target as Creature).def.height_meters * (target as Creature).size_scale() if target is Creature else 1.78
+	var r := float((row as Dictionary).get("radius_m", 1.0)) * size_scale() + tr
+	var base := target.global_position
+	var found := false
+	for b in (row as Dictionary).get("bones", []):
+		var i := sk.find_bone(str(b))
+		if i < 0:
+			continue
+		found = true
+		var p := sk.global_transform * sk.get_bone_global_pose(i).origin
+		var y := clampf(p.y, base.y, base.y + th)
+		if p.distance_to(Vector3(base.x, y, base.z)) <= r:
+			return true
+	return not found
 
 func _on_attack_done() -> void:
 	pass
@@ -937,8 +949,35 @@ func _on_kd_start() -> void:
 func _on_kd_end() -> void:
 	is_capturable = false
 
+## PINFEEL: Pinned landed on `victim` from this predator's hit. A rig with pin_foot plants the foot on it and
+## holds until the status ends (_tick_pin); the victim is laid on its back and kept under the claws (PinHold).
+func start_pin(victim: Node3D) -> void:
+	if pin_victim != null or health.dead or ridden or not anim.start_pin():
+		return
+	pin_victim = victim
+	stop_move()
+	PinHold.lay_down(self, victim)
+	print("[combat] %s pins %s" % [def.id, victim.name])
+
+func end_pin() -> void:
+	if pin_victim == null:
+		return
+	pin_victim = null
+	anim.end_pin()
+
+func _tick_pin(delta: float) -> void:
+	if not PinHold.holds(self, pin_victim):
+		end_pin()
+		return
+	PinHold.snap(self, pin_victim, delta)
+
 func _on_status_removed(id: StringName) -> void:
+	if id == &"pinned" and not statuses.has(&"knockdown"):
+		anim.hold_down(false)
 	if id != &"knockdown":
+		return
+	if statuses.has(&"pinned"):
+		is_capturable = false  # still held down: the pin keeps the pose
 		return
 	if anim and anim._hold_knockdown:
 		anim.release_knockdown()
@@ -1016,7 +1055,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
 		# stagger's once-a-second immunity so a pinned animal can still fight back.
-		if staggered and authored.has("hit_react") and view.using_glb:
+		if staggered and authored.has("hit_react") and view.using_glb and not anim._hold_knockdown:  # down (pin, knockdown): stays down
 			anim.play_clip(&"hit_react")
 		else:
 			view.flinch(1.4 if kind == &"crit" else 1.0)  # no real hurt clip: shove + nod instead
@@ -1034,6 +1073,7 @@ func _on_died(_source: Node) -> void:
 		World.record_raid_kill(def.id, credited)
 		if PlayerRegistry.credit_for(credited) != null:
 			Tasks.note(&"hunt")  # TASKSCREEN: a kill by the survivor or her pet counts toward the hunt tasks
+	pin_victim = null  # the death clip ends the pin pose; the victim's status runs out on its own
 	anim.play_clip(&"death")
 	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the
 	# top-level world marker here so a dead dinosaur never leaves a red leash circle behind.
@@ -1109,6 +1149,8 @@ func kill_xp(tier: int) -> int:
 func _on_status_applied(id: StringName, _stacks: int) -> void:
 	if health.dead:
 		return
+	if id == &"pinned" and not statuses.has(&"knockdown"):
+		anim.hold_down(true)  # PINFEEL: on the ground for the pin, in the knockdown pose
 	status_float.emit(id)
 	hit_burst(status_color(id), 0.2, 20, 0.55)
 

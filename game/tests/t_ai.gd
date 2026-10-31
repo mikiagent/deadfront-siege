@@ -150,7 +150,7 @@ func _test_solo_spawn_and_tame_pack() -> void:
 func _test_leash_every_species() -> void:
 	game.time_of_day = 0.40
 	var ids := _species()
-	_check(ids.size() == 20, "expected 20 species, found %d" % ids.size())
+	_check(ids.size() >= 21, "expected the 20 species + woolly rhino (new species add more), found %d" % ids.size())
 	var bad: Array[String] = []
 	for id in ids:
 		var c := _creature(id)

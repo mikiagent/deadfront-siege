@@ -5,7 +5,7 @@ height_meters, so the mesh is scaled by height / rest height). Every clip in ani
 - moonwalk: in walk/run each foot's planted run (sole within 4 cm of the floor) slides backwards (+Y in Blender: this
   rig faces -Y) or stays put; walk_back the opposite. Drift = y(end) - y(start) in metres; below -0.05 on walk/run fails,
 - moonwalk also on stalk; the pounce is airborne (no float check), the gallop has a flight phase,
-- the part is the hit: at each hit frame (anim_events.json) the skin of the clip's hit bone (pipeline.hit_bones: the
+- the part is the hit: at each hit frame (anim_events.json) the skin of the clip's hit bone (pipeline.hit_parts: the
   swiping FrontFoot.R, the sabres on Head) is at least --reach metres ahead of the rest body centre, and a sabre
   stab (Head) has come down at least --drop metres from the head's rest height.
 usage: Blender -b -P tools/gait/check_smilodon.py -- <base.glb> <anim_dir> --height 2.0   (exit 1 on any FAIL)

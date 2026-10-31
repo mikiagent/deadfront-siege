@@ -6,18 +6,27 @@ scaled by the leg-length ratio. The feet are authoritative (they are root childr
 chain is solved onto its foot, keeping the knee on the side the clip bent it, so a leg of new proportions still
 meets its foot, and the Body is lifted wherever the skin would dip below the floor. Exports skeleton-only, like make_gait.py.
 
-usage: Blender -b -P tools/gait/transfer_clips.py -- <old_base.glb> <new_base.glb> <out_dir> <clip.glb> [...]
+usage: Blender -b -P tools/gait/transfer_clips.py -- <old_base.glb> <new_base.glb> <out_dir> <clip.glb> [...] [--floor-feet]
+
+--floor-feet: before the Body floor pass, a foot whose skin dips below the floor is pitched about its toe tip
+(the print stays put, the heel/pad comes up), or lifted when the toe tip itself digs (push-off). Leaps transferred
+from deinonychus to coelophysis pushed the toes 3-9 cm (game scale) into the ground without it (COELOMOVES).
+--pin-toes: in-place one-shots (attacks, leaps; not loops such as run/charge, whose stance foot travels): while a hind
+toe tip is down (within 2% of the leg length or 1.5% of the body height of its first-frame height) it is held where it touched down, so a foot
+that rolls or shuffles on the ground does not glide (check_leap.py --stance).
 """
 import math
 import os
 import sys
 
 import bpy
-from mathutils import Vector
+from mathutils import Matrix, Quaternion, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 OLD, NEW, OUT = argv[:3]
-CLIPS = argv[3:]
+FLOOR_FEET = "--floor-feet" in argv
+PIN_TOES = "--pin-toes" in argv
+CLIPS = [c for c in argv[3:] if not c.startswith("--")]
 LEGS = [("BackUpLeg." + s, "BackLowLeg." + s, "BackFoot." + s) for s in "LR"]
 FRONT = [("FrontUpLeg." + s, "FrontLowLeg." + s, "FrontFoot." + s) for s in "LR"]  # quadrupeds
 
@@ -75,6 +84,31 @@ def solve_leg(up, low, foot):
         bpy.context.view_layer.update()
 
 
+def floor_feet():
+    for _ in range(12):
+        ev = skin.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        me = ev.to_mesh()
+        v = min((skin.matrix_world @ x.co for x in me.vertices), key=lambda w: w.z)
+        ev.to_mesh_clear()
+        if v.z >= -0.0005:
+            return
+        side = min(LEGS[:2], key=lambda l: (pbs[l[2]].head - v).xy.length)  # the hind foot nearest the dip
+        up, low, foot = side
+        toe = pbs[foot + "_end"].tail if foot + "_end" in pbs else pbs[foot].tail
+        m = pbs[foot].matrix.copy()
+        ax = m.to_3x3().col[0].normalized()  # the foot's side axis: pitch
+        rate = ax.cross(v - toe).z  # dz of the dipping point per radian about the toe
+        if abs(rate) > 0.01:
+            q = Quaternion(ax, -v.z / rate * 1.05)
+            r = q.to_matrix().to_4x4()
+            m = Matrix.Translation(toe) @ r @ Matrix.Translation(-toe) @ m
+        else:
+            m.translation.z -= v.z * 1.05
+        pbs[foot].matrix = m
+        bpy.context.view_layer.update()
+        solve_leg(up, low, foot)
+
+
 def order(arm):
     out = []
     def walk(b):
@@ -105,6 +139,10 @@ for path in CLIPS:
             if pb.location.length > 1e-5:
                 free.add(pb.name)
     frames = []
+    pins, toe_z0 = {}, {}
+    # contact band: 2 % of the leg or 1.5 % of the body height, whichever is larger (velociraptor's short
+    # attack steps rose under 2 % of its leg and slid 5 cm)
+    pin_h = max(0.02 * leg_len(new_arm), 0.015 * (max((skin.matrix_world @ Vector(c)).z for c in skin.bound_box) - min((skin.matrix_world @ Vector(c)).z for c in skin.bound_box)))
     for f in range(f0, f1 + 1):
         sc.frame_set(f)
         for pb in pbs:
@@ -124,6 +162,22 @@ for path in CLIPS:
             bpy.context.view_layer.update()
         for up, low, foot in LEGS:
             solve_leg(up, low, foot)
+        if PIN_TOES:
+            for up, low, foot in LEGS[:2]:
+                toe = pbs[foot + "_end"].tail
+                toe_z0.setdefault(foot, toe.z)
+                if toe.z - toe_z0[foot] < pin_h:
+                    d = pins.setdefault(foot, toe.copy()) - toe
+                    m = pbs[foot].matrix.copy()
+                    m.translation.x += d.x
+                    m.translation.y += d.y
+                    pbs[foot].matrix = m
+                    bpy.context.view_layer.update()
+                    solve_leg(up, low, foot)
+                else:
+                    pins.pop(foot, None)
+        if FLOOR_FEET:
+            floor_feet()
         # floor pass: a thicker body than the old rig's must not sink when it lies down; lift the Body (feet stay)
         ev = skin.evaluated_get(bpy.context.evaluated_depsgraph_get())
         me = ev.to_mesh()

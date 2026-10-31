@@ -11,7 +11,7 @@ const FEET := ["BackFoot.L", "BackFoot.R", "FrontFoot.L", "FrontFoot.R"]
 ## The cat stands on its toes: the Foot bones run hock/wrist -> toe tips, so ground contact is the Foot_end (toe tip).
 const TOES := ["BackFoot.L_end", "BackFoot.R_end", "FrontFoot.L_end", "FrontFoot.R_end"]
 const GROUND_TOL := 0.06  ## m: the lowest toe tip stays this close to its rest height in standing clips
-## clip -> [hit frac, bone]: anim_events hit fracs and pipeline.hit_bones
+## clip -> [hit frac, bone]: anim_events hit fracs and pipeline.hit_parts
 const HITS := {&"attack_primary": [0.42, "FrontFoot.R"], &"attack_heavy": [0.72, "Head"], &"pounce": [0.7, "Head"], &"pin_stab": [0.38, "Head"]}
 
 var failures: Array[String] = []
@@ -193,7 +193,7 @@ func _test_swipe_part() -> void:
 	c.brain._set_state(&"attack")  # mid-swing: the brain waits for the clip instead of alerting and charging
 	var hp0: float = player.vitals.health
 	var parts: Array = []
-	c.anim.attack_hit.connect(func(clip: StringName) -> void: parts.append([c.hit_part_point(clip), c.part_reaches(clip, player)]))
+	c.anim.attack_hit.connect(func(clip: StringName) -> void: parts.append(c.part_hit(clip, player)))
 	c.anim.play_clip(&"attack_primary")
 	for _f in 90:
 		await physics_frame
@@ -214,7 +214,7 @@ func _test_swipe_part() -> void:
 	_expect(is_equal_approx(player.vitals.health, hp1), "the swipe misses a survivor beside the rump: the paw does not reach (hp %.0f -> %.0f)" % [hp1, player.vitals.health])
 	host.free()
 
-## Pounce from 7 m: it leaps, lands, pins (Pinned + knocked down, held in front), stabs twice, then lets go.
+## Pounce from 7 m: it leaps, lands, pins (Pinned: PINFEEL lays her down, held in front), stabs twice, then lets go.
 func _test_pounce_pin() -> void:
 	var a := await _arena()
 	var host: Node3D = a[0]
@@ -230,6 +230,7 @@ func _test_pounce_pin() -> void:
 	var stabs := [0]
 	var pinned_seen := [false]
 	var held_d := [99.0]
+	var down := [false]
 	c.anim.attack_hit.connect(func(clip: StringName) -> void:
 		if clip == &"pin_stab":
 			stabs[0] += 1)
@@ -242,12 +243,14 @@ func _test_pounce_pin() -> void:
 		await physics_frame
 		if player.statuses.has(&"pinned"):
 			pinned_seen[0] = true
+			down[0] = down[0] or player.anim.current_clip in [&"knockdown", &"pinned"]
 			held_d[0] = minf(held_d[0], Vector2(player.global_position.x - c.global_position.x, player.global_position.z - c.global_position.z).length())
 		if seen.has(&"pin") and b.state != &"pin" and stabs[0] >= 2:
 			break
 	_expect(seen.has(&"leap"), "it leaps")
 	_expect(seen.has(&"pin"), "a landed pounce pins the survivor")
 	_expect(pinned_seen[0], "the survivor is Pinned")
+	_expect(down[0], "she goes down into the pinned pose (PINFEEL)")
 	_expect(held_d[0] < 3.0, "she is held under the forepaws (%.2f m from its centre)" % held_d[0])
 	_expect(stabs[0] == 2, "pin_stab drives the sabres in twice (%d)" % stabs[0])
 	_expect(int(landed.get(&"pounce", 0)) == 1 and int(landed.get(&"pin_stab", 0)) == 2, "the pounce and both stabs land from the Head bone (%s)" % landed)
