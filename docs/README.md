@@ -39,6 +39,8 @@ that cite a removed path keep working as history pointers — treat them as
   code comments
 - `docs/design/` — the owner's numbered prompt series (code comments cite these by spec
   number) plus the design refs the code cites
+- `docs/art/species/` — the owner's creature reference sheets (JPEG copies); see
+  [species art](current/species-art.md) for each sheet's role and status
 - `docs/art/durango-asset-benchmarks-and-tripo-prompts.md` — the adopted budget authority;
   a future `current/` assets page should absorb it
 - `docs/release/simulator.md` — the simulator-build how-to cited by `tools/sim_run.sh`
