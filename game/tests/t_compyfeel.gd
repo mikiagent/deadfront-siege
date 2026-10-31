@@ -192,6 +192,8 @@ func _test_slide(sp: StringName, clips: Array) -> void:
 func _test_fight(sp: StringName, secs: float) -> void:
 	var c = _spawn(sp, Vector3(0, 0.1, -6.0), true)
 	await physics_frame
+	if c.brain.get("rng") is RandomNumberGenerator:
+		c.brain.rng.seed = 20261031  # the brain's own dice, so the fight replays the same
 	c.brain.on_aggro(player)
 	var glide := 0
 	var glide_clips: Dictionary = {}
@@ -200,6 +202,7 @@ func _test_fight(sp: StringName, secs: float) -> void:
 	var charge_frames := 0
 	var cadence_off := 0
 	var strafe_circle := 0
+	var hop_circle := 0
 	var aware_still := 0
 	var aware_combat_idle := 0
 	var prev: Vector3 = c.global_position
@@ -232,6 +235,8 @@ func _test_fight(sp: StringName, secs: float) -> void:
 				cadence_off += 1
 		if c.brain.state == &"circle" and clip in [&"strafe_left", &"strafe_right"]:
 			strafe_circle += 1
+		if clip in [&"dodge_left", &"dodge_right", &"hop_back", &"leap_back"]:
+			hop_circle += 1
 		if c.brain.aware_idle() and mps < 0.05 and not c.anim.is_busy() and c.anim.current_state() in [&"idle", &"investigate"]:
 			aware_still += 1
 			aware_combat_idle += 1 if clip == &"investigate" else 0
@@ -239,7 +244,8 @@ func _test_fight(sp: StringName, secs: float) -> void:
 	if sp == &"compsognathus":
 		_expect(crouch_frames > 0 and crouch_moving == 0, "compy charges coil in charge_crouch first, body still (%d frames, %d moving)" % [crouch_frames, crouch_moving])
 		_expect(charge_frames > 10 and cadence_off == 0, "compy charge runs on the charge clip at cadence = speed / natural speed (%d frames, %d off)" % [charge_frames, cadence_off])
-		_expect(strafe_circle > 30, "compy circling plays strafe_left/right (%d frames)" % strafe_circle)
+		# HOPSTRAFE (owner 2026-10-31): a small animal hops around more than it strafes, but still strafes.
+		_expect(strafe_circle > 10 and hop_circle > strafe_circle, "compy repositions in bounds (dodge/hop_back/leap_back, %d frames) more than it strafe-walks on the ring (strafe_left/right, %d frames)" % [hop_circle, strafe_circle])
 		_expect(aware_still > 20 and aware_combat_idle == aware_still, "compy aggro and standing still plays the combat idle (%d of %d frames)" % [aware_combat_idle, aware_still])
 	c.queue_free()
 	await physics_frame

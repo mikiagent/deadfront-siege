@@ -240,7 +240,7 @@ func _test_grab() -> void:
 	b.tactic_hit.connect(func(clip: StringName, i: int, _m: float) -> void: landed.append("%s%d" % [clip, i]))
 	var pinned_seen := [false]
 	var held := [99.0]
-	b._grab()
+	b._grab_hands()  # SP-SPINOSAURUS merge: the spinosaurus owns _grab(delta), the grab state
 	for _f in 240:
 		await physics_frame
 		if player.statuses.has(&"pinned"):
