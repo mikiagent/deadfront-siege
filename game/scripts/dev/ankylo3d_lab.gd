@@ -5,9 +5,9 @@ extends Node3D
 ## Run windowed off-screen: Godot --path game --position 6000,3000 -- --skip-charcreate --lab=ankylo3d_lab --out=DIR
 
 const CLIPS: Array[StringName] = [&"idle", &"walk", &"run", &"walk_back", &"strafe_left", &"strafe_right", &"attack_primary",
-	&"attack_heavy", &"hit_react", &"alert", &"feed", &"sleep", &"knockdown", &"death"]
-## anim_events.json hit fractions: the frame the club lands.
-const HIT := {&"attack_primary": 42, &"attack_heavy": 72}
+	&"attack_heavy", &"tail_swipe", &"hit_react", &"alert", &"feed", &"sleep", &"knockdown", &"death"]
+## Where the club passes its aim spot (ANKYLOAI, check_ankylo.py): the % of the clip shot as the hit.
+const HIT := {&"attack_primary": 62, &"attack_heavy": 65, &"tail_swipe": 56}
 
 var _out := ""
 var _caption: Label

@@ -204,6 +204,8 @@ func _physics_process(delta: float) -> void:
 		_set_state(&"downed")
 		creature.stop_move()
 		return
+	if creature.pin_victim != null:
+		return  # PINFEEL: holding a victim under its foot; Creature._tick_pin owns the body until the pin ends
 	_think_dt += delta
 	_face_target(delta)
 	_frame_n += 1

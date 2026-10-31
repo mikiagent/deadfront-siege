@@ -26,6 +26,9 @@ extends Resource
 @export var variants: Array[StringName] = []
 @export var clips: Dictionary = {}
 @export var pipeline: Dictionary = {}
+## Species tactics (TacticalBrain.tactics_for_def): {"base": <archetype whose tactics it starts from>, "scale": k,
+## any tactics key to override}. Empty = the archetype's own tactics.
+@export var tactics: Dictionary = {}
 ## Species' natural colour ranges for wild individuals: {"hue_deg": 14, "sat": 0.18, "val": 0.12}
 ## and optionally "morphs": [{"id": "dark", "weight": 1, ...}]. Empty = CreatureColoration defaults.
 @export var coloration: Dictionary = {}
@@ -103,6 +106,8 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.variants = ItemDef._names(d.get("variants", []))
 	c.clips = d.get("clips", {})
 	c.pipeline = d.get("pipeline", {})
+	var tac: Variant = d.get("tactics", {})
+	c.tactics = tac if tac is Dictionary else {}
 	var colour: Variant = d.get("coloration", {})
 	c.coloration = colour if colour is Dictionary else {}
 	var en: Variant = d.get("energy", {})
