@@ -1,6 +1,6 @@
 # STUNLOCK: heavy and armoured species shrug off her staggers
 
-Branch `claude/mmo-stunlock` (from `origin/claude/mmo-overhaul` 1066e9c9; canon merged back in four times, last at a0d9bf1d). Not merged to canon.
+Branch `claude/mmo-stunlock` (from `origin/claude/mmo-overhaul` 1066e9c9; canon merged back in five times, last at 03592b15). Not merged to canon.
 
 Owner, fight lab (`tools/fight_lab.command`, `--lab=creature_lab --god`): "ankylosaurus is getting stunlocked and not fighting back"; earlier "I should not be able to punch it over and over up close without consequence".
 
@@ -60,11 +60,11 @@ Before and after (canon 2eecfc3e without the fix, then the head with canon 38ad8
 
 On canon the test fails on 16 of the 18 (17 failures); with the fix it passes. The fight lengths differ run to run (the fight runs 14 s from her first hit, up to 30 s until it has hit back), and single runs are not deterministic, so compare the staggered column, not the counts.
 
-## Gates (merged head, canon a0d9bf1d merged)
+## Gates (merged head, canon 03592b15 merged; same results on a0d9bf1d)
 
 | Gate | Result |
 |---|---|
-| t_stunlock | PASS (333 s) |
+| t_stunlock | PASS (298 s) |
 | t_ankyloclose | PASS |
 | t_combat | PASS |
 | t_knockdown | PASS |
