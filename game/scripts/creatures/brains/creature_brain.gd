@@ -100,6 +100,9 @@ func _provoked() -> bool:
 func _holds_flee() -> bool:
 	return false
 
+## BIGSTOMP: the shared big-dinosaur stomp (null for an animal without one); ticked before the brain's own think.
+var stomp: BigStomp
+
 func setup(c: Creature) -> void:
 	creature = c
 	profile = _profile(c.def.archetype)
@@ -112,6 +115,7 @@ func setup(c: Creature) -> void:
 	# Start walking promptly. The old full roam delay made newly spawned dinosaurs look frozen.
 	_roam_cd = randf_range(0.1, 0.6)
 	_think_phase = randi() % _think_every()
+	stomp = BigStomp.for_creature(c)
 	cornered.setup()
 
 ## The player stays on the ground until respawn. Relocate every dinosaur that was fighting
@@ -201,6 +205,10 @@ func hunting_player() -> bool:
 		return false
 	return state in COMBAT_STATES
 
+## BIGSTOMP: free to start the stomp: fighting a live target, no timed move of its own in flight, no one-shot playing.
+func stomp_ready() -> bool:
+	return state in COMBAT_STATES and _valid_target() and not _full_rate() and not creature.anim.is_busy()
+
 ## Damage multiplier for the hit_index-th hit of clip (TacticalBrain: the combo's rising bites).
 func hit_damage_mult(_clip: StringName, _hit_index: int) -> float:
 	return 1.0
@@ -217,6 +225,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if creature.pin_victim != null:
 		return  # PINFEEL: holding a victim under its foot; Creature._tick_pin owns the body until the pin ends
+	if stomp != null and stomp.tick(delta, self):
+		return  # BIGSTOMP: the stomp owns the body until the clip is done
 	_think_dt += delta
 	_face_target(delta)
 	_frame_n += 1

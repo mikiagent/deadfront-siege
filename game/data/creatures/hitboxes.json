@@ -1591,6 +1591,100 @@
      ]
     }
    }
+  },
+  "megatherium": {
+   "_note": "SP-MEGATHERIUM x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "ClawTip.L"
+    },
+    {
+     "bone": "ClawTip.R"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.5,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.95,
+       "calibrated": true
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 1.02,
+       "calibrated": true
+      }
+     ]
+    },
+    "charge": {
+     "parts": [
+      {
+       "bone": "ClawTip.L",
+       "radius": 2.68,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R"
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.69,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R"
+      }
+     ]
+    }
+   }
   }
  },
  "survivor": {

@@ -28,6 +28,8 @@
  "texture_prompt": "tan hide with small dark brown spots, pale cream belly, darker brown brow horns and dorsal osteoderm bumps, matte surface",
  "look": "8 meter Carnotaurus, short deep skull with two thick brow horns, tiny arms, long slender running legs, long stiff tail, tan with dark spots and a pale belly, rows of small osteoderm bumps down the back,",
  "clips": {
+  "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
+  "pin_foot": "BIGSTOMP: the stomping foot pressed down on a pinned victim, held until the pin ends",
   "attack_primary": "Snap bite: coils the neck back with the jaws wide, darts the head forward and down and snaps shut, a short shake, recovers",
   "attack_heavy": "Horn ram: rears back bellowing, scrapes a hind foot like a bull while the head drops to aim the brow horns, then drives forward with a step horns first and hooks the head up to throw the target back",
   "knockdown": "Staggers and collapses onto its side, lying stunned",
@@ -108,6 +110,7 @@
    }
   },
   "clips": [
+   "big_stomp", "pin_foot",
    "idle",
    "walk",
    "run",
