@@ -34,7 +34,7 @@ the game: Protoceratops is now a Zebraceratops (bag and saddle kept)". New check
 Tests that used the protoceratops as a handy species now use the zebraceratops (t_creaturechips, t_movepriority,
 t_natures, t_petradial, t_player, t_playerturn, t_targetui, t_colors); t_canim drops it from strides and
 KNOWN_GLIDERS. Dev labs: zebraceratops, except ai_validation_lab (home spot -> gallimimus), wild_ai_sweep_lab
-(temperate_25 gathering -> compsognathus), ragdoll_lab (dropped). `maps/sample.map.json` spawn -> zebraceratops.
+(temperate_25 gathering -> compsognathus), ragdoll_lab (dropped). `maps/sample.map.json` and map_lab spawn marker -> gallimimus.
 
 ## Docs
 
@@ -48,6 +48,6 @@ None.
 
 ## Next agent
 
-- t_colors fails on canon too: it expects the stegosaurus to draw placeholder boxes, which NOBOXES forbids.
+- t_colors fails on canon too (unchanged by this package): it expects the stegosaurus to draw placeholder boxes, which NOBOXES forbids.
 - A herbivore herd for the temperate_35 / temperate_45 gathering rings, and the skill node text naming
   Protoceratops, are design calls (RP1, RP3).
