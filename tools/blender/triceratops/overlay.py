@@ -3,7 +3,8 @@
 # Blender -b <file.blend> --factory-startup -P overlay.py -- <out.png> <view side|front|top|back> <y0> <y1> <z0> <z1> [x0 x1]
 import bpy, sys, os, importlib, numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import rlib, joints; importlib.reload(joints)
+import rlib
+joints = importlib.import_module(os.environ.get("TRIKE_JOINTS", "joints")); importlib.reload(joints)
 a = sys.argv[sys.argv.index("--") + 1:]
 out, view = a[0], a[1]; y0, y1, z0, z1 = map(float, a[2:6]); x0, x1 = (map(float, a[6:8]) if len(a) > 7 else (-2.0, 2.0))
 o = bpy.data.objects["SM_Triceratops"]

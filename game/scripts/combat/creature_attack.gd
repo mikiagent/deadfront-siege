@@ -31,6 +31,10 @@ static func _target_dead(target: Node) -> bool:
 static func _apply_token(tok: StringName, clip: StringName, target: Node, source: Creature) -> void:
 	var parsed := StatusEffects.parse_token(tok)
 	var id: StringName = parsed["id"]
+	# pipeline.status_clips {status: [clips]}: a status only rides on those clips (the ceratosaurus' slashing bite bleeds, its gore does not).
+	var only: Variant = (source.def.pipeline.get("status_clips", {}) as Dictionary).get(str(id)) if source.def.pipeline.get("status_clips") is Dictionary else null
+	if only is Array and not (only as Array).has(str(clip)):
+		return
 	# Velociraptor: pounce (heavy) applies knockdown + bleed x2; primary is just contact damage.
 	if source.def.id == &"velociraptor" and clip != &"attack_heavy" and (id == &"knockdown" or id == &"bleed"):
 		return
@@ -50,7 +54,12 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 		# dodge/agency. Deafened and damage still land; incomplete/low-level kits do not help.
 		if source.def.id == &"tyrannosaurus" and id in [&"fracture", &"pinned"] and (target as Player).inventory.has_raid_protection():
 			return
-		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
+		var pl := target as Player
+		# KNOCKDOWN: a basic bite's Knockdown token stays the old stand-still status (light hit: flinch); the heavy
+		# hit's token (charges, rams, the impale) lays her down (PlayerKnock.on_knockdown_status).
+		pl.sim.knock.token_light = id == &"knockdown" and clip != &"attack_heavy"
+		pl.statuses.apply(id, source, int(parsed["stacks"]))
+		pl.sim.knock.token_light = false
 		if foot_pin and (target as Player).statuses.has(&"pinned"):
 			source.start_pin(target as Player)
 

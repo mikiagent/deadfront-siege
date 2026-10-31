@@ -52,7 +52,7 @@ Credits spent: none (no Meshy, no Tripo; the clips are built from clips already 
 | Carnotaurus horn ram (heavy_shove) | 4.0 x 1.5 = 6.0 | throw |
 | Woolly rhino charge + horn toss | 5.0 x 0.98, lift 5.5 m/s | throw |
 | Megaloceros (stag) antler charge | 4.5 x 1.32 = 5.9 | throw |
-| Styracosaurus charge | 4.0 x 0.75 = 3.0 | knockdown |
+| Styracosaurus impale charge (STYRAFIX fling) and body-check | lift, 4.0 x 1.5 | throw |
 | Pachycephalosaurus dome charge | 3.5 x 0.6 = 2.1 | knockdown |
 | Ankylosaurus tail whip / club sweep | 3.0 / 3.5 x 1.0 | knockdown |
 | Ankylosaurus tail smash | Knockdown status | knockdown |
@@ -93,3 +93,24 @@ keeps her on for a knockdown-tier hit, a hit in the air does nothing, the Knockd
   carry the token is a tuning call for the owner.
 - Mounted throw is covered by code (dismount, then throw) but not by a test.
 - The throw has no body spin; the tumble is the airborne flail clip plus the landing slide.
+
+## Second canon merge (MegaRex, STYRAFIX impale charge, ceratosaurus, triceratops alpha, cornered)
+
+- `tactical_brain.gd` conflict: kept the triceratops alpha's sideways toss (`toss_side_m`) and passes the attacker.
+- STYRAFIX impale charge: the fling off the horns now passes its lift and the animal, so it is a **throw** (arc,
+  lands on her butt, gets up winded); before it was a plain shove the owner said did not knock her down. The
+  body-check `_glance` passes the animal too (knockdown or throw by size). Styracosaurus is now 1.5 size scale, so its
+  charge is a throw, not a knockdown.
+- Throw distance is now the move's own push metres (3-9 m), not scaled by size (size picks the tier only), and the flat
+  flight stops at that distance, so a fling from up on the horns does not fly further than the move says.
+- A basic attack's Knockdown token no longer lays her down (light hit: the old stand-still status); only the heavy
+  hit's token does (charges, rams, impale, horn swipe). `CreatureAttack._apply_token` sets `knock.token_light`.
+- TacticalBrain circle: ASSUMPTION `CIRCLE_MIN_S` 0.3 s before the circle picks its next move. Being knocked down
+  changed her timing in t_styrafix's scripted fight and exposed charge -> circle -> charge in one frame (a flicker).
+- t_styraco's clean slate between sections also cancels a running knockdown.
+- Ceratosaurus and MegaRex have no shoves of their own; their Knockdown/pin tokens follow the rules above.
+- Tests after the merge: t_knockdown, t_combat, t_tactical, t_pinfeel, t_kicktackle, t_mounts, t_sp_carnotaurus,
+  t_sp_woolly_rhino, t_bigreach, t_styraco, t_styrafix, t_sp_ceratosaurus, t_cornered, t_godlab, t_roll, t_ankyloai,
+  t_sp_pachycephalosaurus, t_zebra, t_movepriority, t_capture09, t_tame, t_alphas, t_sp_tarbosaurus, t_sp_raptor,
+  t_sp_smilodon, t_compyfeel, t_coelomoves, t_sp_trikealpha, t_sp_megaloceros, t_sp_megarex, t_rexclips all PASS;
+  run_all `[tests] PASS`; SMOKE PASS.

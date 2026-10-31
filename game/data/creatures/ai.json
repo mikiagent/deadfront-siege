@@ -1,6 +1,20 @@
 {
   "_about": "Creature AI archetype tuning for M9a. Distances are metres on 1 m tiles.",
   "default": {
+    "cornered": {
+      "_about": "CORNERED (owner 2026-10-31: 'Animals that run away from you should get territorial and attack you if you chase them'). ASSUMPTION: while fleeing, a threat within radius_m moving at it at pursuit_mps or more builds pressure (seconds; each hit adds hit_s; decays at decay x time when not pressed); at pressure_s, or chase_m metres of pursuit, it turns, plays the first display_clips clip it has for display_s, then fights with its own attacks for fight_s; under weak_frac HP it runs again. Override per species/archetype with a 'cornered' block in tactics; enabled false turns it off. BrainCornered.",
+      "enabled": true,
+      "radius_m": 10.0,
+      "pursuit_mps": 1.5,
+      "pressure_s": 3.0,
+      "chase_m": 20.0,
+      "hit_s": 1.5,
+      "decay": 0.5,
+      "fight_s": 12.0,
+      "weak_frac": 0.3,
+      "display_s": 0.8,
+      "display_clips": ["roar", "crest_flare", "stomp", "alert"]
+    },
     "perception_base": 8.0,
     "perception_tier_mult": 0.15,
     "roam_tiles": 6.0,
@@ -879,6 +893,9 @@
             "weight": 0.5
           }
         ],
+        "_no_pounce": "STYRAFIX: a ceratopsian never leaps; the chase rule tried the shared pounce (the styracosaurus hopped at the survivor with no pounce clip).",
+        "pounce_max_m": 0.0,
+        "chase_pounce_max_m": 0.0,
         "point_blank": [
           "heavy",
           "kick",

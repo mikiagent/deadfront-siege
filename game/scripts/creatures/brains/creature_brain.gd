@@ -28,6 +28,8 @@ var speed_override: float = -1.0
 var strafe_face: Node3D
 ## TACTICS: a named locomotion loop to play while moving (the charge); "" = the normal gait.
 var gait_clip: StringName = &""
+## TACTICS: non-zero drives the body straight along this flat direction, no pathing (a committed horn charge).
+var line_dir := Vector3.ZERO
 
 var creature: Creature
 var state: StringName = &"roam"
@@ -59,6 +61,8 @@ var _dt: float = 0.0
 var _awake_until: float = -1.0
 ## Flight, leash and temporary home (see BrainFlight).
 var flight := BrainFlight.new(self)
+## Chase pressure: a fleeing animal that keeps being chased turns and fights (see BrainCornered).
+var cornered := BrainCornered.new(self)
 
 ## ENRAGE x natures (owner 2026-10-28: "timid dinosaurs when they get enraged they run away"): an
 ## enraged animal whose nature has enrage_flee panics and runs from its attacker, and comes back to
@@ -106,6 +110,7 @@ func setup(c: Creature) -> void:
 	# Start walking promptly. The old full roam delay made newly spawned dinosaurs look frozen.
 	_roam_cd = randf_range(0.1, 0.6)
 	_think_phase = randi() % _think_every()
+	cornered.setup()
 
 ## The player stays on the ground until respawn. Relocate every dinosaur that was fighting
 ## them so the camp/respawn point cannot become a permanent death trap.
@@ -271,6 +276,7 @@ func _pre_think(dt: float) -> bool:
 	if state == &"downed":
 		_set_state(&"alert" if _valid_target() else &"roam")
 	flight.track(dt)
+	cornered.tick(dt)
 	if state == &"sleep":
 		BrainRest.sleep_tick(self)
 		return state == &"sleep"
@@ -317,6 +323,7 @@ func note_damage(amount: float) -> void:
 		_hits_taken = 0
 	_last_hit_s = now
 	_hits_taken += 1
+	cornered.on_hit()
 	if _is_herbivore() and _hits_taken >= int(profile.get("provoke_hits", PROVOKE_HITS)) and not _provoked():
 		_provoked_until = now + PROVOKE_SECONDS
 		_log("[ai] %s provoked: fights back for %.0fs" % [creature.def.id, PROVOKE_SECONDS])
@@ -459,6 +466,7 @@ func _spot(who: Node3D) -> void:
 	_set_state(&"alert")
 	_alert_left = maxf(_alert_left, 0.6)
 	creature.mark_aggro_now()
+	creature.stop_move()  # it stops to look: the pose one-shot must not glide along the roam path
 	creature.anim.play_clip(&"sniff" if creature.anim.has_state(&"sniff") else &"alert")
 	_propagate_alert(who)
 
@@ -499,6 +507,10 @@ func _valid_target() -> bool:
 
 ## Both sides can contact a giant's body edge without body overlap or safe-edge cheese.
 ## Measured centre to centre against a survivor-sized target; see reach_to for others.
+## A move that hits do not interrupt (no flinch, no hurt clip); TacticalBrain's committed charge.
+func super_armor() -> bool:
+	return false
+
 func contact_reach() -> float:
 	return maxf(float(profile.get("attack_range", 1.8)) + 0.3, creature.body_radius() + 0.75)
 

@@ -58,14 +58,14 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Protoceratops | TacticalBrain (pack_mule) | shoving beak, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | removed by owner 2026-10-31 |
 | Raptor | TacticalBrain (pack_flanker, species tactics x1.25) | pounce, pin and bite; sickle-claw slash | crest-flare display + pounce, pounce -> pin under the foot + two bites, sickle slash point blank, the deinonychus combo, charge, back-leaps and power strafes; five colour morphs (Body button) | alert, attack_primary, attack_heavy, bite_combo, pounce, pin_stab, charge | |
 | Stegosaurus | CreatureBrain (spiked_tail) | thagomizer tail sweep | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
-| Styracosaurus | TacticalBrain (horned_charger) | horn sweep, knockback | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
+| Styracosaurus | TacticalBrain (horned_charger + its own tactics block) | horn charge and impale | display, impale charge (paw, run, impale or miss, recover), horn swipe, kick, strafe | alert, attack_primary, attack_heavy, kick, charge, charge_windup, impale, charge_recover | reworked per owner 2026-10-31, re-test |
 | Triceratops | TacticalBrain (horned_charger) | full charge | display, charge, strafe | alert, attack_primary, attack_heavy | |
 | Tyrannosaurus | TyrantBrain (tyrant) | three-phase raid: stomp, roar, tail | telegraphed bite, stomp every 3rd attack (a stomp that lands pins you under its foot), tail whip from behind, roar on spotting | alert, attack_primary, attack_heavy, tail_swipe, pin_foot | |
 | Woolly rhino | TacticalBrain (horned_charger, species tactics) | paws the ground, charges and tosses with its horn | paw (display), charge + horn toss, horn sweep point blank, forefoot stamp | alert, attack_primary, attack_heavy, charge, toss | |
 | Utahraptor | TacticalBrain (apex_raptor; the deinonychus profile, distances x1.4) | one devastating claw strike | backstep, strafe, pounce (x3.0), charge, combo, ambush from cover, leap-in, back-leaps | alert, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Velociraptor | TacticalBrain (pack_raptor; the deinonychus profile, distances x0.75, no tree ambush) | pounce knockdown from off-screen | sniff, then the investigate hold (3 s), then backstep, strafe, pounce, charge, combo, leap-in, back-leaps; lighter hits (pounce x2.0, combo x0.8) | alert, investigate, sniff, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
-| Survivor hit reactions (KNOCKDOWN, any species) | PlayerKnock (`game/scripts/player/player_knock.gd`) | knocked on her butt, thrown | from the hit, not the species: force = shove metres x attacker height / 3 m (0.6-1.5); light (< 2) the old shove + flinch, knockdown (>= 2: zebraceratops no, pachy / styracosaurus rams yes, every Knockdown status token) falls on her butt then back, lies 1 s, gets up; throw (>= 5 or any horn lift: triceratops, carnotaurus charge and horn ram, woolly rhino toss, megaloceros stag charge) flies a 3-9 m arc, lands, tumbles, gets up; then Winded 3 s (-40 % move, no sprint, no attack); throw-tier hits unseat a rider; GOD shows it all, no damage | survivor: fall_back, airborne, lie, get_up, winded | new 2026-10-31, test |
+| Survivor hit reactions (KNOCKDOWN, any species) | PlayerKnock (`game/scripts/player/player_knock.gd`) | knocked on her butt, thrown | from the hit, not the species: force = shove metres x attacker height / 3 m (0.6-1.5); light (< 2) the old shove + flinch, knockdown (>= 2: zebraceratops no, pachy ram yes, a heavy hit's Knockdown token) falls on her butt then back, lies 1 s, gets up; throw (>= 5 or any horn lift: triceratops, carnotaurus charge and horn ram, woolly rhino toss, styracosaurus impale, megaloceros stag charge) flies a 3-9 m arc, lands, tumbles, gets up; then Winded 3 s (-40 % move, no sprint, no attack); throw-tier hits unseat a rider; GOD shows it all, no damage | survivor: fall_back, airborne, lie, get_up, winded | new 2026-10-31, test |
 
 ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
 archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
@@ -90,8 +90,42 @@ Knock shots: `-- --lab=creature_lab --god --skip-charcreate --species=triceratop
 with `--position 6000,3000`) fires the brain's charge impact on the survivor and saves one shot per phase (airborne,
 fall, lie, get_up, winded), then quits. Clips: `tools/make_knockdown_clips.py`. Test: `game/tests/t_knockdown.gd`.
 
+Cornered (owner 2026-10-31: "Animals that run away from you should get territorial and attack you if you chase them";
+`BrainCornered`, on every brain): any animal that is fleeing (skittish grazers on sight, defensive grazers and Timid
+natures after a big hit) and is chased turns and fights. Chasing = within 10 m and moving at it at 1.5 m/s or more, or
+hitting it (+1.5 s each). After 3 s of that, or 20 m of pursuit, it stops, plays its display clip (alert today; roar,
+crest_flare or stomp first when a rig has one) and fights with its own attacks for 12 s; under 30 % HP it runs again.
+Stand still and it keeps running. Numbers: `ai.json default.cornered`, per species a `"cornered"` block in its tactics.
+Test: `game/tests/t_cornered.gd`.
+
+| Species | Brain | Flees when | Chased into a fight |
+|---|---|---|---|
+| Zebraceratops, Pachycephalosaurus, Protoceratops (pack_mule, skittish) | TacticalBrain | on sight | its display, charge, shove, kick |
+| Gallimimus (runner), Megaloceros (antlered) | TacticalBrain | on sight | its fight; it also still turns by itself after one 3 s flight (territorial) |
+| Stegosaurus (defensive), Triceratops, Styracosaurus, Woolly rhino (territorial) | CreatureBrain / TacticalBrain | a big hit while not provoked | its own attacks |
+| Any species with the Timid nature | any | a big hit (retreat_as_flee) | its own attacks (Timid no longer means never fights back once chased) |
+| Not affected | | swarm and pack flights (`_flee_left`, compsognathus, mate-death scatter), a Timid rage (enrage_flee); every other brain (ClubTail, Tyrant, MegaRex) inherits the rule whenever it is in `flee` | |
+
 Pin shots: `-- --lab=creature_lab --god --skip-charcreate --species=tyrannosaurus --pinshots=DIR` (windowed, off
 screen with `--position 6000,3000`) saves the stomp, the foot pin and the release, then quits. Test: `game/tests/t_pinfeel.gd`.
+
+## Styracosaurus (reworked per owner 2026-10-31, re-test)
+
+Owner on the first pass: "make styracosaurus bigger by like 3x. the animations and brain needs some work. Its like
+bugging out though". Now 6.75 m tall and 15.2 m long (3x), turning at 1.4 rad/s. Its charge:
+1. **Paw**: it stops, lowers its horns and paws the ground with a fore-foot (charge_windup), turning onto you.
+   It paws again until it is aimed. Hits do not interrupt it.
+2. **Run**: a straight line in the direction it faced, locked at the end of the paw, no steering. It speeds up over
+   0.5 s on the charge clip and its feet keep pace with the ground.
+3. **Impale**: when you are where its horns will dip, it stops, scoops you up on the nose horn, carries you up and
+   throws you ahead (heavy hit plus knockdown).
+   - If you are beside the line against its flank, you are shoved aside instead.
+   - If you step or roll off the line during the run, it misses, slows to a stop and stands winded for 2 s
+     (charge_recover). Hits during that time flinch it.
+4. It only charges from 10 m or more. Up close it uses the horn swipe in front and the hind kick behind.
+
+Headless check: `game/tests/t_styrafix.gd` (60 s GOD fight, per-frame state and clip log with `-- --log=PATH`).
+Shots: `--lab=creature_lab --god --impaleshots=DIR` saves one frame per charge phase, then quits.
 
 Test: `game/tests/t_godlab.gd` (GOD survives a T. rex bite chain at full health, off without `--god`; NEXT
 cycles every modelled species, one model each).
