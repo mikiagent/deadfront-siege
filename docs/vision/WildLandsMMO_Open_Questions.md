@@ -316,6 +316,16 @@ Source: branch `claude/mmo-styratactics`, report `docs/orchestration/reports/dsc
 | **S3** | Point blank it sweeps the horns: the `heavy` move (attack_heavy clip) x 2.2, 7 s cooldown, before kick/bite in `point_blank`. | `heavy_cd`, `heavy_mult`, `point_blank`, `TacticalBrain` heavy move | Gives the big head a finisher that is not a bite. |
 | **S4** | It fights to 25 % HP, then flees 4 s; guard 20 m around its home; herd defence as pack_mule. | `retreat_frac`, `guard_m`, `herd_defend` | Braver than the zebra; still capturable when weak. |
 
+### STYRAFIX (2026-10-31) — styracosaurus 3x and the impale charge (claude/mmo-styrafix)
+
+Owner, from the fight lab: "make styracosaurus bigger by like 3x ... i see you attempted to make some cool charge attacks and impale? we have to fix it". Report `docs/orchestration/reports/claude-styrafix.md`. Numbers in `game/data/creatures/styracosaurus.json` (`tactics` block), every one an ASSUMPTION.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **SF1** | height_meters 2.25 -> 6.75 (15.2 m long on screen, longer than the triceratops at 9.2 m); real_length_m 11 -> 19 by the roster rule (RS2) rather than 33 (3 x 11), so the capsule radius (2.3 m) matches the 4.7 m wide body. It now needs the Apex pen (over 18 m) and a large saddle; turn rate 2.5 -> 1.4. | `height_meters`, `real_length_m`, `turn_rate` | 33 would make an 8 m wide hitbox and the biggest gameplay body in the roster. |
+| **SF2** | Its distances scale with it: ring 16 m, reach 6 m (the horns, not the barrel), display 9 m, charge through 6 m, strafe and hop 3 m, guard 45 m. It charges only from 10 m. | `tactics` block | Without the scaling it hugged the survivor with its chest and charged from 3 m. |
+| **SF3** | Charge = paw (about 1.3 s, until aimed within 12 deg) -> straight run (0.5 s ramp to about 9 m/s) -> impale (caught at the horn tip, carried, flung 4 m/s up and 4 m ahead) or miss (brakes 0.6 s, stands 2 s: the punish window). It cannot be flinched while it paws, runs or impales. | `charge_*`, `impale_*`, `toss_up_mps` | The read the owner asked for: telegraph, commit, punish. |
+
 ### TOOLSDOC (2026-10-30) — tools, durability, repair and gear traits
 
 Source: `docs/design/tools-durability-crafting.md` (PROPOSED; packages P1-P4 on the roadmap), from Milan's research
