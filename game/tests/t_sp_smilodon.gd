@@ -98,7 +98,8 @@ func _test_view() -> void:
 	var rest := INF
 	for b in TOES:
 		rest = minf(rest, _bone_pos(sk, b, true).y)
-	for clip in [&"idle", &"walk", &"run", &"stalk", &"strafe_left", &"walk_back", &"attack_primary", &"attack_heavy", &"pin_stab", &"hit_react", &"alert", &"feed"]:
+	# SMILORUN: the run is a bound with a long flight; t_smilorun checks its flight, back flex and paw contact instead.
+	for clip in [&"idle", &"walk", &"stalk", &"strafe_left", &"walk_back", &"attack_primary", &"attack_heavy", &"pin_stab", &"hit_react", &"alert", &"feed"]:
 		sk.reset_bone_poses()
 		ap.play(clip)
 		var a := ap.get_animation(clip)
@@ -110,8 +111,7 @@ func _test_view() -> void:
 				lo = minf(lo, _bone_pos(sk, b).y)
 			offs.append(absf(lo - rest))
 		offs.sort()
-		# The gallop has a flight phase (every foot up for ~8 % of the stride): a fifth of its samples may be airborne.
-		var worst: float = offs[int(offs.size() * 0.8) - 1] if clip == &"run" else offs[-1]
+		var worst: float = offs[-1]
 		_expect(worst <= GROUND_TOL, "%s: a toe stays on the floor (worst %.3f m off rest)" % [clip, worst])
 	# Each hit's part, at its hit frame, is out in front of the body (the paw raked forward, the sabres driven down).
 	var origin: Vector3 = (view as Node3D).global_position
@@ -264,7 +264,7 @@ func _test_stalk() -> void:
 	var host: Node3D = a[0]
 	var player = a[1]
 	player.process_mode = Node.PROCESS_MODE_DISABLED
-	var c = _cat(host, Vector3(0, 0.1, -18.0))
+	var c = _cat(host, Vector3(0, 0.1, -12.0))  # SMILORUN: inside the smaller leash (13.4 m)
 	var b = c.brain
 	b.attack_target = player
 	b._combat_memory_left = 30.0

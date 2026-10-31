@@ -426,6 +426,24 @@ tail whip, tail smash"; "keeps feet planted or steps in the direction for the sw
 | **AK7** | Whip knocks the survivor 3 m back, sweep 3.5 m, the smash's club knocks her down (the `knockdown` status), its shockwave pushes 2 m. | `knockback_m`, `knockdown`, `shock_knockback_m` | Knockdown length is the shared status's. |
 | **AK8** | A tamed ankylosaurus (PetBrain) still swings by reach at the clip's global `hit_frac` (attack_primary 0.42, attack_heavy 0.72 in `anim_events.json`), which now falls in the wind-up of the longer clips. Pets were not in scope. | `anim_events.json`, `PetBrain` | A pet's hit lands visibly early until pets get the club hit too. |
 
+### ANKYLOCLOSE (2026-10-31) — the ankylosaurus fights back up close (claude/mmo-ankyloclose)
+
+Owner: "ankylosaurus is hardly fighting back. have it do a stomp attack, a shove attack, a tackle attack, etc. I should not
+be able to punch it over and over up close without consequence". Numbers in `ai.json archetypes.club_tail.close_moves` /
+`close_zone` unless noted. AK6 ("never runs, never closes under 2 m") no longer holds in front: the tackle runs up to
+2.5 m. Report: `claude-ankyloclose.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **AC1** | Close zone, metres from its centre in its own frame: front = 2.4-8.0 m ahead within 2.4 m of the midline (the head is 3.6 m out); side = from 1 m behind the centre to 3.8 m ahead, up to 4.4 m out. Behind that: the tail, as before. Scales with body size. | `close_zone` | Where the tail stops and the head and feet take over. |
+| **AC2** | Front: STOMP and TACKLE alternate; TACKLE whenever she stands past the stomp's reach (6.4 m). Side: SHOVE to her side. | `ClubTailBrain.FRONT_SEQUENCE`, `_close_move` | Which move the player sees most. |
+| **AC3** | Cooldowns: stomp 1.2 s, shove 1.0 s, tackle 1.8 s (x0.6 enraged), separate from the tail's. With her up and close it stands idle at most ~1 s (t_ankyloclose limit 2.5 s). | `cooldown_s`, `t_ankyloclose.IDLE_MAX_S` | How relentless it is up close. |
+| **AC4** | Damage = attack 420 x: stomp 0.9, shove 0.6, tackle 1.1 (each still one-shots a fresh 100 HP survivor, as AK1). Stomp and tackle knock down; shove knocks 3 m sideways, stomp 1.5 m, tackle 2.5 m. | `damage_mult`, `knockdown`, `knockback_m` | Balance (pc-balance). |
+| **AC5** | Hits: STOMP lands the frame the left forefoot is back within 0.12 m of the ground (window 0.50-0.68 of the 1.5 s clip), a 2.0 m sphere 4.4 m ahead; SHOVE at 0.48 of its 1.2 s clip, a 2.2 m sphere 55 deg to that side at 3.2 m; TACKLE on contact during the run, a 0.5 m sphere 3.9 m ahead. Roll inside the ring dodges, as for the tail. | `strike`, `impact_bone`, `target_*`, `hit_radius_m`, `contact_*` | How close a near-miss can be. |
+| **AC6** | One punch from close provokes it (was three for every grazer) and it skips the look-around (alert) when the puncher is in the close zone: it answers in ~0.4 s. | `club_tail.provoke_hits`, `ClubTailBrain.on_aggro` | The owner's "without consequence". |
+| **AC7** | It does not hit a knocked-down survivor: it waits for her to stand. | `ClubTailBrain._position` | Without it, stomp then tackle would chain on the floor. |
+| **AC8** | The tackle is a 0.9 s coil clip, then the run gait (stride-matched, no glide) at 5 m/s on a line locked at launch (at her if within 45 deg of the snout). No dedicated impact clip. | `tackle.lunge_m`, `lunge_mps`, `_start_lunge` | A body-slam clip on contact would read better; next art pass. |
+
 ### COELOMOVES (2026-10-31) — coelophysis and gallimimus on the deinonychus brain, skittish-territorial grazers (claude/mmo-coelomoves)
 
 Owner: "give the coelophysis all of the same attacks as deinonychus"; "Gallimimus AI is completely braindead. Give it patched deinonychus's brain as a template and we will tune after"; megaloceros and gallimimus "should get territorial and engage the player after running away once ... run away when its weak". Report `docs/orchestration/reports/claude-coelomoves.md`.
@@ -476,6 +494,9 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM4** | One-shot: a fresh 100 HP survivor dies to the pounce alone (attack 360 x pounce_mult 1.6). The stat block is the old one. | `smilodon.json` stats | Balance pass. |
 | **SM5** | Alpha skin = the brown sheet as a recolour of the regular texture (same mesh, mane shape unchanged); the alpha's eyeshine stays blue (the eyes block has one colour). | `smilodon_alpha_albedo.jpg`, `Creature.spawn` | A separate alpha mesh or amber alpha eyes would need more work. |
 | **SM6** | Saddle: the shared builder, no neck strap (the mane lets its rays out), seat behind the mane. Rideable (back 1.6 m clears the 1.78/1.6 rule). | `saddles.json`, `mount/` | Riding a sabre cat was in its data (`tamed_role` mount); the owner may prefer combat-only. |
+| **SM7** | Burst chaser (SMILORUN): bursts at 15.5 m/s for 2.2 s (cooldown 5 s, 12 energy), bounds of 4-12 m (cooldown 1.8 s, 8 energy) whose landing is the pounce (forepaws or sabres, pounce cooldown/energy/mult, pins), a cut-off leap 2 m past the survivor on her line when she runs more than 35 deg across its path, a 3 m hop when stuck at a step. A survivor sprinting away (10.6 m/s) from 8 m is caught in under 2 s in t_smilorun. | `ai.json` saber_cat `tactics.burst/bound`, `smilodon.json` `energy.costs` | Speeds, ranges, costs and whether the bound strike should pin are balance calls; with SM4 the catch is a kill. |
+| **SM8** | Smaller ring as the trade-off: `perception_base` 4 (spots prey at 10.75 m by day, was 14.75), `leash_mult` 1.25 (ring 13.4 m, was 22.1), `spot_alert_s` 0.15 (no roar on spotting; it goes at once). Natures and the night bonus still scale both. | `ai.json` saber_cat | How small the ring should be against how fast it closes. |
+| **SM9** | Gaits: the run is a leaping rotary bound with a long flight (57 % of the cycle) at 6.2 m/s natural; a new lope (3.6 m/s canter) covers the walk-to-run gap so the bound never plays in slow motion, and a sprint (12.7 m/s) plays during bursts; the gait ladder picks by speed. | `tools/gait/smilodon.json`, `CreatureAnim.GAITS` | Flight share and back flex are by eye; the owner judges the strips. |
 
 ### SP-CARNOTAURUS (2026-10-30) — new species (claude/mmo-sp-carnotaurus)
 
@@ -552,3 +573,28 @@ Owner: "call that monstrosity MegaRex ... make it a boss fight". Report `docs/or
 | **MR3** | Rare: a `crater` row of one MegaRex, chance 0.5, on swamp_55, tundra_55 and volcanic_60 (at most one per island). | `world/islands.json` | Which islands and how rare. |
 | **MR4** | Loot: every MegaRex carcass rolls as an alpha's (the guaranteed rare rows, the trophy, the alpha pool: alpha_hide 3-4, alpha_fang 3); butchering = the T. rex rows x~1.5. Not tameable. | `corpse.gd`, `loot_tables.json`, `butchering.json` | Boss rewards. |
 | **MR5** | Look: the olive v2 hide the owner saw. The armoured slate recolour from the Alpha sheet (`megarex/ref/megarex_armoured_albedo.jpg`, `tools/gait/rex_alpha_skin.py`) is not used; the sheet's horns and spike row would need another Tripo mesh. Lying clips go down on the belly (side-lying tore the thigh skin on this rig). The mesh is its left half mirrored (Tripo modelled a mid-stride pose). The plate shows "Mega Rex" (the game capitalises species names). | `megarex.json`, `make_rex_moves.py --v2` | Cosmetic choices the owner may want changed. |
+
+### CORNERED (2026-10-31) — fleeing animals fight back when chased (claude/mmo-cornered)
+
+Owner: "Animals that run away from you should get territorial and attack you if you chase them". Report `docs/orchestration/reports/claude-cornered.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **CN1** | Chasing = the threat within `radius_m` 10 of a fleeing animal and moving at it at `pursuit_mps` 1.5 or more; each hit while it flees adds `hit_s` 1.5; pressure decays at half speed when not pressed. Turns at `pressure_s` 3 or `chase_m` 20 of pursuit. | `ai.json default.cornered` | How long a chase takes before it turns. |
+| **CN2** | The fight lasts `fight_s` 12 (wall-clock, a provocation); then the normal grazer rules run (it flees again if still pressed). Under `weak_frac` 0.3 HP it runs at once and has to be chased again to turn. | `ai.json default.cornered` | Fight length and the run-away cut-off. |
+| **CN3** | The display is the first of roar / crest_flare / stomp / alert the rig has, held `display_s` 0.8; every rig today only has `alert`. | `ai.json default.cornered.display_clips` | Real roar/stomp clips would read better. |
+| **CN4** | Any chaser counts (a pet too), not only the survivor. Timid (flee nature) animals turn too when chased (they still flee first and run sooner when hurt). Swarm/pack tactical flights and a Timid rage (enrage_flee) are exempt: they come back on their own. | `brain_cornered.gd`, `tactical_brain.gd _provoked` | Whether Timid should ever fight. |
+| **CN5** | Defaults for every species; no species override shipped. A species turns it off or retunes it with a `"cornered"` block in its tactics (e.g. `{"enabled": false}`). | species JSON tactics | Per-species tuning. |
+
+### SP-THERIZINOSAURUS (2026-10-31) — new species (claude/mmo-sp-therizinosaurus)
+
+Owner sheet: "use this for the therezino". The PRDs say nothing about the Therizinosaurus. Report `docs/orchestration/reports/claude-sp-therizinosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TZ1** | Stats beside the stegosaurus (L45) and triceratops (L55): tier 50, hp 9000, atk 400, def 220, speed 380, capture tier 4. Tameable, tamed role combat only (no saddle built, so not rideable). Herbivore taming food, pen only. | `therizinosaurus.json` | A claw-armed mount is an obvious ask: needs a saddle (saddles.json + build) and `mount` in `tamed_role`. |
+| **TZ2** | Size: 10 m real, about 13 m on screen with the tail, 8 m to the head top (5 m real x 1.6); `real_length_m` 20 (2x convention). The claws sit ~5.5 m ahead of its centre (`tactics.reach_m` 5.6). | `therizinosaurus.json`, `ai.json` | It towers over the survivor; the claws hang at her height. |
+| **TZ3** | New archetype `claw_guardian` (TacticalBrain on the horned_charger template, no charge): territorial (turns on anyone within 14 m of its body, or on one hit), never flees on sight. Opens with the threat display then the hook combo; point blank the overhead rake (x1.8, cd 8 s), the hook combo (x0.8/1.0/1.6, cd 9 s) or the claw sweep. | `ai.json` archetypes.claw_guardian | Pacing and difficulty: the rake one-shots a fresh 100 HP survivor at atk 400 (like the carnotaurus ram). |
+| **TZ4** | Claw sweep shoves her 3 m back (`primary_shove_m`); the hook's first hit drags her up to 3.5 m toward it, never closer than 4.5 m from its centre (`hook_pull_m`, `hook_stop_m`). Both are new `TacticalBrain.landed` hooks. | `tactical_brain.gd`, `ai.json` | The pull sets up the rake; the owner may want it stronger or a stagger on it. |
+| **TZ5** | Only the overhead rake bleeds (`status_applied` bleed_2, limited to attack_heavy by canon's `pipeline.status_clips`). | `therizinosaurus.json` | Bleed strength/duration. |
+| **TZ6** | Spawns: temperate_45 working ring (1, 60 %) and temperate_35 far shore (1, 50 %); climate temperate. Hits use claw-tip marker bones (`ClawTip.L/R`, `pipeline.hit_parts`, radius 1.4-1.6) until claude/mmo-hitboxes lands. | `world/islands.json`, `therizinosaurus.json` | Which islands and how common; move hit parts to hitboxes.json later. |

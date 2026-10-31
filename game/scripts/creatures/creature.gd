@@ -1066,6 +1066,8 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		# stagger's once-a-second immunity so a pinned animal can still fight back.
 		if staggered and authored.has("hit_react") and view.using_glb and not anim._hold_knockdown:  # down (pin, knockdown): stays down
 			anim.play_clip(&"hit_react")
+			if view.planted:  # the clip may shove the body over its feet; hold them where they stand
+				view.planted.pin(1.5, func() -> bool: return anim.current_clip == &"hit_react")
 		else:
 			view.flinch(1.4 if kind == &"crit" else 1.0)  # no real hurt clip: shove + nod instead
 	if source:

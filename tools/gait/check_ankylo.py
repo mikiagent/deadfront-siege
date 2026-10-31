@@ -4,7 +4,8 @@ height_meters, so the mesh is scaled by height / rest height). Every clip in ani
 - ground: lowest skin point per frame (below -0.03 m = sinking; standing clips must touch, lowest <= 0.05 m),
 - moonwalk: in walk/run each foot's planted run (sole within 4 cm of the floor) slides backwards (+Y in Blender: this
   rig faces -Y) or stays put; walk_back the opposite. Drift = y(end) - y(start) in metres; below -0.05 on walk/run fails,
-- ANKYLOAI planted feet: in every tail move (attack_primary, attack_heavy, tail_swipe) and alert, each foot's sole, while
+- ANKYLOAI planted feet: in every tail move (attack_primary, attack_heavy, tail_swipe), alert and (ANKYLOCLOSE) the close
+  moves (stomp, shove_left, shove_right, tackle), each foot's sole, while
   planted (within 3 cm of the floor), moves at most --slide metres in total over each planted run (the body may turn
   over it; a foot that moves must lift: a step),
 - ANKYLOAI the club is the hit: ClubTailBrain's move table (game/data/creatures/ai.json archetypes.club_tail.club_moves)
@@ -25,8 +26,10 @@ CLUB_SPEED = float(a[a.index("--club-speed") + 1]) if "--club-speed" in a else 3
 SLIDE = float(a[a.index("--slide") + 1]) if "--slide" in a else 0.03
 import json, math
 AI = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../game/data/creatures/ai.json")
-MOVES = {m["clip"]: m for m in json.load(open(AI))["archetypes"]["club_tail"]["club_moves"].values()}
-PLANTED = set(MOVES) | {"alert"}
+_CT = json.load(open(AI))["archetypes"]["club_tail"]
+MOVES = {m["clip"]: m for m in _CT["club_moves"].values()}
+# ANKYLOCLOSE: stomp / shove / tackle keep every foot planted except the one that steps or stomps
+PLANTED = set(MOVES) | {"alert"} | {m["clip"] for m in _CT.get("close_moves", {}).values()}
 SURVIVOR_R = 0.35
 FPS = 24
 bpy.ops.wm.read_factory_settings(use_empty=True)
