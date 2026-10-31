@@ -10,6 +10,9 @@ extends SkeletonModifier3D
 ##  - Clips that drive the head themselves (bites, roars, charges, hit_react, death, sleep...) fade it to 0 within
 ##    FADE_OFF_S, so an attack's head and jaw land where they were authored (hit sweeps read these bones).
 ##  - Angles move at a capped rate and the weight through smoothstep, so it never pops.
+##  - Idempotent: each bone's turn is applied on top of its base pose (the clip's pose this frame, or, when the clip did
+##    not key the bone and it still holds what we wrote, last frame's base), so a clip without neck or head keys can
+##    never wind the head round.
 
 const NECK_SHARE := 0.5  # ASSUMPTION: the neck bones turn half of the look between them, the head the other half
 const YAW_DEG := 60.0  # ASSUMPTION: default yaw clamp each side; stiff skulls and long necks set less in their JSON
@@ -23,6 +26,8 @@ const MAX_DT := 1.0 / 30.0  # a hitch frame must not swing the head in one step
 ## Clips that own the head: every one-shot (attacks, leaps, dodges, hit_react, roar...) but alert, plus the non-one-shots below.
 const EXTRA_OFF: Array[StringName] = [&"death", &"knockdown", &"sleep", &"feed", &"charge", &"pin_foot", &"grab", &"bite_shake", &"sniff"]
 const KEEP_ON: Array[StringName] = [&"alert"]
+## A looping clip whose name holds one of these drives the head too (a new charge or maul loop needs no list edit).
+const OFF_WORDS: Array[String] = ["charge", "maul", "roar", "bite"]
 const CALM: Array[StringName] = [&"sleep", &"downed", &"dead"]
 
 var creature: Creature
@@ -34,7 +39,9 @@ var _yaw := 0.0  ## smoothed, clamped; + = to the animal's left
 var _pitch := 0.0  ## + = up
 var _head := -1
 var _necks: Array[int] = []  ## root-most first
-var _off: Dictionary = {}
+var _off: Dictionary = {}  ## clip -> head-driving (filled lazily for names not in the lists)
+var _base: Dictionary = {}  ## bone -> its pose rotation before our turn
+var _written: Dictionary = {}  ## bone -> the rotation we wrote last frame
 
 static func default_off_clips() -> Array[StringName]:
 	var out: Array[StringName] = []
@@ -59,6 +66,8 @@ func setup(spec: Dictionary) -> bool:
 	pitch_max = deg_to_rad(float(spec.get("pitch_deg", PITCH_DEG)))
 	for c in default_off_clips() + Array(spec.get("off_clips", [])):
 		_off[StringName(str(c))] = true
+	for c in KEEP_ON:
+		_off[c] = false
 	return true
 
 ## The point the animal looks at, or null.
@@ -76,7 +85,12 @@ func aim_point() -> Variant:
 	return t.global_position + Vector3.UP * up
 
 func off_clip() -> bool:
-	return creature != null and creature.anim != null and _off.has(creature.anim.current_clip)
+	if creature == null or creature.anim == null:
+		return false
+	var clip: StringName = creature.anim.current_clip
+	if not _off.has(clip):
+		_off[clip] = OFF_WORDS.any(func(w: String) -> bool: return String(clip).contains(w))
+	return _off[clip]
 
 func _process_modification_with_delta(dt: float) -> void:
 	var sk := get_skeleton()
@@ -111,6 +125,11 @@ func _process_modification_with_delta(dt: float) -> void:
 	if w <= 0.0:
 		_yaw = 0.0
 		_pitch = 0.0
+		if not _written.is_empty():  # hand unkeyed bones back their base pose, then stay out of the way
+			for b in _written:
+				if sk.get_bone_pose_rotation(b).is_equal_approx(_written[b]):
+					sk.set_bone_pose_rotation(b, _base[b])
+			_written.clear()
 		return
 	var up := _axis(sk, Vector3.UP)
 	var right := _axis(sk, Vector3.RIGHT.rotated(Vector3.UP, _yaw * w))
@@ -130,6 +149,12 @@ func _axis(sk: Skeleton3D, v: Vector3) -> Vector3:
 
 ## Turn one bone by `share` of the look, about skeleton-space axes expressed in its own frame.
 func _turn(sk: Skeleton3D, b: int, up: Vector3, right: Vector3, share: float) -> void:
+	var cur := sk.get_bone_pose_rotation(b)
+	if _written.has(b) and cur.is_equal_approx(_written[b]):
+		sk.set_bone_pose_rotation(b, _base[b])  # the clip left it alone: take our last turn off first
+		cur = _base[b]
+	_base[b] = cur
 	var inv := sk.get_bone_global_pose(b).basis.orthonormalized().inverse()
 	var q := Quaternion((inv * right).normalized(), _pitch * share) * Quaternion((inv * up).normalized(), _yaw * share)
-	sk.set_bone_pose_rotation(b, sk.get_bone_pose_rotation(b) * q)
+	_written[b] = cur * q
+	sk.set_bone_pose_rotation(b, _written[b])

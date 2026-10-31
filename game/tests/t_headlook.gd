@@ -6,6 +6,9 @@ extends SceneTree
 ##  - during an attack clip the look's weight is 0 and the head bone is exactly where the clip put it (hit sweeps
 ##    read these bones);
 ##  - she walks behind it: the look fades out;
+##  - a clip that keys no neck or head bone, played 5 s with her 30 deg left: the head's yaw from where the clip
+##    left it stays within the clamp (the look never adds to itself frame after frame);
+##  - a looping clip named like a charge / maul / roar / bite counts as head-driving without being listed;
 ##  - nothing pops: the head's added yaw never changes more than MAX_STEP_DEG in one 60 fps frame.
 ## Also times the modifier on CAP animals at once (the perf budget's creature cap).
 ## Trees and skeletons advance manually at 60 fps, so every number is exact.
@@ -37,6 +40,15 @@ func _process(_d: float) -> bool:
 	var off: Array = hl_script.default_off_clips()
 	_expect(&"attack_primary" in off and &"roar" in off and &"death" in off and &"hit_react" in off, "default off clips cover attacks, roar, death, hit_react")
 	_expect(not (&"idle" in off or &"walk" in off or &"alert" in off), "idle, walk and alert keep the look")
+	var probe_c = _spawn(&"velociraptor", Vector3.ZERO)
+	var phl = probe_c.view.head_look
+	var named := true
+	for clip in [&"maul_loop", &"charge_low", &"roar_long", &"bite_hold"]:
+		probe_c.anim.current_clip = clip
+		named = named and phl.off_clip()
+	probe_c.anim.current_clip = &"stalk"
+	_expect(named and not phl.off_clip(), "unlisted clips named charge/maul/roar/bite drive the head; stalk does not")
+	probe_c.free()
 	var ids: Array[StringName] = []
 	for f in DirAccess.get_files_at("res://data/creatures"):
 		var id := StringName(f.get_basename())
@@ -149,10 +161,55 @@ func _test_species(id: StringName) -> bool:
 	place.call(170.0)
 	prev = run.call(60)
 	_expect(hl.weight == 0.0 and absf(prev) < 0.01, "%s: the look fades out with her behind it (weight %.2f)" % [id, hl.weight])
+	_test_unkeyed(c, sk, hl, place, clamp_deg, want, id)
 	_expect(st.worst <= MAX_STEP_DEG, "%s: no pop, worst per-frame change %.2f deg (max %.1f)" % [id, st.worst, MAX_STEP_DEG])
 	c.free()
 	her.free()
 	return true
+
+## A clip with no neck or head keys (only a root track) through the AnimationPlayer, the tree off: nothing resets
+## those bones between frames, so a look that added to itself would wind the head round within a second.
+func _test_unkeyed(c, sk: Skeleton3D, hl, place: Callable, clamp_deg: float, want: float, id: StringName) -> void:
+	var tree: AnimationTree = c.anim.tree
+	tree.active = false
+	var ap: AnimationPlayer = c.view.rig.anim_player
+	var a := Animation.new()
+	a.length = 1.0
+	a.loop_mode = Animation.LOOP_LINEAR
+	var root_bone := 0
+	while root_bone < sk.get_bone_count() and sk.get_bone_parent(root_bone) >= 0:
+		root_bone += 1
+	var tr := a.add_track(Animation.TYPE_POSITION_3D)
+	a.track_set_path(tr, NodePath("%s:%s" % [ap.get_node(ap.root_node).get_path_to(sk), sk.get_bone_name(root_bone)]))
+	a.position_track_insert_key(tr, 0.0, sk.get_bone_pose_position(root_bone))
+	var lib := AnimationLibrary.new()
+	lib.add_animation(&"nokeys", a)
+	ap.add_animation_library(&"hltest", lib)
+	ap.play(&"hltest/nokeys")
+	var mods: Array = []
+	for m in sk.get_children():
+		if m is SkeletonModifier3D and (m as SkeletonModifier3D).active and m.has_method(&"_process_modification_with_delta"):
+			mods.append(m)
+	ap.advance(DT)
+	var start := sk.get_bone_global_pose(hl._head).basis.orthonormalized()
+	place.call(30.0)
+	var vb: Basis = c.view.global_basis.orthonormalized()
+	var skb := sk.global_basis.orthonormalized()
+	var fwd_sk := (skb.inverse() * (vb * Vector3.FORWARD)).normalized()
+	var worst := 0.0
+	var last := 0.0
+	for f in 300:  # 5 s
+		ap.advance(DT)
+		for m in mods:
+			m._process_modification_with_delta(DT)
+		var d := sk.get_bone_global_pose(hl._head).basis.orthonormalized() * start.inverse()
+		var turned := vb.inverse() * (skb * (d * fwd_sk))
+		last = rad_to_deg(atan2(-turned.x, -turned.z))
+		worst = maxf(worst, absf(last))
+	_expect(worst <= clamp_deg + 1.0 and absf(last - want) <= AIM_TOL_DEG,
+		"%s: 5 s of a clip with no neck/head keys, yaw stays %.1f deg (max seen %.1f, clamp %.0f)" % [id, last, worst, clamp_deg])
+	ap.stop()
+	tree.active = true
 
 ## CAP animals looking at once: the modifier's own cost per animal per frame.
 func _test_cost() -> void:

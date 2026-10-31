@@ -59,7 +59,8 @@ and t_combat pass.
   triceratops, utahraptor and carnotaurus. Canon e32ea4e2 run alone gives the same 5 lines.
 - **t_perfgates FAIL, same on canon, box under load:** `home_grassland builds in ~2.7 s (budget 2.5 s)` at load
   average 15-17. Canon e32ea4e2 run alone at the same moment failed the same way (2780 ms, savannah 3186 ms).
-  After the 12f4ec9c merge, at load 19: home 2792 ms, and the other islands are under budget. build_ms is island
+  After the 12f4ec9c merge: home 2792 ms at load 19 with the other islands under budget. After the follow-up, at load
+  15: home 2713 ms and savannah 3138 ms. build_ms is island
   build time, and HeadLook adds nothing to it beyond one node per creature. scene_nodes (5046-5423 of 6000) and creatures
   (<= 24) are within budget.
 
@@ -76,8 +77,18 @@ weight. They were taken off-screen and windowed (`--position 6000,3000 -- --skip
 - Turn rate 200 deg/s. Fades: 0.4 s in, 0.3 s out, 0.15 s when an off clip starts.
 - Aim heights: 1.4 m for the survivor, 0.7 x height for an animal, 0.5 m for anything else.
 
+## Follow-up (coordinator review)
+- **No build-up any more.** Each bone remembers the rotation HeadLook wrote and the base it wrote it on. If the clip did
+  not key the bone this frame, the bone still holds HeadLook's value. HeadLook then puts the base back before turning,
+  so a clip with no neck or head keys can never wind the head round. When the weight reaches 0, those bones are handed
+  back their base pose. New t_headlook case, run on all 27 species: a clip that keys only the root bone plays through
+  the AnimationPlayer (tree off) for 5 s with her 30° left. The head's yaw stays at 29.7–30.0°, never over the clamp.
+  With the fix taken out, the same case fails: the head winds to 180°.
+- **Clips are caught by name too.** Any clip whose name contains "charge", "maul", "roar" or "bite" counts as
+  head-driving without being listed. t_headlook checks maul_loop, charge_low, roar_long and bite_hold, and that stalk
+  is still on.
+- Assumptions HL1-HL7 are logged in `docs/vision/WildLandsMMO_Open_Questions.md`.
+
 ## For the next agent
-- HeadLook post-multiplies onto the clip's pose each frame. That relies on every clip keying the neck and head bones,
-  which today's Tripo and dsc bakes all do. A clip that leaves them unkeyed would let the turn build up frame after frame.
-- A new head-driving clip is covered automatically if it goes into CreatureAnim.ONESHOT, ATTACKS or LEAPS. A looping one
-  (like `charge`) has to go into `EXTRA_OFF` or a species' `off_clips`.
+- A new head-driving clip is covered automatically if it is in CreatureAnim.ONESHOT, ATTACKS or LEAPS, or if its name
+  holds charge, maul, roar or bite. Anything else goes in a species' `off_clips`.
