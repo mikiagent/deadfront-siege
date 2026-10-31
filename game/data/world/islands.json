@@ -437,6 +437,11 @@
       ],
       "working": [
         {
+          "species": "majungasaurus",
+          "count": 1,
+          "groups": 1
+        },
+        {
           "species": "styracosaurus",
           "count": 3,
           "groups": 1
@@ -456,6 +461,11 @@
         }
       ],
       "far_shore": [
+        {
+          "species": "majungasaurus",
+          "count": 1,
+          "groups": 1
+        },
         {
           "species": "utahraptor",
           "count": 2,

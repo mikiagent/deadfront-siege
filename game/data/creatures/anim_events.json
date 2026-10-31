@@ -124,6 +124,25 @@
     }
   },
   "natural_speeds": {
+    "majungasaurus": {
+      "height_m": 5.0,
+      "walk": 2.873,
+      "walk_l": 2.875,
+      "walk_r": 2.871,
+      "walk_len": 1.083,
+      "run": 9.379,
+      "run_l": 9.379,
+      "run_r": 9.379,
+      "run_len": 0.667,
+      "charge": 11.43,
+      "charge_len": 0.583,
+      "strafe_left": 1.915,
+      "strafe_left_len": 1.083,
+      "strafe_right": 1.915,
+      "strafe_right_len": 1.083,
+      "walk_back": 1.915,
+      "walk_back_len": 1.083
+    },
     "ankylosaurus": {
       "height_m": 2.25,
       "run_l": 2.06,

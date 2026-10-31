@@ -745,6 +745,11 @@ func _start_sequence(d: float) -> bool:
 	var row := pick_sequence(d)
 	if row.is_empty():
 		return false
+	# tactics.healthy_commit_chance (opportunist, majungasaurus): above the weak_prey HP line a ready pick only goes
+	# this often (a test rush); otherwise its cooldown is spent and it keeps circling the prey.
+	if tac.has("healthy_commit_chance") and not "weak_prey" in _active_mods() and rng.randf() >= _t("healthy_commit_chance", 1.0):
+		_start_cd(StringName((row.get("steps", []) as Array)[-1]))
+		return false
 	_seq = (row.get("steps", []) as Array).duplicate()
 	_seq_i = 0
 	var last := StringName(_seq[-1])
@@ -1397,6 +1402,13 @@ func _end_pounce() -> void:
 ## act; PINFEEL lays it down in its pinned pose) and is held pin_reach_m in front of the body while pin_stab drives the
 ## sabres in (anim_events pin_stab hit_fracs, x pin_mult each, from the Head part). It lets go when the clip ends, the
 ## prey is no longer Pinned, or either dies. Prey bigger than itself is not pinned.
+## A contact hit of this brain's animal landed (Creature._on_hit). tactics.bite_pin (majungasaurus): a landed
+## crushing bite (attack_primary) holds on: the grab (_start_pin; pin_stab shakes the held prey), off pin_cd.
+func landed(clip: StringName, target: Node) -> void:
+	if clip == &"attack_primary" and tac.get("bite_pin", false) and target == attack_target and _ready_to(&"pin"):
+		_start_cd(&"pin")
+		_start_pin.call_deferred()  # after the bite's attack_hit returns: started inside it, pin_stab skipped its first hit
+
 func _start_pin() -> bool:
 	var tgt := attack_target
 	if not tac.get("pin", false) or not creature.anim.has_state(&"pin_stab"):
