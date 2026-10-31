@@ -29,9 +29,10 @@
   ],
   "variants": [],
   "coloration": {
-    "hue_deg": 355,
-    "sat": 0.14,
-    "val": 0.1,
+    "_note": "PACHY 2026-10-31 (owner: 'the color is off'): hue_deg was 355, read as +-355 deg (clamped to +-40), so wild animals rolled orange to purple hides; and a stripes pattern was drawn over the painted stripes. Now a small natural range and no extra stripes; the hide's own cream and dusty-pink stripes carry the look.",
+    "hue_deg": 6,
+    "sat": 0.1,
+    "val": 0.08,
     "rare_chance": 0.02,
     "rare_morphs": [
       "pale",
@@ -39,28 +40,28 @@
     ],
     "patterns": [
       {
-        "id": "stripes",
-        "weight": 3.0,
-        "scale": 0.8,
-        "strength": 0.24
+        "id": "",
+        "weight": 6.0
       },
       {
         "id": "countershade",
-        "weight": 3.0,
+        "weight": 1.0,
         "scale": 1.0,
-        "strength": 0.5
-      },
-      {
-        "id": "",
-        "weight": 3.0
+        "strength": 0.2
       }
     ]
   },
-  "rig_note": "Biped. Tripo mesh from the owner's bare turnaround sheet, rigged by skeleton transplant from the Quaternius Velociraptor rig (hind-leg joints placed by hand), Jaw bone added; no Meshy rigging.",
+  "rig_note": "Biped. Tripo v2 mesh (multiview from Codex views of the owner's sheet, standing pose), rigged by tools/gait/rig_biped.py with a hand-placed T. rex-style skeleton (Hips/Spine1/Chest/Neck1/Neck2/Head, Tail1-6, Thigh/Shin/Metatarsal/Toe, Arm/Forearm/Hand) and heat weights; Jaw by tools/jaw/add_jaw.py. Replaces the Velociraptor transplant whose warp put the spine 25 cm off the body and crumpled the legs (owner 2026-10-31: 'the legs are mangled').",
   "prompt": "Pachycephalosaurus from the owner's turnaround sheet (Armored Striped Dinosaur Turnaround Sheet): stocky biped, thick body, strong hind legs, short arms with three black claws, long stiff tail, bony pebbled dome skull ringed by cream spikes and knobs, small spikes down the snout, small beak-like mouth open, amber eyes, cream-white base with broad dusty-pink/red vertical stripes, pinkish-red scaly neck and back, tan scaly lower legs, dark claws. No saddle.",
   "look": "pony-sized stocky biped, bony pebbled dome skull ringed by cream spikes, small beak, short clawed arms, long stiff tail, cream-white hide with broad dusty-pink stripes, pinkish-red neck and back, tan lower legs,",
   "texture_prompt": "cream-white pebbled hide with broad dusty-pink and red vertical stripes on body and tail, pinkish-red scaly neck and back, grey-brown pebbled dome with cream spikes, tan scaly lower legs, dark claws, matte surface",
-  "clips": {},
+  "clips": {
+    "attack_primary": "dome butt: rock back, chin tucked so the dome faces the prey, drive the body forward off a planted step; the dome is the front-most point at the hit (0.42)",
+    "attack_heavy": "stomp: rears up on the left leg, right foot hauled high and held (telegraph), slammed down ahead (hit 0.72)",
+    "kick": "hip check: the rump and stiff tail slam round to the side and back at a prey behind it (hit 0.45)",
+    "charge": "head-down run-up, dome leading; the impact is the charge's body-slam shove",
+    "alert": "threat display: head lowered and dome presented, a stamp of the right foot, a snort"
+  },
   "taming": {
     "preferred_food": [
       "berry",
@@ -77,14 +78,14 @@
     "bone": "Head",
     "points": [
       [
-        -0.0264,
-        0.0573,
-        0.0292
+        -0.032,
+        0.0634,
+        0.0246
       ],
       [
-        0.023,
-        0.058,
-        0.0005
+        0.032,
+        0.0634,
+        0.0246
       ]
     ],
     "radius": 0.004,
@@ -93,139 +94,61 @@
       0.62,
       0.12
     ],
-    "note": "on the skin at the painted amber eye, each side ray-cast (the Tripo head is 8 mm off the midline, so the dots are not mirrored); glTF Head-bone space"
+    "note": "ray-cast onto the painted amber eye of the v2 mesh (symmetric), glTF Head-bone space"
   },
   "pipeline": {
     "forward_axis": "+Z",
-    "source_height_m": 0.416,
+    "source_height_m": 0.49,
     "source_length_m": 0.998,
-    "route": "skeleton_transplant_v3",
-    "mesh": "Tripo P1 multiview (front + left cropped from the owner sheet), task 83150c87-1351-4ab3-9372-3f79f36f852c, 50 Tripo credits",
-    "mesh_source": "res://assets/creatures/pachycephalosaurus/work/pachycephalosaurus_tripo_v1.glb",
+    "route": "rig_biped_v1",
+    "mesh": "Tripo P1 multiview (front/back drawn by Codex from a Codex left view of the owner sheet, right = mirrored left), task c890b902-ab1d-4a89-b997-fc74254abcf7, 50 Tripo credits (2026-10-31)",
+    "mesh_source": "res://assets/creatures/pachycephalosaurus/work/pachycephalosaurus_tripo_v2.glb",
+    "mesh_views": "ref/pachycephalosaurus_view_{front,left,back,right}.png",
     "reference_sheet": "game/assets/creatures/pachycephalosaurus/ref/pachycephalosaurus_sheet.png (owner bare turnaround sheet 2026-10-28)",
-    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx (CC0, biped)",
-    "transplant_tool": "tools/transplant_rig.py --leg 0.08,-0.07,0.22 0.1,-0.17,0.12 0.105,-0.21,0.012 0.105,-0.27,0.008 (the mesh crouches; the landmark warp put the hip 0.25 ahead of the thigh and 0.19 out)",
-    "jaw": "tools/jaw/add_jaw.py --open --snout 0.121 --mid 0.3 --reach 1.0 --pivot 0.05 0.31 --split -26 --close 40; key_jaw --bite 20 --roar 32 --chew 14 --heavy 22 --lunge 10",
-    "gaits": "tools/gait/make_gait.py tools/gait/pachycephalosaurus.json: walk, run, strafe_left/right and walk_back from the walk plan",
+    "rig": "tools/gait/rig_biped.py with tools/gait/pachycephalosaurus_rig.json (joints read off ortho renders)",
+    "jaw": "tools/jaw/add_jaw.py --open --snout 0.142 --pivot 0.075 0.38 --mid 0.3 --reach 1.0",
+    "gaits": "tools/gait/make_gait.py tools/gait/pachycephalosaurus.json: walk, run, charge (head down), strafe_left/right and walk_back from the walk plan",
     "clips_from": {
-      "charge": "tools/jaw/make_charge_kick.py --head-drop 35 --crouch 0.02 (dome first)",
-      "feed,sleep": "tools/gait/transfer_clips.py from velociraptor (same donor skeleton)",
-      "alert,attack_primary,attack_heavy,death,hit_react,idle,knockdown": "transplant donor clips",
-      "tail": "tools/gait/stiffen_tail.py --keep 0.35 on idle alert attack_primary attack_heavy hit_react feed charge (long stiff tail per the sheet)",
-      "kick": "none: a biped has no double hind kick; the brain only kicks when the clip exists"
+      "idle,alert,attack_primary,attack_heavy,kick,hit_react,knockdown,death,sleep,feed": "tools/gait/make_pachy_moves.py (feet IK-planted; lying clips rest on the floor)"
     },
-    "repair": {
-      "loose_removed": 621,
-      "doubles_merged": 12929,
-      "holes_filled": 184,
-      "verts_before": 20701,
-      "islands": 3752,
-      "verts_after": 7151
-    },
-    "warp": {
-      "mode": "landmark",
-      "snout": [
-        -0.59,
-        -0.5
-      ],
-      "foot": [
-        -0.09,
-        -0.24
-      ],
-      "tail": [
-        0.58,
-        0.5
-      ],
-      "hip_z_scale": 0.945,
-      "width_scale": 1.523,
-      "leg_by_hand": [
-        "0.08,-0.07,0.22",
-        "0.1,-0.17,0.12",
-        "0.105,-0.21,0.012",
-        "0.105,-0.27,0.008"
-      ]
-    },
-    "weights": {
-      "direct_fraction": 1.0,
-      "toe_weights": "three spatial smoothing passes; original bone assignments retained"
-    },
-    "authored_clips": {
-      "knockdown": "complete death collapse followed by 8-frame grounded hold",
-      "hit_react": "dedicated 0.6s head/neck recoil from neutral idle; no death frames",
-      "alert": "idle 0-40% with head pitched 20.0 deg",
-      "attack_heavy": "telegraph hold of 8 frames at 30%",
-      "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
-    },
-    "clip_lengths": {
-      "alert": {
-        "frames": [
-          1,
-          25
-        ],
-        "seconds": 1.0
-      },
-      "attack_heavy": {
-        "frames": [
-          1,
-          36
-        ],
-        "seconds": 1.458
-      },
-      "attack_primary": {
-        "frames": [
-          1,
-          21
-        ],
-        "seconds": 0.833
-      },
-      "death": {
-        "frames": [
-          1,
-          44
-        ],
-        "seconds": 1.792
-      },
-      "hit_react": {
-        "frames": [
-          1,
-          15
-        ],
-        "seconds": 0.583
-      },
-      "idle": {
-        "frames": [
-          1,
-          62
-        ],
-        "seconds": 2.542
-      },
-      "knockdown": {
-        "frames": [
-          1,
-          52
-        ],
-        "seconds": 2.125
-      },
-      "run": {
-        "frames": [
-          1,
-          15
-        ],
-        "seconds": 0.583
-      },
-      "walk": {
-        "frames": [
-          1,
-          59
-        ],
-        "seconds": 2.417
-      }
-    },
+    "build": "tools/gait/build_pachycephalosaurus.sh; gate tools/gait/check_pachy.py --height 1.8",
     "credits_spent": 50,
+    "previous": "v1 (task 83150c87, 50 credits): Velociraptor skeleton transplant, retired 2026-10-31",
     "assumptions": [
       "# ASSUMPTION: height_meters 1.8 (dome top) for \"pony-sized\"; small saddle class (< 2.2 m)",
       "# ASSUMPTION: stats, tier 16, capture tier I, taming foods modelled on zebraceratops (the other early herbivore mount); archetype pack_mule so the herd grazer charge/flee AI applies",
       "# ASSUMPTION: real_length_m 4.5, climate grassland, clade/period are the real animal; no lore beyond the owner description"
+    ],
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "charge",
+      "alert",
+      "attack_primary",
+      "attack_heavy",
+      "kick",
+      "hit_react",
+      "knockdown",
+      "death",
+      "sleep",
+      "feed"
     ]
+  },
+  "tactics": {
+    "_about": "# ASSUMPTION (owner 2026-10-31: 'give it fight moves that suit a dome-headed brawler'): pack_mule's herd behaviour, display and head-down charge (the dome headbutt with knockback), plus at point blank a hip check (kick) when the prey is behind it, else a stomp (attack_heavy, its own cooldown), else a dome butt. Bigger shove than the other grazers: it is a head-butting specialist.",
+    "point_blank": [
+      "kick",
+      "heavy",
+      "bite"
+    ],
+    "heavy_cd": 7.0,
+    "heavy_mult": 1.4,
+    "kick_cd": 4.0,
+    "kick_mult": 1.3,
+    "charge_mult": 2.0,
+    "charge_shove_m": 3.5,
+    "charge_shove_stagger_s": 0.8,
+    "charge_speed_mult": 1.6
   }
 }

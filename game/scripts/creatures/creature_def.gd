@@ -39,6 +39,9 @@ extends Resource
 @export var energy: Dictionary = {}
 ## GENETICS: optional per-species genome block {"size_range": [lo, hi]}; empty = ai.json "genetics".
 @export var genetics: Dictionary = {}
+## Species tweaks merged over its archetype's ai.json tactics block (PACHY: the dome brawler keeps pack_mule's herd
+## behaviour but stomps and hip-checks at point blank).
+@export var tactics: Dictionary = {}
 
 ## ASSUMPTION: Durango-scale speed 400–700 maps to metres per second as speed / 100.
 var move_speed_mps: float:
@@ -106,6 +109,8 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.energy = en if en is Dictionary else {}
 	var gen: Variant = d.get("genetics", {})
 	c.genetics = gen if gen is Dictionary else {}
+	var tac: Variant = d.get("tactics", {})
+	c.tactics = tac if tac is Dictionary else {}
 	c._apply_taming(d)
 	return c
 

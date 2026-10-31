@@ -79,6 +79,9 @@ codex screen later), `taming{}` (field-tame food and feed counts; see below),
 `turn_rate` (max yaw rate in rad/s; default by `real_length_m`: <= 8 m 5.0, <= 14 m 3.0,
 larger 1.4, see `CreatureDef.default_turn_rate`).
 
+Optional `tactics{}`: keys merged over the archetype's `ai.json` tactics block for this species only
+(PACHY: `point_blank`, `heavy_mult`, `charge_shove_m`, ...).
+
 `archetype` values the game implements: `apex_raptor`, `raptor_pack`,
 `flock_harass`, `swarm`, `runner`, `venom_ranged`, `pack_mule`, `horned_charger`,
 `club_tail`, `spiked_tail`, `saber_cat`, `antlered`, `titan`, `tyrant`.

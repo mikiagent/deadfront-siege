@@ -52,7 +52,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Deinonychus | TacticalBrain (pack_flanker) | pack flank, sickle-claw rake | backstep, strafe, pounce, charge, combo | alert, attack_primary, attack_heavy, bite_combo, pounce, charge | |
 | Gallimimus | CreatureBrain (runner) | charge, kick, outruns you | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
 | Megaloceros | CreatureBrain (antlered) | antler gore, flees | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
-| Pachycephalosaurus | TacticalBrain (pack_mule) | dome headbutt charge | display, charge, strafe | alert, attack_primary, attack_heavy, charge | |
+| Pachycephalosaurus | TacticalBrain (pack_mule + species tactics) | dome headbutt charge | display, head-down charge (dome ram, 3.5 m shove), strafe; point blank: hip check if you are behind it, stomp, dome butt | alert, attack_primary (dome butt), attack_heavy (stomp), kick (hip check), charge | reworked per owner 2026-10-31 (new Tripo model, new rig and clips, colour fix), re-test |
 | Protoceratops | TacticalBrain (pack_mule) | shoving beak, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
 | Stegosaurus | CreatureBrain (spiked_tail) | thagomizer tail sweep | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
 | Styracosaurus | TacticalBrain (horned_charger) | horn sweep, knockback | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |

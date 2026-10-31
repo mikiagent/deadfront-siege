@@ -4,89 +4,167 @@
     -1,
     0
   ],
-  "body": "Body",
-  "view_size": 0.9,
+  "body": "Hips",
+  "view_size": 1.1,
   "view_centre": [
-    -0.1,
-    0.2
+    0.0,
+    0.25
   ],
   "legs": {
     "L": {
-      "up": "BackUpLeg.L",
-      "low": "BackLowLeg.L",
-      "foot": "BackFoot.L",
-      "root": "BackLeg.L",
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
       "end": "hind"
     },
     "R": {
-      "up": "BackUpLeg.R",
-      "low": "BackLowLeg.R",
-      "foot": "BackFoot.R",
-      "root": "BackLeg.R",
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
       "end": "hind"
     }
   },
   "wiggle": {
-    "Neck": {
+    "Neck1": {
       "key": "head",
-      "axis": "pitch"
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head_yaw",
+      "axis": "yaw"
     },
     "Tail2": {
       "key": "tail",
       "axis": "yaw",
-      "phase": 0.25
+      "phase": 0.2
     },
     "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
       "key": "tail",
       "axis": "yaw",
       "phase": 0.4
     }
   },
+  "note": "PACHY 2026-10-31: rig_biped.py rig (Thigh/Shin/Metatarsal/Toe, faces -Y, hip 0.255 mesh units). The metatarsal is posed as the foot: IK solves thigh+shin to its head. Stocky, stiff-tailed biped; charge = run with the head down and tucked so the dome leads (owner: head-down run-up).",
   "clips": {
     "walk": {
-      "cycle_s": 1.0,
+      "cycle_s": 0.92,
       "duty": 0.62,
-      "stride": 0.22,
+      "stride": 0.3,
       "phases": {
         "L": 0.0,
         "R": 0.5
       },
-      "lift_hind": 0.028,
-      "swing_curl_hind": 30,
-      "toe_roll": 25,
-      "legroot_hind": 0.0,
-      "foot_offset_hind": 0.0,
+      "lift_hind": 0.04,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
       "bob": 0.004,
       "bob_harmonic": 2,
-      "roll_deg": 2.0,
-      "sway": 0.005,
+      "roll_deg": 2.5,
+      "lean_deg": 2,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -4
+        ],
+        "Head": [
+          "pitch",
+          4
+        ]
+      },
       "wiggle_head": 2.0,
       "wiggle_harmonic_head": 2,
-      "wiggle_tail": 1.5
+      "wiggle_head_yaw": 2.5,
+      "wiggle_tail": 2.0,
+      "sway": 0.006,
+      "crouch": 0.004
     },
     "run": {
-      "cycle_s": 0.55,
-      "duty": 0.36,
-      "stride": 0.45,
+      "cycle_s": 0.52,
+      "duty": 0.4,
+      "stride": 0.58,
       "phases": {
         "L": 0.0,
         "R": 0.5
       },
-      "lift_hind": 0.05,
-      "swing_curl_hind": 45,
-      "toe_roll": 35,
-      "legroot_hind": 0.0,
-      "foot_offset_hind": 0.0,
-      "crouch": 0.012,
-      "bob": 0.0066,
+      "lift_hind": 0.075,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.008,
       "bob_harmonic": 2,
-      "bob_phase": 0.0,
-      "roll_deg": 1.5,
-      "sway": 0.0028,
-      "wiggle_head": 2.0,
+      "roll_deg": 3,
+      "lean_deg": 8,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -8
+        ],
+        "Head": [
+          "pitch",
+          6
+        ]
+      },
+      "wiggle_head": 3.0,
       "wiggle_harmonic_head": 2,
-      "wiggle_tail": 2.0
+      "wiggle_head_yaw": 1.5,
+      "wiggle_tail": 3.0,
+      "sway": 0.006,
+      "crouch": 0.02
+    },
+    "charge": {
+      "cycle_s": 0.48,
+      "duty": 0.4,
+      "stride": 0.6,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.07,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.007,
+      "bob_harmonic": 2,
+      "roll_deg": 2,
+      "lean_deg": 14,
+      "hold": {
+        "Chest": [
+          "pitch",
+          -4
+        ],
+        "Neck1": [
+          "pitch",
+          -22
+        ],
+        "Neck2": [
+          "pitch",
+          -12
+        ],
+        "Head": [
+          "pitch",
+          -38
+        ],
+        "Tail1": [
+          "pitch",
+          6
+        ],
+        "Tail2": [
+          "pitch",
+          3
+        ]
+      },
+      "wiggle_head": 1.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 0.5,
+      "wiggle_tail": 2.0,
+      "sway": 0.004,
+      "crouch": 0.025
     }
-  },
-  "note": "2026-10-28 pachycephalosaurus (Tripo mesh 1.0 units long, hip 0.22 like the compy): stocky biped, slower heavier stride, stiff tail (small tail wiggle) per the owner's sheet"
+  }
 }

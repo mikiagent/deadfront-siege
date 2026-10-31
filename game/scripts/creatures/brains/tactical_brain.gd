@@ -94,7 +94,8 @@ static func has_tactics(def: CreatureDef) -> bool:
 
 func setup(c: Creature) -> void:
 	super.setup(c)
-	tac = tactics_for(c.def.archetype)
+	tac = tactics_for(c.def.archetype).duplicate(true)
+	tac.merge(c.def.tactics, true)  # species tweaks (data/creatures/<id>.json "tactics") over the archetype's
 	rng.randomize()
 	_circle_sign = _flank_sign
 	state_changed.connect(_on_state_changed)
