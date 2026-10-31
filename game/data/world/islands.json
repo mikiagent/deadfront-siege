@@ -616,6 +616,13 @@
           "count": 3,
           "groups": 1,
           "tier_offset": 3
+        },
+        {
+          "species": "megarex",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.5,
+          "_note": "MEGAREX boss: at most one per island, half the islands of this tier roll one (ASSUMPTION)"
         }
       ],
       "far_shore": [
@@ -668,6 +675,13 @@
           "count": 3,
           "groups": 1,
           "tier_offset": 3
+        },
+        {
+          "species": "megarex",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.5,
+          "_note": "MEGAREX boss: at most one per island, half the islands of this tier roll one (ASSUMPTION)"
         }
       ],
       "far_shore": [
@@ -705,6 +719,13 @@
           "count": 3,
           "groups": 1,
           "tier_offset": 3
+        },
+        {
+          "species": "megarex",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.5,
+          "_note": "MEGAREX boss: at most one per island, half the islands of this tier roll one (ASSUMPTION)"
         }
       ],
       "far_shore": [
