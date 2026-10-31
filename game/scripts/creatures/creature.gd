@@ -85,6 +85,8 @@ var running: bool = false
 @onready var at: AnimationTree = $AnimationTree
 
 var brain: CreatureBrain
+## PINFEEL: the victim this predator holds Pinned under one foot (pin_foot), or null.
+var pin_victim: Node3D
 var _fx_drip: GPUParticles3D
 var _aggro_ring: MeshInstance3D
 ## Stagger: 0.3 s frozen hurt window after a hit, at most once per second.
@@ -570,7 +572,9 @@ func _physics_process(delta: float) -> void:
 		_status_fx()
 		return
 	stagger_left = maxf(0.0, stagger_left - delta)
-	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
+	if pin_victim != null:
+		_tick_pin(delta)
+	if health.dead or pin_victim != null or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		_slide()
@@ -706,6 +710,8 @@ func _make_brain() -> void:
 		brain = PetBrain.new()
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
+	elif def and def.archetype == &"club_tail":
+		brain = ClubTailBrain.new()  # ANKYLOAI: tail toward the threat, rare hard club hits
 	elif def and TacticalBrain.has_tactics(def):
 		brain = TacticalBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":
@@ -880,10 +886,11 @@ func _update_label() -> void:
 	label.position.y = def.height_meters * size_scale() + 0.4
 
 func _on_windup(clip: StringName) -> void:
+	if brain is ClubTailBrain: return  # it rings where the club will pass, not ahead of the snout
 	Telegraph.show_for(self, clip)
 
 func _on_hit(clip: StringName) -> void:
-	if brain is TyrantBrain: return
+	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
 	var target := brain.attack_target if brain else null
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
@@ -931,8 +938,35 @@ func _on_kd_start() -> void:
 func _on_kd_end() -> void:
 	is_capturable = false
 
+## PINFEEL: Pinned landed on `victim` from this predator's hit. A rig with pin_foot plants the foot on it and
+## holds until the status ends (_tick_pin); the victim is laid on its back and kept under the claws (PinHold).
+func start_pin(victim: Node3D) -> void:
+	if pin_victim != null or health.dead or ridden or not anim.start_pin():
+		return
+	pin_victim = victim
+	stop_move()
+	PinHold.lay_down(self, victim)
+	print("[combat] %s pins %s" % [def.id, victim.name])
+
+func end_pin() -> void:
+	if pin_victim == null:
+		return
+	pin_victim = null
+	anim.end_pin()
+
+func _tick_pin(delta: float) -> void:
+	if not PinHold.holds(self, pin_victim):
+		end_pin()
+		return
+	PinHold.snap(self, pin_victim, delta)
+
 func _on_status_removed(id: StringName) -> void:
+	if id == &"pinned" and not statuses.has(&"knockdown"):
+		anim.hold_down(false)
 	if id != &"knockdown":
+		return
+	if statuses.has(&"pinned"):
+		is_capturable = false  # still held down: the pin keeps the pose
 		return
 	if anim and anim._hold_knockdown:
 		anim.release_knockdown()
@@ -1010,7 +1044,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
 		# stagger's once-a-second immunity so a pinned animal can still fight back.
-		if staggered and authored.has("hit_react") and view.using_glb:
+		if staggered and authored.has("hit_react") and view.using_glb and not anim._hold_knockdown:  # down (pin, knockdown): stays down
 			anim.play_clip(&"hit_react")
 		else:
 			view.flinch(1.4 if kind == &"crit" else 1.0)  # no real hurt clip: shove + nod instead
@@ -1028,6 +1062,7 @@ func _on_died(_source: Node) -> void:
 		World.record_raid_kill(def.id, credited)
 		if PlayerRegistry.credit_for(credited) != null:
 			Tasks.note(&"hunt")  # TASKSCREEN: a kill by the survivor or her pet counts toward the hunt tasks
+	pin_victim = null  # the death clip ends the pin pose; the victim's status runs out on its own
 	anim.play_clip(&"death")
 	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the
 	# top-level world marker here so a dead dinosaur never leaves a red leash circle behind.
@@ -1103,6 +1138,8 @@ func kill_xp(tier: int) -> int:
 func _on_status_applied(id: StringName, _stacks: int) -> void:
 	if health.dead:
 		return
+	if id == &"pinned" and not statuses.has(&"knockdown"):
+		anim.hold_down(true)  # PINFEEL: on the ground for the pin, in the knockdown pose
 	status_float.emit(id)
 	hit_burst(status_color(id), 0.2, 20, 0.55)
 

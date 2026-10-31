@@ -17,6 +17,9 @@ extends Node3D
 ## with its brain off, side-on beside the survivor, 6 frames per clip saved as DIR/<clip>_<k>.png, then the lab quits.
 ## --clipsheet=DIR [--clips=investigate,sniff]: contact sheets of the first creature's clips (8 frames, front
 ## three-quarter row over a side row) to DIR/<species>_<clip>.png, then quits. Brain off, tree stepped by hand.
+## --pinshots=DIR (with --species=tyrannosaurus): PINFEEL. The brain's real stomp on the survivor (GOD on, hits
+## forced): the windup, the impact, the foot pin held and the release, from a high three-quarter camera and the
+## game camera, saved as DIR/pin_<k>_<what>.png; then the lab quits.
 ## --lineup=DIR [--species=a,b,c]: those species (default the three raptors) side-on in a row at body size 1.0
 ## beside the survivor, each mesh's measured length and height printed, DIR/lineup.png saved, then quits.
 
@@ -68,6 +71,8 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--clipshots="):
 			_clipshots.call_deferred(a.substr(12), StringName(only.get_slice(",", 0)))
+		elif a.begins_with("--pinshots="):
+			_pinshots.call_deferred(a.substr(11), StringName(only.get_slice(",", 0)))
 		elif a == "--enrage":
 			get_tree().create_timer(1.0).timeout.connect(_enrage_nearest)
 	if ride != "":
@@ -250,6 +255,70 @@ func _clipshots(dir: String, id: StringName) -> void:
 		await get_tree().create_timer(0.4).timeout
 	print("[clipshots] wrote %s" % dir)
 	get_tree().quit()
+
+func _pinshots(dir: String, id: StringName) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	await get_tree().create_timer(1.5).timeout
+	var c: Creature = null
+	for n in get_tree().get_nodes_in_group("creatures"):
+		if n is Creature and (n as Creature).def.id == id:
+			c = n
+	if c == null or not c.brain is TyrantBrain:
+		push_error("[pinshots] no %s with a TyrantBrain" % id)
+		get_tree().quit(1)
+		return
+	CombatTuning.force_accuracy = 1.0
+	CombatTuning.force_dodge = 0.0
+	c.global_position = Vector3(-18, 0, -24)  # clear of the lab crates
+	c.rotation.y = -PI / 2.0  # faces +X
+	_player.global_position = c.global_position + Vector3(4.2, 0.9, 0.0)
+	_player.face_world(c.global_position)
+	var brain := c.brain as TyrantBrain
+	brain.attack_target = _player
+	var game_cam := get_viewport().get_camera_3d()
+	var cam := Camera3D.new()
+	add_child(cam)
+	cam.fov = 40.0
+	var low := Camera3D.new()  # beside the pinned survivor, low: her under the claws
+	add_child(low)
+	low.fov = 40.0
+	# The brain's own stomp: whenever it is between moves, its next attack is made the third (the stomp).
+	var waited := 0.0
+	while not (brain.phase == &"windup" and brain.windup_clip == &"attack_heavy") and waited < 15.0:
+		if brain.phase == &"idle" and not c.anim.is_busy():
+			brain.attack_number = 2
+			brain._do_attack()
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	# Windup on the game camera (the STOMP telegraph as played); then, from the moment the pin starts, the plant on
+	# the game camera, the hold from a wide three-quarter and a low camera beside her, and the release.
+	await _pinshot(dir, 0, "windup", game_cam, c, 0.6)
+	while c.pin_victim == null and waited < 20.0:
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	await _pinshot(dir, 1, "plant", game_cam, c, 0.5)
+	var at := _player.global_position + Vector3(0, -0.9, 0)
+	cam.global_position = at + Vector3(10.0, 12.0, 16.0)
+	cam.look_at(at + Vector3(-1.5, 2.0, 0.0))
+	low.global_position = at + Vector3(3.5, 1.4, 4.5)
+	low.look_at(at + Vector3(0.0, 0.4, 0.0))
+	await _pinshot(dir, 2, "held_wide", cam, c, 0.7)
+	await _pinshot(dir, 3, "held_low", low, c, 0.7)
+	await _pinshot(dir, 4, "held_game_cam", game_cam, c, 0.6)
+	while c.pin_victim != null and waited < 30.0:
+		await get_tree().physics_frame
+		waited += get_physics_process_delta_time()
+	await _pinshot(dir, 5, "released", cam, c, 0.6)
+	print("[pinshots] wrote %s" % dir)
+	get_tree().quit()
+
+func _pinshot(dir: String, k: int, what: String, camera: Camera3D, c: Creature, wait: float) -> void:
+	await get_tree().create_timer(wait).timeout
+	if camera:
+		camera.current = true
+	await RenderingServer.frame_post_draw  # the switched camera's frame, not the last one drawn
+	get_viewport().get_texture().get_image().save_png("%s/pin_%d_%s.png" % [dir, k, what])
+	print("[pinshots] %s cam=%s rex=%s pin=%s survivor=%s pinned=%s" % [what, get_viewport().get_camera_3d().name, c.anim.current_clip, c.pin_victim != null, _player.anim.current_clip, _player.statuses.has(&"pinned")])
 
 func _spawn(species: StringName, count: int, pos: Vector3, radius: float, pack: bool) -> void:
 	var s := Spawner.new()

@@ -34,16 +34,25 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 	# Velociraptor: pounce (heavy) applies knockdown + bleed x2; primary is just contact damage.
 	if source.def.id == &"velociraptor" and clip != &"attack_heavy" and (id == &"knockdown" or id == &"bleed"):
 		return
+	# PINFEEL fairness: a predator that pins with its foot (pin_foot) pins only with its telegraphed heavy (the
+	# T. rex stomp: the foot hauled up and held through a 1.2 s STOMP windup), never off a bite.
+	var foot_pin := id == &"pinned" and source.anim != null and source.anim.has_state(&"pin_foot")
+	if foot_pin and clip != &"attack_heavy":
+		return
 	if target is Creature:
 		(target as Creature).statuses.apply(id, source, int(parsed["stacks"]))
 		if id == &"knockdown":
 			(target as Creature).anim.play_clip(&"knockdown")
+		if foot_pin and (target as Creature).statuses.has(&"pinned"):
+			source.start_pin(target as Creature)
 	elif target is Player:
 		# The reinforced full kit keeps the tyrant's first hit from permanently removing
 		# dodge/agency. Deafened and damage still land; incomplete/low-level kits do not help.
 		if source.def.id == &"tyrannosaurus" and id in [&"fracture", &"pinned"] and (target as Player).inventory.has_raid_protection():
 			return
 		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
+		if foot_pin and (target as Player).statuses.has(&"pinned"):
+			source.start_pin(target as Player)
 
 ## Chance this attacker's swing connects with that target (accuracy x status accuracy_mult,
 ## against the target's dodge plus status evasion_add).

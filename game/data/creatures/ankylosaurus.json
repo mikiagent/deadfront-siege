@@ -29,8 +29,9 @@
   "look": "7 meter armored dinosaur in a low, wide, aggressive crouch, long flat shell of hexagonal bony plates with a jagged serrated snapping-turtle rim, long pale spikes jutting sideways from the flanks and neck, big mean snapping-turtle head with a heavy hooked beak and scowling brow, four short thick splayed legs, thick spiked tail ending in a huge battered spiked bony club, dark slate-grey hide with bone-pale spikes and a sandy club,",
   "texture_prompt": "dark slate-grey armor plates with bronze-brown edges, bone-pale spikes and claws, pale cream belly scales, sandy brown tail club, matte surface",
   "clips": {
-    "attack_primary": "Armored dinosaur cocks its tail club to one side, then whips it round to the other side; the club is the hit",
-    "attack_heavy": "Armored dinosaur braces low, holds its club cocked high and trembling, then whips it in a full swing to the side",
+    "attack_primary": "TAIL WHIP: armored dinosaur cocks its tail club left and rattles it, stamps, then whips it round behind to the right side while its hind feet step into the swing; the club is the hit",
+    "attack_heavy": "TAIL SMASH: armored dinosaur steps its front feet out into a brace, raises its club high overhead trembling, then slams it down behind itself; the club is the hit",
+    "tail_swipe": "CLUB SWEEP: armored dinosaur draws its club far to the left and low, stamps, then sweeps it in one long arc behind itself to the right while pivoting on deliberate steps",
     "knockdown": "Armored dinosaur is tipped onto its side",
     "alert": "Armored dinosaur lifts its head and lowers its body, the club raised and rattling",
     "sleep": "Armored dinosaur settles belly-down with its legs folded out and its tail curled round"
@@ -92,10 +93,10 @@
     "donor_rig": "tools/standins/quaternius/Triceratops.fbx (CC0, quadruped)",
     "transplant_tool": "tools/transplant_rig.py --hip-z 0.10 --shoulder-z 0.105 (the side spikes fooled the lateral-surface hip measure)",
     "legs": "tools/gait/rejoint_legs.py: front shoulder/elbow/wrist and hind hip/knee/ankle moved onto the mesh's leg columns (the warp left them 7 cm inside the body), leg skin re-split paw/lower/upper",
-    "jaw": "tools/jaw/add_jaw.py --open --reach 0.6 --pivot -0.02 0.118 --split -13 --close 26 --blend 0.03; key_jaw --bite 14 --lunge 0 --roar 24 --heavy 26 --chew 12",
+    "jaw": "tools/jaw/add_jaw.py --open --reach 0.6 --pivot -0.02 0.118 --split -13 --close 26 --blend 0.03; key_jaw --bite 14 --lunge 0 --roar 24 --heavy 26 --chew 12 --hit 0.58 --heavy-hit 0.65",
     "gaits": "tools/gait/make_gait.py tools/gait/ankylosaurus.json: walk (lateral, 1.08 s), run (lumbering trot, 0.625 s, duty 0.55: always a foot down), strafe_left/right and walk_back (stride 0.12) from the walk plan",
     "clips_from": {
-      "attack_primary,attack_heavy,alert,sleep": "tools/gait/make_tail_club.py (tail-club swing to the right side, braced heavy swing, alert, belly-down sleep)",
+      "attack_primary,attack_heavy,tail_swipe,alert,sleep": "tools/gait/make_tail_club.py (ANKYLOAI: tail whip, overhead tail smash, club sweep, all with planted feet or deliberate steps; alert, belly-down sleep)",
       "feed": "tools/gait/transfer_clips.py from styracosaurus (same donor skeleton)",
       "idle,hit_react,knockdown,death": "transplant donor clips moved onto the re-jointed legs with transfer_clips.py"
     },
@@ -106,6 +107,7 @@
       "run",
       "attack_primary",
       "attack_heavy",
+      "tail_swipe",
       "hit_react",
       "knockdown",
       "death",

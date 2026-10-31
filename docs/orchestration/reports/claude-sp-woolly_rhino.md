@@ -38,15 +38,17 @@ Owner: "build some of the models ... be creative with what moves you think they 
 3. **Wide horn sweep** (`attack_heavy`, point blank, x2.2): head cocked far right and held trembling (the tell), then
    ripped across the front to the far left; the horn tip crosses the front at ~26 m/s, 3.2 m ahead, sweeping +-3.2 m.
 4. **Stamp** (`attack_primary`, the basic): forequarters rise, both forefeet come forward and slam down 0.8 m ahead.
-- No hind kick (no kick clip). Temperament territorial (horned_charger). The skittish-territorial profile from
-  claude/mmo-coelomoves is not on canon, so it is not used.
+- No hind kick (no kick clip). Temperament territorial (horned_charger). COELOMOVES' skittish-territorial profile
+  (run once, then turn and fight) landed on canon during this work; considered and not used (# ASSUMPTION, Open
+  Questions WR3): the paw-the-ground display already is the rhino's territorial warning, and running first would
+  hide its charge. Adding `"territorial": {...}` to its tactics block turns it on.
 - **Hits:** claude/mmo-hitboxes is not on canon, so hits are judged at the bone at the hit frame
   (`pipeline.hit_parts` + new `Creature.part_hit`): the stamp needs a forefoot, the sweep and the charge the horn
   within 1.1-1.3 m of her body. A survivor standing at the rump is not hit by a sweep any more.
 
 ## Code (small, shared)
-- `CreatureDef.tactics` + `TacticalBrain.tactics_for_def/resolve` (a species tactics block with "base"): the same shape
-  as claude/mmo-coelomoves and the pachy branch, so those merges should be near-identical text.
+- Species tactics (`CreatureDef.tactics`, `TacticalBrain.tactics_for_def/resolve`): written to COELOMOVES' shape;
+  after merging canon, canon's copy is the one kept.
 - `TacticalBrain._charge_impact`: plays `toss` when the rig has it and passes `toss_lift_mps`; the impact needs `part_hit(&"charge")`.
 - `PlayerSim.shove(push, stagger, lift_mps = 0.0)`: the optional upward kick.
 - `Creature._on_hit` also requires `part_hit`; `Creature.spawn` gives an alpha the `alpha` model variant;
@@ -91,7 +93,5 @@ Left: knockdown/death are a roll onto the right side; the run is a heavy gallop 
 ## For the next agent
 - When claude/mmo-hitboxes lands: move `pipeline.hit_parts` into `hitboxes.json` (species woolly_rhino: horn capsule
   Horn->HornTip for attack_heavy and charge, FrontFoot.L/R for attack_primary) and drop `Creature.part_hit`.
-- When claude/mmo-coelomoves lands: its `tactics_for_def/resolve` is the same code; keep one copy. Its territorial
-  profile could be added to the rhino's tactics block (owner call).
 - `docs/current/biome-spawns.md` is generated; rerun `tools/docs_wiki/gen_game_data.py` after merge.
 - No ragdoll profile, no eye-glow points.
