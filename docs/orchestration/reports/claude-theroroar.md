@@ -131,3 +131,13 @@ All shots come from off-screen windowed runs of the new `theroroar_lab` (`--posi
   - `player_knock.gd`: `push_to_land`.
   - Data: `ai.json`, `anim_events.json`, `hitboxes.json`, and 8 species jsons, whose pipeline clips gained `roar` and `spacing_stomp`.
 - **Every number in `thero_roar.json` and in `ai.json` `thero_roar` / `spacing_stomp` is an ASSUMPTION** tuned on renders.
+
+## Merge-gate fix (allofeel)
+- Merged canon f0fa396c (allofeel). The clip lists in `creature_clips.gd` and `creature_anim.gd`, and the allosaurus pipeline clips, keep both sets: allofeel's claw_rake, slash_bite, check_left/right and bite_combo, plus roar and spacing_stomp.
+- t_sp_allosaurus failed because the allosaurus spotted her at spawn and roared, so the combo was not available 0.05 s later. Its unit fights now start with the roar already spent, using the `thero_roar_at` meta, as the spinosaurus and carnotaurus tests do.
+  - Nothing it checks was loosened. The roar is a once-per-encounter opener and the charge kit runs after it.
+  - I added the same guard to the ceratosaurus, tarbosaurus and majungasaurus tests. Whether the spot roar fired in their window depended on the brain's think phase, which made the tail-swipe test flaky.
+- After the merge these all pass: t_theroroar, t_spacingstomp, t_combat, t_plantedflinch, t_bigstomp, t_hitboxes, t_sp_allosaurus, every theropod species test and t_rexclips. `run_all` gives [tests] PASS, smoke gives SMOKE PASS, and the gait audit gives GATE PASS.
+  - t_canim was skipped as asked; it fails on canon and is being fixed elsewhere.
+  - t_dismount failed once and then passed, both here and on canon ed28ee83.
+
