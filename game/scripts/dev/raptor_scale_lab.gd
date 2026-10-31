@@ -1,5 +1,5 @@
 extends Node3D
-## Visual QA: compy baseline beside the two 3x raptor species.
+## Visual QA: compy baseline beside two raptor species (sizes: creature_lab --lineup).
 
 func _ready() -> void:
 	var kit := LabKit.build(self, 36.0)
@@ -13,9 +13,9 @@ func _ready() -> void:
 	var raptor := Data.creature(&"velociraptor")
 	var deino := Data.creature(&"deinonychus")
 	print("[dino_scale] compy h=%.2f l=%.2f velociraptor h=%.2f l=%.2f deinonychus h=%.2f l=%.2f" % [compy.height_meters, compy.real_length_m, raptor.height_meters, raptor.real_length_m, deino.height_meters, deino.real_length_m])
-	_label("COMPY  2x", Vector3(-3.2, compy.height_meters + 0.5, 0.0))
-	_label("VELOCIRAPTOR  3x", Vector3(0.0, raptor.height_meters + 0.5, 0.0))
-	_label("DEINONYCHUS  3x", Vector3(4.0, deino.height_meters + 0.5, 0.0))
+	_label("COMPY", Vector3(-3.2, compy.height_meters + 0.5, 0.0))
+	_label("VELOCIRAPTOR", Vector3(0.0, raptor.height_meters + 0.5, 0.0))
+	_label("DEINONYCHUS", Vector3(4.0, deino.height_meters + 0.5, 0.0))
 	print("[boot] lab=raptor_scale_lab")
 
 func _spawn_frozen(species: StringName, at: Vector3) -> void:
