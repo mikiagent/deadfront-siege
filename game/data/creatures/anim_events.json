@@ -168,6 +168,11 @@
     },
     "charge_recover": {
       "note": "STYRAFIX: winded after a charge, head low with three decaying head shakes; the punish window (charge_recover_s)"
+    },
+    "big_stomp": {
+      "hit_frac": 0.72,
+      "windup": true,
+      "note": "BIGSTOMP (tools/gait/make_big_stomp.py; the tyrannosaurs: make_rex_moves.py big_stomp, their attack_heavy stomp), 1.667 s: the weight shifts off the near foot, the foot is hauled high and held (the telegraph), then slammed down under the body at 0.72; BigStomp lands the hit itself (not an ATTACKS clip), CreatureAnim.play_timed_attack scales it so the impact meets the size-scaled wind-up"
     }
   },
   "natural_speeds": {

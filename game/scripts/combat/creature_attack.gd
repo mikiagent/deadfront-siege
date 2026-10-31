@@ -43,16 +43,25 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 		(target as Creature).statuses.apply(id, source, int(parsed["stacks"]))
 		if id == &"knockdown":
 			(target as Creature).anim.play_clip(&"knockdown")
-		if foot_pin and (target as Creature).statuses.has(&"pinned"):
-			source.start_pin(target as Creature)
+		if foot_pin and (target as Creature).statuses.has(&"pinned") and not source.start_pin(target as Creature):
+			_pin_missed(target, source)
 	elif target is Player:
 		# The reinforced full kit keeps the tyrant's first hit from permanently removing
 		# dodge/agency. Deafened and damage still land; incomplete/low-level kits do not help.
 		if source.def.id == &"tyrannosaurus" and id in [&"fracture", &"pinned"] and (target as Player).inventory.has_raid_protection():
 			return
 		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
-		if foot_pin and (target as Player).statuses.has(&"pinned"):
-			source.start_pin(target as Player)
+		if foot_pin and (target as Player).statuses.has(&"pinned") and not source.start_pin(target as Player):
+			_pin_missed(target, source)
+
+## BIGSTOMP: a foot-pinner's heavy that lands away from its foot no longer drags the victim under it: no Pinned, a
+## knockdown instead.
+static func _pin_missed(target: Node, source: Creature) -> void:
+	var st: StatusEffects = (target as Player).statuses if target is Player else (target as Creature).statuses
+	st.clear_id(&"pinned")
+	st.apply(&"knockdown", source, 1)
+	if target is Creature:
+		(target as Creature).anim.play_clip(&"knockdown")
 
 ## Chance this attacker's swing connects with that target (accuracy x status accuracy_mult,
 ## against the target's dodge plus status evasion_add).
