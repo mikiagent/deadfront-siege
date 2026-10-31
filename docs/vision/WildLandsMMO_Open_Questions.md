@@ -467,6 +467,19 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM5** | Alpha skin = the brown sheet as a recolour of the regular texture (same mesh, mane shape unchanged); the alpha's eyeshine stays blue (the eyes block has one colour). | `smilodon_alpha_albedo.jpg`, `Creature.spawn` | A separate alpha mesh or amber alpha eyes would need more work. |
 | **SM6** | Saddle: the shared builder, no neck strap (the mane lets its rays out), seat behind the mane. Rideable (back 1.6 m clears the 1.78/1.6 rule). | `saddles.json`, `mount/` | Riding a sabre cat was in its data (`tamed_role` mount); the owner may prefer combat-only. |
 
+
+### SP-TARBOSAURUS (2026-10-31) — the tarbosaurus gets a model, a stalk, a burst that foot-pins, a head-whip bite and a tail whip (claude/mmo-sp-tarbosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight"; "keep cooking". Report `docs/orchestration/reports/claude-sp-tarbosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TB1** | Size kept from the data: `height_meters` 6.8 (the T. rex is 8.0), 19.4 m long on screen; `real_length_m` 20 unchanged. | `tarbosaurus.json` | The owner's sheet draws it lankier than a rex; it reads a little shorter and as long. |
+| **TB2** | Brain: the TacticalBrain on its own tactics block (base saber_cat, scale 1.6): stalk creep, burst from 10-17 m, point blank lunge-clamp / tail whip (prey behind) / head-whip bite, a homing run-down, no leap back. Every number (cooldowns, multipliers, ranges) is a first guess. | `tarbosaurus.json` tactics | Balance pass; the T. rex keeps its TyrantBrain. |
+| **TB3** | Reach: its jaws sit ~8 m ahead of its centre, so `tactics.reach_m` 8.0 replaces the centre reach (new `TacticalBrain.contact_reach` override) and the burst lands with the jaws on the prey. A survivor under its belly is out of the jaws' reach (part_hit misses); only the tail whip covers its rear. | `tactical_brain.gd` | Owner may want a stomp or a body check for prey under it. |
+| **TB4** | Pin: the burst and the point-blank lunge are attack_heavy hits, so (PINFEEL rule) they apply Pinned and it plants its right foot on the victim (`pin_foot`); the bite never pins. Pinned length and damage are the status data. | `tarbosaurus.json` status_applied, PINFEEL | Pin frequency is a balance call. |
+| **TB5** | Tail whip uses the TacticalBrain's `kick` slot (point blank, prey behind); the clip is named `kick` and its hit part radius is 2.0 m (the tail sweeps metres between frames). | `tarbosaurus.json` hit_parts | Swap for the hitbox system's swept volumes when it lands. |
+| **TB6** | No alpha skin: no alpha sheet was given, so alphas get the genetics recolour only (`model_variants.alpha` not set). No eye glow block (eyes not measured). No saddle (`tamed_role` is combat only). | `tarbosaurus.json` | Give an alpha sheet to get a skin. |
 ### HITBOXES (2026-10-31) — every melee hit is a swept attack part touching a hurtbox (claude/mmo-hitboxes)
 
 Owner: "are we even using hitboxes for attacks? We should have hitboxes and it should correlate with whatever is used to attack and whatever is hitable on the body". Report `docs/orchestration/reports/claude-hitboxes.md`, how it works `docs/current/hitboxes.md`.
