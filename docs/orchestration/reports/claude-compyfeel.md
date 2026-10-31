@@ -122,3 +122,16 @@ self-quitting). Each has a front three-quarter row over a side row, 8 frames:
 - The external verifiers (`~/Documents/DeepseekCLI/verifiers`) are not on this machine. I used the repo's checks.
 
 Credits: none (Tripo 0, Meshy 0, Higgsfield 0).
+
+## Merge with canon e002a994 (2026-10-31)
+- Merged in origin/claude/mmo-overhaul (ANKYLOAI, PINFEEL, ZEBRAWALK, HEATEDGE, BIGREACH, RETIREPROTO). Both clip
+  lists are kept: `RiggedModel.LOOPING` has pinned plus the strafes, walk_back and charge, and `CreatureClips.OPTIONAL`
+  has pin_foot plus charge_crouch. The fight-lab ANKYLOAI note and the no-glide note are both kept.
+- The no-glide rule against the new code:
+  - ClubTailBrain stops the body for its tail moves (they play in place with their own foot steps), so the rule never
+    has to step in.
+  - The rex pin_foot hold is not a one-shot (`start_pin` clears `_busy`), and `creature.gd` returns before locomotion
+    while `pin_victim` is set, so the rule cannot release the pin.
+- Gates after the merge, all PASS: `t_compyfeel` (ankylosaurus fight under ClubTailBrain: 0 glide frames),
+  `t_ankyloai`, `t_pinfeel`, `t_combat`, `t_canim`, `t_godlab`, `t_swarm`, `t_tactical`, `t_raptorfeel`, `run_all.gd`
+  `[tests] PASS`, `tools/smoke.sh --no-import` SMOKE PASS.
