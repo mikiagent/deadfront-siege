@@ -163,8 +163,8 @@ func _auto_attack() -> void:
 	var platform := player._nearest_group("catapult") as FieldCatapult
 	if platform and player.global_position.distance_to(platform.global_position) <= 3.0:
 		return
-	if player.statuses.has_flag(&"cannot_act"):
-		return
+	if player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"):
+		return  # knocked down, or Winded (KNOCKDOWN): no swings
 	if player.rolling or _tactic_lock > 0.0 or (player.sim and player.sim._stagger_left > 0.0):
 		return  # a hurt stun is a hard stun: no swings either
 	var ranged_weapon := _weapon()
@@ -191,7 +191,7 @@ func _auto_attack() -> void:
 ## cooling down, rolling); auto-attack still walks over when Auto is on and HOLD is off.
 func swing_now() -> bool:
 	if target == null or player.move_order or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
-			or player.statuses.has_flag(&"cannot_act"):
+			or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"):
 		return false
 	var w := _weapon()
 	if w and w.def() and w.def().range_m > 0.0:
@@ -354,7 +354,7 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 ## Tackle and Kick may cut the auto-attack's own swing short (it was always busy mid-fight, so both
 ## refused silently); a roll, a hurt stun, a knockdown or the previous tactic's lock still block them.
 func can_start_tactic() -> bool:
-	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act"):
+	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"):
 		return false
 	if player.anim and player.anim._busy and not player.anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
 		return false
@@ -456,7 +456,7 @@ func fire_ranged(ammo: StringName = &"") -> bool:
 	var weapon := _weapon()
 	var def := weapon.def() if weapon else null
 	if def == null or def.range_m <= 0.0: return false
-	if _ranged_pending or _swing_cd > 0 or player.dead or player.rolling or player.anim._busy or player.statuses.has_flag(&"cannot_act"): return false
+	if _ranged_pending or _swing_cd > 0 or player.dead or player.rolling or player.anim._busy or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"): return false
 	var origin := player.global_position + Vector3(0,0.3,0)
 	var aim := target.global_position + Vector3(0, minf(1.0, target.def.height_meters * 0.4),0)
 	var offset := aim-origin
