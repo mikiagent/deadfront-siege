@@ -14,7 +14,8 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"straf
 ## investigate: the idle while aware of prey but not attacking (CreatureAnim.play_idle(true)); sniff: the inspect
 ## one-shot a brain plays when it spots prey (velociraptor, owner 2026-10-30: head tilts, curious but aggressive).
 ## pin_foot: a big predator's foot on a Pinned victim (T. rex, PINFEEL); held on its last frame until the pin ends.
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"bite_shake"]
+## charge_crouch: the coil a TacticalBrain plays, body still, before a charge's run (compsognathus, owner 2026-10-31).
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"bite_shake"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120

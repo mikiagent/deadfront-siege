@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://docl4iummc74s"
-path="res://.godot/imported/pachycephalosaurus_Color_83150c87-1351-4ab3-9372-3f79f36f852c.jpg-b803f532cb4cdbaefdf0c1192a811ac6.ctex"
+uid="uid://csy5j57u0ikne"
+path="res://.godot/imported/pachycephalosaurus_Color_c890b902-ab1d-4a89-b997-fc74254abcf7.jpg-a3840169ba5184f88450344af803e524.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "ae4b84bd68080ab5555d8e2e79223398"
+"md5": "8a65219b82365c6beece619dba6457b3"
 }
 
 [deps]
 
-source_file="res://assets/creatures/pachycephalosaurus/pachycephalosaurus_Color_83150c87-1351-4ab3-9372-3f79f36f852c.jpg"
-dest_files=["res://.godot/imported/pachycephalosaurus_Color_83150c87-1351-4ab3-9372-3f79f36f852c.jpg-b803f532cb4cdbaefdf0c1192a811ac6.ctex"]
+source_file="res://assets/creatures/pachycephalosaurus/pachycephalosaurus_Color_c890b902-ab1d-4a89-b997-fc74254abcf7.jpg"
+dest_files=["res://.godot/imported/pachycephalosaurus_Color_c890b902-ab1d-4a89-b997-fc74254abcf7.jpg-a3840169ba5184f88450344af803e524.ctex"]
 
 [params]
 

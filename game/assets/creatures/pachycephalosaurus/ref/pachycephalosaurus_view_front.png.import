@@ -2,19 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://xbr8qc3ik81w"
-path="res://.godot/imported/pachycephalosaurus_NormalGL_83150c87-1351-4ab3-9372-3f79f36f852c.png-74ba02881e5985b7a9c05b7351cdc75b.ctex"
+uid="uid://3mqdphgcjjwx"
+path="res://.godot/imported/pachycephalosaurus_view_front.png-3dcf2253c8be3b25108dc9cf3e44b684.ctex"
 metadata={
 "vram_texture": false
-}
-generator_parameters={
-"md5": "83082813b999eacddff83a464a0876df"
 }
 
 [deps]
 
-source_file="res://assets/creatures/pachycephalosaurus/pachycephalosaurus_NormalGL_83150c87-1351-4ab3-9372-3f79f36f852c.png"
-dest_files=["res://.godot/imported/pachycephalosaurus_NormalGL_83150c87-1351-4ab3-9372-3f79f36f852c.png-74ba02881e5985b7a9c05b7351cdc75b.ctex"]
+source_file="res://assets/creatures/pachycephalosaurus/ref/pachycephalosaurus_view_front.png"
+dest_files=["res://.godot/imported/pachycephalosaurus_view_front.png-3dcf2253c8be3b25108dc9cf3e44b684.ctex"]
 
 [params]
 
@@ -26,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

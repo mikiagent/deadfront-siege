@@ -70,11 +70,14 @@
    "skirt_m": 0.18
   },
   "pachycephalosaurus": {
+   "socket": "Spine1",
+   "shoulder_bone": "Chest",
+   "neck_bone": "Neck1",
+   "seat_frac": 0.5,
    "seat_half_w_m": 0.21,
    "seat_half_len_m": 0.24,
    "cushion_m": 0.05,
-   "skirt_m": 0.11,
-   "seat_frac": -0.6
+   "skirt_m": 0.11
   },
   "triceratops": {
    "forward": "+Y",
