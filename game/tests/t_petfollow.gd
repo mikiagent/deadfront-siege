@@ -106,7 +106,6 @@ func _bond(species: StringName, nature: StringName = &"") -> void:
 	player.bonded.append(rec)
 
 func _summon_three() -> void:
-	load("res://scripts/creatures/creature_def.gd").allow_placeholder = true  # NOBOXES: the model-less triceratops may be summoned here
 	_bond(&"velociraptor")
 	_bond(&"triceratops")   # the big body: its slot hangs back further
 	_bond(&"compsognathus") # the small one
