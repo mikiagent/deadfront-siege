@@ -141,7 +141,7 @@ func _test_segments() -> void:
 	if r == null:
 		return
 	# SADDLES: no saddle yet, so Ride is the greyed "Needs a saddle" row; Gear opens the tame's equipment.
-	_expect(r.ids() == [&"animals", &"bag", &"feed", &"ride", &"gear", &"dismiss", &"rename"], "zebraceratops segments %s" % [r.ids()])
+	_expect(r.ids() == [&"animals", &"bag", &"feed", &"ride", &"gear", &"stay", &"dismiss", &"rename"], "zebraceratops segments %s" % [r.ids()])
 	# Feed: one berry from the survivor's bag into the pet.
 	player.inventory.add(ItemStackS.make(&"berries", 3))
 	rex.hunger = 1.0
@@ -188,6 +188,14 @@ func _test_segments() -> void:
 		field.text = "Rex II"
 		dialog.submit()
 		_expect(not dialog.visible and rec.name == "Rex II", "Rename sets the name (%s)" % rec.name)
+	# PETSTAY: Stay parks it (the segment turns into Follow, the record keeps it), Follow frees it.
+	await _open(rex)
+	await _tap_segment(&"stay")
+	_expect(rec.command == &"stay" and rex.brain.mode == &"stay" and not r.visible, "Stay parks the pet (%s / %s)" % [rec.command, rex.brain.mode])
+	await _open(rex)
+	_expect(&"follow" in r.ids() and not (&"stay" in r.ids()), "a staying pet's ring offers Follow %s" % [r.ids()])
+	await _tap_segment(&"follow")
+	_expect(rec.command == &"follow" and rex.brain.mode == &"guard", "Follow frees the pet (%s / %s)" % [rec.command, rex.brain.mode])
 	# Dismiss: sent home through the summon path (HP kept), off the field.
 	await _open(rex)
 	await _tap_segment(&"dismiss")
@@ -205,7 +213,7 @@ func _test_absent_outside_esc() -> void:
 		_expect(false, "no radial for the compsognathus")
 		return
 	# Every record has a bag (PetRecord.bag_slots_for), so Bag stays; Ride is the absent one.
-	_expect(r.ids() == [&"animals", &"bag", &"feed", &"dismiss", &"rename"], "a combat-only species has no Ride %s" % [r.ids()])
+	_expect(r.ids() == [&"animals", &"bag", &"feed", &"stay", &"dismiss", &"rename"], "a combat-only species has no Ride %s" % [r.ids()])
 	await _open(compy)
 	_expect(not r.visible, "tapping the same pet again closes the ring")
 	await _open(compy)
@@ -259,7 +267,7 @@ func _test_fight_and_walk() -> void:
 	var wild = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	wild.position = Vector3(-4, 0, 0)
 	host.add_child(wild)
-	wild.spawn(data.creature(&"protoceratops"))
+	wild.spawn(data.creature(&"zebraceratops"))
 	wild.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	await _frames(5)
 	player.hunt.start(wild)

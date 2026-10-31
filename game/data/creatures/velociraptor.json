@@ -2,8 +2,8 @@
   "species": "Velociraptor",
   "clade": "Dromaeosauridae",
   "period": "Late Cretaceous",
-  "real_length_m": 6.0,
-  "height_meters": 2.4,
+  "real_length_m": 3.6,
+  "height_meters": 1.06,
   "rig": "biped",
   "tier": 25,
   "climate": "temperate",
@@ -23,7 +23,6 @@
   },
   "turn_rate": 5.0,
   "tamed_role": [
-    "mount",
     "scout"
   ],
   "variants": [
@@ -137,6 +136,7 @@
     ],
     "forward_axis": "+Z",
     "source_height_m": 0.6992,
+    "size_note": "ASSUMPTION: raptor size ratio from the owner's reference 2026-10-30 (velociraptor 1.8 m : deinonychus 3 m : utahraptor 7 m long). Mesh length on screen = 1.6 x true length, the house exaggeration measured on compsognathus and tyrannosaurus; real_length_m = 2 x true length like the rest of the roster (it drives pens, hit radius, mass). height_meters is set so the mesh measures that length (creature_lab --lineup). velociraptor: 2.88 m long on screen (was 6.53 m, 2.4 m tall)",
     "source_length_m": 1.9024,
     "route": "skeleton_transplant_v3",
     "mesh_source": "res://assets/creatures/velociraptor/work/velociraptor_i2m_v2.glb",

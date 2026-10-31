@@ -60,7 +60,7 @@ func _island() -> void:
 	var ground: float = World.runtime.surface_y(player.global_position.x, player.global_position.z)
 	_check(absf(_lowest_bone_y() - ground) <= 0.08, "island idle lowest bone %.3f m from the terrain" % (_lowest_bone_y() - ground))
 	# Three pets summoned at the island origin.
-	for sp: StringName in [&"velociraptor", &"protoceratops", &"compsognathus"]:
+	for sp: StringName in [&"velociraptor", &"zebraceratops", &"compsognathus"]:
 		player.bonded.append(PetRecord.from_def(Data.creature(sp), &"A"))
 		player.summon_pet(player.bonded.size() - 1)
 	var fast := 0.0

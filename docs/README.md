@@ -39,6 +39,8 @@ that cite a removed path keep working as history pointers — treat them as
   code comments
 - `docs/design/` — the owner's numbered prompt series (code comments cite these by spec
   number) plus the design refs the code cites
+- `docs/art/species/` — the owner's creature reference sheets (JPEG copies); see
+  [species art](current/species-art.md) for each sheet's role and status
 - `docs/art/durango-asset-benchmarks-and-tripo-prompts.md` — the adopted budget authority;
   a future `current/` assets page should absorb it
 - `docs/release/simulator.md` — the simulator-build how-to cited by `tools/sim_run.sh`
@@ -46,7 +48,7 @@ that cite a removed path keep working as history pointers — treat them as
 
 ## Flow & rules
 - A doc change lands in the same commit as the change it documents.
-- Generated pages (`current/{recipes,world-biomes,items-traits}.md`) come from
+- Generated pages (`current/{recipes,world-biomes,items-traits,biome-spawns}.md`) come from
   `tools/docs_wiki/gen_game_data.py`, which reads `game/data/*.json`; re-run it after any
   balance pass or accepted sheet sync. The owner's editable sheets live in
   `game/data_sheets/` (see its `NOTES.md`).

@@ -438,7 +438,11 @@ func _process(delta: float) -> void:
 		cancel_cut(false)
 		return
 	_tick_cut(delta)
-	_expires_left = maxf(0.0, _expires_left - delta)
+	# An unlooted carcass does not vanish under a survivor standing at it (cut reach), e.g. while she fights
+	# off the rest of the pack before cutting. Looted-empty carcasses still fade on their own clock.
+	var pl := PlayerRegistry.local()
+	if _emptied or pl == null or pl.global_position.distance_to(global_position) > 3.5:
+		_expires_left = maxf(0.0, _expires_left - delta)
 	if _expires_left <= 0.0:
 		_begin_fade()
 		return

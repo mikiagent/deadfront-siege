@@ -7,7 +7,7 @@ extends RefCounted
 
 const ITEM_KEYS := ["id", "count", "level", "process_count", "attributes", "flags", "durability", "max_durability"]
 ## PetRecord.to_dict() keys plus the summoned flag; anything else is refused.
-const PET_KEYS := ["uid", "owner", "origin", "tamer", "tamed_at", "wild_level", "name", "parent_uids", "species", "variant", "grade", "hunger", "hunger_max", "hunger_efficiency", "xp_rate", "hp", "hp_now", "attack", "defense", "ranged_defense", "ranged_attack", "accuracy", "speed", "genetics", "tamed_role", "bag", "level", "xp", "respawn_left", "summoned", "nature", "gear"]
+const PET_KEYS := ["uid", "owner", "origin", "tamer", "tamed_at", "wild_level", "name", "parent_uids", "species", "variant", "grade", "hunger", "hunger_max", "hunger_efficiency", "xp_rate", "hp", "hp_now", "attack", "defense", "ranged_defense", "ranged_attack", "accuracy", "speed", "genetics", "tamed_role", "bag", "level", "xp", "respawn_left", "summoned", "nature", "gear", "command"]
 const CAGE := "captured_animal"
 const GENE := {"hp": "health", "attack": "melee_attack", "ranged_attack": "ranged_attack", "defense": "melee_defense", "ranged_defense": "ranged_defense", "accuracy": "accuracy", "speed": "speed"}
 
@@ -160,6 +160,9 @@ func pet(raw: Variant) -> String:
 	for k in d:
 		if str(k) not in PET_KEYS:
 			return "unknown pet field %s" % str(k)
+	# PETSTAY: optional radial command, follow or stay.
+	if d.has("command") and not (d["command"] is String and d["command"] in ["follow", "stay"]):
+		return "unknown pet command %s" % str(d["command"])
 	# NATURES: an optional known nature id (old records carry none).
 	if d.has("nature") and not (d["nature"] is String and (d["nature"] == "" or CreatureNatures.is_valid(StringName(d["nature"])))):
 		return "unknown pet nature %s" % str(d["nature"])

@@ -20,6 +20,7 @@
     "missing_clip_swing_seconds": 0.35,
     "hit_frac": 0.6,
     "hit_reach_slack_m": 0.3,
+    "edge_reach_m": 0.5,
     "hit_arc_min_dot": 0.0,
     "xp_per_hit": 2,
     "basic_cooldown_s": 0.8,
@@ -81,9 +82,10 @@
     "lock": 0.45,
     "push_m": 3.5,
     "ref_mass": 8.0,
-    "giant_mass": 60.0,
+    "giant_mass": 40.0,
     "min_push_m": 0.3,
-    "stagger_s": 0.5
+    "stagger_s": 0.5,
+    "_note": "# ASSUMPTION (TRIKE 2026-10-21): giant_mass 60 -> 40. The triceratops is 9.0 m x 4.645 m now (the approved sheet), mass proxy 41.8, and must stay too heavy to kick (t_combat). Also makes dilophosaurus, utahraptor, gallimimus and ankylosaurus unkickable (were 0.51-0.65 m); owner to confirm."
   },
   "auto_ability": {
     "_about": "AUTO-ABILITY (owner: an auto-ability button that uses the player's most powerful ability off cooldown, prioritized over basic attacks, on by default). Rows the auto-cast may use; damage x the weapon's damage ranks them (the rows are flat ability damage today), tie-break the longer cooldown. auto=false rows are manual-only; add a row with auto=true to let the auto-cast use it. Read by scripts/combat/auto_ability.gd.",

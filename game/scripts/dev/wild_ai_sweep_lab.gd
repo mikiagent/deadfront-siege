@@ -25,6 +25,7 @@ const PERF_PASSES := 3
 const PERF_RETRY_S := 10.0
 
 func _ready() -> void:
+	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	kit = LabKit.build(self, FLOOR)
 	player = kit["player"]
 	player.process_mode = Node.PROCESS_MODE_DISABLED
@@ -465,18 +466,18 @@ func _island_levels_and_corpse() -> void:
 		if c == null or c.def == null:
 			continue
 		var ring := str(rt.ring_name(c.global_position))
-		if c.def.id == &"protoceratops" and ring == "gathering":
+		if c.def.id == &"compsognathus" and ring == "gathering":
 			proto = c
 			var want := c.def.tier + int((rings["gathering"] as Dictionary).get("level_offset", 0))
-			print("[aisweep] level protoceratops ring=gathering level=%d want=%d" % [c.level, want])
-			_check(c.level == want, "protoceratops in gathering ring level=%d want %d" % [c.level, want])
+			print("[aisweep] level compsognathus ring=gathering level=%d want=%d" % [c.level, want])
+			_check(c.level == want, "compsognathus in gathering ring level=%d want %d" % [c.level, want])
 		elif c.def.id == &"velociraptor" and ring == "crater":
 			raptors += 1
 			var want := c.def.tier + int((rings["crater"] as Dictionary).get("level_offset", 0)) + crater_offset
 			if c.level != want:
 				raptor_bad.append("%d!=%d" % [c.level, want])
 	print("[aisweep] level velociraptor ring=crater count=%d row_tier_offset=%d wrong=%s" % [raptors, crater_offset, raptor_bad])
-	_check(proto != null, "no protoceratops spawned in the gathering ring")
+	_check(proto != null, "no compsognathus spawned in the gathering ring")
 	_check(raptors > 0 and crater_offset != 0, "no velociraptor (or no tier_offset row) in the crater")
 	_check(raptor_bad.is_empty(), "crater velociraptor levels wrong: %s" % [raptor_bad])
 	if proto == null:
@@ -499,7 +500,7 @@ func _island_levels_and_corpse() -> void:
 	var corpse := await _kill_and_gap(proto, "roaming")
 	if still:
 		await _kill_and_gap(still, "standing")
-	_check(corpse != null, "no corpse for the dead protoceratops")
+	_check(corpse != null, "no corpse for the dead compsognathus")
 	if corpse == null:
 		return
 	# 50 loot taps with a full bag: nothing moves, so no Butchering XP.

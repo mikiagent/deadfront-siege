@@ -115,7 +115,9 @@ func _ability(kind: StringName, lock: float) -> void:
 	await _frames(10)
 	var raptor = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	host.add_child(raptor)
-	raptor.global_position = player.global_position + Vector3(0, 0, -2.6)
+	# Creatures stand on their origin, the survivor's origin is her capsule centre (1 m up): spawn on the ground,
+	# or the 1.06 m velociraptor (RAPTORSCALE) hangs in her path and she lands on it.
+	raptor.global_position = player.global_position + Vector3(0, -1.0, -2.6)
 	raptor.spawn(data.creature(&"velociraptor"), &"", 0, null, 0, &"loyal")
 	raptor.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	await physics_frame

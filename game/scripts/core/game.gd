@@ -23,6 +23,9 @@ var show_grid: bool = false  # on while placing a building (build_placer) or via
 var lab_force_clips: bool = false
 ## Lab-only: F deals a flat 100 damage to the nearest creature.
 var lab_flat_attack: bool = false
+## Dev-only GOD mode (fight lab): Vitals ignores damage, energy spend and fatigue. Only a lab sets it
+## (--god with a --lab=, or the creature lab's GOD toggle); never saved, never on in normal play.
+var god_mode: bool = false
 var fast_regen_mult: float = 1.0
 var shot_path: String = ""
 var shot_delay_override: float = -1.0  # --shot-delay=SECONDS
@@ -35,6 +38,13 @@ const SELF_SHOT_LABS := ["card_bake", "card2d_lab"]
 var _last_phase: StringName = &""
 var _perf: Label
 var _bg_unix: int = 0
+
+## --god counts only beside a --lab= (tutorial is the real new-game flow, so it does not count).
+static func god_from_args(args: PackedStringArray) -> bool:
+	var lab := false
+	for a in args:
+		lab = lab or (a.begins_with("--lab=") and a != "--lab=tutorial")
+	return lab and args.has("--god")
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -61,6 +71,7 @@ func _ready() -> void:
 			fast_regen_mult = maxf(1.0, float(a.substr(13)))
 	if lab_name != "" and shot_path == "":
 		debug_overlay = true
+	god_mode = god_from_args(OS.get_cmdline_user_args())
 	_install_symbol_fonts()
 	print("[boot] Game autoload ready. smoke_test=%s lab=%s godot=%s" % [
 		smoke_test, lab_name if lab_name != "" else "-", Engine.get_version_info().string])

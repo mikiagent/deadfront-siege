@@ -103,6 +103,23 @@
     }
   },
   "natural_speeds": {
+    "ankylosaurus": {
+      "height_m": 2.25,
+      "run_l": 2.06,
+      "run_len": 0.625,
+      "run_r": 2.06,
+      "walk_l": 0.991,
+      "walk_len": 1.083,
+      "walk_r": 0.991,
+      "walk": 0.991,
+      "run": 2.06,
+      "strafe_left": 0.991,
+      "strafe_left_len": 1.083,
+      "strafe_right": 0.991,
+      "strafe_right_len": 1.083,
+      "walk_back": 0.793,
+      "walk_back_len": 1.083
+    },
     "coelophysis": {
       "height_m": 2.0,
       "run_l": 3.843,
@@ -191,6 +208,17 @@
       "walk": 0.174,
       "run": 0.63
     },
+    "triceratops": {
+      "height_m": 4.645,
+      "run_l": 4.201,
+      "run_len": 0.6,
+      "run_r": 4.201,
+      "walk_l": 1.6,
+      "walk_len": 1.0,
+      "walk_r": 1.6,
+      "walk": 1.6,
+      "run": 4.201
+    },
     "styracosaurus": {
       "height_m": 2.25,
       "run_l": 3.35,
@@ -208,14 +236,20 @@
     },
     "tyrannosaurus": {
       "height_m": 8.0,
-      "run_l": 0.442,
-      "run_len": 0.9,
-      "run_r": 0.401,
-      "walk_l": 2.05,
-      "walk_len": 1.6,
-      "walk_r": 2.05,
-      "walk": 2.05,
-      "run": 0.421
+      "run_l": 4.581,
+      "run_len": 0.917,
+      "run_r": 4.578,
+      "walk_l": 1.552,
+      "walk_len": 1.417,
+      "walk_r": 1.552,
+      "walk": 1.552,
+      "run": 4.58,
+      "strafe_left": 1.552,
+      "strafe_left_len": 1.417,
+      "strafe_right": 1.552,
+      "strafe_right_len": 1.417,
+      "walk_back": 1.552,
+      "walk_back_len": 1.417
     },
     "utahraptor": {
       "height_m": 4.0,

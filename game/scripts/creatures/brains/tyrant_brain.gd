@@ -10,6 +10,10 @@ var counter_hits := 0
 var stagger_immunity := 0.0
 var attack_number := 0
 var telegraph: Telegraph
+## ASSUMPTION: the "tail" phase of the tyrant's verb (stomp, roar, tail; the roar is the alert clip on spotting):
+## a target this far behind her facing (dot with forward below this) draws the tail whip instead of a turn
+## into a bite, so "get behind" during recovery is a read, not a free hit.
+const TAIL_DOT := -0.35
 
 ## Windup, impact and recovery are timed moves: resolve them every physics frame, not at 10 Hz.
 func _full_rate() -> bool:
@@ -38,7 +42,7 @@ func _think(delta: float) -> void:
 			_impact()
 			phase = &"recovery"
 			phase_left = 2.0 if windup_clip == &"attack_heavy" else 1.0
-			creature.anim.end_timed_attack()
+			# The clip keeps playing through its follow-through (snap, slam, whip); _end_phase returns to idle.
 			_clear_telegraph()
 		else:
 			if phase == &"stagger": stagger_immunity = 20.0
@@ -56,9 +60,20 @@ func _do_attack() -> void:
 	# Fixed-facing: the strike is aimed where the target stood at windup start; the body turns into
 	# that aim at the species turn rate during the windup instead of snapping to it.
 	offset.y = 0.0
+	var facing := -creature.global_basis.z
+	facing.y = 0.0
+	var behind := offset.length_squared() > 0.0001 and offset.normalized().dot(facing.normalized()) < TAIL_DOT
+	locked_target = attack_target
+	if behind and creature.anim.has_state(&"tail_swipe"):
+		locked_forward = facing.normalized()  # the whip swings from where she stands; no turn
+		windup_clip = &"tail_swipe"
+		phase = &"windup"
+		phase_left = 0.9
+		creature.anim.play_timed_attack(windup_clip, phase_left)
+		telegraph = Telegraph.show_tyrant(creature, contact_reach() + 0.3, phase_left, windup_clip)
+		return
 	locked_forward = offset.normalized() if offset.length_squared() > 0.0001 else -creature.global_basis.z
 	creature.face_towards(creature.global_position + locked_forward, get_physics_process_delta_time())
-	locked_target = attack_target
 	attack_number += 1
 	windup_clip = &"attack_heavy" if attack_number % 3 == 0 else &"attack_primary"
 	phase = &"windup"
@@ -76,7 +91,9 @@ func _impact() -> void:
 	offset.y = 0
 	if offset.length() > reach_to(locked_target)+0.3: return
 	var dot := offset.normalized().dot(locked_forward)
-	if dot < (-0.4 if windup_clip == &"attack_heavy" else 0.15): return
+	if windup_clip == &"tail_swipe":
+		if dot > 0.2: return  # the tail sweeps behind and beside her, never in front
+	elif dot < (-0.4 if windup_clip == &"attack_heavy" else 0.15): return
 	CreatureAttack.apply_for(creature,windup_clip,locked_target)
 	if locked_target is Player: (locked_target as Player).receive_creature_hit(creature,windup_clip)
 
@@ -94,7 +111,7 @@ func blunt_counter() -> void:
 	creature.status_float.emit(&"stagger")
 
 func opening_label() -> String:
-	if phase == &"windup": return "%s %.1fs" % ["STOMP" if windup_clip == &"attack_heavy" else "BITE",phase_left]
+	if phase == &"windup": return "%s %.1fs" % [{&"attack_heavy": "STOMP", &"tail_swipe": "TAIL"}.get(windup_clip, "BITE"),phase_left]
 	if phase == &"stagger": return "STAGGER %.1fs" % phase_left
 	if phase == &"recovery": return "PUNISH %.1fs  BLUNT %d/%d%s" % [phase_left,counter_hits,3 if creature.statuses.has(&"poisoned_target") else 6,"  IMMUNE" if stagger_immunity > 0 else ""]
 	return "BLUNT %d/%d%s" % [counter_hits,3 if creature.statuses.has(&"poisoned_target") else 6,"  IMMUNE %.0fs" % stagger_immunity if stagger_immunity > 0 else ""]

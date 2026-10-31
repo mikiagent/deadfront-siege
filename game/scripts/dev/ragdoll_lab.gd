@@ -26,7 +26,7 @@ extends Node3D
 ##   [--rl-cam=<elev>,<azimuth>]      shots from this camera angle (degrees) instead of the default
 
 const SPECIES: Array[StringName] = [&"coelophysis", &"compsognathus", &"deinonychus", &"gallimimus",
-	&"megaloceros", &"protoceratops", &"stegosaurus", &"tyrannosaurus", &"utahraptor",
+	&"megaloceros", &"stegosaurus", &"tyrannosaurus", &"utahraptor",
 	&"velociraptor", &"zebraceratops"]
 const TERRAINS: Array[String] = ["flat", "slope10", "slope20", "slope30", "rock"]
 const HEADINGS: Array[int] = [0, 90, 180, 270]  # creature yaw, degrees; the slopes fall toward +X
@@ -59,7 +59,7 @@ const STRETCH_TOL := 0.01
 const TEAR_RATIO := 3.0
 const TEAR_LEN_FRAC := 0.08
 const TEAR_MAX_FRAC := 0.005
-const CLIP_TORN := {&"compsognathus": 12, &"gallimimus": 82, &"megaloceros": 2166, &"protoceratops": 150,
+const CLIP_TORN := {&"compsognathus": 12, &"gallimimus": 82, &"megaloceros": 2166,
 	&"utahraptor": 16, &"velociraptor": 2, &"zebraceratops": 206}
 ## Seconds after the blow at which the settle sequence grabs a frame (the 4th tile is the corpse).
 var SEQ_T: Array[float] = [0.2, 0.8, 1.6]  # --rl-seq=a,b,c overrides
@@ -158,8 +158,6 @@ func _ready() -> void:
 		_headings = [0]
 	if _shots != "":
 		DirAccess.make_dir_recursive_absolute(_shots)
-	# The creature view only uses the stegosaurus GLB when asked (its in-game override stays).
-	CreatureView.allow_stegosaurus_rig = true
 	Game.debug_overlay = false  # no creature debug labels in the shots
 	print("[boot] lab=ragdoll_lab renderer=%s" % RenderingServer.get_current_rendering_method())
 	if perf:

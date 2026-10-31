@@ -6,7 +6,7 @@ extends SceneTree
 ## Run: Godot --headless --path game --script res://tests/t_colors.gd -> "[t_colors] PASS", exit 0/1.
 ## Scripts are load()ed on the first frame: `--script` compiles this file before autoloads exist.
 
-const RANGE_SPECIES: Array[StringName] = [&"velociraptor", &"protoceratops", &"tyrannosaurus", &"stegosaurus"]
+const RANGE_SPECIES: Array[StringName] = [&"velociraptor", &"zebraceratops", &"tyrannosaurus", &"stegosaurus"]
 const SPAWNS := 20
 
 var _fails: PackedStringArray = []
@@ -360,7 +360,7 @@ func _test_tame_keeps_profile() -> void:
 
 ## ---- 4. save/load keeps the profile and the genetics
 func _test_save_load_round_trip() -> void:
-	var def := _def(&"protoceratops")
+	var def := _def(&"zebraceratops")
 	var rec = PetRecordS.from_def(def, &"", &"", null, 12)
 	rec.genetics.coloration = Coloration.roll(def.coloration, Coloration.seeded_rng("round-trip"))
 	rec.genetics.coloration.pattern = &"stripes"

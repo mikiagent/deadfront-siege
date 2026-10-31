@@ -14,6 +14,9 @@ const MENU := {
 	&"ride": {"id": &"ride", "label": "Ride", "icon": "ride"},
 	&"dismount": {"id": &"dismount", "label": "Dismount", "icon": "dismount"},
 	&"gear": {"id": &"gear", "label": "Gear", "icon": "equip"},
+	# PETSTAY: one toggle segment, Stay while it follows and Follow while it stays.
+	&"stay": {"id": &"stay", "label": "Stay", "icon": "hold"},
+	&"follow": {"id": &"follow", "label": "Follow", "icon": "heel"},
 	&"dismiss": {"id": &"dismiss", "label": "Dismiss", "icon": "dismiss"},
 	&"rename": {"id": &"rename", "label": "Rename", "icon": "rename"},
 }
@@ -108,6 +111,9 @@ func summon(index: int = 0) -> Creature:
 		p.notice("Only %d pets can be out at once." % MAX_OUT)
 		return null
 	var def := Data.creature(rec.species)
+	if not CreatureDef.has_model(rec.species) and not CreatureDef.allow_placeholder:
+		p.notice("%s cannot be summoned yet: its model is not in the game." % str(rec.species).capitalize())  # NOBOXES
+		return null
 	var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 	# Placed before it enters the tree: a body added at the parent's origin is simulated there for
 	# a step and gets launched out of whatever it overlaps (phys-spawn-01, ~90 m/s).
@@ -131,6 +137,8 @@ func summon(index: int = 0) -> Creature:
 	var kept := stored_hp(rec)
 	c.health.hp = clampf(kept, 1.0, rec.hp) if kept >= 0.0 else rec.hp
 	c.level = rec.level
+	if rec.command == &"stay" and c.brain is PetBrain:
+		(c.brain as PetBrain).order(&"stay")  # a stayed pet comes back staying, at its summon spot
 	summoned.append(c)
 	rec.summoned = true
 	print("[capture] summoned %s hp=%.0f/%.0f (wild hp=%.0f)" % [def.id, c.health.hp, c.health.max_hp, def.hp])
@@ -164,6 +172,8 @@ func order(cmd: StringName) -> void:
 			p.notice("No enemy nearby to sic them on.")
 			return
 	for pet in pets:
+		if pet.pet_record and pet.pet_record.command == &"stay":
+			continue  # ASSUMPTION: whistles leave a parked (Stay) pet where it is; Follow from its radial frees it
 		if pet.brain and pet.brain.has_method("order"):
 			pet.brain.order(cmd, t)
 	var who := "Your pet" if pets.size() == 1 else "Your %d pets" % pets.size()
@@ -218,6 +228,7 @@ func entries(c: Creature) -> Array:
 		out.append(MENU[&"dismount"] if p.mounted_on == c else (MENU[&"ride"] if why == "" else {"id": &"ride", "label": why, "icon": "ride", "disabled": true}))
 		if hud and hud.has_method("open_pet_gear"):  # a saddle is the only tame slot so far
 			out.append(MENU[&"gear"])
+	out.append(MENU[&"follow"] if c.pet_record.command == &"stay" else MENU[&"stay"])
 	out.append(MENU[&"dismiss"])
 	if rename_dialog:
 		out.append(MENU[&"rename"])
@@ -249,11 +260,21 @@ func _on_menu(anchor: Node3D, action_id: StringName) -> void:
 			var hud := p.get_tree().get_first_node_in_group("hud")
 			if hud and hud.has_method("open_pet_gear"):
 				hud.open_pet_gear(c.pet_record)
+		&"stay", &"follow":
+			set_command(c, action_id)
 		&"dismiss":
 			dismiss(c)
 		&"rename":
 			var rec := c.pet_record
 			rename_dialog.open(rec.name, func (nm: String) -> String: return p.actions.rename_pet(rec, nm))
+
+## PETSTAY: Stay parks the pet where it stands (it still fights back), Follow sends it back to guard
+## duty. Kept on the record, so dismiss/summon and save/load keep it.
+func set_command(c: Creature, cmd: StringName) -> void:
+	c.pet_record.command = cmd
+	if c.brain is PetBrain:
+		(c.brain as PetBrain).order(&"stay" if cmd == &"stay" else &"guard")
+	p.notice("%s %s." % [c.pet_record.name if c.pet_record.name != "" else str(c.def.species).capitalize(), "stays here" if cmd == &"stay" else "follows you"])
 
 ## Feed one unit of the first food in the bag this pet eats.
 func feed_best(c: Creature) -> bool:
@@ -360,6 +381,8 @@ func dismount() -> void:
 	p.reset_physics_interpolation()
 	if is_instance_valid(c):
 		c.ridden = false
+		if c.pet_record and c.pet_record.command == &"stay" and c.brain is PetBrain:
+			(c.brain as PetBrain).order(&"stay")  # ridden somewhere else: it stays where you got off
 		c.remove_collision_exception_with(p)
 		p.remove_collision_exception_with(c)
 	p.mounted_on = null

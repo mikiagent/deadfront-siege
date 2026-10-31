@@ -62,6 +62,7 @@ const PET_ROW := {
 	"tamed_at": 0, "wild_level": 0, "genetics": GENETICS,
 	"nature": "", # NATURES: optional (an old row has none; PetRecord.from_dict derives one from the uid)
 	"gear": {}, # SADDLES: optional {slot: item row}; an old row has none
+	"command": "", # PETSTAY: optional "follow"/"stay"; an old row has none (loads as follow)
 }
 ## Stack attributes read with int() (taming pen, hunt, material tier) or handed to
 ## CreatureGenetics.from_dict (taming pen, tamed animal release).

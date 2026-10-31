@@ -6,7 +6,6 @@ const TINTS := {
 	"velociraptor": Color(0.76, 0.58, 0.32),
 	"deinonychus": Color(0.42, 0.55, 0.28),
 	"utahraptor": Color(0.62, 0.32, 0.18),
-	"protoceratops": Color(0.72, 0.64, 0.42),
 }
 
 ## GENETICS: the info-card swatch for one individual: the species' body tint with its own natural
@@ -74,9 +73,6 @@ var pose_t: float = 0.0:
 		pose_t = v
 		_apply_pose()
 
-## Lab-only (ragdoll_lab): build the stegosaurus from its GLB despite the in-game override below.
-static var allow_stegosaurus_rig := false
-
 var def: CreatureDef
 var variant: StringName = &""
 var using_glb: bool = false
@@ -131,11 +127,8 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	variant = p_variant
 	using_glb = false
 	_tint = TINTS.get(str(def.id), Color(0.55, 0.5, 0.4))
-	var glb := "res://assets/creatures/%s/%s.glb" % [def.id, def.id]
-	# The current transplanted Stegosaurus skin has catastrophic weights (worm-like stretching).
-	# Keep it playable with the procedural quadruped until the asset-upgrade replacement lands.
-	var force_safe_placeholder := def.id == &"stegosaurus" and not allow_stegosaurus_rig
-	if ResourceLoader.exists(glb) and not force_safe_placeholder:
+	var glb := CreatureDef.model_path(def.id)
+	if ResourceLoader.exists(glb):
 		rotation = Vector3.ZERO
 		rig = RiggedModel.new()
 		rig.name = "Rig"
@@ -148,15 +141,14 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 				rig.mesh_root.scale = Vector3.ONE * float(def.pipeline["stand_in_model_scale"])
 			using_glb = true
 			rig.fill_missing(CreatureClips.CONTRACT)
+			_apply_model_variant()
 		else:
+			push_error("CreatureView: %s has a model but it failed to load" % glb)
 			rig.queue_free()
 			rig = null
-			rotation_degrees.y = 180.0
-			_build_placeholder()
+			_placeholder_if_allowed()
 	else:
-		# Placeholder nose sits at +Z; yaw the view so it still faces Godot -Z like before.
-		rotation_degrees.y = 180.0
-		_build_placeholder()
+		_placeholder_if_allowed()
 	apply_coloration(coloration)
 	# Coloration recursively replaces mesh materials. Add the shared eyeshine material afterwards;
 	# the old order stripped it and left the oversized spheres as plain blue-grey geometry.
@@ -170,6 +162,41 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	else:
 		_mount.position = Vector3(0.0, def.height_meters * 0.85, 0.0)
 		add_child(_mount)
+
+## Model variants (pipeline.model_variants in the species JSON: variant id -> albedo texture next to the GLB).
+## The variants share one mesh, rig and clip set, so a variant only swaps the base colour map; "" or an
+## unknown id keeps the GLB as authored.
+static func model_variants(p_def: CreatureDef) -> Dictionary:
+	var raw: Variant = p_def.pipeline.get("model_variants", {}) if p_def else {}
+	return raw if raw is Dictionary else {}
+
+## ASSUMPTION: a wild spawn picks its variant deterministically from its identity key (50/50 for two).
+static func pick_variant(p_def: CreatureDef, key: String) -> StringName:
+	var ids := model_variants(p_def).keys()
+	if ids.is_empty():
+		return &""
+	ids.sort()
+	return StringName(str(ids[absi(hash(key)) % ids.size()]))
+
+func _apply_model_variant() -> void:
+	var tex_name := str(model_variants(def).get(str(variant), ""))
+	if tex_name.is_empty():
+		return
+	var tex := load("res://assets/creatures/%s/%s" % [def.id, tex_name]) as Texture2D
+	if tex == null:
+		push_error("CreatureView: %s variant %s: missing %s" % [def.id, variant, tex_name])
+		return
+	for mi in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null or m.has_meta(&"creature_eyeshine"):
+			continue
+		for i in m.mesh.get_surface_count():
+			var src := m.get_active_material(i) as StandardMaterial3D
+			if src == null:
+				continue
+			var mat := src.duplicate() as StandardMaterial3D
+			mat.albedo_texture = tex
+			m.set_surface_override_material(i, mat)
 
 ## Eyeshine dots on the Head bone; only species whose JSON has an "eyes" block get them.
 ## The block is read straight from the species file: it is a presentation detail, and CreatureDef
@@ -457,6 +484,16 @@ func flash_damage(seconds: float = 0.1) -> void:
 	_hit_flash_left = maxf(_hit_flash_left, seconds)
 	_apply_fx()
 
+## NOBOXES: the generic boxes only where a lab or test asked (CreatureDef.allow_placeholder); in
+## normal play a model-less view stays empty (spawns already filter those species out).
+func _placeholder_if_allowed() -> void:
+	if not CreatureDef.allow_placeholder:
+		push_warning("CreatureView: %s has no model; no placeholder in normal play" % def.id)
+		return
+	# Placeholder nose sits at +Z; yaw the view so it still faces Godot -Z like before.
+	rotation_degrees.y = 180.0
+	_build_placeholder()
+
 func _build_placeholder() -> void:
 	var h := def.height_meters
 	var L := def.real_length_m
@@ -466,15 +503,6 @@ func _build_placeholder() -> void:
 	_leg_l = _cyl(h * 0.05, h * 0.42, Vector3(-h * 0.1, h * 0.2, 0.05), _tint.darkened(0.2))
 	_leg_r = _cyl(h * 0.05, h * 0.42, Vector3(h * 0.1, h * 0.2, 0.05), _tint.darkened(0.2))
 	_body.name = "Body"
-	if def.id == &"stegosaurus":
-		# Readable low-poly Stegosaurus fallback: arched plate row and four thagomizer spikes.
-		for i in 7:
-			var plate := _box(Vector3(h * 0.08, h * (0.28 + 0.08 * (1.0 - absf(float(i - 3)) / 3.0)), h * 0.07), Vector3(0, h * 0.70, lerpf(-L * 0.18, L * 0.24, float(i) / 6.0)), _tint.lightened(0.18))
-			plate.rotation.z = 0.12 * float(i - 3)
-		for side in [-1.0, 1.0]:
-			for row in [0.0, 1.0]:
-				var spike := _box(Vector3(h * 0.055, h * 0.055, L * 0.18), Vector3(side * h * (0.10 + row * 0.04), h * 0.50, -L * (0.42 + row * 0.08)), Color(0.78, 0.72, 0.56))
-				spike.rotation.x = -0.28
 
 func _box(size: Vector3, pos: Vector3, col: Color) -> MeshInstance3D:
 	var mi := MeshInstance3D.new()

@@ -10,6 +10,7 @@ var _cam: IsoCamera
 var _failures: Array[String] = []
 
 func _ready() -> void:
+	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	var kit := LabKit.build(self, 40.0)
 	_player = kit["player"]
 	_cam = kit["cam"]
@@ -73,7 +74,7 @@ func _reset_player(at: Vector3) -> void:
 
 ## pc-combat-02: the heavy's ring must still exist when the bite lands (was gone 0.18-0.42 s early).
 func _telegraph_phase() -> void:
-	for species in [&"velociraptor", &"protoceratops"]:
+	for species in [&"velociraptor", &"zebraceratops"]:
 		var c := _spawn(species, Vector3(6, 0, -6))
 		await _frames(2)
 		var rec := {"live": -1, "at": 0.0}

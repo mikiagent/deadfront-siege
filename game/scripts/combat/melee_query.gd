@@ -65,10 +65,29 @@ static func _is_blocker(n: Node) -> bool:
 		return false
 	return n is StaticBody3D or n is CSGShape3D or n is GridMap
 
-## Horizontal gap between the two bodies' collision surfaces (0 when touching or overlapping).
+## Horizontal gap between the two bodies (0 when touching or overlapping): capsule to capsule, or to
+## a creature's visible footprint when that is nearer (BIGREACH: a stegosaurus's tail is 8 m from its
+## capsule centre, a T. rex's head 9 m).
 static func surface_gap(a: Node3D, b: Node3D) -> float:
 	var d := Vector2(a.global_position.x - b.global_position.x, a.global_position.z - b.global_position.z).length()
-	return maxf(0.0, d - body_radius(a) - body_radius(b))
+	var gap := maxf(0.0, d - body_radius(a) - body_radius(b))
+	if b is Creature and (b as Creature).def:
+		gap = minf(gap, maxf(0.0, _flat(footprint_point(b as Creature, a.global_position), a.global_position) - body_radius(a)))
+	if a is Creature and (a as Creature).def:
+		gap = minf(gap, maxf(0.0, _flat(footprint_point(a as Creature, b.global_position), b.global_position) - body_radius(b)))
+	return gap
+
+## The point of the creature's visible footprint nearest `at` (at's own ground spot when inside), at
+## the creature's feet height. The swing aims here and the survivor walks here.
+static func footprint_point(c: Creature, at: Vector3) -> Vector3:
+	var r := c.footprint()
+	var local := c.global_transform.affine_inverse() * at
+	var p := c.global_transform * Vector3(clampf(local.x, r.position.x, r.end.x), 0.0, clampf(local.z, r.position.y, r.end.y))
+	p.y = c.global_position.y
+	return p
+
+static func _flat(p: Vector3, q: Vector3) -> float:
+	return Vector2(p.x - q.x, p.z - q.z).length()
 
 ## Distance from a world point to the body (its capsule as an upright cylinder), 0 inside.
 ## AoE and traps use this instead of the feet origin, so big bodies are hit at their edge.

@@ -4,7 +4,7 @@ extends Node3D
 ## sleep, feed and tail_swipe. Side camera. Headless it prints one [canimlab] line per phase.
 ## Run: Godot --path game -- --lab=creature_anim_lab [--shot=out.png --shot-delay=3]
 
-const LANES := [[&"velociraptor", 0.0, -8.0], [&"protoceratops", 4.0, 3.0], [&"megaloceros", 8.0, -3.0], [&"tyrannosaurus", 15.0, 4.0]]  # id, lane z, start x
+const LANES := [[&"velociraptor", 0.0, -8.0], [&"zebraceratops", 4.0, 3.0], [&"megaloceros", 8.0, -3.0], [&"tyrannosaurus", 15.0, 4.0]]  # id, lane z, start x
 const SPAN := 15.0  # walkers wrap between -SPAN and +SPAN on x
 const PHASE_S := 5.0
 ## ASSUMPTION: walk speed = 40 % of the listed speed (same as tests/t_canim.gd).

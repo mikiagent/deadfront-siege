@@ -291,7 +291,7 @@ func _case_stick_walk_away() -> void:
 func _case_tap_walk_away(target_dies: bool) -> void:
 	await _reset()
 	var c = _dino(&"deinonychus", Vector3(0, 0, -1.8))
-	var other = _dino(&"protoceratops", Vector3(-3, 0, 12)) if target_dies else null
+	var other = _dino(&"zebraceratops", Vector3(-3, 0, 12)) if target_dies else null
 	await _frames(3)
 	player.hunt.start(c)
 	await _frames(30)

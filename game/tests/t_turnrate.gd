@@ -110,15 +110,15 @@ func _test_jitter(id: StringName) -> void:
 	_expect(absf(angle_difference(c.rotation.y, 0.0)) < 0.25, "%s still heads along the path: yaw %.3f rad" % [id, c.rotation.y])
 	c.free()
 
-## Target behind the rex in reach: the windup aims at it, the body turns at the capped rate, and the
-## impact lands.
+## Target beside the rex in reach: the windup aims at it, the body turns at the capped rate, and the
+## impact lands. (Straight behind her draws the tail whip instead, t_rexclips.)
 func _test_tyrant_bite_behind() -> void:
 	var rex = _spawn(&"tyrannosaurus", Vector3(-200, 0, 0), false)
 	var prey = _spawn(&"zebraceratops", Vector3(-200, 0, 0), false)
 	rex.rotation.y = 0.0
 	var brain = rex.brain
 	await physics_frame
-	prey.global_position = rex.global_position + Vector3(0.3, 0, brain.contact_reach() * 0.5)  # +Z is behind
+	prey.global_position = rex.global_position + Vector3(brain.contact_reach() * 0.5, 0, 0.3)  # +X is her right, a little behind
 	brain.attack_target = prey
 	brain.attack_number = 0
 	prey.health.setup(1.0e9)  # the bite must land, not kill (a kill here runs the corpse path)
@@ -127,13 +127,13 @@ func _test_tyrant_bite_behind() -> void:
 	brain._do_attack()
 	var step := absf(angle_difference(before, rex.rotation.y))
 	var dt := 1.0 / float(Engine.physics_ticks_per_second)
-	_expect(brain.phase == &"windup", "tyrannosaurus starts a windup on a target behind it (phase %s)" % brain.phase)
+	_expect(brain.phase == &"windup", "tyrannosaurus starts a windup on a target beside it (phase %s)" % brain.phase)
 	_expect(step <= rex.turn_rate() * dt + 1e-4, "tyrannosaurus windup start turns %.4f rad, not a snap (cap %.4f)" % [step, rex.turn_rate() * dt])
 	var to: Vector3 = prey.global_position - rex.global_position
 	to.y = 0.0
 	_expect(to.normalized().dot(brain.locked_forward) > 0.99, "windup aims at the target (dot %.3f)" % to.normalized().dot(brain.locked_forward))
 	for _try in 20:  # the hit roll can dodge; the aim and reach gates are what this checks
 		brain._impact()
-	_expect(prey.health.hp < hp0, "the bite behind lands: prey hp %.0f -> %.0f" % [hp0, prey.health.hp])
+	_expect(prey.health.hp < hp0, "the bite to the side lands: prey hp %.0f -> %.0f" % [hp0, prey.health.hp])
 	rex.free()
 	prey.free()

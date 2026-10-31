@@ -56,6 +56,11 @@ uniform float grid_enabled = 0.0;
 uniform float grid_width = 0.03;
 uniform float grid_fade = 25.0;
 uniform vec3 focus_pos = vec3(0.0);
+// LOOKPASS: a town's ground mask (TownDress._ground_look), 1 texel per metre over town_rect
+// (x0, z0, width, depth): R = wear (trodden dirt near streets, door paths and walls), G = inside the
+// town (greens varied). Black (no town) leaves the ground as it was.
+uniform sampler2D town_tex : hint_default_black, filter_linear, repeat_disable;
+uniform vec4 town_rect = vec4(0.0, 0.0, 1.0, 1.0);
 
 varying vec3 world_pos;
 varying vec4 v_color;
@@ -183,6 +188,19 @@ void fragment() {
 	float ow = smoothstep(0.2, 0.8, (o0.a + o1.a) * 0.5);
 	vec3 ocol = (o0.rgb + o1.rgb) / max(o0.a + o1.a, 0.001);
 	vec3 albedo = mix(base, ocol, ow);
+
+	// LOOKPASS town ground: two greens (a deeper and a sun-dried one) in ~12 m patches instead of one
+	// pale wash, and worn dirt that frays out from the streets by the mask plus ~2.5 m noise.
+	vec2 tn = vec2(texture(noise_tex, p / 138.0).r, texture(noise_tex, p / 138.0 + vec2(0.53)).r) - 0.5;  // noise_tex: ~23 cycles per UV, so p / (L * 23) has wavelength L m
+	vec2 tw = texture(town_tex, (p + tn * 1.5 - town_rect.xy) / town_rect.zw).rg;
+	float gpatch = smoothstep(0.3, 0.7, texture(noise_tex, p / (12.0 * 23.0)).r);
+	vec3 greens = albedo * mix(vec3(0.62, 0.80, 0.54), vec3(0.92, 0.90, 0.64), gpatch);
+	albedo = mix(albedo, greens, tw.g * on_land);
+	float wn = texture(noise_tex, p / 57.0).r - 0.5;
+	// Worn ground leans toward the street colour (TownDress road tint) so it reads as the path's
+	// trodden edge, not a dark border.
+	vec3 worn = mix(dirt, vec3(0.46, 0.39, 0.31), 0.6) * (0.88 + 0.24 * texture(noise_tex, p / 23.0).r);
+	albedo = mix(albedo, worn, smoothstep(0.45, 0.75, tw.r + wn * 0.7) * on_land);
 
 	// Macro variation: three octaves with wavelengths of 41 m, macro_scale (15 m) and 6.5 m. noise_tex
 	// holds ~23 noise cycles across its tile, hence the 23.0 that turns a wavelength into a UV scale.

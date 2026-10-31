@@ -57,6 +57,9 @@ func _run() -> void:
 	toggle.pressed.emit()
 	_expect(panel.get_node("SpawnPanel").visible, "SPAWN opens the selector")
 	var opt: OptionButton = panel.get_node("SpawnPanel").find_child("SpeciesPicker", true, false)
+	# FIGHT LAB: modelled species only by default; "Stand-ins: on" lists every species.
+	_expect(opt != null and opt.item_count == PANEL.listed_species(false).size(), "the picker lists modelled species only by default")
+	(panel.get_node("SpawnPanel").find_child("StandIns", true, false) as Button).pressed.emit()
 	_expect(opt != null and opt.item_count == ids.size() and opt.custom_minimum_size.y >= 64.0, "the species picker is a 64 px dropdown with every species")
 	var stand_ins := 0
 	for i in opt.item_count:

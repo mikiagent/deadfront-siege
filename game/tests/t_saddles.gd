@@ -86,7 +86,9 @@ func _run() -> void:
 
 func _test_sizes() -> void:
 	_expect(PR.saddle_size(data.creature(&"zebraceratops")) == &"small", "zebraceratops takes a small saddle")
-	_expect(PR.saddle_size(data.creature(&"velociraptor")) == &"medium", "velociraptor takes a medium saddle")
+	# RAPTORSCALE 2026-10-30: the velociraptor (1.06 m) is too small to ride (owner); the deinonychus, 2.87 m, is the medium one.
+	_expect(PR.from_def(data.creature(&"velociraptor"), &"A").ride_refusal() == "Cannot be ridden", "a velociraptor cannot be ridden")
+	_expect(PR.saddle_size(data.creature(&"deinonychus")) == &"medium", "deinonychus takes a medium saddle")
 	_expect(PR.saddle_size(data.creature(&"tyrannosaurus")) == &"large", "tyrannosaurus takes a large saddle")
 
 ## One recipe per class through the real planner; the saddle carries the primary hide's tint.
@@ -116,7 +118,7 @@ func _test_craft() -> void:
 			_expect(out.tint_color().is_equal_approx(Color(TINT)), "the %s saddle has its hide's colour (%s)" % [sz, out.attributes.get("tint")])
 
 func _test_save() -> void:
-	var rec = PR.from_def(data.creature(&"velociraptor"), &"A")
+	var rec = PR.from_def(data.creature(&"deinonychus"), &"A")
 	_expect(rec.gear.is_empty() and rec.ride_refusal() == "Needs a saddle", "a new tame has no saddle and cannot be ridden (%s)" % rec.ride_refusal())
 	var s = IS.make(&"saddle_medium", 1, {"tint": TINT}, 7)
 	s.uid = "l00ab12cd"
@@ -139,7 +141,7 @@ func _saddle_shown(c) -> bool:
 	return not c.view.saddle_meshes().is_empty()
 
 func _test_ride_gate() -> void:
-	var rec = PR.from_def(data.creature(&"velociraptor"), &"A")
+	var rec = PR.from_def(data.creature(&"deinonychus"), &"A")
 	player.bonded.append(rec)
 	var c = player.pets.summon(player.bonded.size() - 1)
 	c.brain.process_mode = Node.PROCESS_MODE_DISABLED
@@ -158,7 +160,7 @@ func _test_ride_gate() -> void:
 	player.inventory.add(small)
 	var si: int = player.inventory.find_first(&"saddle_small")
 	var why: String = PG.equip(player, rec, si)
-	_expect(why == "Needs a medium saddle" and rec.saddle() == null and player.inventory.find_first(&"saddle_small") == si, "a small saddle is refused on a velociraptor (%s)" % why)
+	_expect(why == "Needs a medium saddle" and rec.saddle() == null and player.inventory.find_first(&"saddle_small") == si, "a small saddle is refused on a deinonychus (%s)" % why)
 	# A wrong-size saddle put there by hand (a forged save) still refuses the ride.
 	rec.gear.put(&"saddle", IS.make(&"saddle_large"))
 	player.mount(c)

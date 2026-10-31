@@ -12,6 +12,8 @@ extends RefCounted
 var p: Player
 ## Tap-run or sprint this frame; the anim tick and footsteps read it.
 var running: bool = false
+## One physics frame of walking or sprinting moves well under this; more is a shove.
+const SHOVE_REPLAN_M := 0.5
 var _path_points := PackedVector3Array()
 var _path_index: int = 0
 var _path_replan_left: float = 0.0
@@ -314,7 +316,7 @@ func face_tick(delta: float, move_dir: Vector3) -> void:
 		_face_dir = Vector3.ZERO
 		var h := p.hunt
 		if h and h.target and is_instance_valid(h.target) and not h.target.health.dead and not p.move_order:
-			goal = h.target.global_position - p.global_position
+			goal = h.aim_point(h.target) - p.global_position  # the part of a big body she stands at
 	goal.y = 0.0
 	if goal.length_squared() < 0.0001:
 		return
@@ -680,7 +682,11 @@ func _request_tile_path() -> void:
 
 func _tile_nav_dir(delta: float) -> Vector3:
 	_path_replan_left -= delta
-	if _path_points.is_empty() or _path_replan_left <= 0.0:
+	# A shove (a body pushed out of an animal, a knockback) can carry her past the next waypoint; walking
+	# back to it read as jitter (t_playerturn tap_walk_away_target_gone). Re-plan from where she stands.
+	# _stall_pos is last frame's position (_stalled runs after this).
+	var shoved := Vector2(p.global_position.x - _stall_pos.x, p.global_position.z - _stall_pos.z).length() > SHOVE_REPLAN_M
+	if _path_points.is_empty() or _path_replan_left <= 0.0 or shoved:
 		_request_tile_path()
 		_path_replan_left = 1.5
 	if _path_points.is_empty():
