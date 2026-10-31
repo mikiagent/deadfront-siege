@@ -142,17 +142,54 @@ static func melee_reach(creature: Creature) -> float:
 		return 2.1
 	return maxf(2.1, creature.body_radius() + 0.65)  # body_radius carries the genome size
 
-## BIGREACH: in swing reach by the centre rule (small bodies), or her body edge within edge_reach_m
-## of the target's visible body (big ones: the flank, legs, head or tail she stands against).
+## HITBOXES: in swing reach when the swing she would play (swing_move) sweeps its weapon through one of
+## the target's hurtboxes from where she stands, turned to face it (the flank, legs, head or tail of a
+## big body included). Bodies without a skeleton keep BIGREACH's rule below: the centre rule (small
+## bodies), or her body edge within edge_reach_m of the target's visible footprint.
 func in_reach(t: Creature, slack: float = 0.0) -> bool:
+	if Hitbox.applies(player, t):
+		if MeleeQuery.surface_gap(player, t) > PREVIEW_GAP_M + slack:
+			return false  # nothing she holds reaches that far: skip the sweep
+		var mv := swing_move(_weapon())
+		# With room to spare (SWING_MARGIN_M) unless its collider already stops her: the swing lands
+		# hit_delay later, and an animal backing off at a walk would have left a swing judged at the edge.
+		var margin := SWING_MARGIN_M if MeleeQuery.surface_gap(player, t) > 0.05 else 0.0
+		return not Hitbox.strike(player, mv[0], t, 0, mv[1], true, aim_point(t) - player.global_position, maxf(0.0, margin - slack)).is_empty()
 	var off := t.global_position - player.global_position
 	if Vector2(off.x, off.z).length() <= melee_reach(t) + slack:
 		return true
 	return MeleeQuery.surface_gap(player, t) <= CombatTuning.num("player_melee", "edge_reach_m", 0.5) + slack
 
+const PREVIEW_GAP_M := 2.0  ## no survivor swing reaches past this body-edge gap (blade ~1.8 m from her centre)
+const REACH_UP_M := 2.2  ## the highest a swing (aimed up) reaches above her feet
+const SWING_MARGIN_M := 0.35  ## she starts a swing this far inside its reach (the hit lands ~0.4 s later)
+
+## HITBOXES: [move, weapon class] of the swing she plays next (data/creatures/hitboxes.json survivor):
+## punch bare-handed, heavy for a heavy blunt weapon, else swing; the class picks the blade's length.
+func swing_move(w: ItemStack) -> Array:
+	if w == null:
+		return [&"punch", &""]
+	var def := w.def()
+	var heavy := def != null and def.damage_type == &"blunt" and _swing_damage(w) > CombatTuning.num("player_melee", "heavy_swing_min_damage", 10.0)
+	return [&"heavy" if heavy else &"swing", weapon_class(def)]
+
+## The weapons row the swing takes its blade from: the tool class when the data has one, else the damage type.
+static func weapon_class(def: ItemDef) -> StringName:
+	if def == null:
+		return &""
+	var rows: Dictionary = (Hitbox.data().get("survivor", {}) as Dictionary).get("weapons", {})
+	return def.tool_class if rows.has(str(def.tool_class)) else def.damage_type
+
 ## Where she walks to and swings at: the nearest point of its visible body (its centre once she is inside).
+## HITBOXES: with hurtboxes, the nearest hurtbox she can reach from the ground (a leg under a high belly,
+## a tail hanging low); else BIGREACH's footprint.
 func aim_point(t: Creature) -> Vector3:
+	var hb := Hurtboxes.of(t) if Hitbox.applies(player, t) else null
 	var p := MeleeQuery.footprint_point(t, player.global_position)
+	if hb:
+		var feet := MeleeQuery.feet_y(player)
+		p = hb.nearest_point(Vector3(player.global_position.x, feet + 1.0, player.global_position.z), feet - 0.1, feet + REACH_UP_M)
+		p.y = t.global_position.y
 	return p if Vector2(p.x - player.global_position.x, p.z - player.global_position.z).length() > 0.3 else t.global_position
 
 func _auto_attack() -> void:
@@ -163,8 +200,8 @@ func _auto_attack() -> void:
 	var platform := player._nearest_group("catapult") as FieldCatapult
 	if platform and player.global_position.distance_to(platform.global_position) <= 3.0:
 		return
-	if player.statuses.has_flag(&"cannot_act"):
-		return
+	if player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"):
+		return  # knocked down, or Winded (KNOCKDOWN): no swings
 	if player.rolling or _tactic_lock > 0.0 or (player.sim and player.sim._stagger_left > 0.0):
 		return  # a hurt stun is a hard stun: no swings either
 	var ranged_weapon := _weapon()
@@ -175,6 +212,9 @@ func _auto_attack() -> void:
 			fire_ranged()
 		return
 	if not in_reach(target):
+		if MeleeQuery.surface_gap(player, target) <= PREVIEW_GAP_M and not MeleeQuery.clear(player, target):
+			say_throttled("Something is in the way.")
+			return  # a wall or a ridge between: no walking into it either
 		if not hold:
 			player.nav_to(aim_point(target))  # its body edge: its centre sits inside its collider
 		return
@@ -191,7 +231,7 @@ func _auto_attack() -> void:
 ## cooling down, rolling); auto-attack still walks over when Auto is on and HOLD is off.
 func swing_now() -> bool:
 	if target == null or player.move_order or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
-			or player.statuses.has_flag(&"cannot_act"):
+			or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"):
 		return false
 	var w := _weapon()
 	if w and w.def() and w.def().range_m > 0.0:
@@ -209,17 +249,18 @@ func begin_swing() -> void:
 	var w := _weapon()
 	var def := w.def() if w else null
 	var rate := def.attack_rate if def and def.attack_rate > 0.0 else 1.0
+	var mv := swing_move(w)
 	if w == null:
 		player.play_punch()
 	else:
-		player.play_attack(def != null and def.damage_type == &"blunt" and _swing_damage(w) > CombatTuning.num("player_melee", "heavy_swing_min_damage", 10.0))
+		player.play_attack(mv[0] == &"heavy")
 	# Basic attack cooldown (owner: no basic spam): the weapon's cadence, never under basic_cooldown_s.
 	_swing_cd = maxf(1.0 / maxf(0.2, rate), CombatTuning.num("player_melee", "basic_cooldown_s", 0.8))
 	var forward := aim_point(target) - player.global_position
 	forward.y = 0.0
 	_swing_pending = true
 	swing_started.emit()
-	get_tree().create_timer(hit_delay(w), false).timeout.connect(_on_swing_hit.bind(weakref(target), w, forward.normalized()), CONNECT_ONE_SHOT)
+	get_tree().create_timer(hit_delay(w), false).timeout.connect(_on_swing_hit.bind(weakref(target), w, forward.normalized(), mv), CONNECT_ONE_SHOT)
 
 ## Seconds from the swing press to contact. The survivor clip is rescaled to swing_seconds/rate
 ## (player_anim._play), so contact sits at hit_frac of that.
@@ -230,13 +271,30 @@ static func hit_delay(w: ItemStack) -> float:
 	var t := CombatTuning.section("player_melee")
 	return float(t.get("hit_frac", 0.6)) * float(t.get("swing_seconds", 0.65)) / maxf(0.2, rate)
 
-func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3) -> void:
+func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3, mv: Array = []) -> void:
 	_swing_pending = false
 	var t := ref.get_ref() as Creature
 	if t == null or t != target or t.health.dead or player == null or player.dead:
 		return  # hunt stopped or retargeted mid-swing: the swing is lost, not landed on the old target
 	if player.rolling or player.statuses.has_flag(&"cannot_act"):
 		return  # knocked down or rolled out mid-swing: the swing is lost
+	if Hitbox.applies(player, t):
+		# HITBOXES: the swing's fist or blade, swept through the clip's window where she stands now.
+		if mv.is_empty():
+			mv = swing_move(w)
+		# Judged facing where the swing was aimed when it started (the reach test's direction), else where
+		# she has turned since (PlayerSim.face_tick tracks the nearest part, which can flip mid-swing).
+		var hit := Hitbox.strike(player, mv[0], t, 0, mv[1], false, forward)
+		if hit.is_empty():
+			hit = Hitbox.strike(player, mv[0], t, 0, mv[1], false, aim_point(t) - player.global_position)
+		if hit.is_empty():
+			CombatAvoid.avoided(t, player, &"miss")
+			return  # it stepped out of the swing
+		if not MeleeQuery.clear(player, t):
+			return
+		Hitbox.mark(t, hit)
+		land_hit(t, w)
+		return
 	var offset := aim_point(t) - player.global_position
 	offset.y = 0.0
 	var tune := CombatTuning.section("player_melee")
@@ -354,7 +412,7 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 ## Tackle and Kick may cut the auto-attack's own swing short (it was always busy mid-fight, so both
 ## refused silently); a roll, a hurt stun, a knockdown or the previous tactic's lock still block them.
 func can_start_tactic() -> bool:
-	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act"):
+	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"):
 		return false
 	if player.anim and player.anim._busy and not player.anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
 		return false
@@ -456,7 +514,7 @@ func fire_ranged(ammo: StringName = &"") -> bool:
 	var weapon := _weapon()
 	var def := weapon.def() if weapon else null
 	if def == null or def.range_m <= 0.0: return false
-	if _ranged_pending or _swing_cd > 0 or player.dead or player.rolling or player.anim._busy or player.statuses.has_flag(&"cannot_act"): return false
+	if _ranged_pending or _swing_cd > 0 or player.dead or player.rolling or player.anim._busy or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"): return false
 	var origin := player.global_position + Vector3(0,0.3,0)
 	var aim := target.global_position + Vector3(0, minf(1.0, target.def.height_meters * 0.4),0)
 	var offset := aim-origin

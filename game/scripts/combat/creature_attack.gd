@@ -14,7 +14,7 @@ static func apply_for(attacker: Creature, clip: StringName, target: Node, mult: 
 		return false
 	if not _deal_damage(attacker, target, clip, mult):
 		return false
-	if (clip == &"attack_heavy" or clip == &"attack_primary") and not _target_dead(target):
+	if (clip == &"attack_heavy" or clip == &"attack_primary" or clip == &"grab_bite") and not _target_dead(target):  # grab_bite: the bite with arms (UTAHARMS)
 		for tok in attacker.def.status_applied:
 			_apply_token(tok, clip, target, attacker)
 	return true
@@ -54,7 +54,12 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 		# dodge/agency. Deafened and damage still land; incomplete/low-level kits do not help.
 		if source.def.id == &"tyrannosaurus" and id in [&"fracture", &"pinned"] and (target as Player).inventory.has_raid_protection():
 			return
-		(target as Player).statuses.apply(id, source, int(parsed["stacks"]))
+		var pl := target as Player
+		# KNOCKDOWN: a basic bite's Knockdown token stays the old stand-still status (light hit: flinch); the heavy
+		# hit's token (charges, rams, the impale) lays her down (PlayerKnock.on_knockdown_status).
+		pl.sim.knock.token_light = id == &"knockdown" and clip != &"attack_heavy"
+		pl.statuses.apply(id, source, int(parsed["stacks"]))
+		pl.sim.knock.token_light = false
 		if foot_pin and (target as Player).statuses.has(&"pinned"):
 			source.start_pin(target as Player)
 

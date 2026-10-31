@@ -135,10 +135,10 @@ func _ability(kind: StringName, lock: float) -> void:
 	if kind == &"tackle":
 		var moved := Vector2(player.global_position.x - p0.x, player.global_position.z - p0.z).length()
 		_expect(moved > 0.2, "tackle still lunges the survivor (%.2f m)" % moved)
-	else:
+	await _frames(int(ceil((lock + 0.3) * Engine.physics_ticks_per_second)))
+	if kind == &"kick":  # slid over the stagger (Creature.shove), not moved in one frame
 		var shoved := Vector2(raptor.global_position.x - r0.x, raptor.global_position.z - r0.z).length()
 		_expect(shoved > 0.2, "kick still shoves the target (%.2f m)" % shoved)
-	await _frames(int(ceil((lock + 0.3) * Engine.physics_ticks_per_second)))
 	_expect(player.anim.current_clip == &"idle", "%s is back in idle within lock + 0.3 s (got %s)" % [kind, player.anim.current_clip])
 	raptor.queue_free()
 	await physics_frame

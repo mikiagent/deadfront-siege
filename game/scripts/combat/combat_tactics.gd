@@ -14,6 +14,30 @@ static func reach_ok(h: Hunt, verb: String, tune: Dictionary) -> bool:
 		return false
 	return true
 
+## HITBOXES: step in up to the move's lunge_max_m (never into it), face it, then the move's part (feet for
+## the kick, shoulders and chest for the tackle) must sweep through its hurtboxes. A whiff still costs the
+## stamina and the cooldown. {} = missed; else the hit (part, region) or {"part": &""} for a body without a rig.
+static func _step_and_strike(h: Hunt, move: StringName, lunge_max_m: float) -> Dictionary:
+	var player := h.player
+	var target := h.target
+	player.clear_nav()
+	var to := target.global_position - player.global_position
+	to.y = 0.0
+	var lunge_distance := minf(lunge_max_m, maxf(0.0, MeleeQuery.surface_gap(player, target) - 0.1))
+	if lunge_distance > 0.0 and to.length_squared() > 0.0001:
+		# Move the body now. The attack animation marks the player busy and the normal player
+		# loop zeroes velocity, so a velocity-only lunge never actually happened.
+		player.move_and_collide(to.normalized() * lunge_distance)
+	player.face_world(target.global_position)
+	if not Hitbox.applies(player, target):
+		return {"part": &""}
+	var hit := Hitbox.strike(player, move, target)
+	if hit.is_empty():
+		CombatAvoid.avoided(target, player, &"miss")
+	else:
+		Hitbox.mark(target, hit)
+	return hit
+
 ## Body tackle: lunge into the target, groggy (then knockdown on the next hit), 6 damage.
 static func tackle(h: Hunt) -> void:
 	if h.target == null:
@@ -33,16 +57,12 @@ static func tackle(h: Hunt) -> void:
 	if not player.vitals.spend_energy(float(tune.get("stamina", 15.0))):
 		h.say("Out of stamina.")
 		return
-	player.clear_nav()
-	player.face_world(target.global_position)
 	h.last_auto_cast = &"tackle"
-	var to := target.global_position - player.global_position
-	to.y = 0.0
-	var lunge_distance := minf(float(tune.get("lunge_max_m", 1.0)), maxf(0.0, MeleeQuery.surface_gap(player, target) - 0.1))
-	if lunge_distance > 0.0 and to.length_squared() > 0.0001:
-		# Move the body now. The attack animation marks the player busy and the normal player
-		# loop zeroes velocity, so a velocity-only lunge never actually happened.
-		player.move_and_collide(to.normalized() * lunge_distance)
+	if _step_and_strike(h, &"tackle", float(tune.get("lunge_max_m", 1.0))).is_empty():
+		h.commit_tactic(&"tackle", float(tune.get("cooldown", 8.0)), float(tune.get("lock", 0.55)))
+		player.play_tactic(&"tackle", true)
+		print("[combat] body tackle %s missed: no hurtbox in the way" % target.def.id)
+		return
 	target.statuses.apply(&"groggy", player)
 	target.next_hit_kind = &"strong"
 	target.health.take_damage(float(tune.get("damage", 6.0)), player)
@@ -88,18 +108,21 @@ static func kick(h: Hunt) -> void:
 	if not player.vitals.spend_energy(float(tune.get("stamina", 10.0))):
 		h.say("Out of stamina.")
 		return
-	player.clear_nav()
-	player.face_world(target.global_position)
 	h.last_auto_cast = &"kick"
+	var hit := _step_and_strike(h, &"kick", float(tune.get("lunge_max_m", 0.8)))
 	player.play_tactic(&"kick", false)
+	if hit.is_empty():
+		h.commit_tactic(&"kick", float(tune.get("cooldown", 6.0)), float(tune.get("lock", 0.45)))
+		print("[combat] kick %s missed: no hurtbox in the way" % target.def.id)
+		return
 	var push := kick_push(target)
 	if push <= 0.0:
 		h.say("Too heavy to shove: it barely feels the kick.")
 	else:
 		var away := target.global_position - player.global_position
 		away.y = 0.0
-		# Respect walls, props and terrain instead of teleporting the target through geometry.
-		target.move_and_collide(away.normalized() * push)
+		# Slid over the stagger (Creature.shove), never moved in one frame (it read as a teleport).
+		target.shove(away.normalized() * push, float(tune.get("stagger_s", 0.5)))
 	target.next_hit_kind = &"hit"
 	target.health.take_damage(float(tune.get("damage", 4.0)), player)
 	target.status_float.emit(&"kick")
