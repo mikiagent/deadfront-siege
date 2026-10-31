@@ -145,6 +145,71 @@
       "wiggle_tail": 4.0,
       "sway": 0.006,
       "crouch": 0.025
+    },
+    "charge": {
+      "_note": "ALLOCHARGE (owner 2026-10-31: 'allosaurus charge is weak looking, he kind of just pads over'): the bull charge run. Low centre of gravity (crouch), body pitched forward, head down and level on a straight neck, tail straight out, big fast strides (0.52 / 0.78 s = 9.5 m/s), arms tucked forward. # ASSUMPTION numbers",
+      "cycle_s": 0.78,
+      "duty": 0.36,
+      "stride": 0.52,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.075,
+      "swing_curl_hind": -10,
+      "toe_roll": 0,
+      "bob": 0.012,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5,
+      "lean_deg": 15,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -16
+        ],
+        "Neck2": [
+          "pitch",
+          -6
+        ],
+        "Head": [
+          "pitch",
+          18
+        ],
+        "Tail1": [
+          "pitch",
+          6
+        ],
+        "Tail2": [
+          "pitch",
+          3
+        ],
+        "Tail3": [
+          "pitch",
+          1
+        ],
+        "Arm.L": [
+          "pitch",
+          22
+        ],
+        "Arm.R": [
+          "pitch",
+          22
+        ],
+        "Forearm.L": [
+          "pitch",
+          10
+        ],
+        "Forearm.R": [
+          "pitch",
+          10
+        ]
+      },
+      "wiggle_head": 1.2,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 0.6,
+      "wiggle_tail": 1.5,
+      "sway": 0.004,
+      "crouch": 0.07
     }
   }
 }
