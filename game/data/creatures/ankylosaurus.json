@@ -122,7 +122,11 @@
       "stomp",
       "shove_left",
       "shove_right",
-      "tackle"
+      "tackle",
+      "spin_right",
+      "spin_left",
+      "pivot_right",
+      "pivot_left"
     ]
   }
 }
