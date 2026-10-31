@@ -1,0 +1,18 @@
+{
+  "_about": "Megatherium landmarks in the prepped Tripo mesh's own units (head to -Y, feet at z=0, 1 unit nose to tail tip). Leg joints below the belly are cross-section centroids at these heights; the rest are read off the grid render (docs/orchestration/reports/sp-megatherium/rig_landmarks.jpg).",
+  "hide_name": "MegatheriumHide",
+  "withers_raw": 0.35,
+  "withers_m": 2.8,
+  "_size": "ASSUMPTION: Megatherium stood ~1.75 m at the shoulder on all fours (about 6 m long, ~4 m reared); x1.6 house exaggeration (claude-raptorscale.md) = 2.8 m at the withers, 8 m nose to tail tip.",
+  "belly_z": 0.12,
+  "leg_margin": 0.05, "leg_inner_x": 0.04, "leg_inner_z": 0.07, "trunk_pref": 0.5,
+  "body_z": 0.27, "hips_y": 0.07, "torso_y": -0.08, "chest_y": -0.2, "chest_end": [-0.29, 0.31],
+  "neck": [[-0.29, 0.31], [-0.33, 0.335], [-0.37, 0.35]],
+  "head_tip": [-0.495, 0.37],
+  "jaw": {"pivot": [-0.405, 0.333], "tip": [-0.485, 0.326], "split_deg": -4, "blend": 0.01},
+  "tail": [[0.09, 0.24], [0.2, 0.15], [0.33, 0.07], [0.49, 0.015]],
+  "front": {"fetlock_z": 0.03, "fet_dy": 0.0, "carpus_z": 0.075, "elbow_dz": 0.19, "elbow_back": 0.03, "shoulder_z": 0.30, "shoulder_fwd": 0.04, "scap_top_z": 0.37, "scap_back": 0.06, "scap_x": 0.06, "toe_fwd": 0.06, "toe_z": 0.012},
+  "hind": {"fetlock_z": 0.02, "fet_dy": -0.03, "hock_z": 0.065, "hock_back": 0.01, "stifle_z": 0.18, "stifle_fwd": 0.04, "hip": [0.06, 0.28], "hip_x": 0.08, "toe_fwd": 0.035, "toe_z": 0.008},
+  "ymid": -0.15, "hind_ymax": 0.13,
+  "cut_boxes": [[[-0.40, -0.33], [0.075, 0.14], [0.04, 0.2]]]
+}

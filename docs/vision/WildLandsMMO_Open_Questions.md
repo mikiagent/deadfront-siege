@@ -381,6 +381,10 @@ Owner reference: velociraptor 1.8 m, deinonychus 3 m, utahraptor 7 m long. In-ga
 | **RS1** | House exaggeration = 1.6 x true length on screen (measured: compsognathus 2.39 m mesh for 1.5 m, tyrannosaurus 19.4 m for 12 m). Raptors on screen: velociraptor 2.88 m long / 1.06 m tall (was 6.53 / 2.4), deinonychus 4.81 / 2.87 (was 3.35 / 2.0), utahraptor 11.19 / 4.62 (was 9.69 / 4.0). | `height_meters` in the three species JSONs | The deinonychus grows back above the survivor's head, reversing the owner's 2026-10-28 "chest height" (2.0 m) call. Keeping deinonychus at 2.0 m instead means factor 1.12: velociraptor 0.74 m tall (shorter than the compsognathus), utahraptor 3.23 m. |
 | **RS2** | `real_length_m` stays "2 x true length" like the rest of the roster (compy 3.0, T. rex 24): velociraptor 3.6, deinonychus 6.0, utahraptor 14.0 (were 6.0 / 10.2 / 11.0, i.e. 3x / 3x / 2x of the old true values). Not true metres, because pens, hit radius, mass and turn-rate defaults read it as game size. | species JSONs | The pen UI line "about N m long" shows 2x true for every species; a separate display length would fix that roster-wide. |
 | **RS3** | Saddle classes follow height: velociraptor medium -> small, deinonychus small -> medium, utahraptor stays medium. Pen tiers unchanged (velociraptor small, deinonychus medium by value, utahraptor large by value); taming feeds are explicit per species, unchanged. | `PetRecord.saddle_size` | The velociraptor's back (~0.67 m) is now under the mounts rule (rider 1.78 m > back x 1.6 = no saddle), Owner 2026-10-30: "velociraptor is too small to ride": mount role and saddle removed, listed in mounts_skip.json. |
+| **HS1** | Reposition style by bulk = real_length_m x height_meters (the kick-shove mass proxy): <= 15 hops (compsognathus 3.6, velociraptor 6.2, coelophysis 12), >= 40 strafes and never leaves the ground (triceratops 41.8, stegosaurus, ankylosaurus excluded at 36, T. rex), between stays as authored (deinonychus 17.2, raptor 32.9, megaloceros 23.7, woolly rhino 21.8). A small body with no dodge_left/right clips stays mixed (pachycephalosaurus, zebraceratops, protoceratops, smilodon). Override per species: tactics.reposition = hop / strafe / mixed. Owner 2026-10-31: "smaller animals hop around more than they strafe, big and heavy dinosaurs strafe more than they hop". | `TacticalBrain.HOP_MAX_BULK`, `STRAFE_MIN_BULK` | Deinonychus stands 2.87 m (above the survivor's head) so it was left mixed; set `"reposition": "hop"` in its JSON to make it bound. Utahraptor (64.7) is now a strafer: its side-steps are walked and its back-offs scurry. Gallimimus (45.6) is overridden to mixed (a light runner). |
+| **HS2** | A hopper's ring: planted 0.3-0.7 s between bounds facing the prey, then a side bound (50 %) or a 0.6-1.1 s strafe-walk (50 %); its back-hop filler weight x2. Its dodges and back-offs are bounds too, so in a fight bounds outnumber strafes 4:1 or more (t_hopstrafe). | `TacticalBrain.HOP_SHARE`, `_hop_pause` | The pause length and share are feel numbers. |
+| **HS3** | A side bound covers max(strafe_m, one body length), body length = 0.8 x real_length_m x genetic size (the 1.6x house exaggeration). Its flight lasts as long as a real jump of that arc height, 2 sqrt(2h/g), the clip stretched at most 2x. | `TacticalBrain.side_hop_m`, `_hop_leap` | Velociraptor bounds ~3.7 m, coelophysis ~4.8 m, compy 2.5 m. |
+| **HS4** | Velociraptor raised 1.06 -> 1.35 m tall (3.67 m long on screen, x1.27), real_length_m 3.6 -> 4.6 (small pen still, bulk 6.2). Still the smallest raptor (deinonychus 4.81 m) and not a mount: seat 0.85 m x 1.6 = 1.35 m < 1.78 m rider. Owner 2026-10-31: "velociraptor seems too small". | `velociraptor.json`, `mounts_skip.json` | Breaks the 1.8 : 3 : 7 chart ratio (now 2.3 : 3 : 7). Compsognathus (1.2 m) is now shorter than it. |
 
 ## Pachycephalosaurus rework (PACHY, 2026-10-31)
 
@@ -507,6 +511,21 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **SM8** | Smaller ring as the trade-off: `perception_base` 4 (spots prey at 10.75 m by day, was 14.75), `leash_mult` 1.25 (ring 13.4 m, was 22.1), `spot_alert_s` 0.15 (no roar on spotting; it goes at once). Natures and the night bonus still scale both. | `ai.json` saber_cat | How small the ring should be against how fast it closes. |
 | **SM9** | Gaits: the run is a leaping rotary bound with a long flight (57 % of the cycle) at 6.2 m/s natural; a new lope (3.6 m/s canter) covers the walk-to-run gap so the bound never plays in slow motion, and a sprint (12.7 m/s) plays during bursts; the gait ladder picks by speed. | `tools/gait/smilodon.json`, `CreatureAnim.GAITS` | Flight share and back flex are by eye; the owner judges the strips. |
 
+
+### SP-DILOPHOSAURUS (2026-10-31) — the dilophosaurus gets a model, a frill, a venom spit and a leaping slash (claude/mmo-sp-dilophosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight". Report `docs/orchestration/reports/claude-sp-dilophosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **DL1** | Size unchanged: `height_meters` 3.6 (crest top), 10.5 m long of which half is the whip tail, hip 2.1 m; `real_length_m` 12 (the roster's 2x). The model's origin sits mid-torso (the snout is 3.2 m ahead of it), not at the bbox centre. | `dilophosaurus.json`, `dilophosaurus_frill.py` ORIGIN_Y | The sheet does not fix a size against the survivor. |
+| **DL2** | Venom from the spit only (`tactics.status_clips`), using the existing **Venom** status (0.4 HP/s, accuracy -30 %, 45 s, antivenom cures). No Blinded status exists, so none was invented. The bite and the rakes carry no status. | `dilophosaurus.json` tactics, `CreatureAttack._carries_status` | Whether the bite should also poison is a design call. |
+| **DL3** | The spit: from 3.5-11 m, 6 s cooldown, a 1.0 m ring on the prey that follows her until the glob leaves at the clip's 62 % frame, then a 16 m/s glob at where she stood (no homing). Stepping out of the ring or rolling in it dodges. x0.6 attack. | `tactics` spit_*, `VenomSpit` | Range, speed, radius and damage are first-pass numbers. |
+| **DL4** | One-shots: at the old stat block (attack 210) a fresh 100 HP survivor dies to one spit (~85), one snap (~207) or the leaping slash (~210). | `dilophosaurus.json` stats | Balance pass (venom never gets to tick on a fresh survivor). |
+| **DL5** | `venom_ranged` attack_range 2.4 -> 3.0 (only the dilophosaurus uses it), so the snap reaches what the snout reaches. | `ai.json` | Shared archetype number. |
+| **DL6** | Hits land from the body part (`pipeline.hit_parts`: snap from Head/Jaw, rake from the right foot, leaping slash from either foot or the jaws); the hitbox system had not landed on canon. | `dilophosaurus.json` pipeline | Swap for the hitbox system when it lands. |
+| **DL7** | The frill is a single double-sided sheet folded along the neck at rest, so the folded frill shows as a yellow ruff along the neck in idle and the gaits. Alpha = sheet 2 as a recolour plus a repainted orange frill. No saddle (tamed role is combat only). | `dilophosaurus_frill.py`, `dilophosaurus_alpha_skin.py` | A skin-coloured outer face when folded would need a second paint region. |
+
 ### SP-CARNOTAURUS (2026-10-30) — new species (claude/mmo-sp-carnotaurus)
 
 Owner: "fast bull-like predator: horn ram that knocks the target back, sprint charge with a sharp turn, snap bite". The PRDs say nothing about the Carnotaurus. Report `docs/orchestration/reports/claude-sp-carnotaurus.md`.
@@ -520,6 +539,18 @@ Owner: "fast bull-like predator: horn ram that knocks the target back, sprint ch
 | **CA5** | Spawns: one on desert_35's far shore (next to the utahraptor) and one in desert_50's working ring. Climate is desert. | `world/islands.json` | Savannah would also fit (the brief says "dry/savannah or desert"). |
 | **CA6** | The alpha skin is baked from the regular colour map: rust, black mottling, near-black horns. The sheet's heavier osteoderms are texture only; the alpha uses the same mesh. | `carnotaurus_alpha_albedo.jpg` (`pipeline.model_variants.alpha`) | A real alpha mesh would cost another Tripo generation. |
 
+### SP-MAJUNGASAURUS (2026-10-31) — the majungasaurus, a new savannah species (claude/mmo-sp-majungasaurus)
+
+Owner approved the sheet and asked for a name; it is Majungasaurus. "Be creative with what moves you think they should do when they fight". Report `docs/orchestration/reports/claude-sp-majungasaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **MJ1** | Size: ~6.5 m real -> 10.3 m on screen (house 1.6x), `height_meters` 5.0 (head top), `real_length_m` 13 (roster 2x). | `majungasaurus.json` | Smaller than the carnotaurus (12.9 m) and the allosaurus. |
+| **MJ2** | Stats: tier 45, hp 5600, atk 330, def 170, speed 500, turn 2.5, capture tier 4, tamed role combat only (no saddle), carnivore taming food. Climate savannah; spawns 1 on savannah_45's working ring and 1 on its far shore. | `majungasaurus.json`, `islands.json` | Balance and placement. A fresh 100 HP survivor dies to one bite (same as every L45 predator). |
+| **MJ3** | Brain `opportunist`: wide 11 m ring, circles and holds; on a healthy survivor a ready rush goes only 25 % of the time (`healthy_commit_chance`); under 50 % health (`weak_prey.hp_frac`) every ready pick commits, rush weight x8, cooldowns x0.45, waits x0.25. | `ai.json` opportunist, `TacticalBrain._start_sequence` | The "scavenger" feel; the 50 % line and 25 % are guesses. |
+| **MJ4** | Crushing bite grabs: a landed bite holds her Pinned at the jaws while `pin_stab` shakes twice (x1.1 each), then lets go; grab cooldown 9 s. Nothing breaks it early (struggle is not implemented). | `TacticalBrain.landed`, `pin_stab` | Grab length and damage are balance calls; the survivor's auto-tackle still fires while Pinned (canon gap) and staggers it out of the grab. |
+| **MJ5** | Skull-knob headbutt = `attack_heavy` (x1.6, point blank in front); low tail swipe = the `kick` clip (x1.2, prey in the rear arc), hit from Tail3-5. | `ai.json`, `pipeline.hit_parts` | Move into hitboxes.json when claude/mmo-hitboxes lands. |
+| **MJ6** | No alpha sheet: alphas use the genetics recolour only. In the lab's lighting the Tripo hide reads more orange than the sheet's warm brown. | `majungasaurus.json` | An alpha skin or a hide tint needs the owner's call. |
 ### SP-TARBOSAURUS (2026-10-31) — the tarbosaurus gets a model, a stalk, a burst that foot-pins, a head-whip bite and a tail whip (claude/mmo-sp-tarbosaurus)
 
 Owner: "build some of the models ... Be creative with what moves you think they should do when they fight"; "keep cooking". Report `docs/orchestration/reports/claude-sp-tarbosaurus.md`.
@@ -532,7 +563,18 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **TB4** | Pin: the burst and the point-blank lunge are attack_heavy hits, so (PINFEEL rule) they apply Pinned and it plants its right foot on the victim (`pin_foot`); the bite never pins. Pinned length and damage are the status data. | `tarbosaurus.json` status_applied, PINFEEL | Pin frequency is a balance call. |
 | **TB5** | Tail whip uses the TacticalBrain's `kick` slot (point blank, prey behind); the clip is named `kick` and its hit part radius is 2.0 m (the tail sweeps metres between frames). | `tarbosaurus.json` hit_parts | Swap for the hitbox system's swept volumes when it lands. |
 | **TB6** | No alpha skin: no alpha sheet was given, so alphas get the genetics recolour only (`model_variants.alpha` not set). No eye glow block (eyes not measured). No saddle (`tamed_role` is combat only). | `tarbosaurus.json` | Give an alpha sheet to get a skin. |
+### SP-ALLOSAURUS (2026-10-31)
 
+Owner: "yes allosaurus" (build it, be creative with its fight moves). Report `docs/orchestration/reports/claude-sp-allosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **AL1** | Size: `height_meters` 6.5 (top of the head), 14.3 m long = 9 m real x the house 1.6; `real_length_m` 18 kept (the roster's 2x). | `allosaurus.json` | The owner's sheet draws it about twice the survivor's height at the hips (~3.5 m tall); the house scale makes it far bigger. |
+| **AL2** | Moves: hatchet bite (`attack_heavy`, x1.8, the only hit that applies Bleed: `deep_bleed`, via `tactics.statuses_heavy_only`), grab-then-bite (`grab_bite`: the hands' clamp x0.5 pins her, two bites x1.3), shoulder ram (`kick`, x1.0, shoves 4 m) for prey under its chin (`kick_max_m` 4), snap bite. Fracture was dropped from `status_applied`. | `allosaurus.json` tactics, `TacticalBrain` | Damage, Bleed strength and the pin length are balance calls; fracture may belong on the ram. |
+| **AL3** | Pack hunting in pairs: both spawn rows now spawn 2 (`count` 1 -> 2); the pair runs `surround` (opposite ring slots). No ambush, no pounce or leaps (a 3 t animal); it opens with run-in bites (charge sequences). | `islands.json`, tactics | Two 9000 HP apexes at once on tropical_40 / desert_50 is a lot; the old rows had one. |
+| **AL4** | Reach: `tactics.reach_m` 7.0 (the jaws are ~7 m ahead of its centre at the bite; the same hook as SP-TARBOSAURUS). Each hit also needs its part (`pipeline.hit_parts`). | tactics, `TacticalBrain.contact_reach` | Move to the hitbox system when it lands. |
+| **AL5** | The grab pins with PINFEEL's pinned pose (she lies on the ground and the bites come down to her), not a lift in the hands. | `grab_bite` clip | A held-aloft pose would need survivor clips. |
+| **AL6** | Not tameable (as before); no saddle, no alpha skin (no alpha sheet: genetics recolour only), no eye glow. | `allosaurus.json` | Owner's call. |
 
 ### SP-CERATOSAURUS (2026-10-31) — a new species: Ceratosaurus, with gore, slashing bite, tail swipe and a water-edge lunge (claude/mmo-sp-ceratosaurus)
 
@@ -583,6 +625,24 @@ Owner: "call that monstrosity MegaRex ... make it a boss fight". Report `docs/or
 | **MR4** | Loot: every MegaRex carcass rolls as an alpha's (the guaranteed rare rows, the trophy, the alpha pool: alpha_hide 3-4, alpha_fang 3); butchering = the T. rex rows x~1.5. Not tameable. | `corpse.gd`, `loot_tables.json`, `butchering.json` | Boss rewards. |
 | **MR5** | Look: the olive v2 hide the owner saw. The armoured slate recolour from the Alpha sheet (`megarex/ref/megarex_armoured_albedo.jpg`, `tools/gait/rex_alpha_skin.py`) is not used; the sheet's horns and spike row would need another Tripo mesh. Lying clips go down on the belly (side-lying tore the thigh skin on this rig). The mesh is its left half mirrored (Tripo modelled a mid-stride pose). The plate shows "Mega Rex" (the game capitalises species names). | `megarex.json`, `make_rex_moves.py --v2` | Cosmetic choices the owner may want changed. |
 
+### BIGSTOMP (2026-10-31) — big dinosaurs stomp what is under them; pins only from a visible stomp or grab (claude/mmo-bigstomp)
+
+Owner: "the bigger dinosaurs all need a stomp mechanic where if you get close they will stomp the ground, shake the
+screen, and if you get stomped you probably take a lot of damage or die. Maybe you get pinned by the stomp attack --
+... the trexes would pin me and it would teleport me under their feet". Numbers in `ai.json big_stomp` unless noted.
+Report: `claude-bigstomp.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **BS1** | Who: species JSON height_meters >= 2.9 m with a `big_stomp` clip (tyrannosaurus, tarbosaurus, megarex, carnotaurus, triceratops, styracosaurus, woolly rhino, therizinosaurus, ceratosaurus; not the agile runners gallimimus, megaloceros, raptor, utahraptor, which have no clip); `"big_stomp": false` in a tactics profile or archetype row opts out (club_tail: the ankylosaurus keeps its own stomp), true or a dict opts in. Pets never stomp. | `min_height_m`, `BigStomp.for_creature` | Which animals stomp. |
+| **BS2** | When: its target stands (not knocked down, not pinned) inside the near ring round where the foot lands; cooldown 3.5 s. It never stomps someone already down. | `cooldown_s`, `BigStomp._standing` | How relentless it is; no stomp-lock on a downed survivor. |
+| **BS3** | Sizes in body heights: near ring 0.42 (rex 3.4 m), foot's shadow 0.16 (rex 1.3 m). Wind-up 0.6 s (3 m animal) to 0.9 s (10 m), linear. | `near_frac`, `direct_frac`, `windup_s`, `size_range_m` | Readability vs threat. |
+| **BS4** | Damage: in the shadow 2.5 x attack (a T. rex kills a fresh survivor outside GOD), then Pinned under the foot; in the ring 0.35 x attack and a knockdown (PlayerKnock force 3). The usual accuracy roll applies (tests force accuracy 1). | `damage_mult`, `near_mult`, `near_force` | Balance (pc-balance). |
+| **BS5** | The stomp-pin is the existing PINFEEL pin: pin_foot clip, Pinned 4 s on its timer (no struggle input exists yet; `statuses.json` lists struggle/pet_aggro but nothing fires them), plus one bite at 1.5 s for 0.6 x attack. The raid kit stops the T. rex's stomp-pin (as it does its heavy's). | `pin_bite_s`, `pin_bite_mult` | Lethality of a pin; break-free is a design call. |
+| **BS6** | Camera shake 0.45 (3 m) to 0.9 (10 m) trauma, falling off to 0 at 3 x the near ring; `--reduce-shake` turns it off (IsoCamera). Dust: one CPU particle burst. | `shake`, `shake_range` | Feel; motion sickness setting. |
+| **BS7** | Pin fix: a foot pin starts only on a victim within 0.3 x body height of the pinning foot (the tarbosaurus' burst: 0.8, its jaws carry her); otherwise the hit knocks her down with no pin. She is pressed under the claws at most 3 m/s (tarbosaurus 6 m/s). Pinner and victim stop colliding for the pin and again once she is clear. TacticalBrain pins (raptor, smilodon) are capped at 3 m/s too. | `pin_reach_frac`, `pin_slide_mps`, `PinHold` | The old exponential snap moved her up to ~1 m a frame from anywhere the heavy reached. |
+| **BS8** | Clips: one foot per species (biped right, quadruped left fore), landing a little ahead of and inside its print; the ring is placed from measured `land` offsets. The tyrannosaurs' big_stomp is their attack_heavy stomp; the tarbosaurus' pin_foot now starts from that stomp (its burst pin crossfades from the lunge). Allosaurus and brachiosaurus have no model yet: they get the stomp when a rig with a big_stomp clip lands. | `make_big_stomp.py`, `make_rex_moves.py big_stomp`, `land` | A mirrored clip would let it stomp with the nearer foot. |
+
 ### CORNERED (2026-10-31) — fleeing animals fight back when chased (claude/mmo-cornered)
 
 Owner: "Animals that run away from you should get territorial and attack you if you chase them". Report `docs/orchestration/reports/claude-cornered.md`.
@@ -607,3 +667,43 @@ Owner sheet: "use this for the therezino". The PRDs say nothing about the Theriz
 | **TZ4** | Claw sweep shoves her 3 m back (`primary_shove_m`); the hook's first hit drags her up to 3.5 m toward it, never closer than 4.5 m from its centre (`hook_pull_m`, `hook_stop_m`). Both are new `TacticalBrain.landed` hooks. | `tactical_brain.gd`, `ai.json` | The pull sets up the rake; the owner may want it stronger or a stagger on it. |
 | **TZ5** | Only the overhead rake bleeds (`status_applied` bleed_2, limited to attack_heavy by canon's `pipeline.status_clips`). | `therizinosaurus.json` | Bleed strength/duration. |
 | **TZ6** | Spawns: temperate_45 working ring (1, 60 %) and temperate_35 far shore (1, 50 %); climate temperate. Hits use claw-tip marker bones (`ClawTip.L/R`, `pipeline.hit_parts`, radius 1.4-1.6) until claude/mmo-hitboxes lands. | `world/islands.json`, `therizinosaurus.json` | Which islands and how common; move hit parts to hitboxes.json later. |
+### SP-MEGATHERIUM (2026-10-31) — the giant ground sloth (claude/mmo-sp-megatherium)
+
+Owner: "build some of the models ... be creative with what moves you think they should do". Report `docs/orchestration/reports/claude-sp-megatherium.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **GS1** | Id `megatherium` (no sloth id existed). Size: 1.75 m withers x1.6 = 2.8 m at the shoulder, 3.39 m to the head top, 8 m nose to tail, ~5.1-5.3 m head height reared in the tripod. `real_length_m` 12 (2x of 6 m). | `megatherium.json`, `tools/gait/megatherium/sloth.json` | Size against the survivor and the pens. |
+| **GS2** | A temperate `titan` (defensive: it ignores you until hit); tier 40; hp 5200, attack 240, defense 260, speed 420; tameable, bag + combat, no saddle; capture tier 3; berries/herbs. Unprovoked it never displays at you (it roams), the tripod display only runs inside a fight. | `megatherium.json` | Temperament, tame roles and stats are design calls. |
+| **GS3** | Fight: display (tripod rear-up) -> bear hug (weight 3) or -> lumbering advance (1.5); plain advance 1, plain hug 1. Point blank: the overhead swipe (x2.0, bleeds, 2.5 m shove) or the hook pull (drags her up to 2 m toward it, stops 3.3 m from its centre). Hug: grab windup 1.3 s under a 2.2 m ring, 4.5-8.5 m, x1.2, then pinned with two x1.3 squeezes. Advance: 0.65x its run speed (~2.7 m/s), up to 4.5 s, super armour, 4.5 m shove on contact. | `megatherium.json` tactics | Every number is a first guess. |
+| **GS4** | Bleed rides only on the overhead swipe's hit token (`status_clips`), but the hug and the advance land through the attack_heavy path, so they can bleed too. | `pipeline.status_clips`, `CreatureAttack` | Whether the hug/advance should bleed. |
+| **GS5** | Spawns: 2 in the gathering ring of `temperate_35`, 1 in the gathering ring of `temperate_45` (both rows were empty). | `world/islands.json` | Where it lives and whether a 5200 HP animal belongs in a gathering ring. |
+| **GS6** | No alpha skin (no alpha sheet given), no saddle, no big stomp (left for claude/mmo-bigstomp: tactics `_big_stomp` hook). The crushed survivor lies in PINFEEL's pinned pose under its chest (not held upright in the hug). | `megatherium.json` | Look of the hug; extras to add later. |
+
+### SP-SPINOSAURUS (2026-10-31) — the Spinosaurus, a semi-aquatic grab-and-fling predator (claude/mmo-sp-spinosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight". Report `docs/orchestration/reports/claude-sp-spinosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **SPN1** | Size: ~14 m real at the house 1.6x = 21.6 m nose to tail, `height_meters` 9.0 to the sail top (hips 4.9 m, the survivor reaches its knee); `real_length_m` 28 (the roster's 2x). Bigger than the T. rex (8 m). | `spinosaurus.json` | One number if he wants it smaller. |
+| **SPN2** | Stats: tier 58, 20000 HP, attack 620, defense 220, speed 470 (between the allosaurus and the tarbosaurus); tameable in a pen, fish preferred (7 feeds), combat role only (no saddle). One snap or rake kills a fresh 100 HP survivor. | `spinosaurus.json` | Balance pass; rideable or not. |
+| **SPN3** | Moves: snap-and-shake (new `tactics.grab`, bite_shake x1.6: clamps her in the jaws, carries her ~5 m up through three thrashes, flings her 4-6 m to its left); forearm claw rake (attack_heavy x1.4, held rear-up telegraph, the only move that bleeds, shoves her 3 m); croc snap (attack_primary); tail swipe (kick slot); sail-flare display (alert: turns broadside, sail shown, roar) leading into a charge; water lunge (pounce). Point-blank order kick, heavy (only within 8 m: the claws are short), grab, stomp, bite. | `spinosaurus.json` tactics, `TacticalBrain._start_grab` | Move set, multipliers and the grab's height and throw distance are first pass. |
+| **SPN4** | Water: reuses the ceratosaurus' water-edge lurk (dry bank within 45 m of home) and stalks in on a low wading creep (stalk clip); it does not stand in or submerge in the water. Spawns on the far shore (coast) of swamp_55 (1) and tropical_40 (1, 50 %). | `islands.json`, `TacticalBrain._find_water_edge` | A real half-submerged approach needs water depth support in the brain. |
+| **SPN5** | The sail is part of the Tripo body (Tripo kept it whole), weight-smoothed onto the spine chain; it does not flare or fold on its own (the display shows it by turning broadside). | `tools/gait/sail_weights.py` | A sail that visibly flushes or spreads would need sail bones. |
+| **SPN6** | Knockdown/throw tiers: the claude/mmo-knockdown branch is not on canon, so the rake's `heavy_shove_m` and the fling (shove + lift) use today's shove; once PlayerKnock lands they go through it with no spino change (the fling has lift, so it is a throw). Shared big stomp: `big_stomp: true` and `"stomp"` in point_blank are the opt-in hook; nothing reads them yet. | `spinosaurus.json` tactics | Check once both branches are on canon. |
+| **SPN7** | No alpha skin (no alpha sheet was given). | — | Needs an alpha sheet. |
+
+### HITBOXES (2026-10-31) — every melee hit is a swept attack part touching a hurtbox (claude/mmo-hitboxes)
+
+Owner: "are we even using hitboxes for attacks? We should have hitboxes and it should correlate with whatever is used to attack and whatever is hitable on the body". Report `docs/orchestration/reports/claude-hitboxes.md`, how it works `docs/current/hitboxes.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **HB1** | A hit is judged at the move's hit frame over the whole window before it (the clip's sweep, the body where it stands at the hit), not at the first touch mid-window. Rolls, telegraphs and damage timing all key off the hit frame. | `Hitbox` class note, `creature_defaults.lead_frac` 0.25 | A part that touches early still lands at the hit frame. |
+| **HB2** | Calibrated radii: where a clip stops short of the brain's contact reach, or passes over a survivor's head, its part is widened until it reaches her, so no move loses hits. Worst cases: T. rex bite 5.5 m (its jaws never come below 3.3 m), T. rex tail whip 3.65 m, utahraptor 1.8-2.7 m, stegosaurus head 1.7 m (its tail swings behind while the brain attacks in front), pachycephalosaurus hip check 2.0 m. Full table in `docs/current/hitboxes.md`. | `hitboxes.json` `"calibrated": true`, `t_hitboxes.gd -- --calibrate` | The debug draw shows these as big red spheres. The real fix is clips that reach, or AI spacing from the hitbox (as COELOMOVES CM5 did for four species). |
+| **HB3** | Only the attack's intended target can be hit: the brain's attack_target, the survivor's hunt target. No cleave, no friendly fire, no hitting a bystander the swing passes through. | `Hitbox.strike(attacker, move, target)` | Multi-target hits are a design call. |
+| **HB4** | Hurtboxes are 1.25x the fitted mesh radius on creatures and 1.0x on the survivor, so a swing at a flank is not stopped by the collider just short of the hide. | `hitboxes.json` `hurtbox.radius_scale`, `survivor.hurtbox` | Generous enemy hurtboxes favour the player. |
+| **HB5** | The survivor's swings, kick and tackle may bend down by up to 1.2 m, or up by 0.3 m (the kick 0.9 m), to reach a body over or under the clip's arc: a compy at her knees, a leg under a high belly. Her fist is a 0.3 m sphere. Blades are 0.45 m (knife) or 0.7 m (slashing, blunt) capsules. | `survivor.moves.*.aim_down_m / aim_up_m`, `survivor.weapons` | Without it the bare-hand thrust at chest height never touches a raptor. |
+| **HB6** | The kick now steps in up to 0.8 m before it kicks, as the tackle's 1 m lunge does. A kick or tackle whose part misses still costs its stamina and cooldown. | `combat_tuning.json` `kick.lunge_max_m`, `CombatTactics._step_and_strike` | A whiff that costs nothing would make auto-ability spam it. |
+| **HB7** | The stegosaurus's attack_primary and attack_heavy (CreatureBrain) are judged on its tail tip, plus a calibrated head sphere, because the brain swings at prey in front. | `hitboxes.json` stegosaurus | Needs a tail-toward-the-threat brain like ClubTailBrain to be honest. |

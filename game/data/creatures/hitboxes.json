@@ -1,0 +1,1831 @@
+{
+ "_doc": [
+  "HITBOXES (scripts/combat/hitbox.gd, hurtboxes.gd). Distances in metres at body size 1.0 (scaled with the animal's genome size).",
+  "hurtbox: the auto-fit of the hurt capsules from the skinned mesh. min_share: a bone with fewer of the sampled vertices hands them to its parent;",
+  "  end_pct: trimmed ends of each capsule along its axis; radius_pct: the radius covers this share of its vertices; radius_scale: all capsules.",
+  "  species.<id>.hurtbox / survivor.hurtbox override these, and bones.<bone>.radius_scale one capsule.",
+  "creature_defaults.lead_frac: a move's window opens this share of the clip before its hit frame (anim_events.json hit_frac / hit_fracs) and closes at it.",
+  "species.<id>.parts: the attacking parts of any move the species does not list; moves.<move>: {clip (default the move), window [from, to] (clip fractions),",
+  "  lead_frac, parts}. A part: bone, radius (default: the animal's own hurtbox radius at that bone, x radius_scale), length + axis (a capsule",
+  "  from the bone along axis in the bone frame: horns, a blade), offset [x,y,z] in the bone frame.",
+  "Moves: attack_primary, attack_heavy, bite_combo (one window per bite), tail_swipe, kick, pounce (TacticalBrain leap), charge (the run-in ram; a loop: window [0,1]).",
+  "survivor.moves: swing (attack_primary clip; weapons.<tool_class or damage_type> adds the blade), heavy (attack_heavy), punch, kick, tackle. Dodge-roll has none. armed: the move takes the weapon's parts.",
+  "calibrated: true marks a radius widened (tests/t_hitboxes.gd calibration) so the part reaches a survivor standing in front (behind, for kick and tail_swipe) at the brain's contact reach: the clip itself stops short or passes overhead. Shrink it when the clip or the AI spacing is fixed.",
+  "aim_down_m / aim_up_m: a sweep wholly over (under) the target's body is lowered (raised) by up to this much, as a swing bends into a low animal; the survivor's moves use it, so a compy or a raptor at her knees is hit by the swing that reaches it.",
+  "species.<id>.variants.<model variant>: parts / moves for that model (megaloceros doe), over the species row.",
+  "A species with no row (or no row for a move) takes the bones of its own pipeline.hit_parts.<move> as that move's parts, so new species plug in from their JSON; calibrated radii still need a row here."
+ ],
+ "hurtbox": {
+  "min_share": 0.015,
+  "end_pct": [
+   0.01,
+   0.99
+  ],
+  "radius_pct": 0.95,
+  "radius_scale": 1.25
+ },
+ "creature_defaults": {
+  "lead_frac": 0.25,
+  "parts": [
+   {
+    "bone": "Jaw"
+   },
+   {
+    "bone": "Head"
+   }
+  ]
+ },
+ "species": {
+  "ankylosaurus": {
+   "parts": [
+    {
+     "bone": "Tail5_end",
+     "radius": 0.6
+    }
+   ],
+   "_note": "ClubTailBrain sweeps this part live through its club_moves strike windows (ai.json); PetBrain hits through the clip window.",
+   "moves": {
+    "stomp": {
+     "window": [
+      0.35,
+      0.68
+     ],
+     "parts": [
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 2.24,
+       "calibrated": true
+      }
+     ],
+     "_note": "ANKYLOCLOSE stomp (ai.json club_tail.close_moves strike 0.5-0.68)"
+    },
+    "shove_left": {
+     "window": [
+      0.3,
+      0.55
+     ],
+     "parts": [
+      {
+       "bone": "Shoulders"
+      },
+      {
+       "bone": "Torso"
+      },
+      {
+       "bone": "FrontUpLeg.L",
+       "radius": 1.07,
+       "calibrated": true
+      }
+     ]
+    },
+    "shove_right": {
+     "window": [
+      0.3,
+      0.55
+     ],
+     "parts": [
+      {
+       "bone": "Shoulders"
+      },
+      {
+       "bone": "Torso"
+      },
+      {
+       "bone": "FrontUpLeg.R",
+       "radius": 1.34,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "coelophysis": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.89,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.93,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.89,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.17,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "compsognathus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.97,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "BackFoot.L"
+      },
+      {
+       "bone": "BackFoot.R"
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.85,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.61,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    }
+   }
+  },
+  "deinonychus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 0.95,
+       "calibrated": true
+      },
+      {
+       "bone": "BackFoot.L"
+      },
+      {
+       "bone": "BackFoot.R"
+      }
+     ]
+    },
+    "charge": {
+     "window": [
+      0,
+      1
+     ],
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 0.76,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.82,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 0.87,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "gallimimus": {
+   "parts": [
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "BackFoot.L"
+      },
+      {
+       "bone": "BackFoot.R",
+       "radius": 1.27,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ],
+     "_note": "the spring-and-rake kick (COELOMOVES CM2)"
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.1,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.13,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "megaloceros": {
+   "parts": [
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "kick": {
+     "parts": [
+      {
+       "bone": "BackFoot.L"
+      },
+      {
+       "bone": "BackFoot.R",
+       "radius": 0.89,
+       "calibrated": true
+      }
+     ]
+    },
+    "charge": {
+     "window": [
+      0,
+      1
+     ],
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 2.01,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 2.0,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 2.02,
+       "calibrated": true
+      }
+     ]
+    }
+   },
+   "hurtbox": {
+    "radius_scale": 1.0
+   },
+   "_note": "hurtboxes at 1.0x: the antler capsule at 1.25x reached 1.5 m past the antlers",
+   "variants": {
+    "doe": {
+     "parts": [
+      {
+       "bone": "Head"
+      }
+     ],
+     "moves": {
+      "attack_primary": {
+       "parts": [
+        {
+         "bone": "FrontFoot.L"
+        },
+        {
+         "bone": "FrontFoot.R",
+         "radius": 3.09,
+         "calibrated": true
+        }
+       ],
+       "_note": "forehoof strike"
+      },
+      "attack_heavy": {
+       "parts": [
+        {
+         "bone": "FrontFoot.L"
+        },
+        {
+         "bone": "FrontFoot.R"
+        },
+        {
+         "bone": "Head",
+         "radius": 2.36,
+         "calibrated": true
+        }
+       ],
+       "_note": "rear-up stomp"
+      },
+      "kick": {
+       "parts": [
+        {
+         "bone": "BackFoot.L"
+        },
+        {
+         "bone": "BackFoot.R"
+        }
+       ]
+      }
+     }
+    }
+   }
+  },
+  "pachycephalosaurus": {
+   "parts": [
+    {
+     "bone": "Head"
+    },
+    {
+     "bone": "Jaw"
+    }
+   ],
+   "moves": {
+    "charge": {
+     "window": [
+      0,
+      1
+     ],
+     "parts": [
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 0.87,
+       "calibrated": true
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail2",
+       "radius": 2.17,
+       "calibrated": true
+      },
+      {
+       "bone": "Tail1"
+      },
+      {
+       "bone": "Hips"
+      }
+     ],
+     "_note": "the hip check: rump and stiff tail slam round at a prey behind it"
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.61,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 0.65,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "stegosaurus": {
+   "parts": [
+    {
+     "bone": "tail_07"
+    },
+    {
+     "bone": "tail_06"
+    },
+    {
+     "bone": "tail_05"
+    },
+    {
+     "bone": "head"
+    }
+   ],
+   "moves": {
+    "kick": {
+     "parts": [
+      {
+       "bone": "hind_foot_L"
+      },
+      {
+       "bone": "hind_foot_R"
+      }
+     ]
+    },
+    "charge": {
+     "window": [
+      0,
+      1
+     ],
+     "parts": [
+      {
+       "bone": "head"
+      },
+      {
+       "bone": "jaw"
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "tail_07"
+      },
+      {
+       "bone": "tail_06"
+      },
+      {
+       "bone": "tail_05"
+      },
+      {
+       "bone": "head",
+       "radius": 1.91,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "tail_07"
+      },
+      {
+       "bone": "tail_06"
+      },
+      {
+       "bone": "tail_05"
+      },
+      {
+       "bone": "head",
+       "radius": 1.66,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "styracosaurus": {
+   "parts": [
+    {
+     "bone": "Head"
+    },
+    {
+     "bone": "Jaw"
+    }
+   ],
+   "moves": {
+    "kick": {
+     "parts": [
+      {
+       "bone": "BackFoot.L",
+       "radius": 3.89,
+       "calibrated": true
+      },
+      {
+       "bone": "BackFoot.R"
+      }
+     ]
+    },
+    "charge": {
+     "window": [
+      0,
+      1
+     ],
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 2.76,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "impale": {
+     "parts": [
+      {
+       "bone": "Head_end",
+       "radius": 1.36,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ],
+     "_note": "STYRAFIX impale: the nose horn (Head_end) and the head"
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 2.89,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 2.85,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    }
+   }
+  },
+  "triceratops": {
+   "parts": [
+    {
+     "bone": "Head"
+    },
+    {
+     "bone": "Jaw"
+    }
+   ],
+   "moves": {
+    "charge": {
+     "window": [
+      0,
+      1
+     ]
+    }
+   }
+  },
+  "tyrannosaurus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Toe.L"
+      },
+      {
+       "bone": "Toe.R"
+      },
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "tail_swipe": {
+     "parts": [
+      {
+       "bone": "Tail7"
+      },
+      {
+       "bone": "Tail6"
+      },
+      {
+       "bone": "Tail5",
+       "radius": 3.76,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 6.5,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "utahraptor": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 2.81,
+       "calibrated": true
+      },
+      {
+       "bone": "BackFoot.L"
+      },
+      {
+       "bone": "BackFoot.R"
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.96,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 2.29,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 2.08,
+       "calibrated": true
+      }
+     ]
+    },
+    "arm_bite": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.96,
+       "calibrated": true
+      }
+     ],
+     "_note": "RAPTORFLANK x HITBOXES: the bite with arms is the plain bite's timing and reach (utahraptor.json _bite_alt), so the bite's calibrated row"
+    }
+   }
+  },
+  "velociraptor": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.62,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "BackFoot.L"
+      },
+      {
+       "bone": "BackFoot.R"
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.57,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.64,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.64,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    }
+   }
+  },
+  "zebraceratops": {
+   "parts": [
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "kick": {
+     "parts": [
+      {
+       "bone": "BackFoot.L",
+       "radius": 1.01,
+       "calibrated": true
+      },
+      {
+       "bone": "BackFoot.R"
+      }
+     ]
+    },
+    "charge": {
+     "window": [
+      0,
+      1
+     ],
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.37,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.48,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.46,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "smilodon": {
+   "parts": [
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "FrontFoot.R",
+       "radius": 1.06,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.85,
+       "calibrated": true
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.91,
+       "calibrated": true
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.76,
+       "calibrated": true
+      }
+     ]
+    }
+   },
+   "_note": "parts from the species' pipeline.hit_parts (its own branch named them before the hitbox system landed)"
+  },
+  "woolly_rhino": {
+   "parts": [
+    {
+     "bone": "HornTip"
+    },
+    {
+     "bone": "Horn"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 1.41,
+       "calibrated": true
+      }
+     ]
+    },
+    "charge": {
+     "parts": [
+      {
+       "bone": "HornTip"
+      },
+      {
+       "bone": "Horn",
+       "radius": 0.67,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    }
+   },
+   "_note": "parts from the species' pipeline.hit_parts (its own branch named them before the hitbox system landed)"
+  },
+  "tarbosaurus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 2.58,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.69,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.95,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail4"
+      },
+      {
+       "bone": "Tail5"
+      },
+      {
+       "bone": "Tail6"
+      },
+      {
+       "bone": "Tail7"
+      }
+     ]
+    }
+   },
+   "_note": "parts from pipeline.hit_parts; kick is the tail whip"
+  },
+  "carnotaurus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    }
+   ],
+   "_note": "made by calibration; other moves take pipeline.hit_parts",
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 2.28,
+       "calibrated": true
+      }
+     ]
+    },
+    "charge": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.76,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 2.7,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "raptor": {
+   "parts": [
+    {
+     "bone": "Head"
+    },
+    {
+     "bone": "Jaw"
+    }
+   ],
+   "_note": "made by calibration; other moves take pipeline.hit_parts",
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.81,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 0.86,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.69,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.8,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    }
+   }
+  },
+  "megarex": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Toe.L"
+      },
+      {
+       "bone": "Toe.R",
+       "radius": 2.67,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "tail_swipe": {
+     "parts": [
+      {
+       "bone": "Tail7"
+      },
+      {
+       "bone": "Tail6"
+      },
+      {
+       "bone": "Tail5",
+       "radius": 4.59,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 7.21,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_shake": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 7.01,
+       "calibrated": true
+      }
+     ]
+    }
+   },
+   "_note": "MegaRexBrain (TyrantBrain): bite, stomp (pins), tail whip, bite and shake"
+  },
+  "ceratosaurus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    }
+   ],
+   "_note": "made by calibration; other moves take pipeline.hit_parts",
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 0.63,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.67,
+       "calibrated": true
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.4,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "therizinosaurus": {
+   "parts": [
+    {
+     "bone": "ClawTip.R"
+    }
+   ],
+   "_note": "made by calibration; other moves take pipeline.hit_parts",
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "ClawTip.R",
+       "radius": 1.43,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R",
+       "radius": 1.74,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "allosaurus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "_note": "SP-ALLOSAURUS x HITBOXES (integrator): bite radii from t_hitboxes --calibrate; the grab and the shoulder ram use pipeline.hit_parts' bones; kick Chest 1.8 m = its old hit_parts radius (the test ram at 3.2 m)",
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 2.07,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.01,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "grab_bite": {
+     "parts": [
+      {
+       "bone": "Hand.L"
+      },
+      {
+       "bone": "Hand.R"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 2.07
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Chest",
+       "radius": 1.8
+      },
+      {
+       "bone": "Arm.R"
+      },
+      {
+       "bone": "Neck1"
+      }
+     ]
+    }
+   }
+  },
+  "dilophosaurus": {
+   "_note": "SP-DILOPHOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Toe.R",
+       "radius": 2.11,
+       "calibrated": true
+      },
+      {
+       "bone": "Metatarsal.R"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Toe.L"
+      },
+      {
+       "bone": "Toe.R"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.74,
+       "calibrated": true
+      }
+     ]
+    }
+   }
+  },
+  "majungasaurus": {
+   "_note": "SP-MAJUNGASAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.22,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.75,
+       "calibrated": true
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.32,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail3"
+      },
+      {
+       "bone": "Tail4"
+      },
+      {
+       "bone": "Tail5"
+      }
+     ]
+    }
+   }
+  },
+  "spinosaurus": {
+   "_note": "SP-SPINOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.73,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Hand.L"
+      },
+      {
+       "bone": "Hand.R",
+       "radius": 3.22,
+       "calibrated": true
+      },
+      {
+       "bone": "Forearm.L"
+      },
+      {
+       "bone": "Forearm.R"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 3.03,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_shake": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.7,
+       "calibrated": true
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail4"
+      },
+      {
+       "bone": "Tail5"
+      },
+      {
+       "bone": "Tail6"
+      }
+     ]
+    }
+   }
+  },
+  "megatherium": {
+   "_note": "SP-MEGATHERIUM x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "ClawTip.L"
+    },
+    {
+     "bone": "ClawTip.R"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.5,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 0.95,
+       "calibrated": true
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "ClawTip.L"
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R",
+       "radius": 1.02,
+       "calibrated": true
+      }
+     ]
+    },
+    "charge": {
+     "parts": [
+      {
+       "bone": "ClawTip.L",
+       "radius": 2.68,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R"
+      },
+      {
+       "bone": "FrontFoot.L"
+      },
+      {
+       "bone": "FrontFoot.R"
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "pin_stab": {
+     "parts": [
+      {
+       "bone": "ClawTip.L",
+       "radius": 0.69,
+       "calibrated": true
+      },
+      {
+       "bone": "ClawTip.R"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "survivor": {
+  "hurtbox": {
+   "radius_scale": 1.0
+  },
+  "moves": {
+   "swing": {
+    "clip": "attack_primary",
+    "window": [
+     0.4,
+     0.6
+    ],
+    "parts": [
+     {
+      "bone": "RightHand",
+      "radius": 0.3
+     }
+    ],
+    "armed": true,
+    "aim_down_m": 1.2,
+    "aim_up_m": 0.3
+   },
+   "heavy": {
+    "clip": "attack_heavy",
+    "window": [
+     0.4,
+     0.6
+    ],
+    "parts": [
+     {
+      "bone": "RightHand",
+      "radius": 0.3
+     }
+    ],
+    "armed": true,
+    "aim_down_m": 1.2,
+    "aim_up_m": 0.3
+   },
+   "punch": {
+    "clip": "punch",
+    "window": [
+     0.4,
+     0.6
+    ],
+    "parts": [
+     {
+      "bone": "RightHand",
+      "radius": 0.3
+     }
+    ],
+    "aim_down_m": 1.2,
+    "aim_up_m": 0.3
+   },
+   "kick": {
+    "clip": "kick",
+    "window": [
+     0.1,
+     0.7
+    ],
+    "parts": [
+     {
+      "bone": "RightFoot",
+      "radius": 0.35
+     },
+     {
+      "bone": "LeftFoot",
+      "radius": 0.35
+     }
+    ],
+    "aim_down_m": 1.2,
+    "aim_up_m": 0.9
+   },
+   "tackle": {
+    "clip": "tackle",
+    "window": [
+     0.2,
+     0.6
+    ],
+    "parts": [
+     {
+      "bone": "Spine2",
+      "radius": 0.5
+     },
+     {
+      "bone": "RightArm",
+      "radius": 0.35
+     },
+     {
+      "bone": "LeftArm",
+      "radius": 0.35
+     }
+    ],
+    "aim_down_m": 1.2,
+    "aim_up_m": 0.3
+   }
+  },
+  "weapons": {
+   "knife": {
+    "parts": [
+     {
+      "bone": "RightHand",
+      "radius": 0.2,
+      "offset": [
+       0,
+       0.11,
+       0.03
+      ],
+      "axis": [
+       1,
+       0,
+       0
+      ],
+      "length": 0.45
+     }
+    ]
+   },
+   "slashing": {
+    "parts": [
+     {
+      "bone": "RightHand",
+      "radius": 0.2,
+      "offset": [
+       0,
+       0.11,
+       0.03
+      ],
+      "axis": [
+       1,
+       0,
+       0
+      ],
+      "length": 0.7
+     }
+    ]
+   },
+   "blunt": {
+    "parts": [
+     {
+      "bone": "RightHand",
+      "radius": 0.25,
+      "offset": [
+       0,
+       0.11,
+       0.03
+      ],
+      "axis": [
+       1,
+       0,
+       0
+      ],
+      "length": 0.7
+     }
+    ]
+   }
+  }
+ }
+}

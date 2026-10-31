@@ -138,6 +138,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("debug_toggle"):
 		debug_overlay = not debug_overlay
+		Hitbox.debug_draw = debug_overlay  # HITBOXES: hurtboxes green, swings red
 	elif event.is_action_pressed("show_grid"):
 		show_grid = not show_grid
 		print("[world] grid %s" % ("on" if show_grid else "off"))

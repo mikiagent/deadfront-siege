@@ -1,12 +1,16 @@
 extends SceneTree
 ## BIGREACH (owner: "im trying to attack the stegosaurus and it wont let me hit it"; "Triceratops has a
-## similar problem"). For every modelled species: the survivor against its side, rear and front (touching
-## its visible body or its collider, whichever is outside) swings and the hit lands; 1 m past reach the
-## swing is refused. Then auto-attack from 10 m on the triceratops and stegosaurus: she walks up to the
-## body and lands hits.
+## similar problem"). For every modelled species: the survivor against its side, rear and front (HITBOXES:
+## touching its visible body, a hurtbox at her height, or held off by its collider within a swing of one)
+## swings and the hit lands; FAR_M clear of its footprint the swing is refused. Then auto-attack from 10 m on
+## the triceratops and stegosaurus: she walks up to a part she can reach and lands hits.
 ## Usage: godot --headless --path game --script res://tests/t_bigreach.gd  -> "[t_bigreach] PASS"
 
 const APPROACH_S := 10.0
+## HITBOXES: this clear of its footprint nothing she swings reaches it (fist or blade ~1.3 m from her centre).
+const FAR_M := 1.5
+## Held off by its collider, a hurtbox within this of her body is still in a swing's reach (fist ~0.65 m past her).
+const SIDE_GAP_M := 0.45
 
 var failures: Array[String] = []
 var _started := false
@@ -72,13 +76,28 @@ func _spawn(id: StringName):
 	return c
 
 ## Outward distance from the centre to where her capsule touches the body along dir (local = world here).
+## HITBOXES: the visible body is its hurtboxes. Walking in along dir, the first spot where her capsule (feet to
+## head) touches a hurtbox, or where the collider stops her. -1 when the collider stops her more than
+## SIDE_GAP_M from every hurtbox at her height (as under a T. rex's tail): no swing reaches from there, and
+## the auto-attack approach below walks her to a part she can reach.
 func _touch_dist(c, dir: Vector3) -> float:
-	var r: Rect2 = c.footprint()
-	var extent: float
-	if dir.x > 0.5: extent = r.end.x
-	elif dir.z < -0.5: extent = -r.position.y   # front: the body faces -Z
-	else: extent = r.end.y
-	return maxf(extent, MQ.body_radius(c)) + MQ.body_radius(player) + 0.02
+	var floor_d: float = MQ.body_radius(c) + MQ.body_radius(player) + 0.02
+	var caps: Array = load("res://scripts/combat/hurtboxes.gd").of(c).world_capsules()
+	var r_p: float = MQ.body_radius(player)
+	var d := 20.0
+	while d > floor_d - 0.001:
+		if _gap(c.global_position + dir * d, caps, r_p) <= 0.0:
+			return d + 0.02
+		d -= 0.02
+	return floor_d if _gap(c.global_position + dir * floor_d, caps, r_p) <= SIDE_GAP_M else -1.0
+
+## Her capsule standing at foot to the nearest hurtbox (0 or less: touching).
+func _gap(foot: Vector3, caps: Array, r_p: float) -> float:
+	var best := INF
+	for cap in caps:
+		var pts := Geometry3D.get_closest_points_between_segments(foot + Vector3(0, r_p, 0), foot + Vector3(0, 1.78 - r_p, 0), cap[0], cap[1])
+		best = minf(best, pts[0].distance_to(pts[1]) - float(cap[2]) - r_p)
+	return best
 
 func _place(at: Vector3) -> void:
 	player.global_position = Vector3(at.x, 0.9, at.z)
@@ -91,7 +110,14 @@ func _touch_checks(id: StringName) -> void:
 	var h = player.hunt
 	for side in [["side", Vector3.RIGHT], ["rear", Vector3.BACK], ["front", Vector3.FORWARD]]:
 		var dir: Vector3 = side[1]
+		# HITBOXES: the last side's hit (groggy, its flinch) moves the body; touch the animal at rest.
+		c.statuses.clear_all()
+		c.anim.play_idle()
+		await _frames(20)
 		var d := _touch_dist(c, dir)
+		if d < 0.0:
+			print("[t_bigreach] skip %s %s: its collider holds her off every part at her height" % [id, side[0]])
+			continue
 		h.stop()
 		_place(dir * d)
 		await _frames(2)  # the colliders settle: a capsule wider than the mesh shoves her out
@@ -111,10 +137,15 @@ func _touch_checks(id: StringName) -> void:
 		# 1 m past the edge reach: no swing.
 		h._swing_cd = 0.0
 		h._swing_pending = false
-		_place(dir * (d + CombatTuning.num("player_melee", "edge_reach_m", 0.5) + 1.0))
+		var far_d := d
+		while true:  # out until her body is FAR_M clear of its whole footprint (a raised tail runs past the touch)
+			_place(dir * far_d)
+			if MQ.surface_gap(player, c) >= FAR_M:
+				break
+			far_d += 0.1
 		await _frames(2)
 		var far: bool = h.swing_now()
-		_expect(not far, "%s %s: 1 m past reach (gap %.2f) the swing is refused" % [id, side[0], MQ.surface_gap(player, c)])
+		_expect(not far, "%s %s: %.1f m clear of its footprint the swing is refused" % [id, side[0], MQ.surface_gap(player, c)])
 		h.stop()
 		h.auto = true
 	c.queue_free()
@@ -138,7 +169,8 @@ func _approach(id: StringName, dir: Vector3, live: bool) -> void:
 	h.hit_landed.connect(cb)
 	h.start(c)
 	var t := 0.0
-	# KNOCKDOWN: a live charger knocks her down or throws her (PlayerKnock), so she gets up and walks back in.
+	# HITBOXES + KNOCKDOWN: with its AI on it charges, knocks her down or throws her (PlayerKnock) and turns away, so she
+	# gets up and walks back in; a swing at a part that moved misses.
 	var budget: float = APPROACH_S * (2.0 if live else 1.0)
 	while t < budget and landed[0] < 2:
 		await physics_frame

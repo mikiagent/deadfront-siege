@@ -14,10 +14,22 @@ static func apply_for(attacker: Creature, clip: StringName, target: Node, mult: 
 		return false
 	if not _deal_damage(attacker, target, clip, mult):
 		return false
-	if (clip == &"attack_heavy" or clip == &"attack_primary") and not _target_dead(target):
+	if _carries_status(attacker, clip) and not _target_dead(target):
 		for tok in attacker.def.status_applied:
 			_apply_token(tok, clip, target, attacker)
 	return true
+
+## The hits that carry the species' statuses: its tactics.status_clips when it lists them (SP-DILOPHOSAURUS: Venom rides
+## on the spit only, not the bite or the rake), else both attacks.
+static func _carries_status(attacker: Creature, clip: StringName) -> bool:
+	var only: Variant = (attacker.brain as TacticalBrain).tac.get("status_clips") if attacker.brain is TacticalBrain else null
+	if only is Array:
+		return str(clip) in only
+	# tactics.statuses_heavy_only (allosaurus): the species statuses ride on the telegraphed heavy only (the hatchet bite's Bleed)
+	if bool(attacker.def.tactics.get("statuses_heavy_only", false)):
+		return clip == &"attack_heavy"
+	# arm_bite: the utahraptor's bite with arms (UTAHARMS)
+	return clip == &"attack_heavy" or clip == &"attack_primary" or clip == &"arm_bite"
 
 static func _target_dead(target: Node) -> bool:
 	if target is Player:
@@ -47,8 +59,8 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 		(target as Creature).statuses.apply(id, source, int(parsed["stacks"]))
 		if id == &"knockdown":
 			(target as Creature).anim.play_clip(&"knockdown")
-		if foot_pin and (target as Creature).statuses.has(&"pinned"):
-			source.start_pin(target as Creature)
+		if foot_pin and (target as Creature).statuses.has(&"pinned") and not source.start_pin(target as Creature):
+			_pin_missed(target, source)
 	elif target is Player:
 		# The reinforced full kit keeps the tyrant's first hit from permanently removing
 		# dodge/agency. Deafened and damage still land; incomplete/low-level kits do not help.
@@ -60,8 +72,17 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 		pl.sim.knock.token_light = id == &"knockdown" and clip != &"attack_heavy"
 		pl.statuses.apply(id, source, int(parsed["stacks"]))
 		pl.sim.knock.token_light = false
-		if foot_pin and (target as Player).statuses.has(&"pinned"):
-			source.start_pin(target as Player)
+		if foot_pin and pl.statuses.has(&"pinned") and not source.start_pin(pl):
+			_pin_missed(target, source)
+
+## BIGSTOMP: a foot-pinner's heavy that lands away from its foot no longer drags the victim under it: no Pinned, a
+## knockdown instead.
+static func _pin_missed(target: Node, source: Creature) -> void:
+	var st: StatusEffects = (target as Player).statuses if target is Player else (target as Creature).statuses
+	st.clear_id(&"pinned")
+	st.apply(&"knockdown", source, 1)
+	if target is Creature:
+		(target as Creature).anim.play_clip(&"knockdown")
 
 ## Chance this attacker's swing connects with that target (accuracy x status accuracy_mult,
 ## against the target's dodge plus status evasion_add).

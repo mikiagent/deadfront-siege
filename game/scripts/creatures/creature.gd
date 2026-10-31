@@ -87,10 +87,17 @@ var running: bool = false
 var brain: CreatureBrain
 ## PINFEEL: the victim this predator holds Pinned under one foot (pin_foot), or null.
 var pin_victim: Node3D
+var _pin_t := 0.0
+var _pin_bitten := false
+var _unpinned: Node3D
 var _fx_drip: GPUParticles3D
 var _aggro_ring: MeshInstance3D
 ## Stagger: 0.3 s frozen hurt window after a hit, at most once per second.
 var stagger_left: float = 0.0
+## Shove (the survivor's kick): slid along _shove_v, decaying to 0 over _shove_s, while staggered.
+var _shove_v := Vector3.ZERO
+var _shove_s: float = 0.0
+var _shove_left: float = 0.0
 var _stagger_immune_until: float = -1.0
 var _aggro_ring_r: float = -1.0
 var _aggro_ring_t: float = 0.0
@@ -577,9 +584,12 @@ func _physics_process(delta: float) -> void:
 	stagger_left = maxf(0.0, stagger_left - delta)
 	if pin_victim != null:
 		_tick_pin(delta)
+	_tick_unpinned()
+	_shove_left = maxf(0.0, _shove_left - delta)
 	if health.dead or pin_victim != null or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
-		velocity.x = 0.0
-		velocity.z = 0.0
+		var k := _shove_left / _shove_s if _shove_s > 0.0 and not health.dead else 0.0
+		velocity.x = _shove_v.x * k
+		velocity.z = _shove_v.z * k
 		_slide()
 		_update_label()
 		return
@@ -685,6 +695,18 @@ func _physics_process(delta: float) -> void:
 		var drain := hunger_max / 1800.0 * delta * (1.0 / maxf(0.5, pet_record.hunger_efficiency))
 		hunger = maxf(0.0, hunger - drain)
 		pet_record.hunger = hunger
+
+## Shove the body `push` metres (flat) over `seconds`, staggered meanwhile; the slide respects walls and props.
+## TELEPORT FIX (owner 2026-10-31: "Pachy is teleporting", "Smilodon kind of teleports too"): the survivor's kick
+## moved the target its whole 3.5 m push in one physics frame (move_and_collide); now it slides there.
+func shove(push: Vector3, seconds: float) -> void:
+	push.y = 0.0
+	if seconds <= 0.0 or push.length_squared() <= 0.0:
+		return
+	_shove_s = seconds
+	_shove_left = seconds
+	_shove_v = push * (2.0 / seconds)  # linear decay from 2d/T to 0 covers d metres
+	stagger_left = maxf(stagger_left, seconds)
 
 ## An animal standing still on the ground has nothing to slide (most of the idle cost), so it
 ## slides only every IDLE_SLIDE_EVERY frames: often enough to notice a floor that went away. The
@@ -908,11 +930,23 @@ func _on_windup(clip: StringName) -> void:
 
 func _on_hit(clip: StringName) -> void:
 	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
+	if clip == &"spit":  # SP-DILOPHOSAURUS: the spit's hit frame launches the venom glob; it lands its own hit
+		if brain is TacticalBrain:
+			(brain as TacticalBrain).launch_spit()
+		return
 	var target := brain.attack_target if brain else null
 	if target:
-		# A contact attack lands at impact, not anywhere the target ran during windup.
+		# A contact attack lands at impact, not anywhere the target ran during windup. HITBOXES: the
+		# clip's attacking part (jaw, club, horns, feet) must have swept through one of its hurtboxes.
 		var offset := global_position - target.global_position
-		if brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
+		if Hitbox.applies(self, target):
+			var hit := Hitbox.strike(self, clip, target as Node3D, anim.hit_index)
+			if hit.is_empty():
+				if target is Player or target is Creature:
+					CombatAvoid.avoided(target, self, &"miss")  # the jaws closed on air
+				return
+			Hitbox.mark(target, hit)
+		elif brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
 			if target is Player or target is Creature:
 				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
@@ -923,7 +957,8 @@ func _on_hit(clip: StringName) -> void:
 		if brain is TacticalBrain:
 			(brain as TacticalBrain).landed(clip, target)
 
-## Where a move hits (species JSON pipeline.hit_parts.<clip>: {bones, radius_m}; until the hitbox system lands): at
+## Where a move hits a body without hurtboxes (a structure; species JSON pipeline.hit_parts.<clip>: {bones,
+## radius_m}). HITBOXES: against hurtboxes those bones are the move's parts in hitboxes.json instead: at
 ## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical
 ## segment from its feet to its height. True when the species lists no parts for the clip or the rig lacks them.
 func part_hit(clip: StringName, target: Node3D) -> bool:
@@ -961,25 +996,57 @@ func _on_kd_end() -> void:
 
 ## PINFEEL: Pinned landed on `victim` from this predator's hit. A rig with pin_foot plants the foot on it and
 ## holds until the status ends (_tick_pin); the victim is laid on its back and kept under the claws (PinHold).
-func start_pin(victim: Node3D) -> void:
-	if pin_victim != null or health.dead or ridden or not anim.start_pin():
-		return
+## BIGSTOMP: false (no pin) when the victim is not already near the foot (PinHold.can_start); the caller then knocks
+## her down instead of pulling her under it.
+func start_pin(victim: Node3D) -> bool:
+	if pin_victim != null or health.dead or ridden or not anim.has_state(&"pin_foot") or not PinHold.can_start(self, victim) or not anim.start_pin():
+		return false
 	pin_victim = victim
+	_pin_t = 0.0
+	_pin_bitten = false
 	stop_move()
 	PinHold.lay_down(self, victim)
+	_pin_collide(victim, false)  # BIGSTOMP: under the belly she would be pushed back out of its capsule
 	print("[combat] %s pins %s" % [def.id, victim.name])
+	return true
 
 func end_pin() -> void:
 	if pin_victim == null:
 		return
+	_unpinned = pin_victim  # collides again once she is out from under it (_tick_unpinned)
 	pin_victim = null
 	anim.end_pin()
+
+## The pinner and its victim stop colliding for the pin (both ways) and collide again after.
+func _pin_collide(victim: Node3D, on: bool) -> void:
+	if not is_instance_valid(victim) or not victim is PhysicsBody3D:
+		return
+	if on:
+		remove_collision_exception_with(victim)
+		(victim as PhysicsBody3D).remove_collision_exception_with(self)
+	else:
+		add_collision_exception_with(victim)
+		(victim as PhysicsBody3D).add_collision_exception_with(self)
+
+## Released under its body, she would be stuck inside its capsule: the two collide again only once she is clear of it.
+func _tick_unpinned() -> void:
+	if _unpinned == null:
+		return
+	if not is_instance_valid(_unpinned) or Vector2(_unpinned.global_position.x - global_position.x, _unpinned.global_position.z - global_position.z).length() > body_radius() + 1.0:
+		_pin_collide(_unpinned, true)
+		_unpinned = null
 
 func _tick_pin(delta: float) -> void:
 	if not PinHold.holds(self, pin_victim):
 		end_pin()
 		return
 	PinHold.snap(self, pin_victim, delta)
+	# BIGSTOMP: the follow-up while it holds her down: one bite (ai.json big_stomp.pin_bite_s / pin_bite_mult).
+	_pin_t += delta
+	if not _pin_bitten and _pin_t >= float(BigStomp.section().get("pin_bite_s", 1.5)):
+		_pin_bitten = true
+		# (no receive_creature_hit: she is held down, so no flinch and no auto-retaliate order outliving the pin)
+		CreatureAttack.apply_for(self, &"attack_primary", pin_victim, float(BigStomp.section().get("pin_bite_mult", 0.6)))
 
 func _on_status_removed(id: StringName) -> void:
 	if id == &"pinned" and not statuses.has(&"knockdown"):
@@ -1086,6 +1153,7 @@ func _on_died(_source: Node) -> void:
 		World.record_raid_kill(def.id, credited)
 		if PlayerRegistry.credit_for(credited) != null:
 			Tasks.note(&"hunt")  # TASKSCREEN: a kill by the survivor or her pet counts toward the hunt tasks
+	_unpinned = pin_victim
 	pin_victim = null  # the death clip ends the pin pose; the victim's status runs out on its own
 	anim.play_clip(&"death")
 	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the

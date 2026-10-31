@@ -31,6 +31,8 @@
   "look": "woolly rhinoceros standing 2.9 meters at the shoulder hump, barrel body under a thick dark grey-brown curly coat, a long pale curved nose horn and a short second horn, short thick legs, small ears, a tufted tail",
   "texture_prompt": "dark grey-brown curly wool, darker legs and face, pale bone-coloured horns, matte surface",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
+    "pin_foot": "BIGSTOMP: the stomping foot pressed down on a pinned victim, held until the pin ends",
     "alert": "Woolly rhino drops its head, snorts and paws the ground three times with a forefoot: the telegraph before its charge",
     "charge": "Head-down gallop with the nose horn levelled forward",
     "toss": "At the charge's impact the head whips up and to the side, hooking the horn up through the target",
@@ -98,7 +100,7 @@
       "attack_heavy": {"bones": ["HornTip", "Horn", "Head"], "radius_m": 1.3},
       "charge": {"bones": ["HornTip", "Horn", "Head"], "radius_m": 1.3}
     },
-    "clips": ["idle", "walk", "run", "charge", "strafe_left", "strafe_right", "walk_back", "alert", "attack_primary", "attack_heavy", "toss", "hit_react", "knockdown", "death", "sleep", "feed"],
+    "clips": ["big_stomp", "pin_foot", "idle", "walk", "run", "charge", "strafe_left", "strafe_right", "walk_back", "alert", "attack_primary", "attack_heavy", "toss", "hit_react", "knockdown", "death", "sleep", "feed"],
     "gate": "Blender -b -P tools/gait/check_woolly_rhino.py -- woolly_rhino.glb anim --height 2.95 (RHINO_CHECK PASS)"
   },
   "coloration": {
