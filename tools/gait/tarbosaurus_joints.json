@@ -1,0 +1,25 @@
+{
+  "_about": "SP-TARBOSAURUS: frame-A joints (fit_rex_rig.py --joints) measured on ortho grid renders of the cleaned Tripo mesh (head +Y, 8 m tall, left = -X): side, the left half alone, head close-up, front. Tripo stood it square (both feet at the same y), so the mirror only evens it out.",
+  "J": {
+    "Hips": [[0, 2.0, 5.7], [0, 3.0, 5.9]],
+    "Spine1": [[0, 3.0, 5.9], [0, 4.0, 6.1]],
+    "Spine2": [[0, 4.0, 6.1], [0, 5.0, 6.3]],
+    "Chest": [[0, 5.0, 6.3], [0, 6.4, 6.5]],
+    "Neck1": [[0, 6.4, 6.5], [0, 7.5, 6.8]],
+    "Neck2": [[0, 7.5, 6.8], [0, 8.5, 7.1]],
+    "Head": [[0, 8.5, 7.1], [0, 8.8, 7.1]],
+    "Jaw": [[0, 9.0, 6.3], [0, 9.5, 6.0]],
+    "Arm.L": [[-1.1, 6.4, 5.0], [-1.2, 6.8, 4.35]],
+    "Forearm.L": [[-1.2, 6.8, 4.35], [-1.0, 7.2, 3.5]],
+    "Hand.L": [[-1.0, 7.2, 3.5], [-0.9, 7.35, 3.0]],
+    "Thigh.L": [[-1.4, 2.0, 4.7], [-1.55, 2.8, 3.0]],
+    "Shin.L": [[-1.55, 2.8, 3.0], [-1.6, 1.1, 1.6]],
+    "Metatarsal.L": [[-1.6, 1.1, 1.6], [-1.75, 1.5, 0.35]],
+    "Toe.L": [[-1.75, 1.5, 0.35], [-1.95, 2.5, 0.15]]
+  },
+  "tail_y0": 2.0,
+  "tail_tip": [-11.2, 4.65],
+  "cl": {"2.0": 5.7, "0.0": 5.3, "-3.0": 5.4, "-6.0": 5.9, "-8.0": 5.85, "-10.0": 5.2, "-11.2": 4.65},
+  "snout": [0, 11.35, 6.8],
+  "mid_z": 7.0
+}
