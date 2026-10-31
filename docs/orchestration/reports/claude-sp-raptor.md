@@ -94,15 +94,14 @@ They come from off-screen windowed runs of the new `raptor_lab` (`--position 600
 - `colour_morphs.jpg`: the five morphs.
 - `tripo_inputs.jpg`.
 
-## Gates
-Final numbers after the canon merge are in the commit that adds this report. The list below was green before the merge.
-- `check_raptor.py --height 3.5` (adapted from check_smilodon): **RAPTOR_CHECK PASS** on all 22 clips. It checks:
+## Gates (after merging origin/claude/mmo-overhaul at d915e67f; canon had nothing newer)
+- `Blender -b -P tools/gait/check_raptor.py -- raptor.glb anim --height 3.5`: **RAPTOR_CHECK PASS** on all 22 clips. It checks:
   - stretch, with the gate at 13 because the deinonychus charge's elbow reads 12.8;
   - no sinking;
   - no moonwalk;
   - each hit part at least 1.2 m ahead at its hit frame;
   - the pin bites coming down.
-- `tools/audit_gaits.py --gate`: GATE PASS.
+- `tools/audit_gaits.py --gate`: GATE PASS (raptor walk/run drift -0.08/-0.10, no moonwalk).
 - `t_sp_raptor`: PASS. It covers:
   - the model, clips, bones, size and feet;
   - the parts at their hit frames;
@@ -111,7 +110,9 @@ Final numbers after the canon merge are in the commit that adds this report. The
   - pounce, then pin, then two bites from the jaws, then release;
   - flare, then pounce;
   - the five morph textures, with the mouth keeping its colour.
-- t_noboxes, t_combat, t_canim, t_data, t_mounts, t_saddles: PASS. The rest are listed in the final commit message.
+- PASS: t_noboxes, t_combat, t_canim, t_data, t_mounts, t_saddles, t_dismount (14 species), t_godlab, t_tactical, t_ai, t_labspawn, t_coelomoves, t_sp_smilodon, t_tame, t_pinfeel.
+- t_boneparts: PASS once the raptor's part list was added to it.
+- `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: SMOKE PASS.
 
 ## How to test (god mode)
 1. Run `Godot --path <this worktree>/game -- --lab=creature_lab --god --skip-charcreate`, or `tools/fight_lab.command` once this is on canon.
