@@ -644,6 +644,8 @@ func _physics_process(delta: float) -> void:
 		_face_vel = _face_vel.lerp(Vector3(velocity.x, 0.0, velocity.z), 1.0 - exp(-delta / FACE_VEL_TAU_S))
 		if brain and not is_pet and brain.strafe_face and is_instance_valid(brain.strafe_face):
 			face_towards(brain.strafe_face.global_position, delta)  # TACTICS: sidestep facing the prey
+		elif brain and not is_pet and brain.own_yaw:
+			pass  # CARNOFEEL: the brain turns the body with its travel (the arc after a charge)
 		elif _face_vel.length() > FACE_MIN_SPEED_MPS:
 			face_heading(_face_vel, delta)
 		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide); a

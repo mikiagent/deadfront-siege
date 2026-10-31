@@ -41,7 +41,7 @@ const STRAFE_MIN_BULK := 40.0  # ASSUMPTION (HS1): triceratops 41.8 and up; rapt
 const HOP_SHARE := 0.5  # ASSUMPTION (HS2): share of a hopper's ring beats that are bounds (the rest strafe-walk); its dodges and back-offs are bounds too
 const HOP_G := 9.8
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn", &"bound", &"flank", &"spit", &"grab"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn", &"bound", &"flank", &"spit", &"grab", &"charge_arc"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -115,6 +115,19 @@ static var _horn_local: Dictionary = {}  ## species -> the nose-horn tip in Head
 ## CHARGE TURN (tactics.charge_turn, carnotaurus): the charge's return pass is running (one per charge).
 var _charge_return := false
 var _turn_from := 0.0
+## CARNOFEEL pass-through (owner 2026-10-31: "Don't let the carno get stuck on the player as it literally is way bigger
+## and can like step over him"): while a charge runs, and charge_pass_s after it, the charger and a smaller target ignore
+## each other's bodies (collision exceptions both ways; a wild charger and its prey never hold one of their own, so
+## both are taken off again, also when the animal leaves the tree: a freed body left in the survivor's list errors).
+var _pass_body: PhysicsBody3D = null
+var _pass_left := 0.0
+## CARNOFEEL arc (tactics.charge_arc_r_m, owner: "make it have a turning radius after charging"): wheeling round after a
+## charge on a circle of at least that radius; _arced = the arc is done and the charge's end rules run.
+var _arc_left := 0.0
+var _arc_side := 1.0
+var _arc_v := 0.0
+var _arced := false
+var _combo_tell := false  ## CARNOFEEL: the chomp combo's coil is playing slowed (tactics.combo_tell_scale)
 var _tossing := false  ## WOOLLY RHINO: standing at the impact point while the toss clip plays
 var _crouch := false  ## coiling in charge_crouch before the run
 ## BULL RESET (tactics.charge_reset "bull", pachycephalosaurus): back-hops left before the windup and the next charge.
@@ -485,6 +498,7 @@ func _think(delta: float) -> void:
 	strafe_face = null
 	gait_clip = &""
 	line_dir = Vector3.ZERO
+	own_yaw = false
 	if _flee_left > 0.0:
 		_flee_left -= delta
 		if _flee_left <= 0.0 and state == &"flee" and not _enrage_fled:
@@ -541,6 +555,7 @@ func _think(delta: float) -> void:
 		&"dodge": _dodge(delta)
 		&"charge": _charge(delta)
 		&"charge_turn": _charge_turn(delta)
+		&"charge_arc": _charge_arc(delta)
 		&"display": _display(delta)
 		&"pin": _pin(delta)
 		&"spit": _spit(delta)
@@ -651,7 +666,12 @@ func _back_turned(p: Player) -> bool:
 
 ## Plates and debug read brain_state: a lurking ambusher shows "lurk".
 func tick(dt: float) -> void:
+	# CARNOFEEL: a think the shared rules take over (a disengage) skips _think, so a charge's line must not outlive it
+	line_dir = Vector3.ZERO
+	own_yaw = false
 	super.tick(dt)
+	_tick_pass(dt)
+	_tick_combo_tell()
 	if lurking and state == &"roam":
 		creature.brain_state = &"lurk"
 
@@ -1379,14 +1399,18 @@ func _charge(delta: float) -> void:
 	if tac.get("charge_straight", false):
 		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # committed: no can_sprint gate mid-line
 		gait_clip = &"charge"
-		# a carrot on the locked line, not its far end: a long pass (megaloceros joust) past 12 m got no direct steer without a navmesh
-		creature.move_to(creature.global_position + (_charge_to - creature.global_position).limit_length(8.0))
+		# CARNOFEEL: the locked line itself, not a nav path to a goal past her (the path ran into her body and stalled);
+		# also covers megajoust's long passes past 12 m, which got no nav steer.
+		creature.stop_move()
+		line_dir = _charge_dir
 		var to := attack_target.global_position - creature.global_position
 		to.y = 0.0
 		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
 				and (Hitbox.applies(creature, attack_target) or creature.part_hit(&"charge", attack_target)):
 			_charge_impact()
-		if _flat_dist_to(_charge_to) <= 1.0 or _left <= 0.0:
+		if not _charge_hit and _body_over(attack_target):
+			_charge_impact(true)  # the horns passed over her, the body runs her down
+		if _flat_dist_to(_charge_to) <= 1.0 or (creature.global_position - _charge_to).dot(_charge_dir) >= 0.0 or _left <= 0.0:
 			_charge_end()
 		return
 	if creature.can_sprint():
@@ -1457,10 +1481,11 @@ func _grab_hands() -> void:
 	tactic.emit(&"grab")
 	_log("[ai] %s grab" % creature.def.id)
 
-func _charge_impact() -> void:
+## body: CARNOFEEL contact of the charging body itself (_body_over), not the horns' hitbox.
+func _charge_impact(body: bool = false) -> void:
 	# HITBOXES: the ram lands when the head and horns (the charge part) reach her body, not at the reach ring.
 	var hit := {}
-	if Hitbox.applies(creature, attack_target):
+	if not body and Hitbox.applies(creature, attack_target):
 		hit = Hitbox.strike(creature, &"charge", attack_target)
 		if hit.is_empty():
 			return  # still closing: the next frame tries again
@@ -1478,9 +1503,14 @@ func _charge_impact() -> void:
 		creature.anim.play_clip(&"toss")
 		_tossing = true
 		tactic.emit(&"toss")
-	if CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult) and attack_target is Player:
+	var landed := CreatureAttack.apply_for(creature, &"attack_heavy", attack_target, mult)
+	if attack_target is Player:
 		var pl := attack_target as Player
-		pl.receive_creature_hit(creature, &"attack_heavy")
+		if landed:
+			pl.receive_creature_hit(creature, &"attack_heavy")
+		# CARNOFEEL (owner: "the collision causes the player to get knocked on his ass and fall over"): the contact
+		# knocks her down even when the damage roll misses (a passive dodge, GOD mode); only a roll's i-frames get her
+		# through (PlayerSim.shove refuses while rolling).
 		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
 		# tactics.charge_toss_deg (carnotaurus): the horns hook her that far off the line, to the side she is on,
 		# so the runner can carry on through (straight ahead she stood in its path and stopped it dead).
@@ -1499,11 +1529,22 @@ func _charge_impact() -> void:
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).
 func _charge_end() -> void:
+	# CARNOFEEL: a charger with a turning radius (tactics.charge_arc_r_m) cannot stop and pivot: it runs on round its arc
+	# first, then these rules run (the return pass straight from the arc, no hop).
+	if _t("charge_arc_r_m", 0.0) > 0.0 and not _arced and _valid_target():
+		_start_charge_arc()
+		return
+	var arced := _arced
+	_arced = false
 	# CHARGE TURN: a fast runner that cannot turn at speed (turn_rate) plants at the end of the line, hops round
 	# (the charge_turn clip) and charges straight back through her, once per charge.
-	if tac.get("charge_turn", false) and not _charge_return and creature.anim.has_state(&"charge_turn") and _valid_target() \
+	if tac.get("charge_turn", false) and not _charge_return and (arced or creature.anim.has_state(&"charge_turn")) and _valid_target() \
 			and creature.can_sprint() and _flat_dist(attack_target) <= _t("charge_turn_max_m", 18.0):
-		_start_charge_turn()
+		if arced:
+			_start_charge(true)  # it has wheeled round to face her: straight back through
+			tactic.emit(&"charge_return")
+		else:
+			_start_charge_turn()
 		return
 	if str(tac.get("charge_reset", "")) == "bull" and _valid_target():
 		if not _charge_hit:
@@ -1511,7 +1552,8 @@ func _charge_end() -> void:
 		_start_bull_reset()
 		return
 	if _charge_hit:
-		if not _strike(_flat_dist(attack_target), ["kick"]):
+		# CARNOFEEL tactics.charge_follow: after a landed charge it closes in for these (the carnotaurus' chomp combo)
+		if not _strike(_flat_dist(attack_target), ["kick"] + (tac.get("charge_follow", []) as Array)):
 			_back_off()
 		return
 	tactic.emit(&"charge_miss")
@@ -1541,6 +1583,94 @@ func _charge_turn(delta: float) -> void:
 	_jump_end()
 	_start_charge(true)
 	tactic.emit(&"charge_return")
+
+## CARNOFEEL arc: runs on from the end of the line, slowing from its charge speed to charge_arc_speed_mult x its run over
+## charge_arc_brake_s, and wheels round toward the prey's side. The yaw rate is its speed / charge_arc_r_m (x size) and
+## never above turn_rate, so the circle is at least that wide; the body travels exactly where it faces (own_yaw), so the
+## stride-matched run never skids sideways. Facing her within charge_arc_aim_deg (or after charge_arc_max_s) the
+## charge's end rules run: the return pass, or the miss stagger.
+func _start_charge_arc() -> void:
+	_set_state(&"charge_arc")
+	_arc_left = _t("charge_arc_max_s", 4.0)
+	var v := creature.velocity
+	_arc_v = maxf(Vector2(v.x, v.z).length(), creature.move_speed_mps())
+	var fwd := -creature.global_basis.z
+	var s := signf(fwd.cross(attack_target.global_position - creature.global_position).y)  # + = she is on its left
+	_arc_side = s if s != 0.0 else 1.0
+	tactic.emit(&"charge_arc")
+	_log("[ai] %s charge arc" % creature.def.id)
+
+func arc_radius() -> float:
+	return _t("charge_arc_r_m", 0.0) * creature.size_scale()
+
+func _charge_arc(delta: float) -> void:
+	_arc_left -= delta
+	var run_v := creature.move_speed_mps() * _t("charge_arc_speed_mult", 1.0)
+	_arc_v = move_toward(_arc_v, run_v, run_v / maxf(0.05, _t("charge_arc_brake_s", 0.8)) * delta)
+	var to := attack_target.global_position - creature.global_position
+	to.y = 0.0
+	var fwd := -creature.global_basis.z
+	fwd.y = 0.0
+	var err := fwd.normalized().signed_angle_to(to.normalized(), Vector3.UP) if to.length_squared() > 0.01 else 0.0
+	if absf(err) <= deg_to_rad(_t("charge_arc_aim_deg", 15.0)) or _arc_left <= 0.0:
+		_arced = true
+		_charge_return = _charge_return or _arc_left <= 0.0  # never came round onto her: no return pass off a bad line
+		_charge_end()
+		return
+	var rate := minf(creature.turn_rate(), _arc_v / maxf(0.1, arc_radius()))
+	# The overshoot: while she is inside the circle it would wheel on, its heading can never come round onto her, so
+	# it runs on straight until she is outside it, then wheels.
+	var left := Vector3(-fwd.normalized().z, 0.0, fwd.normalized().x) * -1.0  # the animal's left (+yaw side)
+	var centre := creature.global_position + left * _arc_side * (_arc_v / maxf(0.01, rate))
+	var outside := Vector2(attack_target.global_position.x - centre.x, attack_target.global_position.z - centre.z).length() >= _arc_v / maxf(0.01, rate)
+	var step := 0.0
+	if outside:
+		step = rate * delta if signf(err) != _arc_side else minf(rate * delta, absf(err))
+	creature.rotation.y += _arc_side * step
+	own_yaw = true
+	line_dir = Vector3(-sin(creature.rotation.y), 0.0, -cos(creature.rotation.y))
+	speed_override = _arc_v
+
+## CARNOFEEL: a target this charger can run over: the survivor under a taller animal, or a shorter animal.
+## ASSUMPTION: the survivor counts as 1.8 m tall.
+func _smaller(t: Node3D) -> bool:
+	var mine := creature.def.height_meters * creature.size_scale()
+	if t is Creature:
+		var c := t as Creature
+		return c.def != null and c.def.height_meters * c.size_scale() < mine
+	return t is PhysicsBody3D and mine > 1.8
+
+## CARNOFEEL: her centre is under the charger's body (its footprint grown by her radius).
+func _body_over(t: Node3D) -> bool:
+	var l := creature.to_local(t.global_position)
+	return creature.footprint().grow(SURVIVOR_RADIUS).has_point(Vector2(l.x, l.z))
+
+func _tick_pass(dt: float) -> void:
+	if state in [&"charge", &"charge_arc", &"charge_turn"] and _valid_target() and _smaller(attack_target):
+		if _pass_body != attack_target:
+			_pass_end()
+			_pass_body = attack_target as PhysicsBody3D
+			if _pass_body:
+				creature.add_collision_exception_with(_pass_body)
+				_pass_body.add_collision_exception_with(creature)
+		_pass_left = _t("charge_pass_s", 0.6)
+		return
+	if _pass_body == null:
+		return
+	_pass_left -= dt
+	# never solid again while she is still under it (the bodies would push apart in one step)
+	if _pass_left <= 0.0 and (not is_instance_valid(_pass_body) or not _body_over(_pass_body)):
+		_pass_end()
+
+func _pass_end() -> void:
+	if _pass_body and is_instance_valid(_pass_body) and is_instance_valid(creature):
+		creature.remove_collision_exception_with(_pass_body)
+		_pass_body.remove_collision_exception_with(creature)
+	_pass_body = null
+
+## True while this brain lets its charge run through t's body (t_sp_carnotaurus).
+func passes_through(t: Node3D) -> bool:
+	return _pass_body != null and _pass_body == t
 
 ## The prey is in its rear arc (the hind kick's side).
 func _prey_behind() -> bool:
@@ -1779,12 +1909,28 @@ func _combo() -> void:
 	_basic_streak = 0
 	creature.stop_move()
 	creature.anim.play_clip(&"bite_combo")
+	# CARNOFEEL tactics.combo_tell_scale: the coil before the first chomp (jaws gaping, head drawn back) plays slowed,
+	# with the ring at the snout: the tell to roll on. The rest of the combo runs at full speed.
+	_combo_tell = _t("combo_tell_scale", 1.0) < 1.0
+	if _combo_tell:
+		creature.anim.set_clip_speed(&"bite_combo", _t("combo_tell_scale", 1.0))
+		creature.anim.attack_windup.emit(&"bite_combo")
+		tactic.emit(&"combo_tell")
 	_start_cd(&"combo")
 	_start_cd(&"bite")
 	_set_state(&"combo")
 	_mark_pack()
 	tactic.emit(&"combo")
 	_log("[ai] %s chomp combo" % creature.def.id)
+
+func _tick_combo_tell() -> void:
+	if not _combo_tell:
+		return
+	var a := creature.anim
+	if a.current_clip != &"bite_combo" or a._os_t >= _clip_len(&"bite_combo", 2.75) * _t("combo_tell_frac", 0.06):
+		_combo_tell = false
+		if a.current_clip == &"bite_combo":
+			a.set_clip_speed(&"bite_combo", CreatureClips.clip_speed(&"bite_combo", creature.def))
 
 func _mark_pack() -> void:
 	if _is_pack_member():
@@ -2684,5 +2830,6 @@ func _on_state_changed(prev: StringName, _next: StringName) -> void:
 		_jump_end()
 
 func _exit_tree() -> void:
+	_pass_end()  # CARNOFEEL: no exception to a freed body left in the survivor's list
 	if is_instance_valid(_telegraph):
 		_telegraph.queue_free()

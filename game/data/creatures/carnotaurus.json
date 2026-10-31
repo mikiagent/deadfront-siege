@@ -20,7 +20,7 @@
   "defense": 150,
   "speed": 640
  },
- "turn_rate": 2.0,
+ "turn_rate": 1.4,
  "tamed_role": [
   "combat"
  ],
@@ -35,6 +35,7 @@
   "knockdown": "Staggers and collapses onto its side, lying stunned",
   "alert": "Rears up, head high, then thrusts the head forward roaring with the jaws wide",
   "charge": "Head-low horn sprint, body near level, arms tucked",
+  "bite_combo": "Chomp combo: coils with the jaws gaping, chomps to its left, chomps to its right, rears up with the jaws wide and trembling, then slams a MEGA chomp down through the middle and shakes its head",
   "charge_turn": "At the end of a charge it plants, hops round to its left with the body banked and the tail flung wide, and lands facing back"
  },
  "taming": {
@@ -119,6 +120,7 @@
    "walk_back",
    "attack_primary",
    "attack_heavy",
+   "bite_combo",
    "charge_turn",
    "alert",
    "hit_react",
@@ -139,13 +141,14 @@
    "charge": "make_gait carnotaurus.json charge: head-low horn sprint",
    "attack_primary": "make_carno_moves.py snap bite, hit 0.42",
    "attack_heavy": "make_carno_moves.py horn ram: bellow, bull's foot scrape and head drop (the telegraph), step-in drive, hit 0.72, toss",
+   "bite_combo": "make_carno_moves.py CARNOFEEL chomp combo: chomp left, chomp right, rear-up tell, MEGA chomp; hits 0.092 / 0.338 / 0.815 (the deinonychus timing), the jaws gape and shut on each",
    "charge_turn": "make_carno_moves.py hop-turn to its left, airborne 0.2-0.6",
    "alert": "make_carno_moves.py roar"
   },
   "assumptions": [
    "# ASSUMPTION: the PRDs are silent on Carnotaurus. Stats sit between the utahraptor (L50 desert apex) and the allosaurus: hp 6000, atk 360, def 150, speed 640 (fast), tier 48, capture tier 4, tamed role combat only (no saddle built), taming food as the other big carnivores.",
    "# ASSUMPTION: size: 8 m real -> 12.8 m on screen (the house 1.6x), real_length_m 16 (the roster's 2x convention); height_meters 5.74 is the head-top height at that length.",
-   "# ASSUMPTION: turn_rate 2.0 rad/s (poor turner at speed, the reason for the charge's hop-turn and the flank window); climate desert; archetype horned_hunter (ai.json, new)."
+   "# ASSUMPTION: turn_rate 1.4 rad/s (CARNOFEEL, owner 2026-10-31 \"its turning speed is quite fast\"; was 2.0: a poor turner, it arcs round after a charge on tactics.charge_arc_r_m and its flank is the safe side); climate desert; archetype horned_hunter (ai.json, new)."
   ],
   "model_variants": {
    "alpha": "carnotaurus_alpha_albedo.jpg"

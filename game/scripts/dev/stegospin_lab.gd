@@ -12,6 +12,7 @@ const STEGO: Array[StringName] = [&"spin_right", &"pivot_left", &"stomp", &"rear
 const ANKY: Array[StringName] = [&"stomp", &"shove_right", &"shove_left", &"tackle", &"tail_whip", &"tail_smash", &"spin_left", &"joust"]
 ## Where she stands per move, body frame (+x its right, -z ahead), for the moves that have no aim spot of their own.
 const AT := {&"spin_right": Vector3(-4.0, 0, 6.0), &"spin_left": Vector3(0.6, 0, -4.4), &"pivot_left": Vector3(-6.0, 0, 9.0),
+	&"shove_right": Vector3(5.0, 0, -1.5), &"shove_left": Vector3(-5.0, 0, -1.5),  # the slam from its flank range
 	&"tackle": Vector3(0, 0, -9.5), &"tail_whip": Vector3(0.3, 0, -3.4), &"tail_smash": Vector3(0.3, 0, -3.4)}
 
 var _out := ""
