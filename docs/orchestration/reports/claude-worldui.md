@@ -50,7 +50,7 @@ part of the resource".
   top bar + floating bar docked, hysteresis holds, walk off -> back; MegaRex close by its body edge;
   landscape phone close -> top band; rock tag's first visible frame equals its laid-out spot, sits on the
   rock's top, fades in.
-- See the final reply for the full run (t_worldui t_ui t_hudrules t_fieldhud t_combat, run_all, smoke).
+- After merging origin/claude/mmo-overhaul: t_worldui t_ui t_hudrules t_fieldhud t_combat t_targetui t_natures t_creaturechips PASS (0 SCRIPT ERROR), run_all `[tests] PASS`, `tools/smoke.sh --no-import` SMOKE PASS. Earlier also t_alphas t_dodgetext t_tamingodds t_hudredraw t_uiworld t_lootradial t_uigather t_gather t_mounts t_sp_megarex PASS.
 
 ## Screenshots (844x390 at 2x, `docs/orchestration/reports/worldui/`)
 before_bars / after_bars, before_close / after_close, before_tag_first_frame / after_tag_first_frame,
