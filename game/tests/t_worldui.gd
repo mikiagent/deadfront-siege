@@ -188,6 +188,20 @@ func _test_dock() -> void:
 	rex.global_position = Vector3(0, 0, -(rex.body_radius() + HT.CLOSE_IN - 1.0))
 	await _frames(10)
 	_expect(hud.top_target() == rex, "a MegaRex %.1f m away (%.1f m from its edge) takes the top bar" % [rex.global_position.length(), HT.CLOSE_IN - 1.0])
+	await _clear()
+	# Landscape phone (the primary target): the close animal takes the centre band, orders collapsed.
+	var keep := [get_root().size, get_root().content_scale_size]
+	get_root().size = Vector2i(844, 390)
+	get_root().content_scale_size = Vector2i(844, 390)
+	load("res://scripts/ui/orders_sheet.gd").hud_expanded = false
+	var near = _creature(&"zebraceratops", Vector3(3.5, 0, 0))
+	await _frames(30)
+	var pe: Dictionary = plates._entries.get(near.get_instance_id(), {})
+	_expect(hud.top_target() == near and (hud.get("drawn_blocks") as Dictionary).has("plate") and bool(pe.get("docked", false)),
+		"phone: a close animal moves to the top band and its floating bar fades (target %s, docked %s)" % [hud.top_target(), pe.get("docked")])
+	get_root().size = keep[0]
+	get_root().content_scale_size = keep[1]
+	await _frames(5)
 	plates.queue_free()
 	await _clear()
 

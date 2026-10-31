@@ -146,6 +146,8 @@ func _separate_visible_creature_plates(delta: float = 0.0) -> void:
 	var placed: Array[Rect2] = []
 	var visible: Array[Control] = []
 	var by_node := {}  ## plate node -> its entry (WORLDUI: the eased lift lives there)
+	var bodies := {}  ## plate node -> its creature's screen box
+	var cam := get_viewport().get_camera_3d()
 	for key in _entries:
 		var e: Dictionary = _entries[key]
 		var node := e.get("node", null) as Control
@@ -153,6 +155,8 @@ func _separate_visible_creature_plates(delta: float = 0.0) -> void:
 		if node and node.visible and not bool(e.get("docked", false)):
 			visible.append(node)
 			by_node[node] = e
+			var c := instance_from_id(int(key)) as Creature
+			bodies[node] = creature_box(cam, c) if cam and c else Rect2()
 	visible.sort_custom(func(a: Control, b: Control) -> bool: return a.position.y < b.position.y)
 	# This layer is above the HUD's: an opaque plate hid the survivor's name and the HUD's hexes and
 	# text. A plate's pill takes the nearest free spot up or down off the HUD's rects and the plates
@@ -182,7 +186,9 @@ func _separate_visible_creature_plates(delta: float = 0.0) -> void:
 		var shown := rect.grow(-3.0)
 		var taken := hud_rects.duplicate()
 		taken.append_array(placed)
-		# Its own creature is not a block any more: the pill hangs over the model's top and only lifts.
+		# Its own creature too: from a high camera the far end of a long body rises past the head's top.
+		if (bodies[node] as Rect2).has_area():
+			taken.append(bodies[node])
 		var spot := lift_spot(shown, taken, view)
 		var clear := spot.has_area()
 		if clear:

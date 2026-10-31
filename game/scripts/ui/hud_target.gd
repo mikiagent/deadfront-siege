@@ -23,11 +23,14 @@ var _since_ms := 0
 static func edge_dist(from: Vector3, c: Creature) -> float:
 	return maxf(0.0, from.distance_to(c.global_position) - c.body_radius())
 
-static func _wild(c: Creature) -> bool:
-	return c != null and is_instance_valid(c) and not c.is_pet and not c.health.dead
+## Untyped: a freed animal passed as a typed argument is a script error, not false.
+static func _wild(c: Object) -> bool:
+	return is_instance_valid(c) and c is Creature and not (c as Creature).is_pet and not (c as Creature).health.dead
 
 func tick_close(player: Player) -> void:
 	var at := player.global_position
+	if not is_instance_valid(close):
+		close = null
 	if close != null and (not _wild(close) or edge_dist(at, close) > CLOSE_OUT):
 		close = null
 	if close != null:
@@ -42,20 +45,24 @@ func tick_close(player: Player) -> void:
 			best = d
 			close = c
 
-## `band` is the landscape phone's centre band (empty on desktop); `orders_open` its expanded quest card,
-## which keeps the band from a merely close animal (a fight still takes it).
-func pick(player: Player, band: Rect2, last_target: Creature, orders_open: bool) -> Creature:
+## `band` is the landscape phone's centre band (empty on desktop). There a merely close animal yields the
+## band to the expanded quest card and to a tapped selection, whose floating bar and swords hex need the
+## room above the herd (a fight still takes it).
+# ASSUMPTION: on a phone a selected animal keeps its floating bar (review r3), close or not.
+func pick(player: Player, band: Rect2, last_target: Object, orders_open: bool) -> Creature:
 	tick_close(player)
 	var t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
 	if t == null and not band.has_area():
 		t = player.controls.selection.current()  # a tap selects: its bar shows before any fight (a phone keeps the quest card)
-	if t == null and close != null and not (band.has_area() and orders_open):
+	if t == null and close != null and not (band.has_area() and (orders_open or player.controls.selection.current() != null)):
 		t = close
-	if t == null and last_target and is_instance_valid(last_target) and not last_target.health.dead and player.global_position.distance_to(last_target.global_position) < 40.0:
-		t = last_target
+	if t == null and _wild(last_target) and player.global_position.distance_to((last_target as Creature).global_position) < 40.0:
+		t = last_target as Creature
 	var boss := MegaRexBrain.engaged_boss(player)
 	if boss != null and (t == null or not t.brain is MegaRexBrain):
 		t = boss  # MEGAREX: the boss bar holds the top of the screen while she fights you
+	if not is_instance_valid(shown):
+		shown = null
 	if t != shown:
 		shown = t
 		_since_ms = Time.get_ticks_msec()

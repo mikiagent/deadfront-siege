@@ -1547,7 +1547,7 @@ func _process(delta: float) -> void:
 	if hunting and player.hunt.target != _last_target:
 		_last_target = player.hunt.target
 	_combat_alpha = move_toward(_combat_alpha, 1.0 if hunting else 0.0, delta * 5.0)
-	_target.pick(player, HudLayout.centre_band(self, get_viewport_rect().size), _last_target, orders_expanded())
+	_target.pick(player, HudLayout.centre_band(self, get_viewport_rect().size), _last_target if is_instance_valid(_last_target) else null, orders_expanded())
 	if hunting:
 		var feedable: bool = FieldTame.can_attempt(player.hunt.target)
 		if _feed_hex.visible != feedable:
@@ -2137,8 +2137,8 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 ## WORLDUI: the creature the top target bar shows this frame (null: none). CreaturePlates fades out that
 ## animal's floating bar while it is here.
 func top_target() -> Creature:
-	var t := _target.shown
-	return t if t != null and is_instance_valid(t) and not t.health.dead else null
+	var t: Object = _target.shown
+	return t as Creature if is_instance_valid(t) and not (t as Creature).health.dead else null
 
 ## HUDRULES: true while she fights an animal the shown order's `fight` list names (objectives.json).
 func quest_served_by_fight() -> bool:
