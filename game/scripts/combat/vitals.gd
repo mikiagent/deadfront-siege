@@ -8,6 +8,8 @@ extends Node
 signal exhausted_changed(on: bool)
 signal damaged
 signal died
+## Stamina just hit empty (running or a costly move drained the last of it): the survivor gets Winded.
+signal ran_out_of_energy
 
 var max_health: float = 100.0
 ## Max HP from Pioneer levels (pioneer_levels.json per_level.max_health each). Saved: it is the
@@ -31,6 +33,8 @@ var food_max_energy: float = 0.0
 var exhausted: bool = false
 ## Set on death: no regen, no further damage until revive().
 var dead: bool = false
+## HITBOXES: the hurtbox (bone name) the last creature hit landed on, set before take_damage.
+var last_hit_part: StringName = &""
 var blocks_regen: bool = false
 ## Well Rested (a no_fatigue_gain status, StatusEffects._sync_vitals): exhaustion gains of every source are
 ## dropped; reductions (rest, meals, sleep) still apply. Owner 2026-10-28.
@@ -243,6 +247,8 @@ func spend_energy(amount: float) -> bool:
 		return false
 	energy -= amount
 	_stamina_lock = STAMINA_LOCK_S
+	if energy < 1.0:
+		ran_out_of_energy.emit()
 	return true
 
 ## Read-only affordance check (AUTO-ABILITY picker): the same gate spend_energy applies, without
@@ -258,4 +264,6 @@ func drain_energy(per_second: float, delta: float) -> bool:
 		return false
 	energy = maxf(0.0, energy - per_second * delta)
 	_stamina_lock = STAMINA_LOCK_S
+	if energy <= 0.0:
+		ran_out_of_energy.emit()
 	return energy > 0.0

@@ -8,7 +8,8 @@ extends Node3D
 ## --ride=deinonychus spawns that species as a saddled pet and puts the survivor on it.
 ## The SPAWN button (left) opens a selector: a dropdown of every species (model-less ones as stand-ins), count 1-6, nature or Random, Alpha;
 ## SPAWN drops them in front of the survivor, CLEAR ALL removes every wild animal.
-## Key N (or --enrage) enrages the nearest wild creature.
+## Key N (or --enrage) enrages the nearest wild creature. Key H (or --hitboxes) toggles the hitbox debug draw:
+## every hurtbox green, each attack's swept hitbox red (yellow where it touched).
 ## Key 0 plays bite_combo (chomp, Chomp, CHOMP) on the mount, or else the nearest creature that has one.
 ## Wild deinonychus fight with TacticalBrain (circle, feint, lunge, pounce, combo); F3 prints each move.
 ## --seq=DIR saves a frame every 0.25 s for 25 s (named by the nearest creature's brain state), then quits;
@@ -84,6 +85,8 @@ func _ready() -> void:
 			return
 		elif a.begins_with("--clipshots="):
 			_clipshots.call_deferred(a.substr(12), StringName(only.get_slice(",", 0)))
+		elif a == "--hitboxes":
+			Hitbox.debug_draw = true
 		elif a.begins_with("--knockshots="):
 			_knockshots.call_deferred(a.substr(13), StringName(only.get_slice(",", 0)))
 		elif a.begins_with("--pinshots="):
@@ -192,6 +195,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_T:
 		spawn_panel.next_species()
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_H:
+		Hitbox.debug_draw = not Hitbox.debug_draw  # HITBOXES: hurtboxes green, each swing's sweep red
+		print("[creature_lab] hitbox debug %s" % ("on" if Hitbox.debug_draw else "off"))
 		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_N:
 		_enrage_nearest()

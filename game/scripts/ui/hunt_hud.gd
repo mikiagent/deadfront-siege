@@ -431,6 +431,7 @@ func _eat_quick(i: int) -> void:
 ## Debug items: perf line top-left, creature state labels, HP numbers on plates, path lines.
 func _toggle_debug() -> void:
 	Game.debug_overlay = not Game.debug_overlay
+	Hitbox.debug_draw = Game.debug_overlay  # HITBOXES: the debug toggle shows hurt/hit boxes too
 	_inspect_hex.selected = Game.debug_overlay
 	_inspect_hex.visible = Game.debug_overlay
 	_inspect_hex.queue_redraw()
@@ -711,6 +712,17 @@ static func _net_gold(h: HexButton, on: bool) -> void:
 	h.fill = UiTokens.GOLD if on else UiTokens.HUD_FILL
 	h.rim_color = UiTokens.GOLD if on else UiTokens.HUD_RIM
 	h.glyph_color = UiTokens.CTA_INK if on else Color.WHITE
+
+## Why an ability hex is locked other than its cooldown, as its caption (one short word, so neighbours never touch): "" when it can be used. Knockdown
+## and Winded block tackle and kick; roll only needs her up and the stamina.
+static func ability_lock(p: Player, stamina: float, attack: bool) -> String:
+	if p.statuses.has(&"knockdown") or p.statuses.has_flag(&"cannot_act"):
+		return "DOWN"
+	if attack and p.statuses.has_flag(&"no_attack"):
+		return "WINDED"
+	if not p.vitals.spendable_energy(stamina):
+		return "STAMINA"
+	return ""
 
 func _on_skill(id: StringName) -> void:
 	if player == null or player.hunt == null:
@@ -1569,8 +1581,14 @@ func _process(delta: float) -> void:
 			_skill_hexes[0].disabled = catapult.reload_left > 0 or player.inventory.count_of(&"stone_shot") == 0
 		_net_gold(_skill_hexes[0], not ranged and not siege and not _skill_hexes[0].disabled)
 		_skill_hexes[0].queue_redraw()
-		_skill_hexes[1].disabled = (catapult.reload_left > 0 or player.inventory.count_of(&"toxin_pot") == 0) if siege else player.hunt._tackle_cd > 0.0
-		_skill_hexes[2].disabled = player.hunt._kick_cd > 0.0
+		var tk := CombatTuning.section("tackle")
+		var kk := CombatTuning.section("kick")
+		_skill_hexes[1].set_ability(player.hunt.cooldown_left(&"tackle"), float(tk.get("cooldown", 8.0)), ability_lock(player, float(tk.get("stamina", 15.0)), true))
+		if siege:
+			_skill_hexes[1].set_ability(0.0, 0.0)
+			_skill_hexes[1].disabled = catapult.reload_left > 0 or player.inventory.count_of(&"toxin_pot") == 0
+		_skill_hexes[2].set_ability(player.hunt.cooldown_left(&"kick"), float(kk.get("cooldown", 6.0)), ability_lock(player, float(kk.get("stamina", 10.0)), true))
+		_skill_hexes[3].set_ability(player.sim.roll_cooldown_left() if player.sim else 0.0, RollRules.cooldown_s(), ability_lock(player, RollRules.stamina(), false))
 		for h in _skill_hexes:
 			h.queue_redraw()
 	_refresh_context(delta)

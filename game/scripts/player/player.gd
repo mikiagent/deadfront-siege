@@ -152,6 +152,7 @@ func _ready() -> void:
 	view.setup_ui()
 	vitals.damaged.connect(_on_vitals_damaged)
 	vitals.died.connect(_on_vitals_died)
+	vitals.ran_out_of_energy.connect(_on_out_of_energy)
 	statuses.applied.connect(func(id: StringName, _stacks: int) -> void:
 		if id == &"knockdown":
 			sim.knock.on_knockdown_status())
@@ -514,6 +515,14 @@ func _on_vitals_damaged() -> void:
 	sim.interrupt_sleep()
 	actions.cancel_work()
 	_flinch()
+
+## Owner 2026-10-31: "the winded effect should happen when you run out of energy (maybe you are running and your
+## energy runs out)". The same Winded as getting up from a knockdown: hands on knees, slow, no sprint or attacks.
+func _on_out_of_energy() -> void:
+	if dead or statuses == null or statuses.has(&"winded"):
+		return
+	statuses.apply(&"winded")
+	notice("Winded")
 
 func _on_vitals_died() -> void:
 	if dead:

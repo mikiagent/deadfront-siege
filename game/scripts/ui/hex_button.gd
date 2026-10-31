@@ -27,7 +27,9 @@ var badge_icon: Texture2D
 var label_text: String = ""   # optional label drawn to the right (station radial)
 var caption: String = ""      # action word drawn under the hex, outside the outline (rail, skills)
 var hint_text: String = ""    # small red line under the label (blocked reason)
-var cooldown: float = 0.0     # 0..1 remaining sweep
+var cooldown: float = 0.0     # 0..1 of the cooldown left (set_ability)
+var cooldown_text: String = ""  ## whole seconds left, drawn big in the middle while cooling down
+var lock_text: String = ""  ## why the ability can't be used now; replaces the caption, in red, with a lock badge
 var selected: bool = false
 var enabled_look: bool = true
 ## Item and creature thumbnails stay colored. Action glyphs and HUD symbols stay white.
@@ -83,6 +85,19 @@ func set_blocked(hint: String) -> void:
 	badge = "⊘"
 	badge_color = Color(0.85, 0.15, 0.12, 0.95)
 	hint_text = hint if hint == "" or hint.begins_with("needs") else "needs %s" % hint
+	queue_redraw()
+
+## One call for every combat ability hex (tackle, kick, roll; owner 2026-10-31): `left` of `total` seconds of
+## cooldown fill the hex clockwise from the top like the harvest pie (fill_ratio), the seconds left, rounded
+## up, sit in the middle, and a `lock` reason greys it with a lock badge and takes the caption's place.
+func set_ability(left: float, total: float, lock: String = "") -> void:
+	cooldown = clampf(left / total, 0.0, 1.0) if left > 0.0 and total > 0.0 else 0.0
+	cooldown_text = str(ceili(left)) if cooldown > 0.0 else ""
+	lock_text = lock
+	disabled = cooldown > 0.0 or lock != ""
+	badge = "lock" if lock != "" else ""
+	badge_icon = UiIcons.icon(&"lock") if lock != "" else null
+	badge_color = Color(0.85, 0.15, 0.12, 0.95)
 	queue_redraw()
 
 func set_ok_badge(hint: String, color: Color = Color(0.95, 0.8, 0.2, 0.95)) -> void:
@@ -152,6 +167,11 @@ func _draw() -> void:
 		var pie := UiTokens.pie_points(c, fr, fill_ratio, flat_top)
 		if pie.size() >= 3:
 			draw_colored_polygon(pie, Color(UiTokens.HUD_RIM, PIE_ALPHA))
+	if cooldown > 0.0:
+		# The recharge: the harvest pie, filling clockwise from the top until the ability is ready.
+		var cd_pie := UiTokens.pie_points(c, fr, 1.0 - cooldown, flat_top)
+		if cd_pie.size() >= 3:
+			draw_colored_polygon(cd_pie, Color(UiTokens.HUD_RIM, PIE_ALPHA))
 	if has_focus():
 		var ring := _hex(r + 4.0, c)
 		ring.append(ring[0])
@@ -163,6 +183,8 @@ func _draw() -> void:
 		var isz := r * (0.8 if has_texts else 1.05)
 		var ic := c + Vector2(0.0, 2.0 if top_text != "" else 0.0)
 		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0) if color_icon else Color(glyph_color, 0.45 if disabled else 1.0)
+		if cooldown_text != "":
+			tint.a = 0.22  # the seconds read over a faint icon
 		if icon_grey and not color_icon:
 			tint = tint * Color(0.62, 0.62, 0.62)  # white symbol greyed; own-colour icons use the grey copy
 		elif fill_ratio > 0.0:
@@ -174,13 +196,19 @@ func _draw() -> void:
 		var w := font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_CENTER, -1, gs).x
 		var gy := c.y + gs * (0.2 if bottom_text != "" else 0.35)
 		draw_string(font, Vector2(c.x - w * 0.5, gy), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(glyph_color, 0.5 if disabled else 1.0))
+	if cooldown_text != "":
+		var ns := maxi(UiTokens.TYPE_MIN, int(r * 0.85))
+		var nw := font.get_string_size(cooldown_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ns).x
+		var np := Vector2(c.x - nw * 0.5, c.y + ns * 0.36)
+		draw_string_outline(font, np, cooldown_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, 6, Color(0, 0, 0, 0.85))
+		draw_string(font, np, cooldown_text, HORIZONTAL_ALIGNMENT_LEFT, -1, ns, Color.WHITE)
 	if top_text != "":
 		UiTokens.draw_centered(self, font, Vector2(c.x, c.y - r * 0.52), top_text, int(r * 0.30), Color(0.85, 0.85, 0.85))
 	if bottom_text != "":
 		UiTokens.draw_centered(self, font, Vector2(c.x, c.y + r * 0.62), bottom_text, int(r * bottom_scale), Color.WHITE)
 	if caption != "":
 		var at := _caption_at(font)
-		draw_string(font, Vector2(at.x, at.y), _caption_text(font), HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_PX, Color(1, 1, 1, 0.55 if disabled else 1.0))
+		draw_string(font, Vector2(at.x, at.y), _caption_text(font), HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_PX, UiTokens.DANGER if lock_text != "" else Color(1, 1, 1, 0.55 if disabled else 1.0))
 	if key_visible():
 		var kr := key_rect()
 		draw_rect(kr, UiTokens.INK)
@@ -198,23 +226,6 @@ func _draw() -> void:
 		var w := font.get_string_size(badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bsz).x
 		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, badge_ink)
 
-	if cooldown > 0.0:
-		# Durango-style progress: a translucent circular dial fills in discrete slices.
-		# The gaps make progress readable against foliage without another heavy hex outline.
-		var slices := 16
-		var filled := ceili(clampf(cooldown, 0.0, 1.0) * float(slices))
-		var outer := r * 0.94
-		var inner := r * 0.56
-		for i in filled:
-			var a0 := -PI * 0.5 + TAU * float(i) / float(slices) + 0.025
-			var a1 := -PI * 0.5 + TAU * float(i + 1) / float(slices) - 0.025
-			var wedge := PackedVector2Array([
-				c + Vector2(cos(a0), sin(a0)) * inner,
-				c + Vector2(cos(a0), sin(a0)) * outer,
-				c + Vector2(cos(a1), sin(a1)) * outer,
-				c + Vector2(cos(a1), sin(a1)) * inner,
-			])
-			draw_colored_polygon(wedge, Color(0.72, 0.72, 0.72, 0.42))
 	if label_text != "":
 		var ls := maxi(UiTokens.TYPE_MIN, int(r * 0.36))
 		var shown := UiTokens.ellipsis(font, label_text, 140.0, ls)
@@ -230,7 +241,7 @@ func _draw() -> void:
 			draw_string(font, Vector2(origin_x + 6.0, c.y + ls * 1.45), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.TYPE_MIN, UiTokens.DANGER)
 
 func _caption_text(font: Font) -> String:
-	return UiTokens.ellipsis(font, caption, size.x * 1.25, CAPTION_PX)
+	return UiTokens.ellipsis(font, lock_text if lock_text != "" else caption, size.x * 1.25, CAPTION_PX)
 
 ## Caption baseline origin (x, y) and width (z), local. Shared by _draw and caption_rect().
 func _caption_at(font: Font) -> Vector3:
