@@ -12,7 +12,7 @@
   "capture_tier": 3,
   "verb": "charge, kick, outruns you",
   "status_applied": [
-    "knockdown"
+    "winded"
   ],
   "stats": {
     "hp": 1400,
@@ -24,83 +24,63 @@
   "tamed_role": [
     "mount"
   ],
-  "look": "ostrich-like theropod with a small toothless beaked head, very long neck, long slender legs, long tail, short folded arms, sandy tan feathers with a white belly,",
-  "texture_prompt": "sandy tan feathered body, white belly, grey legs and beak, matte surface",
+  "look": "ostrich-like theropod with a small toothless beaked head, very long neck, long slender legs, long tail, slim three-clawed arms tucked, tan-brown hide with teal-green stripes and dark mottling along the neck, back and tail, pale belly,",
+  "texture_prompt": "tan-brown body, teal-green stripes and dark brown mottling on neck, back and tail, pale cream belly, grey-brown legs, pinkish beak, matte surface",
   "clips": {
-    "attack_primary": "Long-legged dinosaur kicks forward with one leg",
-    "attack_heavy": "Long-legged dinosaur lowers its head, holds, then charges and slams",
-    "knockdown": "Long-legged dinosaur trips and falls onto its side",
-    "alert": "Long-legged dinosaur raises its long neck and looks around"
+    "attack_primary": "beak peck: the neck cocks into an S, the body springs forward off a planted step and the beak whips down onto her chest (hit 0.42)",
+    "attack_heavy": "spring-and-rake kick: right leg hauled high, knee up and claws spread, held trembling (telegraph), then snapped forward and down through her and raked back (hit 0.72)",
+    "bite_combo": "peck-peck-kick: a peck to each side, then it rears with the leg cocked (tell) and kicks (hits 0.092, 0.338, 0.815)",
+    "alert": "threat display (the cornered turn): drawn up tall, beak gaping in a hiss, arms flung out, tail lashing, a foot stamp",
+    "knockdown": "long legs buckle, topples onto its side",
+    "dodge_left": "explosive side bound, banking, legs tucked; the game carries the body",
+    "hop_back": "quick spring back, feet tucked, squash landing"
   },
   "pipeline": {
-    "coelomoves": "COELOMOVES 2026-10-31: attack_primary (peck step), attack_heavy (spring-and-rake kick), bite_combo (peck flurry), charge, hop_back, leap_back, dodge_left, dodge_right are the deinonychus clips moved onto this rig (tools/gait/transfer_clips.py --floor-feet --pin-toes; leg ratio 1.31); the old attack_primary slid its stance foot 7.8 cm. check_leap.py PASS",
-    "route": "skeleton_transplant_v3",
     "forward_axis": "+Z",
-    "version": 1,
-    "mesh_source": "res://assets/creatures/gallimimus/work/gallimimus_i2m_v1.glb",
-    "reference": {
-      "side": "01a0b1e2-bf5f-759a-84d3-6639efbda3da",
-      "front": "01a0b1e3-224b-7387-a17a-2d16af9ed72c"
+    "source_height_m": 0.646,
+    "source_length_m": 0.998,
+    "route": "rig_biped_v1",
+    "version": 2,
+    "mesh": "Tripo P1 multiview of the owner's sheet gallimimus_owner_sheet_1 (front and back cropped from the sheet, left = a Codex neutral-stance side view drawn from the sheet, right = mirrored left), task e0cba9ee-23e6-4fe0-8b93-2899cffb2d5e, 50 Tripo credits (2026-10-31)",
+    "mesh_source": "res://assets/creatures/gallimimus/work/gallimimus_tripo_v1.glb",
+    "mesh_views": "ref/gallimimus_view_{front,left,back,right}.png",
+    "reference_sheet": "game/assets/creatures/gallimimus/ref/gallimimus_owner_sheet_1.png",
+    "rig": "tools/gait/rig_biped.py with tools/gait/gallimimus_rig.json (joints read off ortho renders; 3-bone neck; left foot dropped 1.2 cm to the floor; leg weight fades above the hips)",
+    "jaw": "tools/jaw/add_jaw.py --open --pivot 0.035 0.6 --split -12 --mid 0.3 --reach 1.0 --close 36 (the sheet's beak gapes: the bind pose shuts it, the Jaw bone carries the whole lower beak)",
+    "gaits": "tools/gait/make_gait.py tools/gait/gallimimus.json: walk, run, charge, strafe_left/right and walk_back from the walk plan",
+    "clips_from": {
+      "idle,alert,attack_primary,attack_heavy,bite_combo,hop_back,leap_back,dodge_left,dodge_right,hit_react,knockdown,death,sleep,feed": "tools/gait/make_galli_moves.py (feet IK-planted; beak solver lands the pecks on her chest; lying clips rest on the floor)"
     },
-    "i2m": "01a0b1e3-844d-7746-b0dd-95503528f97f",
-    "i2m_params": {
-      "model": "meshy-7 multi-image",
-      "polycount": 20000,
-      "texture": "2k PBR"
+    "build": "tools/gait/build_gallimimus.sh; gate tools/gait/check_galli.py --height 3.8",
+    "credits_spent": 50,
+    "status_clips": {
+      "winded": [
+        "attack_heavy"
+      ]
     },
-    "credits_spent": 48,
-    "donor_rig": "tools/standins/quaternius/Velociraptor.fbx",
-    "transplant_tool": "tools/transplant_rig.py",
-    "source_height_m": 0.9752,
-    "source_length_m": 1.9029,
-    "repair": {
-      "loose_removed": 585,
-      "doubles_merged": 8550,
-      "holes_filled": 141,
-      "verts_before": 19536,
-      "islands": 1600,
-      "verts_after": 10401
-    },
-    "warp": {
-      "mode": "landmark",
-      "snout": [
-        -1.13,
-        -0.95
-      ],
-      "foot": [
-        -0.17,
-        -0.17
-      ],
-      "tail": [
-        1.1,
-        0.95
-      ],
-      "hip_z_scale": 1.068,
-      "width_scale": 0.704
-    },
-    "weights": {
-      "direct_fraction": 1.0,
-      "toe_weights": "three spatial smoothing passes; original bone assignments retained"
-    },
+    "previous": "v1 (Meshy i2m 01a0b1e3-844d-7746-b0dd-95503528f97f, 48 credits): Velociraptor skeleton transplant, deinonychus clips moved onto it (COELOMOVES); retired 2026-10-31 (owner: 'the model isn't great, animations aren't great')",
     "clips": [
-      "alert",
-      "attack_heavy",
-      "attack_primary",
-      "death",
-      "hit_react",
       "idle",
-      "knockdown",
+      "walk",
       "run",
-      "walk"
-    ],
-    "authored_clips": {
-      "knockdown": "complete death collapse followed by 8-frame grounded hold",
-      "hit_react": "dedicated 0.6s head/neck recoil from neutral idle; no death frames",
-      "alert": "idle 0-40% with head pitched 20.0 deg",
-      "attack_heavy": "telegraph hold of 8 frames at 30%",
-      "death": "coherent sideways collapse with small neck release; corrected to ground each frame"
-    },
-    "rig_revision": 3
+      "charge",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "alert",
+      "attack_primary",
+      "attack_heavy",
+      "bite_combo",
+      "hop_back",
+      "leap_back",
+      "dodge_left",
+      "dodge_right",
+      "hit_react",
+      "knockdown",
+      "death",
+      "sleep",
+      "feed"
+    ]
   },
   "taming": {
     "preferred_food": [
@@ -115,9 +95,9 @@
     "requires_pen": true
   },
   "coloration": {
-    "hue_deg": 16,
-    "sat": 0.14,
-    "val": 0.1,
+    "hue_deg": 8,
+    "sat": 0.1,
+    "val": 0.08,
     "morphs": [
       {
         "id": "pale",
@@ -140,55 +120,49 @@
     ],
     "patterns": [
       {
-        "id": "stripes",
-        "weight": 3.0,
-        "scale": 1.0,
-        "strength": 0.3
-      },
-      {
-        "id": "spots",
-        "weight": 2.0,
-        "scale": 1.0,
-        "strength": 0.48
-      },
-      {
         "id": "countershade",
         "weight": 2.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.35
       },
       {
         "id": "",
-        "weight": 3.0
+        "weight": 4.0
       }
-    ]
+    ],
+    "_note": "SP-GALLIMIMUS: the new skin paints the sheet's teal stripes and mottling, so no drawn stripes/spots on top and a narrow hue roll (the pachy lesson)"
   },
   "tactics": {
     "base": "pack_flanker",
-    "reposition": "mixed",
-    "_reposition": "HOPSTRAFE: a light runner, not a heavy body (its bulk 45.6 would make it a strafer); keeps its power strafes and back-hops. ASSUMPTION HS1.",
-    "_about": "GALLIMIMUS (owner 2026-10-31: 'give it patched deinonychus's brain as a template and we will tune after'). ASSUMPTION, an ostrich-like omnivore: no pounce-and-pin and no ambush (pounce_max_m 0); fast kicks (heavy = the spring-and-rake attack_heavy, heavy_cd 3, only inside heavy_reach_m where the feet reach), a peck (bite = attack_primary) and a peck flurry (combo = bite_combo), power strafes and back-hops (dodge-and-flee). Skittish-territorial (territorial block). Open Questions CM2. the deinonychus brain (ai.json pack_flanker tactics) as one shared profile: TacticalBrain.resolve starts from 'base', multiplies its distances by 'scale', then applies these overrides.",
+    "_about": "SP-GALLIMIMUS (owner 2026-10-31: 'its behavior sucks. Animals that run away from you should get territorial and attack you if you chase them'). ASSUMPTION GM3: fast skittish prey on the deinonychus template (base pack_flanker, no pounce, no ambush). It runs from the first threat and keeps grazing if left alone; chase it (cornered block: brain_cornered.gd chase pressure) and it turns with the hissing threat display and fights for fight_s: beak pecks (bite = attack_primary), the spring-and-rake kick (heavy = attack_heavy, only inside heavy_reach_m where the toes reach; a stagger shove + Winded, never a knockdown: it is light), peck-peck-kick (combo = bite_combo). Small and quick: it hops and dodges (reposition hop), never strafe-walks; its signature is dodge-and-sprint (a side bound then a sprint in to the peck: strafe_x -> charge). Under weak_frac HP it runs again. The old flee-once territorial block is gone: it turned on players who never chased it.",
     "sequences": [
       {
-        "name": "backstep_strafe_left_charge",
+        "name": "dodge_left_sprint",
+        "steps": [
+          "strafe_left",
+          "charge"
+        ],
+        "weight": 3.0
+      },
+      {
+        "name": "dodge_right_sprint",
+        "steps": [
+          "strafe_right",
+          "charge"
+        ],
+        "weight": 3.0
+      },
+      {
+        "name": "backstep_dodge_left_sprint",
         "steps": [
           "backstep",
           "strafe_left",
           "charge"
         ],
-        "weight": 2.0
+        "weight": 1.5
       },
       {
-        "name": "backstep_strafe_right_charge",
-        "steps": [
-          "backstep",
-          "strafe_right",
-          "charge"
-        ],
-        "weight": 2.0
-      },
-      {
-        "name": "strafe_left_combo",
+        "name": "dodge_left_combo",
         "steps": [
           "strafe_left",
           "combo"
@@ -196,20 +170,12 @@
         "weight": 2.0
       },
       {
-        "name": "strafe_right_combo",
+        "name": "dodge_right_combo",
         "steps": [
           "strafe_right",
           "combo"
         ],
         "weight": 2.0
-      },
-      {
-        "name": "strafe_right_charge",
-        "steps": [
-          "strafe_right",
-          "charge"
-        ],
-        "weight": 1.0
       }
     ],
     "point_blank": [
@@ -227,29 +193,42 @@
       1.3
     ],
     "retreat_frac": 0.3,
-    "w_hop": 0.3,
-    "w_dodge": 0.5,
+    "w_hop": 0.5,
+    "w_dodge": 0.8,
     "chase_pounce_max_m": 0.0,
     "attack_priority": [
       "heavy",
       "combo",
       "bite"
     ],
-    "heavy_cd": 3.0,
+    "heavy_cd": 4.0,
     "heavy_mult": 1.4,
-    "heavy_reach_m": 1.8,
+    "heavy_reach_m": 2.6,
     "retreat_mode": "flee",
     "flee_s": 5.0,
     "flee_natures": [
       "timid"
     ],
-    "territorial": {
-      "_about": "SKITTISH-TERRITORIAL (owner 2026-10-31: 'engage the player after running away once ... run away when its weak'). ASSUMPTION: the first flight lasts flee_once_s (or until it outruns the leash), then it turns on the threat if it is within leash_m and is provoked while the threat stays; under weak_frac HP (0.3) it runs again; with the threat gone (leash) it grazes and the cycle resets. TacticalBrain._territorial_tick.",
-      "flee_once_s": 3.0,
-      "leash_m": 30.0,
-      "weak_frac": 0.3
-    },
     "ambush": false,
-    "approach_pounce": false
+    "approach_pounce": false,
+    "reposition": "hop",
+    "_reposition": "HOPSTRAFE x SP-GALLIMIMUS: a light runner hops and dodges (owner: small animals hop more than they strafe); was 'mixed'. ASSUMPTION GM3.",
+    "heavy_shove_m": 1.4,
+    "heavy_shove_stagger_s": 0.6,
+    "_heavy_shove": "the kick shoves her 1.4 m with a 0.6 s stagger: force 1.4 x size 1.27 = 1.8 < PlayerKnock.KNOCKDOWN_FORCE 2.0, so a light hit; pipeline.status_clips puts Winded on it. ASSUMPTION GM4.",
+    "w_strafe": 0.0,
+    "cornered": {
+      "_about": "brain_cornered.gd thresholds for a fast runner (ASSUMPTION GM3): one burst outruns any chaser (flee ~18 m/s), so pursuit counts out to 18 m, the pressure and metres carry over between its flights while she keeps catching up (carry_s), and 1.5 s of pursuit (or 10 m covered, or a hit) turns it.",
+      "radius_m": 18.0,
+      "pressure_s": 1.5,
+      "chase_m": 10.0,
+      "fight_s": 14.0,
+      "display_s": 1.2,
+      "display_clips": [
+        "alert"
+      ],
+      "weak_frac": 0.3,
+      "carry_s": 6.0
+    }
   }
 }

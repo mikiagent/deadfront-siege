@@ -1,68 +1,68 @@
 {
  "mount": "gallimimus",
  "saddle": "saddle.glb",
- "socket": "Torso",
+ "socket": "Spine1",
  "rider_offset": [
-  -0.9972290992736816,
-  -0.0159161239862442,
-  0.07266899943351746,
+  -1.0,
+  1.1368683772161603e-13,
+  3.965777068515308e-06,
   0.0,
-  0.05803028866648674,
-  -0.7776426076889038,
-  0.6260226368904114,
+  3.9461039591515146e-07,
+  -0.9950371384620667,
+  0.09950394928455353,
   0.0,
-  0.046546656638383865,
-  0.6285050511360168,
-  0.7764114141464233,
+  3.946095603168942e-06,
+  0.0995040237903595,
+  0.9950371980667114,
   0.0,
-  0.0019272929057478905,
-  0.11798650026321411,
-  0.05372494459152222,
+  1.3533490772488221e-08,
+  0.0053662024438381195,
+  0.0034125857055187225,
   1.0
  ],
  "seat": {
-  "y": -0.3609,
-  "top": 0.7772,
-  "half_len": 0.0953,
-  "half_w": 0.0513,
-  "back_z": 0.7634
+  "y": -0.145,
+  "top": 0.4458,
+  "half_len": 0.095,
+  "half_w": 0.034,
+  "back_z": 0.4366
  },
- "hips_above_socket_m": 1.0329,
- "seat_above_socket_m": 0.9329,
+ "hips_above_socket_m": 0.6041,
+ "seat_above_socket_m": 0.5041,
  "stirrups": {
   "L": [
-   0.102,
-   -0.401,
-   0.6789
+   0.0761,
+   -0.1715,
+   0.3806
   ],
   "R": [
-   -0.1018,
-   -0.401,
-   0.6789
+   -0.0701,
+   -0.1715,
+   0.3806
   ]
  },
  "scale": {
   "height_meters": 3.8,
-  "source_height_m": 0.9752,
-  "game_m_per_source": 3.8968
+  "source_height_m": 0.6465,
+  "game_m_per_source": 5.87795
  },
- "notes": "seat and straps are skinned to Torso (the back just behind the shoulders), the neck strap and its leads blend to Neck; rider_offset is the rider armature root relative to Torso in Blender's imported bone frame, column-major; rider_in_mount (added by mount_to_model_space.py) is the same pose in the mount's glTF model space and is what the game uses",
+ "notes": "seat and straps are skinned to Spine1 (the back just behind the shoulders), the neck strap and its leads blend to Neck; rider_offset is the rider armature root relative to Spine1 in Blender's imported bone frame, column-major; rider_in_mount (added by mount_to_model_space.py) is the same pose in the mount's glTF model space and is what the game uses",
  "rider_in_mount": [
   1.0,
-  9.313225746154785e-10,
+  1.1312289334972948e-14,
+  2.7857504172369707e-14,
   0.0,
-  0.0,
-  -9.313225746154785e-10,
+  7.55626149081005e-15,
   1.0,
-  1.6996636986732483e-08,
+  -1.557171058763629e-12,
   0.0,
-  -9.313225746154785e-10,
-  -4.237517714500427e-08,
+  -9.702748858270854e-15,
+  -1.557171058763629e-12,
   1.0,
   0.0,
-  1.3387762010097504e-09,
-  0.6537740230560303,
-  0.36092033982276917,
+  6.037584440645588e-14,
+  0.3639295995235443,
+  0.14499995112419128,
   1.0
  ],
  "rider_in_mount_note": "rider armature root in the mount's glTF model space (Y-up), mount rest pose; preferred over rider_offset"

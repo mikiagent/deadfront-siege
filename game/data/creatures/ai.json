@@ -929,7 +929,18 @@
         "charge_shove_m": 4.5,
         "display_s": 2.2,
         "w_hold": 0.8,
-        "w_strafe": 0.4,
+        "w_strafe": 0.0,
+        "_joust": "MEGAJOUST (owner 2026-10-31: 'a deer would normally charge and do a circle and charge again. Like a joust'). JoustBrain (any tactics profile with a joust block): no strafe; tell (charge_crouch) -> straight pass overshoot_m past the threat -> wheel at the run on run_turn_left/right (turn_radius_m: the megaloceros clips are authored on it, tools/gait/megaloceros/clips.py TURN_R; change both together) until it faces the threat from min_run_m (within align_deg) -> next pass. display: the first pass of a fight opens with the rut roar (again after display_after_s without a pass). ASSUMPTION numbers: Open Questions MJ1.",
+        "joust": {
+          "turn_radius_m": 9.0,
+          "overshoot_m": 8.0,
+          "min_run_m": 9.0,
+          "align_deg": 25.0,
+          "wheel_max_s": 9.0,
+          "charge_max_s": 2.8,
+          "display": true,
+          "display_after_s": 20.0
+        },
         "_sp_megaloceros": "SP-MEGALOCEROS clips (2026-10-31): display = the stag's rut roar then antlers lowered and shaken; charge = head-down antler ram; point blank heavy = rear-up stomp (forehooves land ahead), kick = rear kick, bite = antler hook. The doe overrides per variant (megaloceros.json model_variants.doe.tactics): no straight ram, a run-in forehoof strike. ASSUMPTION numbers: Open Questions MG5."
       },
       "_attack_range": "ASSUMPTION: 3.2 (was 1.9): the 3.4 m-withers stag's head is 2.5 m ahead of its centre and its forehooves land ~1.7 m ahead; contact reach 3.5 m"
