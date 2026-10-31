@@ -105,3 +105,16 @@ The coordinator kept the regular rex as is, so I left them. MegaRex's tool chain
 `make_rex_moves.py` (--v2 clips), `islands.json`, `loot_tables.json`, `butchering.json`.
 
 Report head: see the commit that adds this file.
+
+## Canon merge with SP-TARBOSAURUS (8082c43b)
+The tarbosaurus agent had copied `check_rex_clips.py`, `fit_rex_rig.py` and `make_rex_moves.py` from an earlier state
+of this branch and extended them (`--joints`, `--tarbo`, the stalk gait, the leap window). Their versions already
+held every later MegaRex change (`--v2`, PIN_LIFT 0.45, the lying clips), so the merge takes them whole.
+- Megarex sleep, pin_foot and bite_shake rebuild byte-identical with the merged `make_rex_moves.py`. No asset was
+  rebuilt.
+- The regular rex's alert and pin_foot rebuild byte-identical too.
+- Checkers: `check_megarex.py` REXCHECK PASS 17 clips; `check_tarbosaurus.py` REXCHECK PASS 18 clips.
+- `check_rex_clips.py` on the regular rex fails the same 5 canon clips as before the merge (death, feed, hit_react,
+  knockdown, sleep), unchanged.
+- Tests: t_sp_megarex, t_sp_tarbosaurus, t_rexclips, t_pinfeel, t_noboxes, t_combat, t_godlab and t_labspawn PASS.
+  run_all prints [tests] PASS; smoke prints SMOKE PASS.
