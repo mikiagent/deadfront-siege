@@ -177,7 +177,9 @@
       "death",
       "alert",
       "feed",
-      "sleep"
+      "sleep",
+      "roar",
+      "spacing_stomp"
     ],
     "hit_parts": {
       "attack_primary": {

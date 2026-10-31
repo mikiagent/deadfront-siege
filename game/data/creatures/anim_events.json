@@ -331,6 +331,14 @@
     },
     "about_left": {
       "note": "mirror of about_right"
+    },
+    "roar": {
+      "hit_frac": 0.34,
+      "note": "THERO-ROAR (make_thero_roar.py): the shared rearing roar of the big theropods; hit_frac is the burst (TheroRoar: the breath and shockwave rings, dust, camera shake), when the jaw is wide and the head starts its sweep"
+    },
+    "spacing_stomp": {
+      "hit_frac": 0.4,
+      "note": "SPACING STOMP (make_thero_roar.py ... spacing_stomp): the right foot slams down on its print; SpacingStomp shakes the ground, raises the dust ring and shoves the prey out to bite reach"
     }
   },
   "natural_speeds": {

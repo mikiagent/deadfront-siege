@@ -201,6 +201,25 @@ def tail_set(pitch=0.0, yaw=0.0, falloff=0.85):
 
 PLANT = {"L": (0, 0, 0, 0), "R": (0, 0, 0, 0)}
 
+# THERO-ROAR (owner 2026-10-31, fight lab: "I thought the model's head was too big when his head is facing north but if it
+# stands up higher and uses his arms more it could be fine"): the idle and the alert (its combat stance, the hold pose)
+# stand taller: the body tipped nose-up on the hips and lifted on straighter legs, the neck carried higher with the
+# snout kept level, the arms held forward and flexed instead of hanging. # ASSUMPTION: the angles.
+STANCE_BODY = {"pitch": 13.0, "dz": 0.05, "dy": -0.03}
+STANCE_TURNS = {"Chest": (6, 0, 0), "Neck1": (16, 0, 0), "Neck2": (-3, 0, 0), "Head": (-27, 0, 0),
+                "Arm.L": (38, 0, 10), "Arm.R": (38, 0, -10), "Forearm.L": (40, 0, 0), "Forearm.R": (40, 0, 0),
+                "Hand.L": (22, 0, 0), "Hand.R": (22, 0, 0)}
+
+
+def stance(p):
+    """The taller stance under a clip's own motion (idle, alert)."""
+    b = dict(p.get("body", {}))
+    for k, v in STANCE_BODY.items():
+        b[k] = b.get(k, 0.0) + v
+    p["body"] = b
+    p["turns"] = merge(p.get("turns", {}), STANCE_TURNS)
+    return p
+
 # ---------------------------------------------------------------------------------------------------- clips
 
 
@@ -209,16 +228,18 @@ def idle(u):
     br = 0.5 - 0.5 * math.cos(2 * math.pi * 2 * u)
     sway = wave(u, 1)
     look = wave(u, 1, 0.15)
-    return {
+    flex = wave(u, 2, 0.3)  # the hands flex and open with the breathing
+    return stance({
         "body": {"dz": -0.012 * br, "dx": 0.015 * sway, "roll": 1.0 * sway, "pitch": 0.8 * br},
         "turns": merge({
             "Chest": (1.5 * br, 0, 0),
             "Neck1": (-1.5 * br, 7.0 * look, 0), "Neck2": (-1.0 * br, 6.0 * look, 0), "Head": (2.0 * br, 5.0 * look, 3.0 * look),
             "Arm.L": (5 * br, 0, 0), "Arm.R": (5 * br, 0, 0),
+            "Forearm.L": (6 * flex, 0, 0), "Forearm.R": (-6 * flex, 0, 0), "Hand.L": (10 * flex, 0, 0), "Hand.R": (-10 * flex, 0, 0),
         }, tail_wave(u, 5.0, 1.5, delay=0.06, cycles=1, phase=0.1)),
         "jaw": 1.0 + 5.0 * smooth((br - 0.6) / 0.4),
         "feet": PLANT,
-    }
+    })
 
 
 def alert(u):
@@ -227,7 +248,7 @@ def alert(u):
     up = track(u, [(0, 0), (0.2, 1), (0.35, 0.3), (0.85, 0.3), (1, 0)])
     roar = track(u, [(0, 0), (0.25, 0), (0.38, 1), (0.82, 1), (1, 0)])
     shake = roar * wave(u, 4.5)
-    return {
+    return stance({
         "body": {"dz": 0.03 * up - 0.03 * roar, "pitch": 10 * up - 4 * roar, "dy": -0.05 * up + 0.06 * roar},
         "turns": merge({
             "Chest": (3 * up, 0, 0), "Neck1": (16 * up - 6 * roar, 8 * shake, 0), "Neck2": (8 * up, 6 * shake, 0),
@@ -236,7 +257,7 @@ def alert(u):
         }, tail_set(-4 * roar - 8 * up), tail_wave(u, 7.0, 0.0, cycles=3, env=roar)),
         "jaw": track(u, [(0, 1), (0.2, 8), (0.38, 30), (0.8, 28), (0.95, 3), (1, 1)]),
         "feet": PLANT,
-    }
+    })
 
 
 def attack_primary(u):

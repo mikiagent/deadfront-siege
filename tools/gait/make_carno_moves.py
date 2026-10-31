@@ -20,6 +20,11 @@ charge_turn's airborne window [0.2, 0.6] is where the game swings the body round
   idle            3 s loop: breathing, a slow look around, tail sway
   hit_react       0.58 s recoil: head jerks back, body flinches, settles
   feed            3 s loop: head down to the carcass, three tearing tugs, chewing
+  roar            THERO-ROAR's shared rearing roar on this rig (make_thero_roar.py's beats; that script needs the
+                  rig_biped bone names), 3.0 s, burst at 0.34: rears up on the hips, arms up and flexed, the head
+                  sweeping a near-circular arc with the jaws wide, settles
+  spacing_stomp   SPACING STOMP on this rig, 1.0 s, slam at 0.4: rocks onto the left leg, hauls the right foot up and
+                  slams it back down on its print
   (The transplant's donor idle and hit_react kept the velociraptor's feet 0.86 m from this rig's prints.)
 
 Poses are channel values eased with smoothstep between keys (u, value), keyed per frame as small turns from rest.
@@ -34,7 +39,7 @@ from mathutils import Matrix, Vector
 argv = sys.argv[sys.argv.index("--") + 1:]
 BASE, CLIP, OUT = argv[:3]
 FPS = 24
-N = {"attack_primary": 18, "attack_heavy": 36, "bite_combo": 66, "charge_turn": 17, "alert": 30, "idle": 72, "hit_react": 14, "feed": 72}[CLIP]
+N = {"roar": 72, "spacing_stomp": 24, "attack_primary": 18, "attack_heavy": 36, "bite_combo": 66, "charge_turn": 17, "alert": 30, "idle": 72, "hit_react": 14, "feed": 72}[CLIP]
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -279,6 +284,40 @@ def pose(f):
         jaw(track([(0, 2), (0.2, 12), (0.35, 40), (0.8, 38), (0.92, 4), (1, 2)], u))
         tail(track([(0, 0), (0.2, 12), (0.4, 8), (0.8, 6), (1, 0)], u), -sweep * 0.5)
         arms(track([(0, 0), (0.2, -20), (0.4, 15), (1, 0)], u))
+    elif CLIP == "roar":  # THERO-ROAR: the beats of make_thero_roar.py (rear 0-0.24, gape to 0.34, sweep 0.3-0.8, settle)
+        rear = track([(0, 0), (0.24, 1), (0.8, 1), (0.97, 0), (1, 0)], u)
+        pre = track([(0, 0), (0.22, 1), (0.3, 1), (0.8, 1), (0.95, 0), (1, 0)], u)
+        phi = math.pi * smooth((u - 0.3) / 0.5)
+        side = (-math.cos(phi) if u >= 0.3 else -1.0) * pre if u < 0.8 else track([(0.8, 1), (0.95, 0), (1, 0)], u)
+        dip = math.sin(phi) * pre if 0.3 <= u <= 0.8 else 0.0
+        lift = track([(0, 0), (0.22, 1), (0.3, 1), (0.8, 0.6), (0.92, 0), (1, 0)], u)
+        trem = math.sin(2 * math.pi * 7 * u) * track([(0, 0), (0.3, 0), (0.36, 1), (0.76, 1), (0.82, 0), (1, 0)], u)
+        sw = 125.0  # degrees each way, over the hips, torso, neck and head (one neck bone here)
+        body(-0.02 * rear, 0.0, 24 * rear, roll=-3 * side * pre, yaw=-side * sw * 0.16)
+        turn("Torso", UP, -side * sw * 0.12)
+        turn("Torso", SIDE, 8 * rear)
+        turn("Neck", UP, -side * sw * 0.44)
+        turn("Neck", SIDE, 10 * rear - 14 * dip)
+        turn("Head", UP, -side * sw * 0.28)
+        turn("Head", SIDE, -36 * rear + 18 * lift - 4 * dip + 2 * trem)
+        turn("Head", FWD, 14 * side * pre)
+        jaw(track([(0, 2), (0.16, 10), (0.3, 40), (0.78, 38), (0.93, 4), (1, 2)], u) + 1.5 * trem)
+        tail(0.45 * 24 * rear + 3 * trem, side * 10)  # the counterweight: the tail root takes back half the rear
+        arms(-45 * track([(0, 0), (0.18, 1), (0.84, 1), (0.98, 0), (1, 0)], u) + 4 * trem)
+    elif CLIP == "spacing_stomp":  # SPACING STOMP, slam at 0.4
+        shift = track([(0, 0), (0.18, 1), (0.4, 0.6), (0.7, 0.2), (1, 0)], u)
+        up = track([(0, 0), (0.1, 0), (0.28, 1), (0.33, 1), (0.4, 0), (1, 0)], u)
+        slam = track([(0, 0), (0.33, 0), (0.4, 1), (0.55, 0.7), (0.85, 0), (1, 0)], u)
+        look = track([(0, 0), (0.2, 1), (0.7, 1), (1, 0)], u)
+        hip = bones["Hips"].head_local.z
+        body(0.0, 0.05 * slam * hip / S, 5 * shift * (1 - slam) - 4 * slam, roll=-4 * shift)
+        set_m("Body", Matrix.Translation(-SIDE * 0.07 * shift * hip) @ pbs["Body"].matrix.copy())
+        turn("Neck", SIDE, -10 * look - 4 * slam)
+        turn("Head", SIDE, -8 * look + 6 * slam)
+        jaw(1 + 12 * look + 6 * slam)
+        tail(6 * slam + 4 * shift, 4 * shift)
+        arms(-20 * look)
+        feet = {"R": (UP * 0.3 * hip * up, 25 * smooth((up * 0.3 - 0.06) / 0.14))}  # the toes hang once it is well up
     elif CLIP == "idle":  # loop: breathing, a slow look around, the tail swaying (first frame == last)
         w = 2 * math.pi * u
         body(0.0, 0.003 * (0.5 - 0.5 * math.cos(2 * w)), 1.0 * math.sin(w))

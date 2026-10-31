@@ -83,6 +83,24 @@ func _do_attack() -> void:
 	creature.anim.play_timed_attack(windup_clip,phase_left)
 	telegraph = Telegraph.show_tyrant(creature,contact_reach()+0.3,phase_left,windup_clip)
 
+func _body_committed() -> bool:
+	return phase != &"idle"
+
+## SPACING STOMP's follow-up: the bite at the prey it just shoved out to bite reach, as a timed move like any other.
+func follow_up_bite() -> void:
+	if not _valid_target():
+		return
+	var offset := attack_target.global_position - creature.global_position
+	offset.y = 0.0
+	locked_target = attack_target
+	locked_forward = offset.normalized() if offset.length_squared() > 0.0001 else -creature.global_basis.z
+	attack_number += 1
+	windup_clip = &"attack_primary"
+	phase = &"windup"
+	phase_left = _windup_s(windup_clip)
+	creature.anim.play_timed_attack(windup_clip, phase_left)
+	telegraph = Telegraph.show_tyrant(creature, contact_reach() + 0.3, phase_left, windup_clip)
+
 ## MEGAREX hooks (MegaRexBrain overrides them); the tyrannosaurus keeps these defaults.
 ## A move that replaces the attack this turn (the boss roar); true when it started one.
 func _special_attack(_offset: Vector3) -> bool:
@@ -143,7 +161,7 @@ func blunt_counter() -> void:
 	creature.status_float.emit(&"stagger")
 
 func opening_label() -> String:
-	if phase == &"windup": return "%s %.1fs" % [{&"attack_heavy": "STOMP", &"tail_swipe": "TAIL", &"bite_shake": "BITE & SHAKE", &"alert": "ROAR"}.get(windup_clip, "BITE"),phase_left]
+	if phase == &"windup": return "%s %.1fs" % [{&"attack_heavy": "STOMP", &"tail_swipe": "TAIL", &"bite_shake": "BITE & SHAKE", &"alert": "ROAR", &"roar": "ROAR"}.get(windup_clip, "BITE"),phase_left]
 	if phase == &"stagger": return "STAGGER %.1fs" % phase_left
 	if phase == &"recovery": return "PUNISH %.1fs  BLUNT %d/%d%s" % [phase_left,counter_hits,3 if creature.statuses.has(&"poisoned_target") else 6,"  IMMUNE" if stagger_immunity > 0 else ""]
 	return "BLUNT %d/%d%s" % [counter_hits,3 if creature.statuses.has(&"poisoned_target") else 6,"  IMMUNE %.0fs" % stagger_immunity if stagger_immunity > 0 else ""]

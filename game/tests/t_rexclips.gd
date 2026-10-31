@@ -107,6 +107,6 @@ func _test_brain_plays_clips() -> void:
 	c.anim.tree.advance(0.3)
 	brain._spot(target)
 	c.anim.tree.advance(0.1)
-	_expect(pb.get_current_node() == &"alert", "spotting prey roars: tree plays %s" % pb.get_current_node())
+	_expect(pb.get_current_node() == &"roar", "spotting prey roars (THERO-ROAR's rearing roar): tree plays %s" % pb.get_current_node())
 	target.free()
 	c.free()

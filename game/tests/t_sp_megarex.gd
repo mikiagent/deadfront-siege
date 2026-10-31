@@ -152,6 +152,11 @@ func _test_phases() -> void:
 	rex.health.hp = hp * 0.6
 	brain._update_phase()
 	_expect(brain.boss_phase == 2 and brain._tail_ok(), "below 66 %: phase 2, the tail whip is on")
+	# THERO-ROAR: the phase change opens with the rearing roar
+	_attack(rex, brain)
+	_expect(brain.windup_clip == &"roar", "phase 2 opens with the roar (%s)" % brain.windup_clip)
+	brain._end_phase()
+	player.statuses.clear_all()
 	brain.attack_number = 1
 	_attack(rex, brain)
 	_expect(brain.windup_clip == &"bite_shake", "phase 2: the second attack on a survivor is the bite and shake (%s)" % brain.windup_clip)
@@ -175,7 +180,7 @@ func _test_phases() -> void:
 	brain._think(1.0 / 60.0)
 	_expect(brain.boss_phase == 3 and rex.statuses.has(&"enraged"), "below 33 %: phase 3, enraged")
 	_attack(rex, brain)
-	_expect(brain.windup_clip == &"alert", "phase 3 opens with the roar (%s)" % brain.windup_clip)
+	_expect(brain.windup_clip == &"roar", "phase 3 opens with the roar (%s)" % brain.windup_clip)
 	brain.phase_left = 0.0
 	brain._think(1.0 / 60.0)
 	_expect(small.statuses.has(&"groggy"), "the roar staggers a small creature nearby")
@@ -183,7 +188,7 @@ func _test_phases() -> void:
 	_expect(not far.statuses.has(&"groggy"), "out of earshot nothing happens")
 	_expect(player.statuses.has(&"groggy"), "the survivor staggers (groggy)")
 	_attack(rex, brain)
-	_expect(brain.windup_clip != &"alert", "the roar goes on cooldown (%s next)" % brain.windup_clip)
+	_expect(brain.windup_clip != &"roar", "the roar goes on cooldown (%s next)" % brain.windup_clip)
 	_expect(brain.opening_label().begins_with("MEGAREX  PHASE 3  ENRAGED"), "boss bar label: %s" % brain.opening_label())
 	var t = _creature(host, &"tyrannosaurus", Vector3(30, 0.1, 30))
 	_expect(t.brain.get_script().get_global_name() == &"TyrantBrain" and not t.anim.has_state(&"bite_shake"), "the regular tyrannosaurus keeps its own brain and clips")

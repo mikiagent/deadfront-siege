@@ -227,7 +227,7 @@ func _check_feedback() -> void:
 	var marks = c.get_node_or_null(NodePath(CM.NAME))
 	await process_frame
 	await process_frame
-	_expect(marks != null and marks.shown() == CS.world(c).size(), "after the first weak-spot hit its spots glow (%d)" % (marks.shown() if marks else 0))
+	_expect(marks == null, "no spot glow in normal play, even after a weak-spot hit (debug only)")
 	HX.debug_draw = true
 	await process_frame
 	await process_frame

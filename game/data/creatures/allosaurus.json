@@ -121,7 +121,9 @@
       "slash_bite",
       "check_left",
       "check_right",
-      "bite_combo"
+      "bite_combo",
+      "roar",
+      "spacing_stomp"
     ],
     "hit_parts": {
       "attack_primary": {

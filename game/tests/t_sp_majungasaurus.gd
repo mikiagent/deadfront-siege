@@ -73,7 +73,7 @@ func _test_view() -> void:
 		view.free()
 		return
 	var clips: Array = def.pipeline.get("clips", [])
-	_expect(clips.size() == 17, "species lists its clips (%d)" % clips.size())
+	_expect(clips.size() == 19, "species lists its clips (%d, with THERO-ROAR's roar and spacing_stomp)" % clips.size())
 	for clip in clips:
 		var authored := ResourceLoader.exists("res://assets/creatures/majungasaurus/anim/%s.glb" % clip)
 		_expect(authored and view.rig.has_clip(StringName(clip)), "clip %s authored and loaded" % clip)
@@ -177,6 +177,7 @@ func _majunga(host: Node3D, at: Vector3) -> Node:
 	host.add_child(c)
 	c.global_position = at
 	c.spawn(data.creature(ID))
+	c.set_meta(&"thero_roar_at", Time.get_ticks_msec() * 0.001)  # THERO-ROAR: no spot roar; the moves under test come at once
 	c.look_at(Vector3(0, at.y, 0), Vector3.UP)
 	return c
 
