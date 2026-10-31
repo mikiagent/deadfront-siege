@@ -44,6 +44,7 @@ var _swords_hex: TargetSwordsHex  # beside the selected wild animal: starts the 
 var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
+var _target := HudTarget.new()  # WORLDUI: which creature the top target bar shows (picked per frame in _process)
 var _stance_label: Label
 var _events := HudEventState.new()
 var top_feed := TopFeed.new()  ## the top-middle column: skill level-ups and gains by tier (owner 2026-10-28; it retired UIGATHER's yield card)
@@ -1546,6 +1547,7 @@ func _process(delta: float) -> void:
 	if hunting and player.hunt.target != _last_target:
 		_last_target = player.hunt.target
 	_combat_alpha = move_toward(_combat_alpha, 1.0 if hunting else 0.0, delta * 5.0)
+	_target.pick(player, HudLayout.centre_band(self, get_viewport_rect().size), _last_target, orders_expanded())
 	if hunting:
 		var feedable: bool = FieldTame.can_attempt(player.hunt.target)
 		if _feed_hex.visible != feedable:
@@ -1667,10 +1669,8 @@ func _hud_sig() -> Array:
 	out.append_array([int(step.get("index", -1)), int(step.get("count", 0)), str(step.get("progress", "")),
 		_q10(float(step.get("frac", 0.0))), orders_expanded(), _orders_flash > 0.0, orders_badge_text])
 	# The target plate (and its capture hint) follows the fight target.
-	var t: Creature = player.hunt.target if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) else null
-	if t == null and player.controls and player.controls.selection:
-		t = player.controls.selection.current()
-	if t and is_instance_valid(t):
+	var t: Creature = top_target()
+	if t:
 		var st: Array = []
 		if t.statuses:
 			for inst in t.statuses.instances():
@@ -1704,7 +1704,7 @@ func _animating() -> bool:
 		return true
 	if _status_fx.pulsing() or not StatusFx.effects(player).is_empty():
 		return true
-	if _domain.showing() or _orders_flash > 0.0 or HudPills.animating:
+	if _domain.showing() or _orders_flash > 0.0 or HudPills.animating or (_target.shown != null and _target.fade() < 1.0):
 		return true
 	if absf(_combat_alpha - (1.0 if _in_combat else 0.0)) > 0.001:
 		return true
@@ -1909,14 +1909,7 @@ func _draw_hud() -> void:
 	# The target plate (current hunt target, else on desktop the selection, else the last creature attacked while it lives) and
 	# the level-up banner take over the landscape phone's centre band from the quest card while they show.
 	var band := HudLayout.centre_band(self, r)
-	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
-	if plate_t == null and not band.has_area():
-		plate_t = player.controls.selection.current()  # a tap selects: its plate shows before any fight (a phone keeps the quest card)
-	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
-		plate_t = _last_target
-	var boss := MegaRexBrain.engaged_boss(player)
-	if boss != null and (plate_t == null or not plate_t.brain is MegaRexBrain):
-		plate_t = boss  # MEGAREX: the boss bar holds the top of the screen while she fights you
+	var plate_t: Creature = top_target()  # WORLDUI: HudTarget picks it (fight, selection, close animal, last fought, boss)
 	# HUDRULES (owner 2026-10-28): in combat the card hides unless the fight serves the shown order.
 	# Collapsed (the default, OrdersSheet.hud_expanded) it is a badge in the minimap's corner.
 	var fight_order := _in_combat and quest_served_by_fight()
@@ -1953,7 +1946,7 @@ func _draw_hud() -> void:
 	# --- level-up: a gold stack top-left under the bars; on a landscape phone a short banner in the
 	# centre band (its 13 lines ran over the rail and off the bottom of a 390 px canvas)
 	if plate_t:
-		_draw_target_plate(plate_t, maxf(_combat_alpha, 0.85), band)
+		_draw_target_plate(plate_t, maxf(_combat_alpha, 0.85) * _target.fade(), band)
 	var levelup := _levelups.draw(self, band, drawn_blocks.get("plate", Rect2()) if plate_t else Rect2(), drawn_blocks.get("quest", Rect2()))
 	if levelup.has_area():
 		drawn_blocks["levelup"] = levelup
@@ -2096,6 +2089,15 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 				target_rows["alpha"] = atag
 			target_rows["chip"] = NatureChip.draw_at(self, _font, Vector2(px + 12, chip_y), nat, a)
 			draw_string(_font, Vector2(px + 18 + nmw, py + 28), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, UiTokens.DANGER)
+			# WORLDUI: a boss wears a red BOSS tag after its level, the ALPHA tag's shape in the danger red.
+			var boss_txt := HudTarget.boss_tag(t)
+			if boss_txt != "":
+				var lvw := _font.get_string_size("Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
+				var bw := _font.get_string_size(boss_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, AlphaChip.FONT_PX).x + AlphaChip.PAD_X * 2.0
+				var br := Rect2(px + 26 + nmw + lvw, py + 28 - AlphaChip.CHIP_H, bw, AlphaChip.CHIP_H)
+				draw_rect(br, Color(UiTokens.DANGER, a))
+				draw_string(_font, Vector2(br.position.x + AlphaChip.PAD_X, br.end.y - 3.0), boss_txt, HORIZONTAL_ALIGNMENT_LEFT, -1, AlphaChip.FONT_PX, Color(1, 1, 1, a))
+				target_rows["boss"] = br
 			draw_rect(Rect2(px + pw - 60, py - 4, 52, 52), Color(0.12, 0.12, 0.14, 0.9 * a))
 			# ASSUMPTION: no per-species portrait art exists yet; the Animals head stands in for the reference's portrait.
 			draw_texture_rect(UiIcons.icon(&"animals"), Rect2(px + pw - 54, py + 2, 40, 40), false, Color(1, 1, 1, a))
@@ -2131,6 +2133,12 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 					block = block.merge(box.grow(2.0))
 					ix += HudBuffRow.PITCH
 			drawn_blocks["plate"] = block
+
+## WORLDUI: the creature the top target bar shows this frame (null: none). CreaturePlates fades out that
+## animal's floating bar while it is here.
+func top_target() -> Creature:
+	var t := _target.shown
+	return t if t != null and is_instance_valid(t) and not t.health.dead else null
 
 ## HUDRULES: true while she fights an animal the shown order's `fight` list names (objectives.json).
 func quest_served_by_fight() -> bool:

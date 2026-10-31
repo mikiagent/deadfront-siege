@@ -21,9 +21,21 @@ const CHIP_POS := Vector2(8, 20)
 const CHIP_GAP := 4.0
 ## Far plates shrink, but never below the 12 px type floor for their 14 px text.
 const MIN_SCALE := 0.86
+## WORLDUI (owner 2026-10-31: "health bar ... appearing below the animal ... better above"): the pill's
+## bottom edge hangs this many px over the top of the animal's model, never lower.
+const HEAD_GAP := 6.0
+## WORLDUI: a plate fades out from here to MAX_DIST instead of popping off at the edge.
+# ASSUMPTION: the last 9 m of the 45 m plate range is the fade.
+const FADE_FROM := 36.0
+## WORLDUI: the floating bar fades this fast (alpha/s) when the top target bar takes its animal over.
+const DOCK_RATE := 6.0
+## WORLDUI: how fast (px/s) a plate lifted off a neighbour eases to its new row; it hopped before.
+const LIFT_RATE := 480.0
 
 var _root: Control
 var _entries: Dictionary = {} ## creature instance id -> Dictionary
+## WORLDUI: each creature's model top in its own local space, by instance id: [size_scale, Vector3].
+var _tops: Dictionary = {}
 var _emphasis_id: int = 0
 
 const TORPOR_COLOR := Color(0.58, 0.42, 1.0, 0.95)
@@ -43,6 +55,49 @@ func reveal_creature(creature: Creature, seconds: float = 3.0) -> void:
 	var e := _ensure_entry(creature)
 	e["reveal_until"] = _now_s() + seconds
 	_entries[key] = e
+
+## WORLDUI: the point the plate hangs over: the top of the model's mesh bounds (rest pose, so it does
+## not bob with the walk cycle and the plate never jitters), at the bounds' centre across and along
+## the body, in world space. One rule for a compy and a MegaRex. Falls back to the def's height when
+## the model has no mesh yet (or a broken import gives a box far off the def).
+func plate_anchor(c: Creature) -> Vector3:
+	var key := c.get_instance_id()
+	var row: Variant = _tops.get(key, null)
+	var top: Vector3
+	if row is Array and is_equal_approx(float((row as Array)[0]), c.size_scale()):
+		top = (row as Array)[1]
+	else:
+		top = model_top_local(c)
+		if top != Vector3.INF:
+			_tops[key] = [c.size_scale(), top]
+		else:
+			top = Vector3(0.0, c.def.height_meters * c.size_scale(), 0.0)
+	return c.get_global_transform_interpolated() * top
+
+## The top-centre of the creature's visible meshes in its local space; Vector3.INF when there is none
+## or the box disagrees wildly with the def (a broken import), so the caller uses the def height.
+static func model_top_local(c: Creature) -> Vector3:
+	if c.view == null or not c.is_inside_tree():
+		return Vector3.INF
+	var inv := c.global_transform.affine_inverse()
+	var box := AABB()
+	var found := false
+	var meshes: Array[MeshInstance3D] = []
+	for mi in c.view.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh != null and m.is_visible_in_tree():
+			meshes.append(m)
+	# The skinned body only, when there is one: the eye-trail ribbon's box follows past frames' head
+	# positions (a compy's ran 2 m off its body) and the eye spheres add nothing.
+	var skinned := meshes.filter(func (m: MeshInstance3D) -> bool: return m.skin != null)
+	for m: MeshInstance3D in (skinned if not skinned.is_empty() else meshes):
+		var b: AABB = inv * m.global_transform * m.get_aabb()
+		box = b if not found else box.merge(b)
+		found = true
+	var def_h := c.def.height_meters * c.size_scale()
+	if not found or box.end.y < def_h * 0.25 or box.end.y > def_h * 4.0 + 1.0:
+		return Vector3.INF
+	return Vector3(box.get_center().x, box.end.y, box.get_center().z)
 
 func _process(delta: float) -> void:
 	var cam := get_viewport().get_camera_3d()
@@ -78,25 +133,26 @@ func _tick_creatures(cam: Camera3D, player: Player, delta: float) -> void:
 		e["alpha"] = alpha
 		_update_entry(e, c, cam, player, dist, delta)
 		_entries[c.get_instance_id()] = e
-	_separate_visible_creature_plates()
+	_separate_visible_creature_plates(delta)
 	for key in _entries.keys():
 		if seen.has(key):
 			continue
 		_remove_entry(int(key))
+		_tops.erase(key)
 
-func _separate_visible_creature_plates() -> void:
+func _separate_visible_creature_plates(delta: float = 0.0) -> void:
 	# Keep nearby herd members readable. Greedily lift a plate until its name/HP block no
 	# longer overlaps an earlier one; horizontal separation still keeps unrelated plates free.
 	var placed: Array[Rect2] = []
 	var visible: Array[Control] = []
-	var bodies := {}  ## plate node -> its creature's screen box
-	var cam := get_viewport().get_camera_3d()
+	var by_node := {}  ## plate node -> its entry (WORLDUI: the eased lift lives there)
 	for key in _entries:
-		var node := (_entries[key] as Dictionary).get("node", null) as Control
-		if node and node.visible:
+		var e: Dictionary = _entries[key]
+		var node := e.get("node", null) as Control
+		# A docked plate (its animal is in the top target bar) keeps only its damage numbers: no room taken.
+		if node and node.visible and not bool(e.get("docked", false)):
 			visible.append(node)
-			var c := instance_from_id(int(key)) as Creature
-			bodies[node] = creature_box(cam, c) if cam and c else Rect2()
+			by_node[node] = e
 	visible.sort_custom(func(a: Control, b: Control) -> bool: return a.position.y < b.position.y)
 	# This layer is above the HUD's: an opaque plate hid the survivor's name and the HUD's hexes and
 	# text. A plate's pill takes the nearest free spot up or down off the HUD's rects and the plates
@@ -107,36 +163,53 @@ func _separate_visible_creature_plates() -> void:
 	var view := get_viewport().get_visible_rect().size
 	for node in visible:
 		var pos := node.position
-		var sz := node.size * node.scale
-		var rect := Rect2(pos, sz).grow(3.0)
+		var pill := node.get_node_or_null("Pill") as Control
+		# WORLDUI: the drawn pill, not the plate's full 114 px budget (that hung into the animal's body).
+		var rect := (Rect2(pos + pill.position * node.scale, pill.size * node.scale) if pill else Rect2(pos, node.size * node.scale)).grow(3.0)
+		var off := rect.position.y - pos.y
 		var attempts := 0
 		while attempts < 6:
 			var hit := false
 			for prior in placed:
 				if rect.intersects(prior):
-					pos.y = prior.position.y - rect.size.y - 4.0
-					rect.position.y = pos.y
+					rect.position.y = prior.position.y - rect.size.y - 4.0
+					pos.y = rect.position.y - off
 					hit = true
 					break
 			if not hit:
 				break
 			attempts += 1
-		var pill := node.get_node_or_null("Pill") as Control
-		var shown := Rect2(pos + pill.position * node.scale, pill.size * node.scale) if pill else rect
+		var shown := rect.grow(-3.0)
 		var taken := hud_rects.duplicate()
 		taken.append_array(placed)
-		# Its own creature too, above it first: pushed down off the HUD, the pill hid the compy it named.
-		if (bodies[node] as Rect2).has_area():
-			taken.append(bodies[node])
-		var spot := UiTokens.free_spot(shown, taken, view, true)
+		# Its own creature is not a block any more: the pill hangs over the model's top and only lifts.
+		var spot := lift_spot(shown, taken, view)
 		var clear := spot.has_area()
 		if clear:
 			pos.y += spot.position.y - shown.position.y
 			rect.position.y += spot.position.y - shown.position.y
+		# WORLDUI: ease a lift off a neighbour or the HUD instead of hopping a row in one frame; a plate
+		# that just appeared takes its spot at once (no fly-in).
+		var e: Dictionary = by_node[node]
+		var want := pos.y - node.position.y
+		var lift := want
+		if bool(e.get("was_shown", false)) and delta > 0.0:
+			lift = move_toward(float(e.get("lift", 0.0)), want, LIFT_RATE * delta)
+		e["lift"] = lift
+		e["was_shown"] = clear
+		pos.y = node.position.y + lift
+		rect.position.y += lift - want
 		node.visible = clear
 		node.position = pos
 		if clear:
 			placed.append(rect)
+
+## WORLDUI: where a plate's pill may go off `taken`: where it is, or the nearest free spot straight up;
+## empty when there is none. Never down: with no room above (a big animal filling the top of the screen)
+## free_spot's fallback slid the plate under its animal. Close up, the top target bar shows it anyway.
+static func lift_spot(shown: Rect2, taken: Array[Rect2], view: Vector2) -> Rect2:
+	var spot := UiTokens.free_spot(shown, taken, view, true)
+	return spot if spot.has_area() and spot.position.y <= shown.position.y + 0.5 else Rect2()
 
 ## The creature on screen: a box as long as the def along its facing, body_radius to each side and
 ## def height tall, projected and bounded. Empty when a corner is behind the camera.
@@ -174,7 +247,7 @@ func _ensure_entry(c: Creature) -> Dictionary:
 	var root := Control.new()
 	root.custom_minimum_size = Vector2(BASE_WIDTH, FULL_H)
 	root.size = root.custom_minimum_size
-	root.pivot_offset = Vector2(BASE_WIDTH * 0.5, 0.0)
+	root.pivot_offset = Vector2.ZERO  # WORLDUI: scaled from its top-left, so position + local * scale is on screen
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(root)
 	# Backing pill: the name, bar and glyphs read on bright grass and sky alike.
@@ -329,14 +402,20 @@ func _ensure_entry(c: Creature) -> Dictionary:
 
 func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player, dist: float, delta: float) -> void:
 	var root := entry["node"] as Control
-	var alpha := float(entry.get("alpha", 0.0))
+	# WORLDUI: fade with distance, and never draw a creature behind the camera (it unprojected mirrored).
+	var anchor := plate_anchor(c)
+	var alpha := float(entry.get("alpha", 0.0)) * (1.0 - smoothstep(FADE_FROM, MAX_DIST, dist))
+	if cam.is_position_behind(anchor):
+		alpha = 0.0
 	root.visible = alpha > 0.02
-	root.modulate.a = alpha
 	var scale := _distance_scale(dist)
 	root.scale = Vector2(scale, scale)
-	var top := c.get_global_transform_interpolated().origin + Vector3(0.0, c.def.height_meters * c.size_scale() + 0.3, 0.0)
-	var screen := cam.unproject_position(top)
-	root.position = screen + Vector2(-BASE_WIDTH * 0.5 * scale, -70.0 * scale)
+	# WORLDUI: the top target bar shows this animal: its floating bar fades out (damage numbers stay).
+	var hud := get_tree().get_first_node_in_group("hud") as HuntHud if is_inside_tree() else null
+	var docked_to := hud.top_target() if hud else null
+	var dock := move_toward(float(entry.get("dock", 1.0)), 0.0 if docked_to == c else 1.0, DOCK_RATE * delta)
+	entry["dock"] = dock
+	entry["docked"] = dock <= 0.02
 	var full := c.get_instance_id() == _emphasis_id
 	var line1 := entry["line1"] as Label
 	var rel_col := _relation_color(c)
@@ -406,6 +485,9 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	if flash_left > 0.0:
 		var f := clampf(flash_left / 0.12, 0.0, 1.0)
 		root.modulate = Color(1.0, 0.6 + f * 0.4, 0.6 + f * 0.4, alpha)
+	for child in root.get_children():
+		if child != entry["floats"]:
+			(child as CanvasItem).modulate.a = dock
 	_tick_torpor(entry, c, full, bar_w, bar_h)
 	var hp_dbg := entry["hp_dbg"] as Label
 	hp_dbg.visible = Game.debug_overlay
@@ -423,6 +505,21 @@ func _update_entry(entry: Dictionary, c: Creature, cam: Camera3D, player: Player
 	_tick_xp(entry, c, full)
 	_tick_floaters(entry, delta)
 	_fit_pill(entry, full)
+	# WORLDUI: the pill's bottom edge sits HEAD_GAP px over the model's top, centred on it.
+	var pill := entry.get("pill", null) as Control
+	var mid := (pill.position.x + pill.size.x * 0.5) if pill else BASE_WIDTH * 0.5
+	var bottom := (pill.position.y + pill.size.y) if pill else FULL_H
+	var screen := cam.unproject_position(anchor)
+	root.position = screen - Vector2(mid * scale, bottom * scale + HEAD_GAP)
+	entry["anchor_px"] = screen
+
+## WORLDUI: the drawn pill on screen (its plate's position plus the pill's scaled box).
+static func pill_rect(entry: Dictionary) -> Rect2:
+	var root := entry.get("node", null) as Control
+	var pill := entry.get("pill", null) as Control
+	if root == null or pill == null:
+		return Rect2()
+	return Rect2(root.position + pill.position * root.scale, pill.size * root.scale)
 
 ## Wild animals with any torpor: fill = torpor / max, the white tick = the knock-out threshold.
 func _tick_torpor(entry: Dictionary, c: Creature, full: bool, bar_w: float, bar_h: float) -> void:
