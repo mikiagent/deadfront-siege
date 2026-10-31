@@ -18,9 +18,12 @@ const NAMED: Array[StringName] = [&"ankylosaurus", &"stegosaurus", &"triceratops
 const ARMOURED: Array[StringName] = [&"ankylosaurus"]
 ## Its own attacks: every melee clip (CreatureAnim.ATTACKS) plus the charge and leap starts (and the brain's charge state).
 const OWN_ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"charge", &"charge_crouch", &"charge_windup", &"bull_windup", &"pounce", &"leap", &"flank_rake", &"impale", &"toss"]
-const FIGHT_S := 24.0
+## The fight runs FIGHT_S from her first landed hit, longer (up to MAX_FIGHT_S) while it has not yet hit her back or
+## started MIN_STARTS attacks: a hop-back fighter (majungasaurus) can miss for a while without being locked.
+const FIGHT_S := 14.0
+const MAX_FIGHT_S := 30.0
 const DT := 1.0 / 60.0
-# ASSUMPTION (STUNLOCK): "fights back" = 3+ attack starts in 24 s, never 10 s of her up-time without one.
+# ASSUMPTION (STUNLOCK): "fights back" = 3+ attack starts, never 10 s of her up-time without one.
 const MIN_STARTS := 3
 const MAX_GAP_S := 10.0
 const POISED_MAX_STAGGER := 0.01
@@ -136,9 +139,10 @@ func _fight(id: StringName) -> void:
 	var her_stag := 0.0  # time it spent staggered by her (or in hit_react)
 	var by_her := false
 	var prev_stag := 0.0
-	var was_attacking := false
+	var was_clip := &""
 	var was_knocked := false
-	while t < 40.0 and (engaged < 0.0 or t - engaged < FIGHT_S):
+	while t < 50.0 and (engaged < 0.0 or t - engaged < FIGHT_S \
+			or ((on_her[0] < 1 or starts < MIN_STARTS) and t - engaged < MAX_FIGHT_S)):
 		await physics_frame
 		frame[0] += 1
 		t += DT
@@ -157,18 +161,20 @@ func _fight(id: StringName) -> void:
 		if knocked and not was_knocked:
 			on_her[0] += 1  # a throw or knockdown lands even without damage
 		was_knocked = knocked
-		var attacking: bool = c.anim.current_clip in OWN_ATTACKS or c.brain.state == &"charge"  # a charge runs on its run clip
+		# A charge runs on its run clip; a new attack clip straight after another is a new start (combo, then rake).
+		var clip: StringName = &"charge" if c.brain.state == &"charge" else c.anim.current_clip
+		var attacking: bool = clip in OWN_ATTACKS
 		var up: bool = not (knocked or player.statuses.has_flag(&"cannot_act") or player.statuses.has_flag(&"no_attack"))
 		if engaged >= 0.0:
 			if up:
 				since += DT
-			if attacking and not was_attacking:
+			if attacking and clip != was_clip:
 				starts += 1
 				gap = maxf(gap, since)
 				since = 0.0
 			if (c.stagger_left > 0.0 and by_her) or c.anim.current_clip == &"hit_react":
 				her_stag += DT
-		was_attacking = attacking
+		was_clip = clip
 		if _trace and frame[0] % 30 == 0:
 			print("[t_stunlock]   t=%.1f d=%.1f clip=%s state=%s stag=%.2f(%s) | her clip=%s up=%s" % [t, player.global_position.distance_to(c.global_position), c.anim.current_clip, c.brain.state, c.stagger_left, "her" if by_her else "own", player.anim.current_clip, up])
 	var span := t - engaged if engaged >= 0.0 else 0.0
