@@ -131,6 +131,44 @@
    ]
   }
  },
+ "sections": {
+  "_doc": ["BODY SECTIONS (scripts/combat/body_sections.gd, docs/current/body_sections.md). Owner: aim ranged shots at a body section, build Wounds and Armor breaks",
+   "  with melee on one section. Sections are built from each body's hurtbox capsules, with no per-species code:",
+   "bones: [pattern, section] tested in order on the lowercased hurtbox bone name (contains); exact: whole-name matches tested first; default: the rest.",
+   "  sided sections take _L / _R from the bone's suffix (.L, _L, Left). splits: a hit on section `from` becomes `to` when its contact point is more than",
+   "  below / above x the capsule radius under / over the capsule's axis (body up), or (base_frac) within that share of the capsule's length from its",
+   "  base end, the end nearest the bone's own joint (the frill sits behind the skull). species.<id>: extra splits and the armoured list.",
+   "armoured: unbroken armour takes armour_mult of a hit (an Armor break lifts it). crit: a section holding a crit spot (computed, not listed).",
+   "wounds: melee build-up per section. channels per weapon tool_class, else per damage_type: slash builds a Wound on skin, impact an Armor break",
+   "  on armour; pierce builds both at pierce_rate. A hit on another section multiplies every other section's build by switch_keep; past idle_s",
+   "  without a hit on it a section loses decay_per_s. A Wound makes hits on its section sure crits at wound_mult and starts bleeding; both last",
+   "  until the animal goes fight_s without a player hit. Every number is an ASSUMPTION (Open Questions PC1-PC12)."],
+  "default": "torso",
+  "exact": {"back": "torso"},
+  "bones": [["jaw", "head"], ["skull", "head"], ["head", "head"], ["neck", "neck"], ["tail", "tail"],
+   ["front", "foreleg"], ["scapula", "foreleg"], ["upperarm", "foreleg"], ["forearm", "foreleg"], ["arm", "foreleg"], ["hand", "foreleg"],
+   ["finger", "foreleg"], ["claw", "foreleg"], ["hind", "hindleg"], ["thigh", "hindleg"], ["shin", "hindleg"], ["metatarsal", "hindleg"],
+   ["toe", "hindleg"], ["foot", "hindleg"], ["cannon", "hindleg"], ["leg", "hindleg"]],
+  "sided": ["foreleg", "hindleg"],
+  "splits": [{"from": "torso", "to": "belly", "below": 0.05}],
+  "labels": {"head": "Head", "neck": "Neck", "torso": "Body", "belly": "Belly", "tail": "Tail", "frill": "Frill", "plates": "Plates", "hump": "Hump",
+   "foreleg_L": "L. foreleg", "foreleg_R": "R. foreleg", "hindleg_L": "L. hindleg", "hindleg_R": "R. hindleg"},
+  "armour_mult": 0.25,
+  "species": {
+   "ankylosaurus": {"armoured": ["torso", "tail", "head"]},
+   "stegosaurus": {"splits": [{"from": "torso", "to": "plates", "above": 0.3}], "armoured": ["plates"]},
+   "triceratops": {"splits": [{"from": "head", "to": "frill", "base_frac": 0.45}], "armoured": ["frill"]},
+   "styracosaurus": {"splits": [{"from": "head", "to": "frill", "base_frac": 0.45}], "armoured": ["frill"]},
+   "zebraceratops": {"splits": [{"from": "head", "to": "frill", "base_frac": 0.45}], "armoured": ["frill"]},
+   "pachycephalosaurus": {"armoured": ["head"]},
+   "woolly_rhino": {"exact": {"shoulders": "hump"}}
+  },
+  "wounds": {
+   "wound_at": 3.0, "break_at": 3.0, "pierce_rate": 0.5, "switch_keep": 0.5, "idle_s": 3.0, "decay_per_s": 0.5, "fight_s": 30.0,
+   "wound_mult": 2.0, "bleed": "bleeding_target",
+   "channels": {"slashing": ["slash"], "blunt": ["impact"], "piercing": ["pierce"], "drag_blade": ["slash", "impact"], "great_blade": ["slash", "impact", "impact"]}
+  }
+ },
  "hurtbox": {
   "min_share": 0.015,
   "end_pct": [
