@@ -1497,7 +1497,9 @@ const WEAR_M := 3.0
 ## ASSUMPTION: densities and tuft sizes are visual tuning judged on the town shots.
 const TUFTS_PER_M2 := 9.0
 const FLOWER_SHARE := 0.06
-const GRASS_CHUNK_M := 32
+## Grass tufts per instance: one patch mesh carries three tufts, so the town's ~30 k tufts are ~10 k
+## instances (t_tutorial's 80 k ground-cover ceiling counts instances; the triangles are the same).
+const TUFTS_PER_PATCH := 3
 
 ## LOOKPASS (owner's "flat village with engine settings" pass): the town ground mask the terrain shader
 ## reads (R wear, G inside; see terrain_tiles.gdshader), and dense short grass with a few flowers on
@@ -1545,26 +1547,26 @@ func _ground_look() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7311
 	var dens := TUFTS_PER_M2 * (1.0 if RenderingServer.get_current_rendering_method() == "forward_plus" else 0.5)
-	var chunks: Dictionary = {}  # Vector2i -> [Array[Transform3D], Array[Color], Array[Transform3D], Array[Color]]
+	# One batch per kind over the whole town: per-32 m chunks were ~45 MultiMeshes, over t_tutorial's
+	# 220-batch town ceiling. [grass xforms, grass colours, flower xforms, flower colours]
+	var lst: Array = [[], [], [], []]
 	for zi in n:
 		for xi in n:
 			var t := Vector2i(x0 + xi, z0 + zi)
 			if src.has(t) or not _inside(t) or Vector2(float(t.x) + 0.5 - camp.x, float(t.y) + 0.5 - camp.z).length() < PLAZA_R:
 				continue
 			var keep := 1.0 - float(wear_of.call(xi + zi * n))
-			var k := int(dens * keep + rng.randf())
-			for m in k:
-				var x := float(t.x) + rng.randf()
-				var z := float(t.y) + rng.randf()
+			var patches := int(dens * (1.0 - FLOWER_SHARE) / TUFTS_PER_PATCH * keep + rng.randf())
+			var flowers := int(dens * FLOWER_SHARE * keep + rng.randf())
+			for m in patches + flowers:
+				var flower := m >= patches
+				# A patch spreads ~0.3 m: keep its centre off the tile edge so it stays on this tile.
+				var x := float(t.x) + (rng.randf() if flower else rng.randf_range(0.2, 0.8))
+				var z := float(t.y) + (rng.randf() if flower else rng.randf_range(0.2, 0.8))
 				if not rt.is_dry(Vector3(x, 0, z)):
 					continue
-				var key := Vector2i(floori(float(xi) / GRASS_CHUNK_M), floori(float(zi) / GRASS_CHUNK_M))
-				if not chunks.has(key):
-					chunks[key] = [[], [], [], []]
-				var flower := rng.randf() < FLOWER_SHARE
 				var sc := rng.randf_range(0.7, 1.3) * (0.8 if flower else 1.0)
 				var xf := Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc * rng.randf_range(0.8, 1.25), sc)), Vector3(x, rt.surface_y(x, z), z))
-				var lst: Array = chunks[key]
 				if flower:
 					lst[2].append(xf)
 					lst[3].append([Color(1.0, 0.86, 0.3), Color(0.96, 0.95, 0.9), Color(0.72, 0.62, 0.95), Color(0.98, 0.6, 0.62)][rng.randi() % 4])
@@ -1573,32 +1575,31 @@ func _ground_look() -> void:
 					var g := rng.randf()
 					lst[1].append(Color(0.8, 0.9, 0.7).lerp(Color(1.05, 1.0, 0.75), g * g))
 	var tufts := 0
-	for key: Vector2i in chunks:
-		var lst: Array = chunks[key]
-		for pair in [[lst[0], lst[1], false], [lst[2], lst[3], true]]:
-			var xfs: Array = pair[0]
-			if xfs.is_empty():
-				continue
-			var mm := MultiMesh.new()
-			mm.transform_format = MultiMesh.TRANSFORM_3D
-			mm.use_colors = true
-			mm.mesh = _tuft_mesh(pair[2])
-			mm.instance_count = xfs.size()
-			for i in xfs.size():
-				mm.set_instance_transform(i, xfs[i])
-				mm.set_instance_color(i, pair[1][i])
-			var mmi := MultiMeshInstance3D.new()
-			mmi.name = "TownGrass"
-			mmi.multimesh = mm
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			mmi.visibility_range_end = FAR_PROP
-			mmi.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
-			add_child(mmi)
-			tufts += xfs.size()
+	for pair in [[lst[0], lst[1], false], [lst[2], lst[3], true]]:
+		var xfs: Array = pair[0]
+		if xfs.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = _tuft_mesh(pair[2])
+		mm.instance_count = xfs.size()
+		for i in xfs.size():
+			mm.set_instance_transform(i, xfs[i])
+			mm.set_instance_color(i, pair[1][i])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.name = "TownGrass"
+		mmi.multimesh = mm
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mmi.visibility_range_end = IsoCamera.cull_range(float(n) * 0.71)  # the range is to the batch centre: the town's half-diagonal
+		mmi.physics_interpolation_mode = Node.PHYSICS_INTERPOLATION_MODE_OFF
+		add_child(mmi)
+		tufts += xfs.size() * (1 if pair[2] else TUFTS_PER_PATCH)
 	stats["grass_tufts"] = tufts
 
-## One tuft: five thin blades (a flower: three short stems and a head) as triangles, vertex colour
-## from a dark root to a light tip, every normal straight up so the tuft shades like the ground under it.
+## A grass patch: TUFTS_PER_PATCH tufts of five thin blades (a flower: one tuft of three short stems
+## and a head) as triangles, vertex colour from a dark root to a light tip, every normal straight up so
+## the tuft shades like the ground under it.
 static var _tufts: Dictionary = {}
 static func _tuft_mesh(flower: bool) -> ArrayMesh:
 	if _tufts.has(flower):
@@ -1608,16 +1609,20 @@ static func _tuft_mesh(flower: bool) -> ArrayMesh:
 	var r := RandomNumberGenerator.new()
 	r.seed = 77 if flower else 41
 	var blades := 3 if flower else 5
-	for b in blades:
-		var a := TAU * (float(b) + r.randf() * 0.6) / float(blades)
-		var root := Vector3(cos(a), 0, sin(a)) * r.randf_range(0.02, 0.07)
-		var side := Vector3(-sin(a), 0, cos(a)) * 0.025
-		var h := r.randf_range(0.16, 0.28) * (0.8 if flower else 1.0)
-		var tip := root + Vector3(cos(a), 0, sin(a)) * r.randf_range(0.06, 0.14) + Vector3(0, h, 0)
-		for v: Array in [[root - side, Color(0.17, 0.27, 0.1)], [tip, Color(0.34, 0.48, 0.19)], [root + side, Color(0.17, 0.27, 0.1)]]:
-			st.set_color(v[1] if not flower else Color(0.42, 0.55, 0.3))
-			st.set_normal(Vector3.UP)
-			st.add_vertex(v[0])
+	var spots: Array = [Vector3.ZERO] if flower else [Vector3(-0.11, 0, -0.07), Vector3(0.12, 0, -0.04), Vector3(-0.01, 0, 0.13)]
+	for o: Vector3 in spots:
+		var hs := r.randf_range(0.85, 1.15)
+		var a0 := r.randf() * TAU
+		for b in blades:
+			var a := a0 + TAU * (float(b) + r.randf() * 0.6) / float(blades)
+			var root := o + Vector3(cos(a), 0, sin(a)) * r.randf_range(0.02, 0.07)
+			var side := Vector3(-sin(a), 0, cos(a)) * 0.025
+			var h := r.randf_range(0.16, 0.28) * hs * (0.8 if flower else 1.0)
+			var tip := root + Vector3(cos(a), 0, sin(a)) * r.randf_range(0.06, 0.14) + Vector3(0, h, 0)
+			for v: Array in [[root - side, Color(0.17, 0.27, 0.1)], [tip, Color(0.34, 0.48, 0.19)], [root + side, Color(0.17, 0.27, 0.1)]]:
+				st.set_color(v[1] if not flower else Color(0.42, 0.55, 0.3))
+				st.set_normal(Vector3.UP)
+				st.add_vertex(v[0])
 	if flower:  # the head: a small flat diamond on top, white so the instance colour names the flower
 		var top := Vector3(0, 0.22, 0)
 		for v: Vector3 in [Vector3(-0.06, 0, 0), Vector3(0, 0, -0.06), Vector3(0.06, 0, 0), Vector3(-0.06, 0, 0), Vector3(0.06, 0, 0), Vector3(0, 0, 0.06)]:

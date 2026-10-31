@@ -558,7 +558,10 @@ static func world_point(p: Player, what: String) -> Variant:
 		"creature":
 			return _nearest(p, "creatures", func (n: Node) -> bool: return _huntable(n, &""))
 		"corpse":
-			return _nearest(p, "corpse", func (_n: Node) -> bool: return true)
+			# An early kill (on the way to the water, say) completes the hunt order before it comes up, and
+			# that carcass may be gone by the butcher order: point at a compsognathus to hunt instead.
+			var body: Variant = _nearest(p, "corpse", func (_n: Node) -> bool: return true)
+			return body if body != null else world_point(p, "creature:compsognathus")
 		"water":
 			return nearest_fresh_water(p.global_position)
 	# "creature:<species>": a species order points only at that species (owner 2026-10-29: the hunt
