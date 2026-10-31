@@ -10,7 +10,7 @@
   "archetype": "tyrant",
   "tameable": true,
   "capture_tier": 5,
-  "verb": "grab and shake pin",
+  "verb": "stalk low, burst in and foot-pin; slashing head-whip bite, tail whip",
   "status_applied": [
     "pinned",
     "deep_bleed"
@@ -25,12 +25,15 @@
   "tamed_role": [
     "combat"
   ],
-  "look": "10 meter tyrannosaur with a long deep skull, tiny two-fingered arms, massive legs, thick tail, dark grey-brown scales with a paler throat,",
-  "texture_prompt": "dark grey-brown scaly hide, paler throat and belly, darker back, matte surface",
+  "look": "tall lean tyrannosaur, lankier than the T. rex: long deep skull with the jaws open, tiny two-fingered arms, long legs, long whip tail, rust-red and orange hide with dark maroon tiger banding, pale cream belly and throat, finer scales, no spinal scutes,",
+  "texture_prompt": "rust-red and orange scaly hide with dark maroon tiger banding across back and tail, pale cream belly and throat, fine scales, matte surface",
   "clips": {
-    "attack_primary": "Tyrannosaur bites and tosses its head",
-    "attack_heavy": "Tyrannosaur lowers its head, holds, then lunges and clamps down shaking",
-    "knockdown": "Tyrannosaur stumbles and falls heavily on its side",
+    "attack_primary": "Slashing bite: the head cocks to one side with the jaws wide, then whips across as the body drives forward, the jaws snapping shut mid-sweep",
+    "attack_heavy": "Crouch and lunge: it sinks low and coils with the jaws gaping and the tail tip twitching, then explodes forward and clamps",
+    "pounce": "The burst: one long low bound out of the stalk, jaws thrust ahead, landing on both feet as the jaws slam shut",
+    "kick": "Tail whip: hips wind one way and the long tail cracks across behind it",
+    "pin_foot": "Pins a downed victim under its right foot, head low over it",
+    "knockdown": "Tyrannosaur stumbles and crashes onto its belly, then shoves back up",
     "alert": "Tyrannosaur raises its head and roars"
   },
   "taming": {
@@ -71,12 +74,142 @@
         "id": "countershade",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "",
         "weight": 3.0
       }
     ]
+  },
+  "tactics": {
+    "_about": "SP-TARBOSAURUS (owner 2026-10-30: 'be creative with what moves you think they should do'; Durango reference: low forward stalking pose, head level with the back). A lone ambush tyrant on the saber_cat profile: it closes in on the low stalk creep, and from 10-17 m it BURSTS (attack_heavy is the crouch and coil under the ground ring, then the pounce clip, one long low bound, clamp at landing). A landed burst is an attack_heavy hit, so it applies Pinned and the tarbosaurus plants its foot on the victim (PINFEEL pin_foot). Point blank: the crouch-and-lunge clamp (heavy, also pins), the slashing head-whip bite, and the tail whip when the prey is behind it (the kick slot, kick clip). It also runs prey down (charge, a homing run that ends in the bite). No leaping back: it backs off a step. Its jaws sit ~8 m ahead of its centre, so it bites at reach_m from its middle (TacticalBrain.contact_reach) and lands a burst with the jaws on the prey. Every number an ASSUMPTION (first pass, not balanced).",
+    "base": "saber_cat",
+    "scale": 1.6,
+    "stalk_speed_frac": 0.35,
+    "reach_m": 8.0,
+    "ring_m": 13.0,
+    "pounce_min_m": 10.0,
+    "pounce_max_m": 17.0,
+    "chase_pounce_max_m": 16.0,
+    "pounce_radius_m": 2.5,
+    "pin": false,
+    "point_blank": [
+      "heavy",
+      "kick",
+      "bite"
+    ],
+    "sequences": [
+      {
+        "name": "burst",
+        "steps": [
+          "pounce"
+        ],
+        "weight": 3.0
+      },
+      {
+        "name": "strafe_left_burst",
+        "steps": [
+          "strafe_left",
+          "pounce"
+        ],
+        "weight": 1.0
+      },
+      {
+        "name": "strafe_right_burst",
+        "steps": [
+          "strafe_right",
+          "pounce"
+        ],
+        "weight": 1.0
+      },
+      {
+        "name": "run_down",
+        "steps": [
+          "charge"
+        ],
+        "weight": 1.5
+      }
+    ],
+    "pounce_cd": 10.0,
+    "pounce_telegraph_s": 1.2,
+    "pounce_leap_s": 0.6,
+    "leap_height_per_m": 0.03,
+    "pounce_mult": 1.6,
+    "pounce_overshoot_chance": 0.1,
+    "heavy_cd": 8.0,
+    "heavy_mult": 1.6,
+    "kick_cd": 5.0,
+    "kick_mult": 1.3,
+    "charge_cd": 8.0,
+    "charge_speed_mult": 1.25,
+    "charge_max_s": 2.4,
+    "w_hop": 0.0,
+    "hop_m": 2.0,
+    "leap_back_m": 2.0,
+    "backoff": "scurry",
+    "scurry_s": 0.8
+  },
+  "pipeline": {
+    "forward_axis": "-Z",
+    "source_height_m": 8.0,
+    "mesh": "Tripo P1 multiview (front, left, back, right), task a969df84-2c34-4b51-b832-44af5a805aaa, 50 Tripo credits (credits_consumed 50; shared balance 2305 before, 2155 after with other agents generating)",
+    "mesh_views": "ref/: left = the side panel of the owner's sheet 2, right = it mirrored, front = the front panel, back = drawn by Codex from the sheet and the front view",
+    "reference_sheet": "ref/tyrannosaur_owner_sheet_2.png (owner)",
+    "rig_and_animation": "tools/gait/build_tarbosaurus.sh: tarbo_clean.py (two claw spikes Tripo drew to the floor), fit_rex_rig.py --joints tarbosaurus_joints.json (the T. rex's 30-bone rig), add_jaw.py --open (real Jaw, bound shut), make_rex_moves.py --tarbo + make_gait.py tarbosaurus.json, ground_clip.py on the lying clips and gaits, check_tarbosaurus.py",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "stalk",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "attack_primary",
+      "attack_heavy",
+      "pounce",
+      "kick",
+      "pin_foot",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert",
+      "feed",
+      "sleep"
+    ],
+    "hit_parts": {
+      "attack_primary": {
+        "bones": [
+          "Head",
+          "Jaw"
+        ],
+        "radius_m": 1.4
+      },
+      "attack_heavy": {
+        "bones": [
+          "Head",
+          "Jaw"
+        ],
+        "radius_m": 1.6
+      },
+      "pounce": {
+        "bones": [
+          "Head",
+          "Jaw"
+        ],
+        "radius_m": 1.8
+      },
+      "kick": {
+        "bones": [
+          "Tail4",
+          "Tail5",
+          "Tail6",
+          "Tail7"
+        ],
+        "radius_m": 2.0
+      }
+    },
+    "hit_parts_note": "SP-TARBOSAURUS: each hit also needs its part (Creature.part_hit): bites, the lunge and the burst from the jaws, the tail whip from the back half of the tail. the whip's radius is wider because the tail sweeps metres between two frames. # ASSUMPTION radii (metres at size 1, plus the target's radius)",
+    "provenance": "docs/orchestration/reports/claude-sp-tarbosaurus.md"
   }
 }
