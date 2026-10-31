@@ -1,0 +1,240 @@
+{
+  "species": "Ceratosaurus",
+  "clade": "Ceratosauridae",
+  "period": "Late Jurassic",
+  "real_length_m": 12.0,
+  "height_meters": 4.0,
+  "rig": "biped",
+  "tier": 45,
+  "climate": "swamp",
+  "archetype": "apex_raptor",
+  "tameable": true,
+  "capture_tier": 5,
+  "verb": "nose-horn gore, slashing bite (bleed), tail swipe, water-edge lunge",
+  "status_applied": [
+    "bleed_2"
+  ],
+  "stats": {
+    "hp": 5200,
+    "attack": 360,
+    "defense": 150,
+    "speed": 560
+  },
+  "turn_rate": 3.0,
+  "tamed_role": [
+    "combat"
+  ],
+  "variants": [],
+  "size_note": "# ASSUMPTION (SP-CERATOSAURUS): a ~6 m real animal at the house 1.6x is 9.7 m nose to tail on screen and 4.0 m to the top of the brow horns (hips about 2.3 m, a 1.78 m survivor reaches its thigh); real_length_m 12 is the roster's 2x convention.",
+  "look": "mid-size horned theropod: a short blade-like horn on the snout, two short rounded brow horns, a row of small bony osteoderm bumps down the neck, back and tail, deep blade-toothed jaws, small four-fingered arms, rust-orange and dark brown banded hide with a pale cream throat and belly; the alpha is camouflaged olive, dark brown and cream with an orange throat and belly",
+  "prompt": "Ceratosaurus from the owner's turnaround sheet: mid-size theropod, short blade-like nasal horn, two rounded brow horns, osteoderm row along the spine, rust-orange and dark brown banded hide, pale cream belly and throat, blade teeth, mouth slightly parted. No saddle.",
+  "texture_prompt": "rust-orange and dark brown banded scaly hide with dark blotches, pale cream throat and belly, dark claws, matte surface",
+  "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
+    "pin_foot": "BIGSTOMP: the stomping foot pressed down on a pinned victim, held until the pin ends",
+    "idle": "breathing, a look left and right, the tail swaying",
+    "walk": "theropod walk, body level, head carried forward",
+    "run": "theropod run, body tipped forward, tail out straight",
+    "alert": "roar: rears back, then thrusts the head forward with the jaws wide, shaking the head so the horns flash",
+    "attack_primary": "slashing bite: head cocked up and to one side, jaws gaping, a sideways rake across the prey, jaws shut at the hit (0.42), blade teeth ripped back; applies Bleed",
+    "attack_heavy": "nose-horn gore: crouch with the head dropped so the nose horn points at the prey, a snort and a horn wag held (telegraph), then a driving step and an upward jab-and-hook (hit 0.72)",
+    "kick": "tail swipe (the brain's kick slot, when the prey is behind it): the hips pivot on planted feet and the tail whips across behind it (hit 0.45)",
+    "pounce": "water-edge lunge: a low crouch, a flat surge with the jaws wide (airborne 0.2-0.65), the snap on landing (hit 0.7) and a twisting tug",
+    "hit_react": "head and chest jerk back, a stagger step",
+    "knockdown": "knees buckle, it topples onto its side and lies there (the capture hold)",
+    "death": "a heavy fall onto its side, neck and tail slack",
+    "sleep": "settles belly-down onto folded legs, chin down, tail curled round",
+    "feed": "head down to a carcass, tearing bites with a tug"
+  },
+  "taming": {
+    "preferred_food": [
+      "raw_meat"
+    ],
+    "accepted_food": [
+      "fish",
+      "raptor_meat"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 8,
+    "sat": 0.1,
+    "val": 0.1,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "",
+        "weight": 6.0
+      },
+      {
+        "id": "countershade",
+        "weight": 1.0,
+        "scale": 1.0,
+        "strength": 0.2
+      }
+    ]
+  },
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 0.412,
+    "source_length_m": 0.998,
+    "route": "rig_biped_v1",
+    "mesh": "Tripo P1 multiview (left view drawn by Codex from the owner's sheet 1, front and back drawn by Codex from it, right = mirrored left, all on one scale), task 402c6567-0c34-488c-9128-03352078ebe6, 50 Tripo credits (2026-10-31)",
+    "mesh_source": "res://assets/creatures/ceratosaurus/work/ceratosaurus_tripo_v1.glb",
+    "mesh_views": "ref/ceratosaurus_view_{front,left,back,right}.png",
+    "reference_sheet": "game/assets/creatures/ceratosaurus/ref/ceratosaurus_owner_sheet_1.png (regular), ceratosaurus_owner_sheet_2_alpha_wide.png (alpha)",
+    "rig": "tools/gait/rig_biped.py with tools/gait/ceratosaurus_rig.json (joints read off slices and ortho renders)",
+    "jaw": "tools/jaw/add_jaw.py --pivot 0.035 0.33 --split -4 --blend 0.008 --snout 0.149 --x-side; tools/jaw/open_mouth.py (lips ripped, mouth bag)",
+    "gaits": "tools/gait/make_gait.py tools/gait/ceratosaurus.json: walk, run; strafe_left/right and walk_back from the walk plan (stride 0.2)",
+    "clips_from": {
+      "idle,alert,attack_primary,attack_heavy,kick,pounce,hit_react,knockdown,death,sleep,feed": "tools/gait/make_cerato_moves.py (feet IK-planted; lying clips rest on the floor)"
+    },
+    "grounding": "tools/gait/ground_clip.py --fps 24 on every clip",
+    "build": "tools/gait/build_ceratosaurus.sh; gate tools/gait/check_cerato.py --height 4.0",
+    "credits_spent": 50,
+    "hit_parts": {
+      "attack_primary": {
+        "bones": [
+          "Jaw"
+        ],
+        "radius_m": 1.4
+      },
+      "attack_heavy": {
+        "bones": [
+          "Head",
+          "Jaw"
+        ],
+        "radius_m": 1.5
+      },
+      "kick": {
+        "bones": [
+          "Tail4",
+          "Tail5",
+          "Tail6"
+        ],
+        "radius_m": 1.3
+      },
+      "pounce": {
+        "bones": [
+          "Jaw"
+        ],
+        "radius_m": 1.6
+      }
+    },
+    "hit_parts_note": "SP-CERATOSAURUS: each hit also needs its part (Creature.part_hit; the hitbox system is not on canon): the bite and the lunge from the jaws, the gore from the head (nose horn), the tail swipe from the back half of the tail. # ASSUMPTION radii (metres at size 1, plus the target's radius).",
+    "status_clips": {
+      "bleed": [
+        "attack_primary"
+      ]
+    },
+    "status_clips_note": "SP-CERATOSAURUS (owner brief: 'blade-tooth slashing bite that applies Bleed'): Bleed rides on the slashing bite only (CreatureAttack._apply_token).",
+    "model_variants": {
+      "regular": "",
+      "alpha": "ceratosaurus_alpha_albedo.jpg"
+    },
+    "variant_note": "alpha = the owner's sheet 2 (camo olive, dark brown, cream, orange throat and belly) as a recolour of the regular albedo (tools/gait/ceratosaurus_alpha_skin.py). # ASSUMPTION: sheet 2 is the Alpha skin (the owner's two-sheet rule). The sheet's bigger blocky nasal crest is not carried: texture only, no second generation (Open Questions CE5).",
+    "assumptions": [
+      "# ASSUMPTION: height_meters 4.0, real_length_m 12 (see size_note)",
+      "# ASSUMPTION: stats between the utahraptor and the allosaurus (tier 45, 5200 HP, attack 360); tameable in a pen like the other big carnivores; combat role only (no saddle built)",
+      "# ASSUMPTION: climate swamp; spawns on swamp_55 and tropical_40 (river and swamp islands) for the water-edge ambush",
+      "# ASSUMPTION: Bleed x2 per slashing bite"
+    ],
+    "clips": [
+      "big_stomp", "pin_foot",
+      "idle",
+      "walk",
+      "run",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "alert",
+      "attack_primary",
+      "attack_heavy",
+      "kick",
+      "pounce",
+      "hit_react",
+      "knockdown",
+      "death",
+      "sleep",
+      "feed"
+    ]
+  },
+  "tactics": {
+    "base": "saber_cat",
+    "_about": "# ASSUMPTION (SP-CERATOSAURUS, owner: 'Be creative with what moves you think they should do when they fight'). A lone mid-size hunter on the saber_cat profile, without the stalk or the pin. Near a river or the shore it lurks on the bank and opens with a crocodile-like LUNGE out of the water's edge (the ambush pounce: a low surge, jaws first) at prey inside ambush_radius_m, or a back turned inside back_radius_m; away from water it hunts in the open. From 5-11 m: the lunge (pounce, telegraphed by the gore crouch under the ground ring), a roar into a charge, or a sidestep into the lunge. Point blank: a TAIL SWIPE when the prey is behind it (kick), the NOSE-HORN GORE (heavy: a held head-down crouch and horn wag, then an upward jab-and-hook), or the SLASHING BITE (bite) that makes the prey bleed.",
+    "stalk": false,
+    "pin": false,
+    "ambush": true,
+    "ambush_cover": "water",
+    "cover_m": 40.0,
+    "bank_river_m": 9.0,
+    "ambush_radius_m": 10.0,
+    "back_radius_m": 15.0,
+    "ambush_pounce_max_m": 13.0,
+    "ambush_open_s": 2.5,
+    "sequences": [
+      {
+        "name": "lunge",
+        "steps": [
+          "pounce"
+        ],
+        "weight": 2.0
+      },
+      {
+        "name": "strafe_left_lunge",
+        "steps": [
+          "strafe_left",
+          "pounce"
+        ],
+        "weight": 1.0
+      },
+      {
+        "name": "roar_charge",
+        "steps": [
+          "display",
+          "charge"
+        ],
+        "weight": 1.5
+      },
+      {
+        "name": "charge",
+        "steps": [
+          "charge"
+        ],
+        "weight": 1.0
+      }
+    ],
+    "point_blank": [
+      "kick",
+      "heavy",
+      "bite"
+    ],
+    "display_s": 1.6,
+    "ring_m": 10.0,
+    "strafe_m": 3.5,
+    "hop_m": 4.5,
+    "leap_back_m": 5.0,
+    "max_retreat_m": 18.0,
+    "bite_cd": 3.0,
+    "heavy_cd": 6.0,
+    "heavy_mult": 1.8,
+    "kick_cd": 5.0,
+    "kick_mult": 1.3,
+    "pounce_cd": 9.0,
+    "pounce_min_m": 5.0,
+    "pounce_max_m": 11.0,
+    "chase_pounce_max_m": 10.0,
+    "pounce_telegraph_s": 1.0,
+    "pounce_radius_m": 2.2,
+    "pounce_mult": 1.5,
+    "pounce_overshoot_chance": 0.1,
+    "reach_m": 4.9,
+    "leap_height_per_m": 0.05
+  }
+}

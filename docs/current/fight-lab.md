@@ -54,6 +54,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Gallimimus | CreatureBrain (runner) | charge, kick, outruns you | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
 | Megaloceros (stag, then doe on the next NEXT; SPAWN has a Body button) | TacticalBrain (antlered, horned_charger moves, skittish-territorial) | antler charge, rear-up stomp, rear kick | runs from the first threat, then turns and fights; stag: roar + antlers lowered (display), straight antler ram, point blank rear-up stomp / rear kick / antler hook; doe: run-in forehoof strike, rear-up stomp, rear kick; runs again under 30 % HP | alert, attack_primary, attack_heavy, kick, charge (stag) | new model, rig and clips 2026-10-31 (claude/mmo-sp-megaloceros), re-test |
 | Gallimimus | TacticalBrain (runner; the deinonychus profile without the pounce, skittish-territorial) | charge, kick, outruns you | runs from the first threat, then turns and fights; kick (spring-and-rake, point blank), peck, peck flurry, charge into a peck, strafe, dodge, back-hops; no pounce; runs again under 30 % HP | alert, attack_primary, attack_heavy, bite_combo, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
+| Therizinosaurus | TacticalBrain (claw_guardian, territorial) | sickle claws: sweep, hook pull, overhead rake | turns on you inside ~14 m; threat display (rears, arms wide, claws fanned) then the hook (first hit drags you in), backhand, rear-up, double thrust; point blank the overhead rake (both arms high and trembling, bleeds) or the claw sweep (shoves you back 3 m); behind it the claws miss | alert, attack_primary, attack_heavy, bite_combo | new species 2026-10-31 (claude/mmo-sp-therizinosaurus), test |
 | Pachycephalosaurus | TacticalBrain (pack_mule) | dome headbutt charge | display, charge, strafe | alert, attack_primary, attack_heavy, charge | |
 | Protoceratops | TacticalBrain (pack_mule) | shoving beak, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | removed by owner 2026-10-31 |
 | Raptor | TacticalBrain (pack_flanker, species tactics x1.25) | pounce, pin and bite; sickle-claw slash | crest-flare display + pounce, pounce -> pin under the foot + two bites, sickle slash point blank, the deinonychus combo, charge, back-leaps and power strafes; five colour morphs (Body button) | alert, attack_primary, attack_heavy, bite_combo, pounce, pin_stab, charge | |
@@ -65,13 +66,19 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Utahraptor | TacticalBrain (apex_raptor; the deinonychus profile, distances x1.4) | one devastating claw strike | backstep, strafe, pounce (x3.0), charge, combo, ambush from cover, leap-in, back-leaps | alert, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Velociraptor | TacticalBrain (pack_raptor; the deinonychus profile, distances x0.75, no tree ambush) | pounce knockdown from off-screen | sniff, then the investigate hold (3 s), then backstep, strafe, pounce, charge, combo, leap-in, back-leaps; lighter hits (pounce x2.0, combo x0.8) | alert, investigate, sniff, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
-| Big-dinosaur stomp (BIGSTOMP, every big species: tyrannosaurus, tarbosaurus, megarex, carnotaurus, triceratops, styracosaurus, woolly rhino) | BigStomp (`game/scripts/combat/big_stomp.gd`, ticked by CreatureBrain before any brain thinks) | stands under it, gets stomped | when you stand in the ring round where its foot lands (under the body): the foot is hauled up and held 0.6-0.9 s (by size) over a yellow ring with the foot's dark shadow in it ("STOMP - ROLL AWAY"), then slammed down: dust, camera shake by size and distance; in the shadow: 2.5 x attack (kills outside GOD) and pinned under the foot (pin_foot, one bite at 1.5 s, Pinned 4 s); in the ring: knocked down; roll or step out to dodge; never on someone already down; ankylosaurus keeps its own stomp; pins from any foot-pinner start only at the foot (no pulling under it) | big_stomp, pin_foot | new per owner 2026-10-31, test |
+| Big-dinosaur stomp (BIGSTOMP, every big species: tyrannosaurus, tarbosaurus, megarex, carnotaurus, triceratops, styracosaurus, woolly rhino, therizinosaurus, ceratosaurus) | BigStomp (`game/scripts/combat/big_stomp.gd`, ticked by CreatureBrain before any brain thinks) | stands under it, gets stomped | when you stand in the ring round where its foot lands (under the body): the foot is hauled up and held 0.6-0.9 s (by size) over a yellow ring with the foot's dark shadow in it ("STOMP - ROLL AWAY"), then slammed down: dust, camera shake by size and distance; in the shadow: 2.5 x attack (kills outside GOD) and pinned under the foot (pin_foot, one bite at 1.5 s, Pinned 4 s); in the ring: knocked down; roll or step out to dodge; never on someone already down; ankylosaurus keeps its own stomp; pins from any foot-pinner start only at the foot (no pulling under it) | big_stomp, pin_foot | new per owner 2026-10-31, test |
 | Survivor hit reactions (KNOCKDOWN, any species) | PlayerKnock (`game/scripts/player/player_knock.gd`) | knocked on her butt, thrown | from the hit, not the species: force = shove metres x attacker height / 3 m (0.6-1.5); light (< 2) the old shove + flinch, knockdown (>= 2: zebraceratops no, pachy / styracosaurus rams yes, every Knockdown status token) falls on her butt then back, lies 1 s, gets up; throw (>= 5 or any horn lift: triceratops, carnotaurus charge and horn ram, woolly rhino toss, megaloceros stag charge) flies a 3-9 m arc, lands, tumbles, gets up; then Winded 3 s (-40 % move, no sprint, no attack); throw-tier hits unseat a rider; GOD shows it all, no damage | survivor: fall_back, airborne, lie, get_up, winded | new 2026-10-31, test |
 
 ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
 archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
 ANKYLOCLOSE: the close moves and the zone that draws them are `ai.json archetypes.club_tail.close_moves` / `close_zone`;
 test `game/tests/t_ankyloclose.gd`; review shots `--lab=ankyloai_lab --out=DIR --moves=stomp,shove_right,tackle`.
+
+Planted flinch (owner 2026-10-31, "rattled but the feet stay planted"): a hit never moves the feet. Without an
+authored hit_react the body rattles on the bones (head chain pitch + yaw, tail sway; legs and root untouched); with
+one, the clip plays and the feet's drift is taken off the root bone. Code: `game/scripts/creatures/planted_flinch.gd`
+(a SkeletonModifier3D on every rigged creature); test `game/tests/t_plantedflinch.gd` (run with `--fixed-fps 60`);
+review shots `--lab=plantedflinch_lab --out=DIR`.
 
 No glide (owner 2026-10-31): a body never moves under a one-shot. Attacks play in place; alert, sniff and hit_react
 give way to the stride-matched gait when the brain moves the body; leaps move on their own arc. Test:
@@ -98,6 +105,22 @@ with `--position 6000,3000`) saves the wind-up (game camera and a three-quarter)
 DIR/<species>_<k>_<what>.png, then quits. Data: `ai.json big_stomp`; clips: `tools/gait/make_big_stomp.py` (+
 `tools/gait/big_stomp.json`, gate `check_big_stomp.py`), the tyrannosaurs `make_rex_moves.py big_stomp`. Test:
 `game/tests/t_bigstomp.gd`.
+
+Cornered (owner 2026-10-31: "Animals that run away from you should get territorial and attack you if you chase them";
+`BrainCornered`, on every brain): any animal that is fleeing (skittish grazers on sight, defensive grazers and Timid
+natures after a big hit) and is chased turns and fights. Chasing = within 10 m and moving at it at 1.5 m/s or more, or
+hitting it (+1.5 s each). After 3 s of that, or 20 m of pursuit, it stops, plays its display clip (alert today; roar,
+crest_flare or stomp first when a rig has one) and fights with its own attacks for 12 s; under 30 % HP it runs again.
+Stand still and it keeps running. Numbers: `ai.json default.cornered`, per species a `"cornered"` block in its tactics.
+Test: `game/tests/t_cornered.gd`.
+
+| Species | Brain | Flees when | Chased into a fight |
+|---|---|---|---|
+| Zebraceratops, Pachycephalosaurus, Protoceratops (pack_mule, skittish) | TacticalBrain | on sight | its display, charge, shove, kick |
+| Gallimimus (runner), Megaloceros (antlered) | TacticalBrain | on sight | its fight; it also still turns by itself after one 3 s flight (territorial) |
+| Stegosaurus (defensive), Triceratops, Styracosaurus, Woolly rhino (territorial) | CreatureBrain / TacticalBrain | a big hit while not provoked | its own attacks |
+| Any species with the Timid nature | any | a big hit (retreat_as_flee) | its own attacks (Timid no longer means never fights back once chased) |
+| Not affected | | swarm and pack flights (`_flee_left`, compsognathus, mate-death scatter), a Timid rage (enrage_flee); every other brain (ClubTail, Tyrant, MegaRex) inherits the rule whenever it is in `flee` | |
 
 Pin shots: `-- --lab=creature_lab --god --skip-charcreate --species=tyrannosaurus --pinshots=DIR` (windowed, off
 screen with `--position 6000,3000`) saves the stomp, the foot pin and the release, then quits. Test: `game/tests/t_pinfeel.gd`.

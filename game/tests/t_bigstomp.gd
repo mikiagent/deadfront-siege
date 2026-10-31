@@ -12,7 +12,7 @@ extends SceneTree
 ##    moves more than MAX_STEP_M in one physics frame; a heavy that lands away from the foot knocks down, never pins.
 ## Run: Godot --headless --path game --script res://tests/t_bigstomp.gd  -> "[t_bigstomp] PASS", exit 0.
 
-const SPECIES: Array[StringName] = [&"tyrannosaurus", &"tarbosaurus", &"megarex", &"carnotaurus", &"triceratops", &"styracosaurus", &"woolly_rhino"]
+const SPECIES: Array[StringName] = [&"tyrannosaurus", &"tarbosaurus", &"megarex", &"carnotaurus", &"triceratops", &"styracosaurus", &"woolly_rhino", &"therizinosaurus", &"ceratosaurus"]
 const STOMP_WAIT_S := 4.0
 const MAX_STEP_M := 0.5
 const DT := 1.0 / 60.0

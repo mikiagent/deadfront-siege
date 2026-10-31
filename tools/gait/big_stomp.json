@@ -184,5 +184,83 @@
         "foot": "BackFoot.R"
       }
     ]
+  },
+  "therizinosaurus": {
+    "height_m": 8.0,
+    "body": "Hips",
+    "head": "Head",
+    "tail": "Tail1",
+    "stomp": 1,
+    "lift": 0.55,
+    "fwd": 0.3,
+    "inward": 0.6,
+    "pitch": 10,
+    "neck": [
+      "Neck1",
+      "Neck2",
+      "Head"
+    ],
+    "tails": [
+      "Tail1",
+      "Tail2",
+      "Tail3"
+    ],
+    "legs": [
+      {
+        "up": "Thigh.L",
+        "low": "Shin.L",
+        "lower": [
+          "Metatarsal.L",
+          "Toe.L"
+        ]
+      },
+      {
+        "up": "Thigh.R",
+        "low": "Shin.R",
+        "lower": [
+          "Metatarsal.R",
+          "Toe.R"
+        ]
+      }
+    ]
+  },
+  "ceratosaurus": {
+    "height_m": 4.0,
+    "body": "Hips",
+    "head": "Head",
+    "tail": "Tail1",
+    "stomp": 1,
+    "lift": 0.55,
+    "fwd": 0.3,
+    "inward": 0.6,
+    "pitch": 10,
+    "neck": [
+      "Neck1",
+      "Neck2",
+      "Head"
+    ],
+    "tails": [
+      "Tail1",
+      "Tail2",
+      "Tail3"
+    ],
+    "legs": [
+      {
+        "up": "Thigh.L",
+        "low": "Shin.L",
+        "lower": [
+          "Metatarsal.L",
+          "Toe.L"
+        ]
+      },
+      {
+        "up": "Thigh.R",
+        "low": "Shin.R",
+        "lower": [
+          "Metatarsal.R",
+          "Toe.R"
+        ]
+      }
+    ]
   }
 }
