@@ -30,7 +30,7 @@
     "knockdown": "Tiny dinosaur is flung onto its side and lies stunned",
     "alert": "Tiny dinosaur freezes with its head raised"
   },
-  "look": "small theropod, vivid leaf-green scaly back with darker mottling along the spine, cream throat and belly, yellow-ochre scaly legs, red-orange eyes, narrow long-snouted head, S-neck, long stiff tail, three-clawed arms, no feathers,",
+  "look": "tiny chicken-sized theropod, small pointed head, long thin tail, short folded arms, fine downy proto-feathers, mottled brown and grey with a pale belly,",
   "variants": [
     "compsognathus_temperate",
     "compsognathus_tropical",
@@ -73,9 +73,13 @@
   "pipeline": {
     "route": "skeleton_transplant_v3",
     "forward_axis": "+Z",
-    "version": 2,
-    "mesh_source": "res://assets/creatures/compsognathus/work/compsognathus_tripo_v2.glb",
-    "remodel_2026_10_28": {
+    "version": 1,
+    "mesh_source": "res://assets/creatures/compsognathus/work/compsognathus_i2m_v1.glb",
+    "revert_2026_10_31": {
+      "why": "owner: the green remodel looked worse; the v1 Meshy mesh (with the dsc 6dc14241 jaw) is back, the remodel is kept in work/compsognathus_green_v2.glb",
+      "clips": "v1 originals: walk, run, alert, attacks, feed, hit_react, knockdown, death, sleep. Rebuilt on the v1 rig with the same tools and plans: idle (make_nervous_idle.py), investigate + charge_crouch (make_investigate_idle.py --heel-roll 90), strafes, charge, walk_back (make_gait.py compsognathus.json, lengths x1.62), hop_back, leap_back, pounce, dodges (make_leap.py)"
+    },
+    "remodel_2026_10_28_reverted": {
       "why": "owner's new reference (green raptor turnaround sheet, ref/compsognathus_sheet_v2.png)",
       "tripo_task": "e9f3b219-7fdb-4812-b2ab-b27b830a84f4",
       "tripo_params": "multiview-to-model P1-20260311, front + left views cropped from the sheet, texture + pbr, face_limit 15000",
@@ -96,8 +100,8 @@
     "credits_spent": 48,
     "donor_rig": "tools/standins/quaternius/Velociraptor.fbx",
     "transplant_tool": "tools/transplant_rig.py",
-    "source_height_m": 0.502,
-    "source_length_m": 0.998,
+    "source_height_m": 0.7625,
+    "source_length_m": 1.9017,
     "repair": {
       "loose_removed": 639,
       "doubles_merged": 10281,
@@ -164,10 +168,10 @@
   "eyes": {
     "bone": "Head",
     "points": [
-      [0.0374, -0.0149, 0.1252],
-      [0.0884, -0.0144, 0.0963]
+      [0.1155, 0.0221, 0.1272],
+      [0.0449, 0.0220, 0.1659]
     ],
-    "radius": 0.02,
+    "radius": 0.03,
     "color": [
       1.0,
       0.15,
