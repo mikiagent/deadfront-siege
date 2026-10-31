@@ -33,7 +33,12 @@
       "fight_s": 12.0,
       "weak_frac": 0.3,
       "display_s": 0.8,
-      "display_clips": ["roar", "crest_flare", "stomp", "alert"]
+      "display_clips": [
+        "roar",
+        "crest_flare",
+        "stomp",
+        "alert"
+      ]
     },
     "perception_base": 8.0,
     "perception_tier_mult": 0.15,
@@ -1064,7 +1069,8 @@
           "knockback_m": 2.5,
           "cooldown_s": 1.8
         }
-      }
+      },
+      "big_stomp": false
     },
     "horned_charger": {
       "is_herbivore": true,
@@ -1482,6 +1488,110 @@
     "loot": {
       "trophy": "alpha_trophy",
       "trophy_count": 1
+    }
+  },
+  "big_stomp": {
+    "_about": "BIGSTOMP (owner 2026-10-31: big dinosaurs stomp what is close under them; a stomp that lands on you hits very hard and pins you). game/scripts/combat/big_stomp.gd. Who: rig has big_stomp, height x size >= min_height_m, unless tactics/archetype says big_stomp false (true or a dict of these keys opts in or overrides). Sizes are fractions of body height: the near ring (near_frac, knockdown, near_mult x attack), the foot's shadow (direct_frac, damage_mult x attack, then Pinned under the foot). windup_s and shake run from their first to their second number over size_range_m. land: [across (+ right), ahead] of the centre in body heights, where big_stomp's foot comes down (measured in game by the lab's --stompprobe). pin_bone / pin_reach: the pinning foot for PinHold (reach along the bone, skeleton units). pin_reach_frac: a pin starts only on a victim whose chest is within this x body height of that foot (else it is a knockdown), and the victim is pressed under it at most pin_slide_mps. pin_bite_s / pin_bite_mult: the follow-up bite while it holds.",
+    "min_height_m": 2.9,
+    "size_range_m": [
+      3.0,
+      10.0
+    ],
+    "windup_s": [
+      0.6,
+      0.9
+    ],
+    "near_frac": 0.42,
+    "direct_frac": 0.16,
+    "damage_mult": 2.5,
+    "near_mult": 0.35,
+    "near_force": 3.0,
+    "cooldown_s": 3.5,
+    "shake": [
+      0.45,
+      0.9
+    ],
+    "shake_range": 3.0,
+    "pin": true,
+    "pin_reach_frac": 0.3,
+    "pin_slide_mps": 3.0,
+    "pin_bite_s": 1.5,
+    "pin_bite_mult": 0.6,
+    "species": {
+      "tyrannosaurus": {
+        "land": [
+          0.19,
+          0.357
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.85
+      },
+      "megarex": {
+        "land": [
+          0.27,
+          0.374
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.85
+      },
+      "tarbosaurus": {
+        "land": [
+          0.22,
+          0.337
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.85,
+        "pin_reach_frac": 0.8,
+        "pin_slide_mps": 6.0
+      },
+      "triceratops": {
+        "land": [
+          -0.086,
+          0.444
+        ],
+        "pin_bone": "Finger.L",
+        "pin_reach": 0.0
+      },
+      "styracosaurus": {
+        "land": [
+          -0.05,
+          0.492
+        ],
+        "pin_bone": "FrontFoot.L",
+        "pin_reach": 0.0
+      },
+      "woolly_rhino": {
+        "land": [
+          -0.058,
+          0.278
+        ],
+        "pin_bone": "FrontFoot.L",
+        "pin_reach": 0.0
+      },
+      "carnotaurus": {
+        "land": [
+          0.072,
+          0.361
+        ],
+        "pin_bone": "BackFoot.R",
+        "pin_reach": 0.0
+      },
+      "therizinosaurus": {
+        "land": [
+          0.052,
+          0.227
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.0
+      },
+      "ceratosaurus": {
+        "land": [
+          0.053,
+          0.32
+        ],
+        "pin_bone": "Toe.R",
+        "pin_reach": 0.0
+      }
     }
   }
 }

@@ -165,6 +165,8 @@
   },
   "tactics": {
     "base": "pack_flanker",
+    "reposition": "mixed",
+    "_reposition": "HOPSTRAFE: a light runner, not a heavy body (its bulk 45.6 would make it a strafer); keeps its power strafes and back-hops. ASSUMPTION HS1.",
     "_about": "GALLIMIMUS (owner 2026-10-31: 'give it patched deinonychus's brain as a template and we will tune after'). ASSUMPTION, an ostrich-like omnivore: no pounce-and-pin and no ambush (pounce_max_m 0); fast kicks (heavy = the spring-and-rake attack_heavy, heavy_cd 3, only inside heavy_reach_m where the feet reach), a peck (bite = attack_primary) and a peck flurry (combo = bite_combo), power strafes and back-hops (dodge-and-flee). Skittish-territorial (territorial block). Open Questions CM2. the deinonychus brain (ai.json pack_flanker tactics) as one shared profile: TacticalBrain.resolve starts from 'base', multiplies its distances by 'scale', then applies these overrides.",
     "sequences": [
       {

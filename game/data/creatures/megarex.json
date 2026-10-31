@@ -27,6 +27,7 @@
   "look": "16 meter monstrous Tyrannosaurus (the MegaRex boss): a giant deep skull with heavy brow ridges and almost no neck, jaws modelled open with big teeth, tiny arms, huge legs, thick tail, olive-khaki mottled crocodile scales with dark bands, pyramid scutes down the spine and tail, pale cracked belly,",
   "texture_prompt": "olive-khaki mottled crocodile hide with dark dorsal banding and pyramid scutes, pale cracked belly, matte surface",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
     "attack_primary": "MegaRex lunges low and snaps its jaws",
     "attack_heavy": "MegaRex hauls a foot up, holds, stomps and pins",
     "bite_shake": "Phase 2+: clamps its jaws on the prey, thrashes its head and flings it",
@@ -55,6 +56,7 @@
     "rig_and_animation": "tools/gait/build_megarex.sh: fit_rex_rig.py (the T. rex's 30-bone rig fitted to the left half mirrored, distance weights), add_jaw.py --open (real Jaw, bound shut), make_rex_moves.py --v2 + make_gait.py clips, ground_clip.py, check_rex_clips.py",
     "accepted_mesh": "tyrannosaurus.glb",
     "clips": [
+      "big_stomp",
       "idle",
       "walk",
       "run",

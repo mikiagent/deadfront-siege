@@ -13,7 +13,9 @@ extends RefCounted
 ## (PlayerSim.shove / PlayerKnock) so she lands at the bite's reach, measured from the species' own jaw hitbox at the
 ## bite's hit frame. When the clip ends the brain follows up at once: the bite combo or the bite (TacticalBrain), the
 ## timed bite (TyrantBrain), or a plain attack_primary.
-## Not the big stomp (BIGSTOMP, the lethal pin under the foot): this one barely hurts and only fixes the spacing.
+## Not the big stomp (BIGSTOMP, the lethal pin under the foot): this one barely hurts and only fixes the spacing. Where a
+## rig has both, BigStomp ticks first and takes her when she is in its ring and it is ready; this one fills in while it
+## cools down or when she is tucked in outside its ring. It shares BigStomp's dust and shake (through TheroRoar).
 
 const CLIP := &"spacing_stomp"
 

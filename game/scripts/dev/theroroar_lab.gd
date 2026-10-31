@@ -159,6 +159,8 @@ func _stomp_live(player: Player, cam: Camera3D) -> void:
 			c.queue_free()
 			continue
 		var h := def.height_meters
+		if c.brain.stomp != null:
+			c.brain.stomp.cd = 999.0  # the big stomp would take its ring first; this shot is the spacing stomp
 		player.global_position = c.global_position + Vector3(-1, 0, 0) * st.bite_reach(player) * 0.35 + Vector3.UP * 0.1
 		c.brain.attack_target = player
 		c.brain._combat_memory_left = 30.0

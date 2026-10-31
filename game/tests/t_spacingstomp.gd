@@ -104,6 +104,8 @@ func _test_live(id: StringName) -> void:
 	var fwd: Vector3 = -c.global_basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized()
+	if b.stomp != null:
+		b.stomp.cd = 999.0  # BIGSTOMP ticks first and owns its ring when ready; the spacing stomp is under test here
 	var reach: float = st.bite_reach(player)
 	# tucked under the chest: a third of the way out to the jaws
 	player.global_position = c.global_position + fwd * reach * 0.35 + Vector3.UP * 0.1

@@ -4,12 +4,12 @@
  "limit": 1.6,
  "skip": {
   "velociraptor": {
-   "back_height_m": 0.66,
-   "limit_height_m": 1.056,
-   "height_meters": 1.06,
+   "back_height_m": 0.85,
+   "limit_height_m": 1.354,
+   "height_meters": 1.35,
    "model_height_m": 0.6992,
-   "scale": 1.516,
-   "note": "RAPTORSCALE 2026-10-30, owner: 'velociraptor is too small to ride'. Torso bone 0.296 m high in the 0.699 m model (0.45 m in game); the old saddle's seat sat 0.438 model units up, 0.66 m at height_meters 1.06, so a 1.78 m rider is 1.7x the allowed 1.056 m. Saddle files and the mount role removed."
+   "scale": 1.931,
+   "note": "RAPTORSCALE 2026-10-30, owner: 'velociraptor is too small to ride'. Torso bone 0.296 m high in the 0.699 m model (0.45 m in game); the old saddle's seat sat 0.438 model units up, 0.66 m at height_meters 1.06, so a 1.78 m rider is 1.7x the allowed 1.056 m. Saddle files and the mount role removed. HOPSTRAFE 2026-10-31: height 1.06 -> 1.35: seat 0.85 m, so the limit is 1.35 m, still under the 1.78 m rider."
   }
  }
 }

@@ -30,6 +30,8 @@
   "prompt": "Ceratosaurus from the owner's turnaround sheet: mid-size theropod, short blade-like nasal horn, two rounded brow horns, osteoderm row along the spine, rust-orange and dark brown banded hide, pale cream belly and throat, blade teeth, mouth slightly parted. No saddle.",
   "texture_prompt": "rust-orange and dark brown banded scaly hide with dark blotches, pale cream throat and belly, dark claws, matte surface",
   "clips": {
+    "big_stomp": "BIGSTOMP: shared big-dinosaur stomp, the near foot hauled high, held, then slammed down under the body (impact 0.72); a direct hit pins (pin_foot)",
+    "pin_foot": "BIGSTOMP: the stomping foot pressed down on a pinned victim, held until the pin ends",
     "idle": "breathing, a look left and right, the tail swaying",
     "walk": "theropod walk, body level, head carried forward",
     "run": "theropod run, body tipped forward, tail out straight",
@@ -144,6 +146,7 @@
       "# ASSUMPTION: Bleed x2 per slashing bite"
     ],
     "clips": [
+      "big_stomp", "pin_foot",
       "idle",
       "walk",
       "run",

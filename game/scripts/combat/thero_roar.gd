@@ -79,15 +79,10 @@ static func burst(c: Creature) -> float:
 	return last_shake
 
 ## The ground shake on the local survivor from something `h` metres tall at `at` (the roar's burst, the spacing stomp's
-## slam): shake_at by her distance. Returns the amount asked of IsoCamera.
+## slam): BigStomp's shake with this roar's size scaling and range. Returns the amount asked of IsoCamera.
 static func shake_local(def: CreatureDef, h: float, at: Vector3) -> float:
-	var local := PlayerRegistry.local()
-	if local == null or local.dead:
-		return 0.0
-	var amount := shake_at(def, h, Vector2(local.global_position.x - at.x, local.global_position.z - at.z).length())
-	if amount > 0.0:
-		IsoCamera.shake(local, amount)
-	return amount
+	var k := cfg(def)
+	return BigStomp.shake_at_spot(at, shake_at(def, h, 0.0), float(k.get("shake_range_h", 6.0)) * h)
 
 ## Shake for a survivor `dist` metres from a roaring animal `h` metres tall: the size picks between the two shake
 ## numbers, and it fades to nothing at shake_range_h body heights.
@@ -137,7 +132,7 @@ static func ground_fx(parent: Node, at: Vector3, h: float, ring_r: float) -> voi
 		return
 	var wave := _ring(parent, at + Vector3.UP * 0.15, 0.1 * h, Color(1.0, 0.92, 0.75, 0.6))
 	_grow(wave, ring_r / (0.1 * h), 0.7, wave.global_position)
-	_dust(parent, at, h, ring_r)
+	BigStomp.dust(parent, at, h, 0.3 * h)
 
 static func _ring(parent: Node, at: Vector3, r: float, col: Color) -> MeshInstance3D:
 	var m := MeshInstance3D.new()
@@ -165,44 +160,3 @@ static func _grow(m: MeshInstance3D, scale_to: float, secs: float, to: Vector3) 
 	tw.tween_property(m, "global_position", to, secs)
 	tw.tween_property(m.material_override, "albedo_color:a", 0.0, secs).set_ease(Tween.EASE_IN)
 	tw.chain().tween_callback(m.queue_free)
-
-## Dust kicked up round the feet and out along the ground (one-shot particles, freed when done).
-static func _dust(parent: Node, at: Vector3, h: float, ring_r: float) -> void:
-	var p := CPUParticles3D.new()
-	p.one_shot = true
-	p.explosiveness = 0.85
-	p.amount = 64
-	p.lifetime = 1.4
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_RING
-	p.emission_ring_axis = Vector3.UP
-	p.emission_ring_radius = 0.35 * h
-	p.emission_ring_inner_radius = 0.15 * h
-	p.emission_ring_height = 0.1
-	p.direction = Vector3(1, 0.35, 0)
-	p.spread = 180.0
-	p.flatness = 0.7
-	p.initial_velocity_min = ring_r * 0.6
-	p.initial_velocity_max = ring_r * 1.1
-	p.gravity = Vector3(0, -1.5, 0)
-	p.damping_min = ring_r * 0.5
-	p.damping_max = ring_r * 0.9
-	p.scale_amount_min = 0.35 + 0.1 * h
-	p.scale_amount_max = 0.7 + 0.18 * h
-	var mesh := SphereMesh.new()
-	mesh.radius = 0.5
-	mesh.height = 1.0
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.62, 0.53, 0.42, 0.5)
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.vertex_color_use_as_albedo = true
-	mesh.material = mat
-	p.mesh = mesh
-	var fade := Gradient.new()
-	fade.set_color(0, Color(1, 1, 1, 0.75))
-	fade.set_color(1, Color(1, 1, 1, 0.0))
-	p.color_ramp = fade
-	parent.add_child(p)
-	p.global_position = at + Vector3.UP * 0.2
-	p.emitting = true
-	p.finished.connect(p.queue_free)
