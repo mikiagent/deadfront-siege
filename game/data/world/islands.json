@@ -367,6 +367,12 @@
       ],
       "far_shore": [
         {
+          "species": "therizinosaurus",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.5
+        },
+        {
           "species": "stegosaurus",
           "count": 1,
           "groups": 1
@@ -494,6 +500,12 @@
     "spawns": {
       "gathering": [],
       "working": [
+        {
+          "species": "therizinosaurus",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.6
+        },
         {
           "species": "stegosaurus",
           "count": 2,

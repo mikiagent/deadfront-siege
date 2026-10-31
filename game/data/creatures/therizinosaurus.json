@@ -1,0 +1,145 @@
+{
+  "species": "Therizinosaurus cheloniformis",
+  "clade": "Therizinosauridae",
+  "period": "Late Cretaceous",
+  "real_length_m": 20.0,
+  "height_meters": 8.0,
+  "rig": "biped",
+  "tier": 50,
+  "climate": "temperate",
+  "archetype": "claw_guardian",
+  "tameable": true,
+  "capture_tier": 4,
+  "verb": "sweeping sickle claws that keep you at length, a hook that drags you in, a two-arm overhead rake that bleeds",
+  "status_applied": [
+    "bleed_2"
+  ],
+  "stats": {
+    "hp": 9000,
+    "attack": 400,
+    "defense": 220,
+    "speed": 380
+  },
+  "turn_rate": 2.4,
+  "tamed_role": [
+    "combat"
+  ],
+  "prompt": "Therizinosaurus from the owner's turnaround sheet: a tall, pot-bellied feathered biped with a long upright neck, a small toothy beak and a pink wattle, long arms each ending in three huge black sickle claws, sturdy scaly legs and a feathered tail fan",
+  "texture_prompt": "dark slate and blue-purple feathers, lavender scaly belly and legs with violet streaks, pale pink-orange scaly arm and foot skin, grey beak with a red-pink wattle and throat, glossy black claws, matte surface",
+  "look": "10 meter Therizinosaurus standing about 5 m tall, long feathered neck held high, small grey beak and a pink wattle, pot belly, long arms with three huge black sickle claws per hand, feathered tail fan, dark slate-blue feathers over lavender scaly skin,",
+  "clips": {
+    "attack_primary": "Claw sweep: the right arm cocks out to its right, then the sickle claws sweep low across its front at survivor height; a landed sweep shoves the target back to claw's length",
+    "attack_heavy": "Overhead rake: rears up hissing, both arms raised high with the claws fanned and trembling (the telegraph), then drives both down through the target and rakes them back to its chest; bleeds",
+    "bite_combo": "Hook and rake: the right claws reach out and hook the target, dragging it in to the chest, a left backhand slash, then it rears with both arms cocked at the shoulders and thrusts both claw sets forward and down",
+    "alert": "Threat display: rears up tall, neck high, arms flung wide and raised with the claws fanned, beak open hissing, the claws shaking, the tail fan raised",
+    "knockdown": "Knees buckle and it topples onto its right side, arms folded in",
+    "feed": "Browses high: neck stretched up, the right claws hook a branch down, the beak strips it"
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
+  },
+  "coloration": {
+    "_note": "the hide's feather and scale colours are painted; a small natural range and no added stripes",
+    "hue_deg": 8,
+    "sat": 0.12,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "countershade",
+        "weight": 1.0,
+        "scale": 1.0,
+        "strength": 0.25
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 0.604,
+    "source_length_m": 0.998,
+    "route": "tools/gait/rig_biped.py (hand-placed skeleton with Claw bones) + tools/jaw/add_jaw.py + tools/gait (make_gait, make_theri_moves)",
+    "mesh": "Tripo P1 multiview: front and back cropped from the owner sheet (rescaled to the side view's height), left a Codex neutral-stance side view, right its mirror. Task 65b2aab3-3547-48b0-a1c2-923f7cb395e0, 50 Tripo credits, no retry.",
+    "mesh_source": "res://assets/creatures/therizinosaurus/work/therizinosaurus_tripo_v1.glb",
+    "reference_sheet": "ref/therizinosaurus_sheet.png (owner sheet 1); Tripo inputs ref/therizinosaurus_view_{front,left,back,right}.png",
+    "build": "tools/gait/build_therizinosaurus.sh",
+    "_hit_parts": "canon's bone hit check (Creature.part_hit): at the hit frame one claw-tip marker (ClawTip.L/R, non-deforming bones at the middle sickle claw's tip) must be within radius_m (x body size) of the target's body. # ASSUMPTION radii.",
+    "hit_parts": {
+      "attack_primary": {
+        "bones": [
+          "ClawTip.R"
+        ],
+        "radius_m": 1.4
+      },
+      "attack_heavy": {
+        "bones": [
+          "ClawTip.L",
+          "ClawTip.R"
+        ],
+        "radius_m": 1.6
+      },
+      "bite_combo": {
+        "bones": [
+          "ClawTip.L",
+          "ClawTip.R"
+        ],
+        "radius_m": 1.4
+      }
+    },
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "attack_primary",
+      "attack_heavy",
+      "bite_combo",
+      "alert",
+      "hit_react",
+      "knockdown",
+      "death",
+      "sleep",
+      "feed"
+    ],
+    "authored_clips": {
+      "walk": "make_gait therizinosaurus.json walk",
+      "run": "make_gait therizinosaurus.json run (heavy jog, arms tucked, claws curled)",
+      "strafe_left": "make_gait walk --as strafe_left",
+      "strafe_right": "make_gait walk --as strafe_right",
+      "walk_back": "make_gait walk --as walk_back",
+      "attack_primary": "make_theri_moves.py claw sweep, hit 0.42",
+      "attack_heavy": "make_theri_moves.py two-arm overhead rake, telegraph held to 0.6, hit 0.72",
+      "bite_combo": "make_theri_moves.py hook (0.092, pulls), backhand (0.338), rear-up tell (0.5-0.667), double thrust (0.815)",
+      "alert": "make_theri_moves.py threat display",
+      "idle": "make_theri_moves.py",
+      "hit_react": "make_theri_moves.py",
+      "knockdown": "make_theri_moves.py topple onto the right side, arms folded",
+      "death": "make_theri_moves.py",
+      "sleep": "make_theri_moves.py belly-down, arms folded back, neck curled",
+      "feed": "make_theri_moves.py high browse, claw hooks a branch down"
+    },
+    "assumptions": [
+      "# ASSUMPTION: the PRDs are silent on the Therizinosaurus. Stats beside the stegosaurus (L45) and triceratops (L55): hp 9000, atk 400, def 220, speed 380 (slow), tier 50, capture tier 4. Tameable, tamed role combat only (no saddle built, so not rideable), herbivore taming food, pen-only.",
+      "# ASSUMPTION: size: 10 m real -> about 13 m on screen with the tail, standing 8 m to the head top (5 m real x 1.6); real_length_m 20 (the roster's 2x convention).",
+      "# ASSUMPTION: archetype claw_guardian (ai.json, new): a territorial herbivore (territory_m) that never flees on sight; turn_rate 2.4; climate temperate."
+    ]
+  }
+}
