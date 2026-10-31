@@ -12,7 +12,7 @@ bone-heat weighted on the repaired mesh (voxel proxy when heat leaves verts unwe
 
 The spec JSON (mesh units after orienting: head -Y, centred, feet on z=0; left = +x) gives joint points:
   {"spine": [[y,z] Hips, Spine1, Chest, Neck1, Neck2, Head, HeadTip],  "tail": [[y,z] Tail1 head ... tip],
-   "leg": [[x,y,z] hip, knee, ankle, ball, toe tip],  "arm": [[x,y,z] shoulder, elbow, wrist, finger tip],
+   "leg": [[x,y,z] hip, knee, ankle, ball, toe tip],  "arm": [[x,y,z] shoulder, elbow, wrist, finger tip(, claw tip)],
    "jaw": [[y,z] pivot, tip], "belly_z": 0.17, "jaw_split": ...}
 usage: Blender -b -P tools/gait/rig_biped.py -- <tripo.glb> <spec.json> <out.glb>
 """
@@ -109,9 +109,12 @@ for side, sx in (("L", 1.0), ("R", -1.0)):
     for i, n in enumerate(chain):
         bone("%s.%s" % (n, side), lg[i], lg[i + 1], "Hips" if i == 0 else "%s.%s" % (chain[i - 1], side), connect=i > 0)
     am = [Vector((p[0] * sx, p[1], p[2])) for p in spec["arm"]]
-    chain = ["Arm", "Forearm", "Hand"]
+    chain = ["Arm", "Forearm", "Hand", "Claw"][:len(am) - 1]  # a 5th arm point adds a Claw bone (therizinosaurus)
     for i, n in enumerate(chain):
         bone("%s.%s" % (n, side), am[i], am[i + 1], "Chest" if i == 0 else "%s.%s" % (chain[i - 1], side), connect=i > 0)
+    if len(am) == 5:  # a non-deforming marker at the claw tip: the game's hit check (Creature.part_hit) reads bone origins
+        tip = am[4] + (am[4] - am[3]).normalized() * 0.01
+        bone("ClawTip.%s" % side, am[4], tip, "Claw.%s" % side, deform=False, connect=True)
 # bone rolls: every bone's local X along the animal's left (+x), so a local-X rotation is a pitch for spine/legs
 for b in eb:
     b.align_roll(Vector((0, 0, 1)) if abs(b.vector.normalized().z) < 0.9 else Vector((0, -1, 0)))
@@ -130,7 +133,7 @@ def unweighted():
 
 miss = unweighted()
 print("RIG heat unweighted", miss, "of", len(mesh.data.vertices))
-if miss > 0.02 * len(mesh.data.vertices):
+if miss > spec.get("proxy_frac", 0.02) * len(mesh.data.vertices):  # the voxel proxy weighted nothing on the therizinosaurus: proxy_frac 0.05 keeps heat
     proxy = mesh.copy()
     proxy.data = mesh.data.copy()
     bpy.context.scene.collection.objects.link(proxy)
@@ -192,7 +195,8 @@ for i, v in enumerate(mesh.data.vertices):
             w[mine] = w.get(mine, 0.0) + w.pop(n)
             moved += 1
     # leg zone: below the belly line and out to the side, only this side's leg chain (plus Hips near the top)
-    if side and p.z < BELLY and abs(p.x) > spec.get("leg_inner_x", 0.03):
+    # leg_zone_y [y0, y1] (optional): only there, so long hanging claws ahead of the legs keep their arm weights
+    if side and p.z < BELLY and abs(p.x) > spec.get("leg_inner_x", 0.03) and spec.get("leg_zone_y", [-9, 9])[0] < p.y < spec.get("leg_zone_y", [-9, 9])[1]:
         keep = {}
         for n, x in w.items():
             if n.split(".")[0] in LEG and n.endswith("." + side):

@@ -583,6 +583,18 @@ Owner: "Animals that run away from you should get territorial and attack you if 
 | **CN4** | Any chaser counts (a pet too), not only the survivor. Timid (flee nature) animals turn too when chased (they still flee first and run sooner when hurt). Swarm/pack tactical flights and a Timid rage (enrage_flee) are exempt: they come back on their own. | `brain_cornered.gd`, `tactical_brain.gd _provoked` | Whether Timid should ever fight. |
 | **CN5** | Defaults for every species; no species override shipped. A species turns it off or retunes it with a `"cornered"` block in its tactics (e.g. `{"enabled": false}`). | species JSON tactics | Per-species tuning. |
 
+### SP-THERIZINOSAURUS (2026-10-31) — new species (claude/mmo-sp-therizinosaurus)
+
+Owner sheet: "use this for the therezino". The PRDs say nothing about the Therizinosaurus. Report `docs/orchestration/reports/claude-sp-therizinosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TZ1** | Stats beside the stegosaurus (L45) and triceratops (L55): tier 50, hp 9000, atk 400, def 220, speed 380, capture tier 4. Tameable, tamed role combat only (no saddle built, so not rideable). Herbivore taming food, pen only. | `therizinosaurus.json` | A claw-armed mount is an obvious ask: needs a saddle (saddles.json + build) and `mount` in `tamed_role`. |
+| **TZ2** | Size: 10 m real, about 13 m on screen with the tail, 8 m to the head top (5 m real x 1.6); `real_length_m` 20 (2x convention). The claws sit ~5.5 m ahead of its centre (`tactics.reach_m` 5.6). | `therizinosaurus.json`, `ai.json` | It towers over the survivor; the claws hang at her height. |
+| **TZ3** | New archetype `claw_guardian` (TacticalBrain on the horned_charger template, no charge): territorial (turns on anyone within 14 m of its body, or on one hit), never flees on sight. Opens with the threat display then the hook combo; point blank the overhead rake (x1.8, cd 8 s), the hook combo (x0.8/1.0/1.6, cd 9 s) or the claw sweep. | `ai.json` archetypes.claw_guardian | Pacing and difficulty: the rake one-shots a fresh 100 HP survivor at atk 400 (like the carnotaurus ram). |
+| **TZ4** | Claw sweep shoves her 3 m back (`primary_shove_m`); the hook's first hit drags her up to 3.5 m toward it, never closer than 4.5 m from its centre (`hook_pull_m`, `hook_stop_m`). Both are new `TacticalBrain.landed` hooks. | `tactical_brain.gd`, `ai.json` | The pull sets up the rake; the owner may want it stronger or a stagger on it. |
+| **TZ5** | Only the overhead rake bleeds (`status_applied` bleed_2, limited to attack_heavy by canon's `pipeline.status_clips`). | `therizinosaurus.json` | Bleed strength/duration. |
+| **TZ6** | Spawns: temperate_45 working ring (1, 60 %) and temperate_35 far shore (1, 50 %); climate temperate. Hits use claw-tip marker bones (`ClawTip.L/R`, `pipeline.hit_parts`, radius 1.4-1.6) until claude/mmo-hitboxes lands. | `world/islands.json`, `therizinosaurus.json` | Which islands and how common; move hit parts to hitboxes.json later. |
 ### HITBOXES (2026-10-31) — every melee hit is a swept attack part touching a hurtbox (claude/mmo-hitboxes)
 
 Owner: "are we even using hitboxes for attacks? We should have hitboxes and it should correlate with whatever is used to attack and whatever is hitable on the body". Report `docs/orchestration/reports/claude-hitboxes.md`, how it works `docs/current/hitboxes.md`.

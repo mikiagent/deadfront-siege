@@ -1199,15 +1199,27 @@ func _charge(delta: float) -> void:
 
 ## A contact hit of this brain's animal landed (Creature._on_hit). tactics.heavy_shove_m: the horn ram
 ## (attack_heavy) throws the survivor back along the line from the animal to her, like the charge's shove.
+## THERIZINOSAURUS: tactics.primary_shove_m, the claw sweep (attack_primary) pushes her back to claw's length;
+## tactics.hook_pull_m, the combo's first hit (the claw hook) drags her in toward it, never closer than hook_stop_m.
 func landed(clip: StringName, target: Node) -> void:
-	if clip != &"attack_heavy" or _t("heavy_shove_m", 0.0) <= 0.0 or not target is Player:
+	if not target is Player:
 		return
 	var pl := target as Player
 	var away := pl.global_position - creature.global_position
 	away.y = 0.0
-	if pl.sim and away.length_squared() > 0.0001:
+	if pl.sim == null or away.length_squared() <= 0.0001:
+		return
+	if clip == &"attack_heavy" and _t("heavy_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6))
 		tactic.emit(&"heavy_shove")
+	elif clip == &"attack_primary" and _t("primary_shove_m", 0.0) > 0.0:
+		pl.sim.shove(away.normalized() * _t("primary_shove_m", 0.0), _t("primary_shove_stagger_s", 0.5))
+		tactic.emit(&"sweep_shove")
+	elif clip == &"bite_combo" and creature.anim.hit_index == 0 and _t("hook_pull_m", 0.0) > 0.0:
+		var pull := minf(_t("hook_pull_m", 0.0), away.length() - _t("hook_stop_m", 4.0) * creature.size_scale())
+		if pull > 0.05:
+			pl.sim.shove(-away.normalized() * pull, _t("hook_pull_stagger_s", 0.45))
+			tactic.emit(&"hook_pull")
 
 func _charge_impact() -> void:
 	# HITBOXES: the ram lands when the head and horns (the charge part) reach her body, not at the reach ring.
