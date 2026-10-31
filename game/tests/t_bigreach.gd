@@ -1,10 +1,9 @@
 extends SceneTree
 ## BIGREACH (owner: "im trying to attack the stegosaurus and it wont let me hit it"; "Triceratops has a
-## similar problem"). For every modelled species: the survivor against its side, rear and front (touching
-## its visible body - a hurtbox at her height - or its collider, whichever is outside) swings and the hit
-## lands; 1 m past reach the
-## swing is refused. Then auto-attack from 10 m on the triceratops and stegosaurus: she walks up to the
-## body and lands hits.
+## similar problem"). For every modelled species: the survivor against its side, rear and front (HITBOXES:
+## touching its visible body, a hurtbox at her height, or held off by its collider within a swing of one)
+## swings and the hit lands; FAR_M clear of its footprint the swing is refused. Then auto-attack from 10 m on
+## the triceratops and stegosaurus: she walks up to a part she can reach and lands hits.
 ## Usage: godot --headless --path game --script res://tests/t_bigreach.gd  -> "[t_bigreach] PASS"
 
 const APPROACH_S := 10.0

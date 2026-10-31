@@ -51,7 +51,57 @@
     {
      "bone": "Head"
     }
-   ]
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.76,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.81,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.76,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.03,
+       "calibrated": true
+      }
+     ]
+    }
+   }
   },
   "compsognathus": {
    "parts": [
@@ -67,7 +117,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.84,
+       "radius": 0.83,
        "calibrated": true
       },
       {
@@ -85,7 +135,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.72,
+       "radius": 0.71,
        "calibrated": true
       },
       {
@@ -97,7 +147,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.49,
+       "radius": 0.48,
        "calibrated": true
       },
       {
@@ -124,7 +174,7 @@
       },
       {
        "bone": "Head",
-       "radius": 0.83,
+       "radius": 0.82,
        "calibrated": true
       },
       {
@@ -156,7 +206,7 @@
       },
       {
        "bone": "Head",
-       "radius": 0.65,
+       "radius": 0.64,
        "calibrated": true
       }
      ]
@@ -176,12 +226,12 @@
     "bite_combo": {
      "parts": [
       {
-       "bone": "Jaw",
-       "radius": 0.6,
-       "calibrated": true
+       "bone": "Jaw"
       },
       {
-       "bone": "Head"
+       "bone": "Head",
+       "radius": 0.74,
+       "calibrated": true
       }
      ]
     }
@@ -194,20 +244,36 @@
     }
    ],
    "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "BackFoot.L"
+      },
+      {
+       "bone": "BackFoot.R",
+       "radius": 1.13,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ],
+     "_note": "the spring-and-rake kick (COELOMOVES CM2)"
+    },
     "attack_primary": {
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.12,
+       "radius": 0.94,
        "calibrated": true
       }
      ]
     },
-    "attack_heavy": {
+    "bite_combo": {
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.25,
+       "radius": 0.98,
        "calibrated": true
       }
      ]
@@ -224,7 +290,9 @@
     "kick": {
      "parts": [
       {
-       "bone": "BackFoot.L"
+       "bone": "BackFoot.L",
+       "radius": 0.72,
+       "calibrated": true
       },
       {
        "bone": "BackFoot.R"
@@ -238,7 +306,9 @@
      ],
      "parts": [
       {
-       "bone": "Head"
+       "bone": "Head",
+       "radius": 1.86,
+       "calibrated": true
       }
      ]
     },
@@ -246,7 +316,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.52,
+       "radius": 1.51,
        "calibrated": true
       }
      ]
@@ -279,14 +349,30 @@
      ],
      "parts": [
       {
-       "bone": "Head",
-       "radius": 0.51,
+       "bone": "Head"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 0.73,
+       "calibrated": true
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail2",
+       "radius": 2.04,
        "calibrated": true
       },
       {
-       "bone": "Jaw"
+       "bone": "Tail1"
+      },
+      {
+       "bone": "Hips"
       }
-     ]
+     ],
+     "_note": "the hip check: rump and stiff tail slam round at a prey behind it"
     },
     "attack_primary": {
      "parts": [
@@ -307,7 +393,7 @@
       },
       {
        "bone": "Jaw",
-       "radius": 0.53,
+       "radius": 0.52,
        "calibrated": true
       }
      ]
@@ -367,7 +453,7 @@
       },
       {
        "bone": "head",
-       "radius": 1.69,
+       "radius": 1.68,
        "calibrated": true
       }
      ]
@@ -385,7 +471,7 @@
       },
       {
        "bone": "head",
-       "radius": 1.57,
+       "radius": 1.56,
        "calibrated": true
       }
      ]
@@ -434,7 +520,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.04,
+       "radius": 1.05,
        "calibrated": true
       },
       {
@@ -522,7 +608,7 @@
       },
       {
        "bone": "Head",
-       "radius": 5.52,
+       "radius": 5.53,
        "calibrated": true
       }
      ]
@@ -545,7 +631,9 @@
        "bone": "Jaw"
       },
       {
-       "bone": "Head"
+       "bone": "Head",
+       "radius": 2.73,
+       "calibrated": true
       },
       {
        "bone": "BackFoot.L"
@@ -562,7 +650,7 @@
       },
       {
        "bone": "Head",
-       "radius": 2.55,
+       "radius": 1.82,
        "calibrated": true
       }
      ]
@@ -574,7 +662,19 @@
       },
       {
        "bone": "Head",
-       "radius": 1.75,
+       "radius": 2.15,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.93,
        "calibrated": true
       }
      ]
@@ -594,7 +694,9 @@
     "pounce": {
      "parts": [
       {
-       "bone": "Jaw"
+       "bone": "Jaw",
+       "radius": 0.49,
+       "calibrated": true
       },
       {
        "bone": "Head"
@@ -611,7 +713,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 1.08,
+       "radius": 0.43,
        "calibrated": true
       },
       {
@@ -623,7 +725,19 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.9,
+       "radius": 0.5,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_combo": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 0.51,
        "calibrated": true
       },
       {
@@ -669,7 +783,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.33,
+       "radius": 1.34,
        "calibrated": true
       }
      ]
@@ -678,7 +792,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 1.31,
+       "radius": 1.33,
        "calibrated": true
       }
      ]

@@ -151,7 +151,10 @@ func in_reach(t: Creature, slack: float = 0.0) -> bool:
 		if MeleeQuery.surface_gap(player, t) > PREVIEW_GAP_M + slack:
 			return false  # nothing she holds reaches that far: skip the sweep
 		var mv := swing_move(_weapon())
-		return not Hitbox.strike(player, mv[0], t, 0, mv[1], true, aim_point(t) - player.global_position).is_empty()
+		# With room to spare (SWING_MARGIN_M) unless its collider already stops her: the swing lands
+		# hit_delay later, and an animal backing off at a walk would have left a swing judged at the edge.
+		var margin := SWING_MARGIN_M if MeleeQuery.surface_gap(player, t) > 0.05 else 0.0
+		return not Hitbox.strike(player, mv[0], t, 0, mv[1], true, aim_point(t) - player.global_position, maxf(0.0, margin - slack)).is_empty()
 	var off := t.global_position - player.global_position
 	if Vector2(off.x, off.z).length() <= melee_reach(t) + slack:
 		return true
@@ -159,6 +162,7 @@ func in_reach(t: Creature, slack: float = 0.0) -> bool:
 
 const PREVIEW_GAP_M := 2.0  ## no survivor swing reaches past this body-edge gap (blade ~1.8 m from her centre)
 const REACH_UP_M := 2.2  ## the highest a swing (aimed up) reaches above her feet
+const SWING_MARGIN_M := 0.35  ## she starts a swing this far inside its reach (the hit lands ~0.4 s later)
 
 ## HITBOXES: [move, weapon class] of the swing she plays next (data/creatures/hitboxes.json survivor):
 ## punch bare-handed, heavy for a heavy blunt weapon, else swing; the class picks the blade's length.
@@ -278,10 +282,11 @@ func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3, mv: Array = [])
 		# HITBOXES: the swing's fist or blade, swept through the clip's window where she stands now.
 		if mv.is_empty():
 			mv = swing_move(w)
-		var hit := Hitbox.strike(player, mv[0], t, 0, mv[1])
+		# She tracks her target through the swing (PlayerSim.face_tick turns her to it every frame).
+		var hit := Hitbox.strike(player, mv[0], t, 0, mv[1], false, aim_point(t) - player.global_position)
 		if hit.is_empty():
 			CombatAvoid.avoided(t, player, &"miss")
-			return  # it stepped out of the swing, or got behind it
+			return  # it stepped out of the swing
 		if not MeleeQuery.clear(player, t):
 			return
 		Hitbox.mark(t, hit)

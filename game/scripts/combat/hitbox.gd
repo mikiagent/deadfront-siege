@@ -73,10 +73,11 @@ static func move_spec(attacker: Node, move: StringName, hit_index: int = 0, weap
 
 ## Judge one move against one target: {} when no part touched it, else {part, region, at}.
 ## preview: a reach test (the survivor's approach), not a swing: it is not drawn.
-## face (world, flat): judge it as if the attacker had turned to face that way (the approach's reach test).
-static func strike(attacker: Node3D, move: StringName, target: Node3D, hit_index: int = 0, weapon: StringName = &"", preview: bool = false, face: Vector3 = Vector3.ZERO) -> Dictionary:
+## face (world, flat): judge it as if the attacker had turned to face that way (the approach's reach test);
+## back_m: and stood that much farther back along it (a reach test with room to spare for a moving target).
+static func strike(attacker: Node3D, move: StringName, target: Node3D, hit_index: int = 0, weapon: StringName = &"", preview: bool = false, face: Vector3 = Vector3.ZERO, back_m: float = 0.0) -> Dictionary:
 	var t0 := Time.get_ticks_usec()
-	var out := _strike(attacker, move, target, hit_index, weapon, preview, face)
+	var out := _strike(attacker, move, target, hit_index, weapon, preview, face, back_m)
 	spent_usec += Time.get_ticks_usec() - t0
 	strikes += 1
 	return out
@@ -119,7 +120,7 @@ static func facing_basis(n: Node3D) -> Basis:
 	var v: Variant = n.get(&"visual")
 	return (v as Node3D).global_basis if v is Node3D else n.global_basis
 
-static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_index: int, weapon: StringName, preview: bool, face: Vector3) -> Dictionary:
+static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_index: int, weapon: StringName, preview: bool, face: Vector3, back_m: float) -> Dictionary:
 	var hurt := Hurtboxes.of(target)
 	var sk := Hurtboxes.skeleton_of(attacker)
 	if hurt == null or sk == null:
@@ -136,6 +137,7 @@ static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_inde
 		var turn := Transform3D(Basis(Vector3.UP, fwd.signed_angle_to(face, Vector3.UP)), Vector3.ZERO)
 		var pivot := Transform3D(Basis.IDENTITY, attacker.global_position)
 		xf = pivot * turn * pivot.affine_inverse() * xf
+		xf = Transform3D(Basis.IDENTITY, -face.normalized() * back_m) * xf
 	var draw := debug_draw and not preview
 	# Bounds first: most checks (a preview while she walks up, a bite at a dodging target) end here.
 	var sweep_box := AABB(xf * (samples[0][0][0] as Vector3), Vector3.ZERO)

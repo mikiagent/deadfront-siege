@@ -50,7 +50,8 @@ attacking part touching a hit-able part. Code: `game/scripts/combat/hurtboxes.gd
 |---|---|---|---|
 | Creature (CreatureBrain, TacticalBrain, RaptorPackBrain, PetBrain) | attack_primary, attack_heavy, bite_combo, kick, tail_swipe | `Creature._on_hit` at the clip's hit frame | species `parts` (jaw / head; tail tip for the stegosaurus) or the move's row |
 | TacticalBrain straight charge | charge (window 0-1 of the charge clip, else run) | `TacticalBrain._charge_impact`, every frame in reach until the head reaches her | head, horns |
-| TacticalBrain pounce | pounce | `TacticalBrain._pounce_land` | jaw, head, both hind feet |
+| TacticalBrain pounce | pounce | `TacticalBrain._pounce_land` | jaw, head, both hind feet (raptors) |
+| Gallimimus rake, pachycephalosaurus hip check | attack_heavy, kick | `Creature._on_hit` | hind feet + head; Tail2, Tail1, Hips |
 | TyrantBrain | attack_primary (bite), attack_heavy (stomp), tail_swipe | `TyrantBrain._impact` | jaw / head; toes + jaw; tail 5-7 |
 | ClubTailBrain (ankylosaurus) | its club_moves | `ClubTailBrain._tick_move`: the club's live path each physics frame (`Hitbox.touch`), landing at its closest pass | Tail5_end, radius 0.6 m |
 | Survivor swing | punch (bare hands, attack_primary clip), swing, heavy (heavy blunt weapon) | `Hunt._on_swing_hit` | fist 0.3 m; plus `weapons.<tool_class or damage_type>`: knife 0.45 m, slashing 0.7 m, blunt 0.7 m capsules out of the thumb side |
@@ -63,7 +64,9 @@ attacking part touching a hit-able part. Code: `game/scripts/combat/hurtboxes.gd
   her is still missed.
 - Reach for the survivor is the hitbox (`Hunt.in_reach`):
   - auto-attack and F swing only when the swing she would play, turned to face the target, sweeps through one of
-    its hurtboxes;
+    its hurtboxes. It must still reach from `Hunt.SWING_MARGIN_M` (0.35 m) farther back, because the hit lands
+    about 0.4 s later. The margin is dropped when the animal's collider already stops her;
+  - at the hit she is judged turned to her target, since `PlayerSim.face_tick` tracks it through the swing;
   - she walks to `Hunt.aim_point`, the nearest hurtbox she can reach from the ground (up to 2.2 m above her feet),
     for example a T. rex leg rather than the belly over her head.
 - A whiffed kick or tackle still spends its stamina and cooldown.
@@ -78,19 +81,22 @@ species' size range. Shrink a radius when the clip or the AI spacing is fixed.
 
 | Species | Move, part, radius (m at size 1.0) |
 |---|---|
-| compsognathus | pounce Jaw 0.84; attack_primary Jaw 0.72; attack_heavy Jaw 0.49 |
-| deinonychus | pounce Head 0.83; attack_primary Head 0.65; attack_heavy Jaw 0.72; bite_combo Jaw 0.60 |
-| gallimimus | attack_primary Head 1.12; attack_heavy Head 1.25 |
-| megaloceros | attack_primary Head 1.52; attack_heavy Head 1.41 |
-| pachycephalosaurus | charge Head 0.51; attack_primary Head 0.49; attack_heavy Jaw 0.53 |
-| stegosaurus | attack_primary head 1.69; attack_heavy head 1.57 (its tail swings behind, the target is in front) |
-| styracosaurus | kick BackFoot.L 1.30; charge Head 1.00; attack_primary / attack_heavy Head 1.04 |
-| tyrannosaurus | attack_primary Head 5.52 (the bite never comes below 3.3 m); tail_swipe Tail5 3.65 (the tail passes 4.5 m up) |
-| utahraptor | attack_primary Head 2.55; attack_heavy Head 1.75 |
-| velociraptor | attack_primary Jaw 1.08; attack_heavy Jaw 0.90 |
-| zebraceratops | kick BackFoot.L 0.87; charge Head 1.23; attack_primary / attack_heavy Head 1.33 / 1.31 |
+| coelophysis | attack_primary Jaw 0.76; attack_heavy Jaw 0.81; bite_combo Jaw 0.76; pounce Head 1.03 |
+| compsognathus | pounce Jaw 0.83; attack_primary Jaw 0.71; attack_heavy Jaw 0.48 |
+| deinonychus | pounce Head 0.82; attack_primary Head 0.64; attack_heavy Jaw 0.72; bite_combo Head 0.74 |
+| gallimimus | attack_heavy BackFoot.R 1.13; attack_primary Head 0.94; bite_combo Head 0.98 |
+| megaloceros | kick BackFoot.L 0.72; charge Head 1.86; attack_primary Head 1.51; attack_heavy Head 1.41 |
+| pachycephalosaurus | charge Jaw 0.73; kick Tail2 2.04; attack_primary Head 0.49; attack_heavy Jaw 0.52 |
+| stegosaurus | attack_primary head 1.68; attack_heavy head 1.56 |
+| styracosaurus | kick BackFoot.L 1.30; charge Head 1.00; attack_primary Head 1.05; attack_heavy Head 1.04 |
+| tyrannosaurus | tail_swipe Tail5 3.65; attack_primary Head 5.53 |
+| utahraptor | pounce Head 2.73; attack_primary Head 1.82; attack_heavy Head 2.15; bite_combo Head 1.93 |
+| velociraptor | pounce Jaw 0.49; attack_primary Jaw 0.43; attack_heavy Jaw 0.50; bite_combo Jaw 0.51 |
+| zebraceratops | kick BackFoot.L 0.87; charge Head 1.23; attack_primary Head 1.34; attack_heavy Head 1.33 |
 
-Uncalibrated: coelophysis, triceratops, the tyrannosaurus stomp, and the ankylosaurus (ClubTailBrain aims the club).
+Notes: the T. rex bite never comes below 3.3 m and its tail whip passes 4.5 m up; the stegosaurus tail swings behind while CreatureBrain attacks prey in front.
+
+Uncalibrated: triceratops, the tyrannosaurus stomp, and the ankylosaurus (ClubTailBrain aims the club).
 
 ## Debug draw
 

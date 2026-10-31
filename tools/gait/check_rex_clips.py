@@ -7,7 +7,8 @@ Per clip, every frame, measured on the toe tips (Toe.L/R tails) and the evaluate
             3 cm from where it touched down until it lifts again (foot sliding).
   grounded  one-shots and idle: at least one foot on the ground in every frame.
   ends      one-shots and idle: both toe tips on their rest prints (3 cm) in the first and last frame, so
-            crossfades to idle and the gaits never drag a foot.
+            crossfades to idle and the gaits never drag a foot. Not for HELD clips (pin_foot starts on the stomp's
+            impact frame and ends on the held pin, foot on the victim's chest).
   moonwalk  gaits (walk, run, walk_back, strafe_*): planted toes must slide against the clip's travel
             (median planted velocity . travel < 0); a positive value is a moonwalk.
 Prints one REXCHECK line per clip and exits 1 on any failure.
@@ -23,6 +24,7 @@ from mathutils import Vector
 a = sys.argv[sys.argv.index("--") + 1:]
 base, clips = a[0], a[1:]
 TOL = 0.03
+HELD = {"pin_foot"}
 TRAVEL = {"walk": (0, 1, 0), "run": (0, 1, 0), "walk_back": (0, -1, 0), "strafe_left": (-1, 0, 0), "strafe_right": (1, 0, 0)}
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -120,7 +122,7 @@ for path in clips:
             bad.append("slip")
         if airborne:
             bad.append("airborne")
-        if ends > TOL:
+        if ends > TOL and name not in HELD:
             bad.append("ends")
         detail = f"slip {slip * 100:.1f} cm airborne_frames {airborne} ends {ends * 100:.1f} cm"
     fails += bool(bad)

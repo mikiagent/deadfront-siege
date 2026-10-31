@@ -20,10 +20,6 @@ const BONE_TOL_M := 0.05  ## the player's seek and the bake's track sampling int
 const PERF_STRIKE_MS := 1.5  ## one strike (sync + sweep) against a survivor
 const PERF_TOTAL_MS := 12.0  ## 20 creatures striking once each
 const APPROACH_S := 8.0
-## Brain moves and which species play them (ClubTailBrain's ankylosaurus is t_ankyloai's).
-const CHARGERS := [&"pachycephalosaurus", &"zebraceratops", &"styracosaurus", &"triceratops"]  ## charge_straight
-const POUNCERS := [&"compsognathus", &"deinonychus"]
-const KICKERS := [&"styracosaurus", &"zebraceratops"]  ## the hind kick after a charge
 const SURVIVOR_MOVES := [[&"punch", &""], [&"swing", &"slashing"], [&"heavy", &"blunt"], [&"kick", &""], [&"tackle", &""]]
 
 var failures: Array[String] = []
@@ -147,17 +143,25 @@ func _moves_of(c) -> Array:
 	var id: StringName = c.def.id
 	var ap: AnimationPlayer = c.view.rig.anim_player
 	var reach: float = c.brain.contact_reach()
-	for mv in [&"attack_primary", &"attack_heavy"]:
-		out.append([mv, 0, false, [reach]])
+	var tac: Dictionary = c.brain.get(&"tac") if c.brain.get(&"tac") is Dictionary else {}
+	out.append([&"attack_primary", 0, false, [reach]])
+	# tactics.heavy_reach_m: an in-place kick fires only that close (the gallimimus rake).
+	out.append([&"attack_heavy", 0, false, [minf(reach, float(tac.get("heavy_reach_m", 1e9)))]])
 	if ap.has_animation(&"bite_combo"):
 		for i in 3:
 			out.append([&"bite_combo", i, false, [reach]])
-	if id in POUNCERS:
-		out.append([&"pounce", 0, false, [c.body_radius() + 0.2 + MQ.body_radius(player), reach]])
-	if id in CHARGERS:
+	# TacticalBrain moves from the species' resolved tactics (ClubTailBrain's ankylosaurus is t_ankyloai's).
+	var steps := {}
+	for sq in tac.get("sequences", []):
+		for st in (sq as Dictionary).get("steps", []):
+			steps[str(st)] = true
+	if steps.has("pounce"):
+		var land: float = c.body_radius() + 0.2  # TacticalBrain lands the leap this far from her centre
+		out.append([&"pounce", 0, false, [land, (land + reach) * 0.5, reach]])
+	if steps.has("charge") and tac.get("charge_straight", false):
 		out.append([&"charge", 0, false, [reach]])
-	if id in KICKERS:
-		out.append([&"kick", 0, true, [reach]])
+	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)):
+		out.append([&"kick", 0, true, [reach]])  # the hind kick at prey behind it (after a charge, or point blank)
 	if ap.has_animation(&"tail_swipe"):
 		out.append([&"tail_swipe", 0, true, [reach]])
 	return out

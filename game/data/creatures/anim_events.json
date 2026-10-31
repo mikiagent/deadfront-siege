@@ -28,7 +28,8 @@
         0.667
       ],
       "windup": true,
-      "note": "chomp left, chomp right, MEGA chomp: the front rears up for 12 frames (frames 33-44 of 66, the tell), then the whole body tips down from the hips like an animal drinking and bites at ground level. Exaggerated on purpose (owner: big by default, tune after). tools/jaw/make_combo.py."
+      "note": "chomp left, chomp right, MEGA chomp: the front rears up for 12 frames (frames 33-44 of 66, the tell), then the whole body tips down from the hips like an animal drinking and bites at ground level. Exaggerated on purpose (owner: big by default, tune after). tools/jaw/make_combo.py.",
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
     "hop_back": {
       "airborne": [
@@ -36,7 +37,8 @@
         0.65
       ],
       "note": "0.46 s: crouch, backward leap, landing squash; in place, the game moves the creature back during it. tools/jaw/make_hop_back.py (deinonychus first).",
-      "note_compsognathus": "compsognathus: tools/gait/make_leap.py hop_back, 0.458 s, IK-planted toes on the ground frames, jaw hisses open 10 deg"
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py hop_back, 0.458 s, IK-planted toes on the ground frames, jaw hisses open 10 deg",
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
     "strafe_left": {
       "note": "sidestep loop for every species, body keeps facing; tools/gait/make_gait.py <species>.json walk --as strafe_left --travel 1,0,0"
@@ -50,7 +52,8 @@
         0.65
       ],
       "note": "long backward leap, 0.79 s, wings fully flared; the game sets the distance (~5 m)",
-      "note_compsognathus": "compsognathus: tools/gait/make_leap.py leap_back, 0.667 s, deeper crouch, high tuck, nose-up landing"
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py leap_back, 0.667 s, deeper crouch, high tuck, nose-up landing",
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
     "pounce": {
       "airborne": [
@@ -59,7 +62,8 @@
       ],
       "hit_frac": 0.7,
       "note": "ambush pounce, 0.96 s: crouch, long high forward leap nose-down, wings fully flared; the game sets the distance (owner: larger leaps, ~8-10 m from cover)",
-      "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward"
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward",
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing",
@@ -71,7 +75,8 @@
         0.65
       ],
       "note": "explosive sideways dodge to the left, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side left)",
-      "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_left, 0.417 s, banks into the jump"
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_left, 0.417 s, banks into the jump",
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
     "dodge_right": {
       "airborne": [
@@ -79,7 +84,8 @@
         0.65
       ],
       "note": "explosive sideways dodge to the right, ~0.42 s: crouch, push off, body banks, wings flared, lands facing the target; in place, the game moves the creature (tools/jaw/make_hop_back.py --side right)",
-      "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_right, 0.417 s, banks into the jump"
+      "note_compsognathus": "compsognathus: tools/gait/make_leap.py dodge_right, 0.417 s, banks into the jump",
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
     "kick": {
       "hit_frac": 0.45,
@@ -99,7 +105,8 @@
       "note": "survivor state idle, loops in place of idle when exhausted: bent over, hands on knees, heavy breathing"
     },
     "charge": {
-      "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run"
+      "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run",
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     }
   },
   "natural_speeds": {
@@ -129,7 +136,8 @@
       "walk_len": 2.458,
       "walk_r": 0.507,
       "walk": 0.507,
-      "run": 3.843
+      "run": 3.843,
+      "charge": 4.492
     },
     "compsognathus": {
       "height_m": 1.2,
@@ -169,7 +177,8 @@
       "walk_len": 2.458,
       "walk_r": 1.034,
       "walk": 1.034,
-      "run": 7.842
+      "run": 7.842,
+      "charge": 9.999
     },
     "megaloceros": {
       "height_m": 2.1,
@@ -184,18 +193,20 @@
     },
     "pachycephalosaurus": {
       "height_m": 1.8,
-      "run_l": 3.595,
-      "run_len": 0.542,
-      "run_r": 3.595,
-      "walk_l": 0.952,
-      "walk_len": 1.0,
-      "walk_r": 0.952,
-      "walk": 0.952,
-      "run": 3.595,
-      "strafe_left": 0.952,
-      "strafe_left_len": 1.0,
-      "strafe_right": 0.952,
-      "strafe_right_len": 1.0
+      "run_l": 4.224,
+      "run_len": 0.5,
+      "run_r": 4.215,
+      "walk_l": 1.202,
+      "walk_len": 0.917,
+      "walk_r": 1.201,
+      "walk": 1.202,
+      "run": 4.22,
+      "strafe_left": 0.801,
+      "strafe_left_len": 0.917,
+      "strafe_right": 0.801,
+      "strafe_right_len": 0.917,
+      "walk_back": 0.801,
+      "walk_back_len": 0.917
     },
     "protoceratops": {
       "height_m": 1.6,
@@ -260,7 +271,8 @@
       "walk_len": 2.458,
       "walk_r": 1.164,
       "walk": 1.164,
-      "run": 10.073
+      "run": 10.073,
+      "charge": 9.538
     },
     "velociraptor": {
       "height_m": 2.4,
@@ -271,18 +283,25 @@
       "walk_len": 2.458,
       "walk_r": 0.779,
       "walk": 0.779,
-      "run": 6.743
+      "run": 6.743,
+      "charge": 5.241
     },
     "zebraceratops": {
       "height_m": 1.8,
-      "run_l": 4.102,
+      "run_l": 4.105,
       "run_len": 0.625,
       "run_r": 4.109,
       "walk_l": 1.541,
       "walk_len": 0.833,
-      "walk_r": 1.541,
-      "walk": 1.541,
-      "run": 4.106
+      "walk_r": 1.54,
+      "walk": 1.54,
+      "run": 4.107,
+      "strafe_left": 1.027,
+      "strafe_left_len": 0.833,
+      "strafe_right": 1.027,
+      "strafe_right_len": 0.833,
+      "walk_back": 1.027,
+      "walk_back_len": 0.833
     }
   }
 }

@@ -16,6 +16,7 @@ const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_s
 const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
 const XFADE := 0.08
 const GAIT_XFADE := 0.2  # walk <-> run: long enough that a gait change never pops
+const PIN_XFADE := 0.3  # the stomp into the pin, and the foot back to its print on release
 const LEGACY_TOP_MPS := 8.0  # creature.gd passes play_locomotion(speed / 8)
 ## ASSUMPTION: cadence guard for set_move_speed. Wide on purpose: several donor clips barely
 ## stride (megaloceros run 0.42 m/s natural at 7.6 m/s), and matching the ground beats a slide.
@@ -29,6 +30,8 @@ var player: AnimationPlayer
 var _playback: AnimationNodeStateMachinePlayback
 var _busy: bool = false
 var _hold_knockdown: bool = false
+## PINFEEL: holding pin_foot (a foot on a Pinned victim) until Creature.end_pin; nothing but death replaces it.
+var _pinning: bool = false
 var _dead: bool = false
 var _forced: bool = false
 var _def: CreatureDef
@@ -69,7 +72,7 @@ func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 
 ## aware: the brain knows of prey but is not attacking; a rig with an investigate loop plays it instead of idle.
 func play_idle(aware: bool = false) -> void:
-	if _dead or _hold_knockdown:
+	if _dead or _hold_knockdown or _pinning:
 		return
 	var state := &"investigate" if aware and _param.has(&"investigate") else &"idle"
 	_scale[state] = CreatureClips.clip_speed(state, _def)
@@ -166,6 +169,10 @@ func set_time_scale(x: float, factor: StringName = &"base") -> void:
 func play_clip(clip: StringName, forced: bool = false) -> void:
 	if _dead and clip != &"death":
 		return
+	if _pinning:
+		if clip != &"death":
+			return
+		_pinning = false
 	var state := clip if _param.has(clip) else &"idle"  # sleep / tail_swipe exist on some species only
 	_forced = forced
 	_busy = state in ONESHOT
@@ -199,6 +206,46 @@ func release_oneshot() -> void:
 	_forced = false
 	play_idle()
 
+## PINFEEL: cut to pin_foot (it starts on the stomp's impact frame) and hold it; false when the rig has no
+## pin_foot. A timed attack in flight (the tyrant's stomp) hands over to it.
+func start_pin() -> bool:
+	if _dead or not _param.has(&"pin_foot"):
+		return false
+	timed_attack = false
+	_os_state = &""
+	_busy = false
+	_forced = true
+	_pinning = true
+	_scale[&"pin_foot"] = CreatureClips.clip_speed(&"pin_foot", _def)
+	_travel(&"pin_foot")
+	return true
+
+func end_pin() -> void:
+	if not _pinning:
+		return
+	_pinning = false
+	_forced = false
+	play_idle()
+
+func is_pinning() -> bool:
+	return _pinning
+
+## PINFEEL: a Pinned animal lies in its knockdown pose for the pin. Unlike play_clip(&"knockdown") it opens no
+## capture window (knockdown_started); off stands it up unless the Knockdown status still holds it.
+func hold_down(on: bool) -> void:
+	if on:
+		if _dead:
+			return
+		_pinning = false
+		_busy = false
+		_forced = false
+		_hold_knockdown = true
+		_scale[&"knockdown"] = CreatureClips.clip_speed(&"knockdown", _def)
+		_travel(&"knockdown")
+	elif _hold_knockdown:
+		_hold_knockdown = false
+		play_idle()
+
 func release_knockdown() -> void:
 	_hold_knockdown = false
 	_forced = false
@@ -230,7 +277,7 @@ func end_timed_attack() -> void:
 	if not _dead: play_idle()
 
 func _can_move() -> bool:
-	return not (_busy or _dead or _hold_knockdown or _forced)
+	return not (_busy or _dead or _hold_knockdown or _forced or _pinning)
 
 func _pick_gait(mps: float) -> StringName:
 	var w := float(_natural.get(&"walk", 0.0))
@@ -327,11 +374,15 @@ func _build_tree() -> void:
 		if clip in HUBS:
 			continue
 		# The investigate loop holds a deep crouch: a longer blend in and out so the body does not drop in one frame.
-		var xf := GAIT_XFADE if clip == &"investigate" else XFADE
+		var xf := GAIT_XFADE if clip == &"investigate" else (PIN_XFADE if clip == &"pin_foot" else XFADE)
 		for hub in HUBS:
 			if _param.has(hub):
 				_trans(sm, hub, clip, xf)
 		_trans(sm, clip, &"idle", xf)
+	if _param.has(&"pin_foot"):
+		for a in ATTACKS:  # the stomp (or any swing) lands and the foot goes straight onto the victim
+			if _param.has(a):
+				_trans(sm, a, &"pin_foot", PIN_XFADE)
 		# A self-transition (attack -> attack) would fade a back-to-back replay, but Godot's state
 		# machine made the node report a zero length and broke hit/done timing, so the one-frame
 		# replay pop stays (accepted polish in the report; attacks are gated by _busy anyway).
