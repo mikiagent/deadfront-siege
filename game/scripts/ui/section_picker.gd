@@ -74,8 +74,9 @@ func _process(_d: float) -> void:
 	var t := target()
 	_chip.visible = t != null
 	if t != _shown_for:
+		if _shown_for != null:
+			_grid.visible = false  # a new target closes the grid
 		_shown_for = t
-		_grid.visible = false
 	if t == null:
 		_grid.visible = false
 		return

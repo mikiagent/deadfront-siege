@@ -154,7 +154,7 @@ func _decal(c: Creature, kind: StringName, at: Vector3, part: StringName) -> voi
 	var axis_pt := Geometry3D.get_closest_point_to_segment(at, cap["wa"], cap["wb"])
 	var out := at - axis_pt
 	out = out.normalized() if out.length() > 0.001 else (c.global_basis.y)
-	var surface := axis_pt + out * float(cap["wr"]) * 1.03
+	var surface := axis_pt + out * float(cap["wr"]) * 1.12  # just proud of the skin (the capsule hugs 90 % of it)
 	var along := ((cap["wb"] as Vector3) - (cap["wa"] as Vector3)).normalized()
 	if absf(along.dot(out)) > 0.95:
 		along = out.cross(Vector3.UP).normalized()
@@ -165,16 +165,16 @@ func _decal(c: Creature, kind: StringName, at: Vector3, part: StringName) -> voi
 	m.albedo_color = GASH if kind == WOUND else CRACK
 	m.emission_enabled = true
 	m.emission = m.albedo_color
-	m.emission_energy_multiplier = 0.6 if kind == WOUND else 2.5
-	m.no_depth_test = false
+	m.emission_energy_multiplier = 0.6 if kind == WOUND else 4.0
+	m.no_depth_test = kind == BREAK  # the fracture glows through spikes and plates over it; the gash sits in the skin
 	var lines: Array = [[0.0, 0.0, 0.9], [0.12, 0.1, 0.65], [-0.14, -0.08, 0.55]] if kind == WOUND \
 		else [[0.0, 0.0, 0.8], [1.0, 0.0, 0.6], [2.1, 0.0, 0.7], [3.3, 0.0, 0.5], [4.4, 0.0, 0.6]]
 	for i in lines.size():
 		var row: Array = lines[i]
 		var mi := MeshInstance3D.new()
 		var box := BoxMesh.new()
-		var len := maxf(0.25, r * 0.9) * float(row[2])
-		box.size = Vector3(len, maxf(0.025, r * 0.07), maxf(0.02, r * 0.05))
+		var len := maxf(0.3, r * 1.3) * float(row[2])
+		box.size = Vector3(len, maxf(0.04, r * 0.12), maxf(0.03, r * 0.08))
 		mi.mesh = box
 		mi.material_override = m
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

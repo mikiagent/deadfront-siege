@@ -12,6 +12,7 @@ HeldModel puts the handle through the survivor's fist with the edge facing where
 """
 import math, random, sys
 import bpy, bmesh
+from mathutils import Vector
 
 OUT = sys.argv[sys.argv.index("--") + 1]
 random.seed(7)
@@ -91,7 +92,13 @@ def blade(name, z0, z1, w0, w1, thick, edge, tip, mats, uv_scale=1.0, diamond=Fa
     for cap in (secs[0], secs[-1]):
         f = bm.faces.new(cap if cap is secs[-1] else list(reversed(cap)))
         f.material_index = 0
-    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    # Every face points away from the blade's centre line (recalc can flip a thin, pinched point the wrong way).
+    bm.normal_update()
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if f.normal.dot(c - Vector((0.0, 0.0, c.z))) < 0.0 and abs(c.x) + abs(c.y) > 1e-4:
+            f.normal_flip()
+    bm.normal_update()
     return obj_from_bm(name, bm, mats)
 
 
@@ -156,8 +163,8 @@ def mottled(name, size=256):
     for y in range(size):
         for x in range(size):
             n = 0.55 * noise(x, y, 64) + 0.3 * noise(x, y, 32) + 0.15 * noise(x, y, 16)
-            cloud = max(0.0, min(1.0, (n - 0.52) * 4.0))
-            v = 0.07 + 0.30 * cloud
+            cloud = max(0.0, min(1.0, (n - 0.48) * 3.0))
+            v = 0.3 + 0.45 * cloud
             px += [v, v, v * 1.03, 1.0]
     img.pixels = px
     img.pack()
@@ -166,8 +173,8 @@ def mottled(name, size=256):
 
 # --- slab blade (one-handed) ---------------------------------------------------------------------------------------
 reset()
-iron = mat("dark_iron", (0.09, 0.09, 0.1), 0.85, 0.55)
-edge = mat("worn_edge", (0.78, 0.77, 0.72), 1.0, 0.28)
+iron = mat("dark_iron", (0.2, 0.2, 0.22), 0.55, 0.5)
+edge = mat("worn_edge", (0.92, 0.9, 0.85), 0.55, 0.3)
 leather = mat("grip_leather", (0.16, 0.09, 0.05), 0.0, 0.8)
 blade("blade", 0.37, 1.62, 0.24, 0.21, 0.045, 0.03, "clip", [iron, edge])
 box("guard", 0.34, 0.07, 0.05, 0.345, iron)
@@ -177,8 +184,8 @@ export("slab_blade")
 
 # --- greatblade (two-handed) ---------------------------------------------------------------------------------------
 reset()
-steel = mat("cloud_steel", (1, 1, 1), 0.7, 0.5, mottled("cloud_steel"))
-edge = mat("steel_edge", (0.8, 0.8, 0.78), 1.0, 0.22)
+steel = mat("cloud_steel", (1, 1, 1), 0.1, 0.5, mottled("cloud_steel"))
+edge = mat("steel_edge", (0.92, 0.92, 0.9), 0.55, 0.28)
 leather = mat("wrap_leather", (0.12, 0.08, 0.06), 0.0, 0.85)
 dark = mat("guard_iron", (0.06, 0.06, 0.07), 0.8, 0.5)
 box("ricasso", 0.3, 0.055, 0.14, 0.7, dark)  # an unsharpened square shoulder above the guard

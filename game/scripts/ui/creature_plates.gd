@@ -692,7 +692,7 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 	var key := c.get_instance_id()
 	if not _entries.has(key):
 		return
-	if amount < 0.5 and kind != &"heal" and kind != &"xp" and not CombatAvoid.TEXT.has(kind):
+	if amount < 0.5 and kind != &"heal" and kind != &"xp" and kind != &"wound_formed" and kind != &"armor_break" and not CombatAvoid.TEXT.has(kind):
 		return  # a bleed tick under 1 HP read "-0" over the plate
 	var entry: Dictionary = _entries[key]
 	var layer := entry["floats"] as Control
@@ -759,7 +759,11 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 	label.add_theme_constant_override("outline_size", 4 if fs >= 20 else 3)
 	layer.add_child(label)
 	var nodes: Array = entry.get("float_nodes", [])
-	nodes.append({"node": label, "age": 0.0})
+	if kind == &"wound_formed" or kind == &"armor_break":
+		label.position.x = 20.0
+		nodes.append({"node": label, "age": -0.4, "y0": -40.0})  # above the numbers, held a moment: it reads on its own
+	else:
+		nodes.append({"node": label, "age": 0.0})
 	entry["float_nodes"] = nodes
 	_entries[key] = entry
 

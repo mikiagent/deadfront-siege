@@ -4,7 +4,7 @@ extends Node3D
 ## capsules (seen through the body), following the live pose. One per animal; show_on(c, &"") clears it.
 
 const NAME := &"SectionHighlight"
-const COLOR := Color(0.35, 0.9, 1.0, 0.28)
+const COLOR := Color(0.35, 0.9, 1.0, 0.2)
 
 var creature: Creature
 var section: StringName = &""
