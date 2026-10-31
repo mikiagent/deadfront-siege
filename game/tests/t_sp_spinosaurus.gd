@@ -203,6 +203,7 @@ func _setup_fight(dist: float, live_player: bool = false) -> Array:
 	b.attack_target = player
 	b._combat_memory_left = 30.0
 	await physics_frame
+	c.anim.release_oneshot()  # THERO-ROAR: spotting her it rears and roars first; the move under test comes after it
 	return [host, player, c, b]
 
 ## At the jaws' reach in front: the croc snap lands from the jaws.
@@ -337,7 +338,6 @@ func _test_sail_flare() -> void:
 	var rows: Array = b.tac["sequences"]
 	b.tac = b.tac.duplicate(true)
 	b.tac["sequences"] = rows.filter(func(r: Dictionary) -> bool: return str(r["name"]) == "sail_flare_charge")
-	c.anim.release_oneshot()  # THERO-ROAR: spotting her at 16 m it rears and roars first; the sequence comes after it
 	_expect(b._start_sequence(b._flat_dist(f[1])), "the sail-flare sequence starts")
 	_expect(b.state == &"display" and c.anim.current_clip == &"alert", "it flares the sail (display, alert clip: %s, %s)" % [b.state, c.anim.current_clip])
 	var charged := false
