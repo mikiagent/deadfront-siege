@@ -16,7 +16,7 @@ normalized timeline: copies surface as IDENTICAL / NEAR-IDENTICAL.
 
 Usage: python3 tools/audit_gaits.py [--gate]
 
---gate exits 1 when a +z-facing rig's planted foot slides forward (moonwalk, drift > +0.05) or its walk and run
+--gate exits 1 when a +z- or -z-facing rig's planted foot slides forward (moonwalk, drift > +0.05) or its walk and run
 are copies. Calibrated 2026-10-28: flags the Meshy-library bipeds (coelophysis, compsognathus, gallimimus,
 utahraptor, velociraptor), passes deinonychus and the quadrupeds. Rigs facing another axis are listed as
 unchecked (the drift is measured on the +z axis only).
@@ -258,6 +258,11 @@ def main():
         if not feet and ('Toe.L' in names or 'Toe.R' in names):
             feet = sorted({n for n in names if n.startswith('Toe') and not n.endswith('_end')})
         fwd = facing(rig, names)
+        try:  # the species JSON's declared facing wins (the bone heuristic reads the T. rex as -x)
+            decl = json.load(open(f'game/data/creatures/{sp}.json')).get('pipeline', {}).get('forward_axis', '')
+            fwd = decl.lower() if decl.lower() in ('+z', '-z') and rel == f'game/assets/creatures/{sp}/{sp}.glb' else fwd
+        except (OSError, ValueError):
+            pass
         base = rel.rsplit('/', 1)[0] + '/anim/'
         try:
             doc_w, acc_w = read_glb(base + 'walk.glb')
@@ -277,17 +282,18 @@ def main():
         drift_r = foot_clip(doc_r, per_r, dur_r, feet) if feet and dur_r else {}
         rr = ', '.join(f'{nm.split(".")[-1]}: {stance_drift(p):+.3f}' for nm, p in sorted(drift_r.items()) if len(p) >= 8)
         cmp_ = compare((per_w, dur_w), (per_r, dur_r)) if per_r else '(no run clip)'
-        if fwd != '+z':
+        if fwd not in ('+z', '-z'):
             unchecked.append(sp)
         else:
+            sgn = 1.0 if fwd == '+z' else -1.0  # a -z rig's planted foot moves +z (backwards); forward is the moonwalk
             slid = [f'{clip} {nm.split(".")[-1]} {stance_drift(p):+.2f}' for clip, d in (('walk', drift), ('run', drift_r))
-                    for nm, p in d.items() if len(p) >= 8 and stance_drift(p) > 0.05]
+                    for nm, p in d.items() if len(p) >= 8 and sgn * stance_drift(p) > 0.05]
             if slid or 'IDENTICAL' in cmp_:
                 fails.append(f'{rel}: ' + ', '.join(slid + (['walk == run'] if 'IDENTICAL' in cmp_ else [])))
         print(f'{rel:52s} times {tw + tr:4d}/{verdict}')
         print(f'    fwd={fwd:3s} walk [{dur_w:.2f}s]: {wr or "(nothing trackable)"}  |  run [{dur_r:.2f}s]: {rr or "(nothing trackable)"}  |  run-vs-walk: {cmp_}')
     if gate:
-        print('\nGATE unchecked (not +z facing):', ', '.join(unchecked) or 'none')
+        print('\nGATE unchecked (not +z/-z facing):', ', '.join(unchecked) or 'none')
         for f in fails: print('GATE FAIL', f)
         print('GATE', 'FAIL' if fails else 'PASS')
         sys.exit(1 if fails else 0)
