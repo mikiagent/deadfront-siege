@@ -576,7 +576,7 @@ func shove(push: Vector3, stagger_s: float, lift_mps: float = 0.0, who: Creature
 	if p.rolling or stagger_s <= 0.0 or push.length_squared() <= 0.0:
 		return
 	push.y = 0.0
-	if knock.hit(push, lift_mps, who) != PlayerKnock.Tier.LIGHT:
+	if knock.hit(push, lift_mps, who) != PlayerKnock.Tier.LIGHT or knock.active():  # down: rooted, nothing queues a slide
 		_stagger_left = 0.0
 		_shove = Vector3.ZERO
 		return

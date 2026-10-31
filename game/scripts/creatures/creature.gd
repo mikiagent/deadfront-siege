@@ -87,6 +87,9 @@ var running: bool = false
 var brain: CreatureBrain
 ## PINFEEL: the victim this predator holds Pinned under one foot (pin_foot), or null.
 var pin_victim: Node3D
+var _pin_t := 0.0
+var _pin_bitten := false
+var _unpinned: Node3D
 var _fx_drip: GPUParticles3D
 var _aggro_ring: MeshInstance3D
 ## Stagger: 0.3 s frozen hurt window after a hit, at most once per second.
@@ -581,6 +584,7 @@ func _physics_process(delta: float) -> void:
 	stagger_left = maxf(0.0, stagger_left - delta)
 	if pin_victim != null:
 		_tick_pin(delta)
+	_tick_unpinned()
 	_shove_left = maxf(0.0, _shove_left - delta)
 	if health.dead or pin_victim != null or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
 		var k := _shove_left / _shove_s if _shove_s > 0.0 and not health.dead else 0.0
@@ -924,6 +928,10 @@ func _on_windup(clip: StringName) -> void:
 
 func _on_hit(clip: StringName) -> void:
 	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
+	if clip == &"spit":  # SP-DILOPHOSAURUS: the spit's hit frame launches the venom glob; it lands its own hit
+		if brain is TacticalBrain:
+			(brain as TacticalBrain).launch_spit()
+		return
 	var target := brain.attack_target if brain else null
 	if target:
 		# A contact attack lands at impact, not anywhere the target ran during windup. HITBOXES: the
@@ -986,25 +994,57 @@ func _on_kd_end() -> void:
 
 ## PINFEEL: Pinned landed on `victim` from this predator's hit. A rig with pin_foot plants the foot on it and
 ## holds until the status ends (_tick_pin); the victim is laid on its back and kept under the claws (PinHold).
-func start_pin(victim: Node3D) -> void:
-	if pin_victim != null or health.dead or ridden or not anim.start_pin():
-		return
+## BIGSTOMP: false (no pin) when the victim is not already near the foot (PinHold.can_start); the caller then knocks
+## her down instead of pulling her under it.
+func start_pin(victim: Node3D) -> bool:
+	if pin_victim != null or health.dead or ridden or not anim.has_state(&"pin_foot") or not PinHold.can_start(self, victim) or not anim.start_pin():
+		return false
 	pin_victim = victim
+	_pin_t = 0.0
+	_pin_bitten = false
 	stop_move()
 	PinHold.lay_down(self, victim)
+	_pin_collide(victim, false)  # BIGSTOMP: under the belly she would be pushed back out of its capsule
 	print("[combat] %s pins %s" % [def.id, victim.name])
+	return true
 
 func end_pin() -> void:
 	if pin_victim == null:
 		return
+	_unpinned = pin_victim  # collides again once she is out from under it (_tick_unpinned)
 	pin_victim = null
 	anim.end_pin()
+
+## The pinner and its victim stop colliding for the pin (both ways) and collide again after.
+func _pin_collide(victim: Node3D, on: bool) -> void:
+	if not is_instance_valid(victim) or not victim is PhysicsBody3D:
+		return
+	if on:
+		remove_collision_exception_with(victim)
+		(victim as PhysicsBody3D).remove_collision_exception_with(self)
+	else:
+		add_collision_exception_with(victim)
+		(victim as PhysicsBody3D).add_collision_exception_with(self)
+
+## Released under its body, she would be stuck inside its capsule: the two collide again only once she is clear of it.
+func _tick_unpinned() -> void:
+	if _unpinned == null:
+		return
+	if not is_instance_valid(_unpinned) or Vector2(_unpinned.global_position.x - global_position.x, _unpinned.global_position.z - global_position.z).length() > body_radius() + 1.0:
+		_pin_collide(_unpinned, true)
+		_unpinned = null
 
 func _tick_pin(delta: float) -> void:
 	if not PinHold.holds(self, pin_victim):
 		end_pin()
 		return
 	PinHold.snap(self, pin_victim, delta)
+	# BIGSTOMP: the follow-up while it holds her down: one bite (ai.json big_stomp.pin_bite_s / pin_bite_mult).
+	_pin_t += delta
+	if not _pin_bitten and _pin_t >= float(BigStomp.section().get("pin_bite_s", 1.5)):
+		_pin_bitten = true
+		# (no receive_creature_hit: she is held down, so no flinch and no auto-retaliate order outliving the pin)
+		CreatureAttack.apply_for(self, &"attack_primary", pin_victim, float(BigStomp.section().get("pin_bite_mult", 0.6)))
 
 func _on_status_removed(id: StringName) -> void:
 	if id == &"pinned" and not statuses.has(&"knockdown"):
@@ -1111,6 +1151,7 @@ func _on_died(_source: Node) -> void:
 		World.record_raid_kill(def.id, credited)
 		if PlayerRegistry.credit_for(credited) != null:
 			Tasks.note(&"hunt")  # TASKSCREEN: a kill by the survivor or her pet counts toward the hunt tasks
+	_unpinned = pin_victim
 	pin_victim = null  # the death clip ends the pin pose; the victim's status runs out on its own
 	anim.play_clip(&"death")
 	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the

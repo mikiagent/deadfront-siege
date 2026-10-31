@@ -11,8 +11,8 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right"]
-const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"tackle_lunge"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"bite_shake", &"big_stomp", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right"]
+const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"arm_bite", &"spit", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"tackle_lunge"]
 ## One-shots during which a brain moves the body itself on an arc (TacticalBrain._arc_step), not by walking.
 const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn", &"leap", &"flank_rake"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"]
@@ -202,6 +202,11 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		var tell: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get(str(state), {}) as Dictionary).get("tell_fracs")
 		_os_windup_frac = float((tell as Array)[0]) if state in ATTACKS and tell is Array and not (tell as Array).is_empty() else -1.0
 		hit_index = 0
+
+## HOPSTRAFE: play the current state mult times longer (a bound covering more ground than its clip was made for).
+func stretch(state: StringName, mult: float) -> void:
+	_scale[state] = float(_scale.get(state, 1.0)) / maxf(0.01, mult)
+	_apply(state)
 
 ## End a non-attack one-shot now (a brain that timed the move itself, e.g. a leap that has landed).
 func release_oneshot() -> void:

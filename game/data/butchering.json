@@ -494,6 +494,27 @@
       "rare": [],
       "_generated": "size-class default (9.0 m); tune per species"
     },
+    "megatherium": {
+      "base": [
+        {
+          "id": "raw_meat",
+          "min": 5,
+          "max": 7
+        },
+        {
+          "id": "large_leg_bone",
+          "min": 1,
+          "max": 2
+        },
+        {
+          "id": "raw_hide",
+          "min": 3,
+          "max": 4
+        }
+      ],
+      "rare": [],
+      "_generated": "ASSUMPTION (SP-MEGATHERIUM): a little above the woolly rhino for a 12 m (2x) body; the shaggy pelt drops as extra raw_hide and the claws as nothing until the items list has sloth parts"
+    },
     "woolly_rhino": {
       "base": [
         {
