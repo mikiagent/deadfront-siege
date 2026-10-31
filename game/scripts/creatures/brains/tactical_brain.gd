@@ -351,6 +351,11 @@ func _holds_flee() -> bool:
 func _full_rate() -> bool:
 	return state in MOVES
 
+## BIGSTOMP: every fighting state is a timed move here, so the stomp may cut in only on the steady ones (closing in,
+## circling, the plain attack, holding), never inside a charge, pounce, lunge, leap, combo, dodge or pin.
+func stomp_ready() -> bool:
+	return state in [&"approach", &"circle", &"attack", &"hold", &"alert"] and _valid_target() and not creature.anim.is_busy()
+
 func _pre_think(dt: float) -> bool:
 	# Before the shared rules (a disengage would skip the think): a packmate just died, the rest scatter.
 	var pack_now := _pack_members().size()
@@ -1309,8 +1314,10 @@ func _charge_cleanup() -> void:
 	_charge_phase = &""
 
 ## Hit reactions do not interrupt a committed charge (paw, run, impale); brake and recover can be punished.
+## tactics.charge_armor (megatherium): the whole committed line ignores hits (its slow, unstoppable advance).
 func super_armor() -> bool:
-	return (state == &"charge" and _charge_phase in [&"paw", &"run", &"impale"]) or (state == &"grab" and _held != null)
+	return (state == &"charge" and (_charge_phase in [&"paw", &"run", &"impale"] or (tac.get("charge_armor", false) and not _tossing))) \
+		or (state == &"grab" and _held != null)
 
 ## World position of the nose-horn tip on the live pose: the mesh's frontmost rest vertex, kept in Head-bone
 ## space and carried by the bone (so it follows the dip and scoop). No rig: a point ahead of the body.
@@ -1413,6 +1420,13 @@ func landed(clip: StringName, target: Node) -> void:
 	if clip == &"attack_heavy" and _t("heavy_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6), 0.0, creature)
 		tactic.emit(&"heavy_shove")
+	elif clip == &"attack_primary" and _t("primary_pull_m", 0.0) > 0.0:
+		# MEGATHERIUM: the hooking claw (attack_primary) drags her up to primary_pull_m toward it, never closer than
+		# pull_stop_m from its centre (the therizinosaurus hook pull's rule on the basic).
+		var pull0 := minf(_t("primary_pull_m", 0.0), away.length() - _t("pull_stop_m", 2.5) * creature.size_scale())
+		if pull0 > 0.05:
+			pl.sim.shove(-away.normalized() * pull0, _t("primary_pull_stagger_s", 0.5))
+			tactic.emit(&"hook_pull")
 	elif clip == &"kick" and _t("kick_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("kick_shove_m", 0.0), _t("kick_shove_stagger_s", 0.6), 0.0, creature)
 		tactic.emit(&"kick_shove")
@@ -1813,8 +1827,10 @@ func _start_pounce() -> void:
 	creature.stop_move()
 	# Windup pose: the heavy clip retimed to reach its strike frame as the windup ends. Coiled from a chase bound there is
 	# no crouch: the pounce clip's own 0.2 crouch is the lead-in (the ring still shows from now to the hit).
+	# tactics.pounce_windup_clip: a species' own windup (the megatherium's grab: reared, arms thrown wide before the hug).
 	if _left > 0.05:
-		creature.anim.play_timed_attack(&"attack_heavy", _left)
+		var wclip := StringName(str(tac.get("pounce_windup_clip", "attack_heavy")))
+		creature.anim.play_timed_attack(wclip if creature.anim.has_state(wclip) else &"attack_heavy", _left)
 	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("pounce_radius_m", 1.6) + _size_excess(attack_target), _left + 1.0)
 	_start_cd(&"pounce")
 	_mark_pack()
@@ -2319,7 +2335,7 @@ func _pin(delta: float) -> void:
 	var hold := creature.global_position + fwd.normalized() * _t("pin_reach_m", 1.5) * creature.size_scale()
 	var d := hold - v.global_position
 	d.y = 0.0
-	v.global_position += d * (1.0 - exp(-delta / 0.12))
+	v.global_position += (d * (1.0 - exp(-delta / 0.12))).limit_length(float(BigStomp.section().get("pin_slide_mps", 3.0)) * delta)  # BIGSTOMP: no jump
 
 func _end_pin() -> void:
 	var v := _pin_victim

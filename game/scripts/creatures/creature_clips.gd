@@ -25,7 +25,9 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"
 ## spit: the venom spit; its hit frame launches VenomSpit (dilophosaurus, SP-DILOPHOSAURUS).
 ## grab_bite: the allosaurus' hands-then-jaws grab (TacticalBrain tactics.grab, SP-ALLOSAURUS); arm_bite: the utahraptor's bite with arms (UTAHARMS).
 ## bull_windup: head down, a foot pawing twice with snorts, before a charge (pachycephalosaurus, tactics.display_clip).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit"]
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"grab", &"big_stomp"]
+## grab: the megatherium's bear-hug windup (tactics.pounce_windup_clip, played timed before the pounce).
+## big_stomp: the shared big-dinosaur stomp (BigStomp, BIGSTOMP).
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
