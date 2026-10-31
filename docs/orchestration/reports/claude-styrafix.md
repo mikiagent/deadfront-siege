@@ -139,9 +139,8 @@ the survivor. In the lab the horn tip was 1.27 m from her centre at the hit fram
 - `creature_brain.gd`:
   - `line_dir` and `super_armor()` added.
   - A creature that spots a threat now stops before its sniff/alert pose, instead of gliding along its roam path.
-- `tactical_brain.gd`: a playing `alert` pose is released once the brain is in approach, circle or retreat. This is
-  opt-in (`tactics.drop_pose_on_move`, the styracosaurus only). Applied to every tactical brain, it broke t_swarm:
-  the compsognathus surround depends on the pose holding a member in place.
+- `tactical_brain.gd`: my styracosaurus-only release of the alert pose when the body moves was removed in the
+  COMPYFEEL merge. Canon's shared no-glide rule in `Creature._physics_process` does the same for every creature.
 - I did **not** add a "play a run clip whenever the body moves" rule. That is claude/mmo-compyfeel's. The styracosaurus
   charge plays its own stride-matched `charge` clip.
 
@@ -158,6 +157,21 @@ I merged origin/claude/mmo-overhaul 4d460989 (COELOMOVES, ANKYLOAI, PINFEEL, BIG
 After the merge, all of these pass:
 - t_styrafix, 3 runs;
 - t_styraco, t_coelomoves, t_combat, t_canim, t_mounts, t_saddles, t_godlab, t_swarm;
+- run_all `[tests] PASS` and SMOKE PASS.
+
+### Second merge: COMPYFEEL (ee6bfcbb)
+
+Conflicts:
+- **charge_crouch**: canon's coil before a charge now sits beside the impale phases. The impale branch runs first,
+  and the styracosaurus has no charge_crouch clip.
+- **clip lists**: `charge_crouch` and my three clips are both in ONESHOT and OPTIONAL.
+
+COMPYFEEL's no-glide rule does not touch the charge. The paw, impale and recover stop the body, so their clips keep
+playing in place. The run drives the body along `line_dir` on the stride-matched `charge` clip.
+
+After this merge, all of these pass:
+- t_styrafix, 3 runs;
+- t_styraco, t_coelomoves, t_compyfeel, t_combat, t_canim, t_mounts, t_saddles, t_godlab, t_swarm;
 - run_all `[tests] PASS` and SMOKE PASS.
 
 ## Gates
