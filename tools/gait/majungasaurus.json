@@ -1,0 +1,170 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 1.1,
+  "view_centre": [
+    0.0,
+    0.25
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck1": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head_yaw",
+      "axis": "yaw"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.2
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "note": "SP-MAJUNGASAURUS 2026-10-31: rig_biped.py rig (tools/gait/majungasaurus_rig.json: Thigh/Shin/Metatarsal/Toe, faces -Y, hip 0.265 mesh units). The metatarsal is posed as the foot: IK solves thigh+shin to its head. Heavy, short-legged abelisaurid: a slower, rolling walk; charge = the run with the body level and the jaws pushed out ahead (the rush that ends in the crushing bite).",
+  "clips": {
+    "walk": {
+      "cycle_s": 1.1,
+      "duty": 0.62,
+      "stride": 0.3,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.045,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 3.0,
+      "lean_deg": 2,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -2
+        ],
+        "Head": [
+          "pitch",
+          2
+        ]
+      },
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 2.5,
+      "wiggle_tail": 2.0,
+      "sway": 0.006,
+      "crouch": 0.004
+    },
+    "run": {
+      "cycle_s": 0.66,
+      "duty": 0.4,
+      "stride": 0.6,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.075,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.008,
+      "bob_harmonic": 2,
+      "roll_deg": 3,
+      "lean_deg": 7,
+      "hold": {
+        "Neck1": [
+          "pitch",
+          -6
+        ],
+        "Head": [
+          "pitch",
+          4
+        ]
+      },
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 1.5,
+      "wiggle_tail": 3.0,
+      "sway": 0.006,
+      "crouch": 0.02
+    },
+    "charge": {
+      "cycle_s": 0.6,
+      "duty": 0.4,
+      "stride": 0.64,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.075,
+      "swing_curl_hind": -8,
+      "toe_roll": 0,
+      "bob": 0.007,
+      "bob_harmonic": 2,
+      "roll_deg": 2,
+      "lean_deg": 10,
+      "hold": {
+        "Chest": [
+          "pitch",
+          -2
+        ],
+        "Neck1": [
+          "pitch",
+          -10
+        ],
+        "Neck2": [
+          "pitch",
+          -4
+        ],
+        "Head": [
+          "pitch",
+          6
+        ],
+        "Tail1": [
+          "pitch",
+          4
+        ],
+        "Tail2": [
+          "pitch",
+          2
+        ]
+      },
+      "wiggle_head": 1.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 0.5,
+      "wiggle_tail": 2.0,
+      "sway": 0.004,
+      "crouch": 0.03
+    }
+  }
+}

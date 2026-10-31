@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://n8omt4ii5l34"
-path="res://.godot/imported/grab_bite.glb-28238d1fecf168e9e3dff8805eeecd6e.scn"
+uid="uid://c1imt4ypio3dr"
+path="res://.godot/imported/hit_react.glb-6c0ebb4cb7ee2e8ca424e9871baa0a8f.scn"
 
 [deps]
 
-source_file="res://assets/creatures/utahraptor/anim/grab_bite.glb"
-dest_files=["res://.godot/imported/grab_bite.glb-28238d1fecf168e9e3dff8805eeecd6e.scn"]
+source_file="res://assets/creatures/spinosaurus/anim/hit_react.glb"
+dest_files=["res://.godot/imported/hit_react.glb-6c0ebb4cb7ee2e8ca424e9871baa0a8f.scn"]
 
 [params]
 

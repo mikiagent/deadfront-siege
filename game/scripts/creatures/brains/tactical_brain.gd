@@ -25,8 +25,23 @@ signal sequence_started(seq_name: String, steps: Array)
 signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
+## HOPSTRAFE: a reposition started: &"hop" (an airborne bound, sideways or back) or &"strafe" (a side-step walk on the
+## ring, a walked side-step, a scurry back).
+signal reposition(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn", &"bound", &"flank"]
+## HOPSTRAFE (owner 2026-10-31): "smaller animals hop around more than they strafe, big and heavy dinosaurs strafe more
+## than they hop". The style comes from tactics.reposition ("hop", "strafe" or "mixed") or, unset, from the body's bulk
+## real_length_m x height_meters (the kick-shove mass proxy):
+##   hop    - the ring is circled in bounds (a body length sideways, a short flight, planted landing, a pause) with an
+##            occasional strafe-walk; back-hops twice as likely;
+##   strafe - side-steps at a walk and back-steps on foot (scurry); never airborne;
+##   mixed  - the profile as authored (also a small body whose rig has no dodge_left/right side-hop clips).
+const HOP_MAX_BULK := 15.0  # ASSUMPTION (HS1): compy 3.6, velociraptor 6.2, coelophysis 12; deinonychus 17.2 (taller than her) stays mixed
+const STRAFE_MIN_BULK := 40.0  # ASSUMPTION (HS1): triceratops 41.8 and up; raptor 32.9, megaloceros 23.7 stay mixed
+const HOP_SHARE := 0.5  # ASSUMPTION (HS2): share of a hopper's ring beats that are bounds (the rest strafe-walk); its dodges and back-offs are bounds too
+const HOP_G := 9.8
+
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn", &"bound", &"flank", &"spit", &"grab"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -112,6 +127,16 @@ var _terr_fled_s := 0.0
 var _terr_threat: Node3D
 ## PIN (tactics.pin, SP-SMILODON): the prey held down under the forepaws after a landed pounce.
 var _pin_victim: Node3D
+var _style: StringName = &"mixed"
+var _circle_hop := false  ## HOPSTRAFE: a side bound along the ring is in the air
+var _circle_beat := 0.0  ## HOPSTRAFE: seconds left of the planted pause (or the strafe-walk segment)
+var _circle_walk := false  ## HOPSTRAFE: this ring beat strafe-walks instead of bounding
+var _walk_dodge := false  ## HOPSTRAFE: a strafer's side-step is walked, not jumped
+## The last bound (circle hop, dodge or back-hop): from, to (flat), for tests.
+var last_hop := PackedVector3Array()
+## SPIT (tactics spit_*, SP-DILOPHOSAURUS): the venom spit's glob has left the mouth (VenomSpit flies it).
+var _spit_fired := false
+var _pin_clip: StringName = &"pin_stab"  ## the clip the hold lasts for: pin_stab (smilodon) or grab_bite (allosaurus)
 ## BURST CHASER (tactics.burst / tactics.bound, SMILORUN, owner 2026-10-31: "jumping, leaping, bounding movement abilities
 ## that make it very hard to escape ... the ultimate burst chaser"). On prey running away it sprints in short bursts
 ## (burst.mps for burst.s, burst_cd between, energy costs.burst), bounds bound.min_m-max_m at it in one leap (the leap clip),
@@ -221,12 +246,34 @@ func aggro_radius() -> float:
 func _weak_frac() -> float:
 	return float((tac.get("territorial", {}) as Dictionary).get("weak_frac", 0.3))
 
+## HOPSTRAFE: the species' reposition style (see HOP_MAX_BULK).
+static func reposition_style(def: CreatureDef) -> StringName:
+	var t := tactics_for_def(def)
+	if t.has("reposition"):
+		return StringName(str(t["reposition"]))
+	var bulk := def.real_length_m * def.height_meters
+	if bulk >= STRAFE_MIN_BULK:
+		return &"strafe"
+	# A bound needs its side-hop clips; a small body without them (pachycephalosaurus, zebraceratops) stays mixed.
+	var anim := "res://assets/creatures/%s/anim/" % def.id
+	var clips := ResourceLoader.exists(anim + "dodge_left.glb") and ResourceLoader.exists(anim + "dodge_right.glb")
+	return &"hop" if bulk <= HOP_MAX_BULK and clips else &"mixed"
+
+## Body length on screen: real_length_m holds 2x true length and meshes show 1.6x true (RAPTORSCALE), so 0.8 x it.
+func body_length() -> float:
+	return creature.def.real_length_m * 0.8 * creature.size_scale()
+
+## A hopper's sideways bound: at least a body length (ASSUMPTION HS3), never shorter than the profile's strafe_m.
+func side_hop_m() -> float:
+	return maxf(_t("strafe_m", 2.5), body_length())
+
 static func has_tactics(def: CreatureDef) -> bool:
 	return not tactics_for_def(def).is_empty()
 
 func setup(c: Creature) -> void:
 	super.setup(c)
 	tac = tactics_for_def(c.def)
+	_style = reposition_style(c.def)
 	# STYRAFIX: a species tactics block may set attack_range, the reach its strikes are judged by (the 3x
 	# styracosaurus strikes with horns 6 m ahead of its centre, not its barrel).
 	if c.def.tactics.has("attack_range"):
@@ -237,6 +284,8 @@ func setup(c: Creature) -> void:
 		tac = tac.duplicate(true)
 		tac.merge(over, true)
 	rng.randomize()
+	if tac.get("grab", false):
+		process_priority = 100  # _process holds grabbed prey in the jaws after the AnimationTree has posed them
 	_circle_sign = _flank_sign
 	state_changed.connect(_on_state_changed)
 
@@ -401,6 +450,8 @@ func hit_damage_mult(clip: StringName, hit_index: int) -> float:
 		mult = _t("kick_mult", 1.0)
 	elif clip == &"pin_stab":
 		mult = _t("pin_mult", 1.0)
+	elif clip == &"grab_bite" and tac.get("grab", false):
+		mult = _t("grab_mult", 0.5) if hit_index == 0 else _t("pin_mult", 1.0)  # the hands' clamp, then the bites
 	elif clip == &"attack_heavy":
 		# ASSUMPTION (horned_charger): the sweeping horn swipe, x heavy_mult (2.2). Only the
 		# anim-driven attack_heavy reads this (the charge and the pounce pass their own mult).
@@ -463,7 +514,7 @@ func _think(delta: float) -> void:
 	# or backing off while it leaves (owner 2026-10-28).
 	if state in [&"circle", &"hold", &"feint", &"approach"] and _prey_leaving():
 		var d := _flat_dist(attack_target)
-		var pounce_ok := d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])  # a short pounce only: a long one lets her walk off
+		var pounce_ok: bool = (d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])) or (tac.get("approach_spit", false) and _strike(d, ["spit"]))  # a short pounce only: a long one lets her walk off
 		if not pounce_ok and d > reach_to(attack_target) and state != &"approach":
 			_set_state(&"approach")
 			_just_disengaged = false  # chasing is a real action between back-jumps
@@ -483,7 +534,9 @@ func _think(delta: float) -> void:
 		&"charge_turn": _charge_turn(delta)
 		&"display": _display(delta)
 		&"pin": _pin(delta)
+		&"spit": _spit(delta)
 		&"bound": _bound(delta)
+		&"grab": _grab(delta)
 		&"flank": _flank(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
@@ -610,6 +663,8 @@ func _approach_ring() -> void:
 			return
 		if _burst_chase(d, delta_s()):
 			return
+		if tac.get("approach_spit", false) and _strike(d, ["spit"]):
+			return  # SP-DILOPHOSAURUS: venom after her as she runs
 		# tactics.chase_hop (swarm): at her heels with the bite not allowed yet (cooling, or no beat since the
 		# last one) it hops back out instead of trotting glued to her forever; the hop is the beat, the chase
 		# picks up again after it.
@@ -621,6 +676,9 @@ func _approach_ring() -> void:
 	# tactics.approach_pounce (swarm): coming in, it opens with a pounce as soon as one is in range (not a
 	# lone one: timid alone).
 	if tac.get("approach_pounce", false) and not "alone" in _active_mods() and _strike(_flat_dist(attack_target), ["pounce"]):
+		return
+	# tactics.approach_spit (dilophosaurus): coming in, it opens with the venom spit as soon as she is in spit range.
+	if tac.get("approach_spit", false) and _strike(_flat_dist(attack_target), ["spit"]):
 		return
 	# The nav agent stops target_desired_distance (0.9 m) short of its goal: count that as arrived.
 	if _flat_dist(attack_target) <= ring_m() + 0.6 + creature.agent.target_desired_distance:
@@ -646,16 +704,51 @@ const CIRCLE_MIN_S := 0.3
 func _enter_circle(hold: float = -1.0) -> void:
 	_set_state(&"circle")
 	_circle_t = 0.0
+	_circle_walk = false
+	_circle_beat = _hop_pause()
+	if _style != &"hop":
+		reposition.emit(&"strafe")
 	_left = hold if hold >= 0.0 else rng.randf_range(_t("circle_min_s", 1.2), _t("circle_max_s", 2.6))
 
-## Sidestep around the prey on the ring, facing it; pick a manoeuvre when the timer runs out.
+## Sidestep around the prey on the ring, facing it; pick a manoeuvre when the timer runs out. A hopper (HOPSTRAFE)
+## bounds along the ring instead, planted and facing the prey between bounds, and strafe-walks one beat in four.
 func _circle(delta: float) -> void:
+	if _circle_hop:
+		_face_in_air(delta)
+		if not _jump_tick(delta):
+			return
+		_jump_end()
+		_circle_hop = false
+		_circle_beat = _hop_pause()
+		return
 	var d := _flat_dist(attack_target)
 	if d > ring_m() + 3.0:
 		_set_state(&"approach")
 		return
-	strafe_face = attack_target
 	_circle_t += delta
+	if _style == &"hop" and not _circle_walk:
+		creature.stop_move()
+		creature.face_towards(attack_target.global_position, delta)
+		if _offence(d, d <= reach_to(attack_target) and _circle_t >= _t("contact_after_s", 1.0)):
+			return
+		_left -= delta
+		if _left <= 0.0:
+			_move_beat()
+			return
+		_circle_beat -= delta
+		if _circle_beat <= 0.0:
+			if rng.randf() < HOP_SHARE and _start_circle_hop():
+				return
+			_circle_walk = true
+			_circle_beat = rng.randf_range(0.6, 1.1)  # ASSUMPTION (HS2): one short strafe-walk segment
+			reposition.emit(&"strafe")
+		return
+	if _circle_walk:
+		_circle_beat -= delta
+		if _circle_beat <= 0.0:
+			_circle_walk = false
+			_circle_beat = _hop_pause()
+	strafe_face = attack_target
 	speed_override = creature.walk_mps(creature.move_speed_mps()) * _t("circle_speed_frac", 0.8)
 	if tac.get("surround", false) and _pack_members().size() > 1:
 		var slot := _surround_slot()
@@ -720,8 +813,24 @@ func attack_available(move: StringName, d: float) -> bool:
 				and d >= _t("pounce_min_m", 4.0) and at_hit <= far + _size_excess(attack_target)
 		&"charge":
 			return creature.can_sprint() and d >= _t("charge_min_m", 0.0)
+		&"spit":
+			# SP-DILOPHOSAURUS: from spit_min_m to spit_max_m, with a clear line (the glob flies straight at her).
+			return creature.anim.has_state(&"spit") and d >= _t("spit_min_m", 3.0) \
+				and d <= _t("spit_max_m", 10.0) + _size_excess(attack_target) and MeleeQuery.blocker(creature, attack_target) == null
 		&"kick":
-			return creature.anim.has_state(&"kick") and in_reach and _prey_behind()
+			# tactics.kick_max_m (allosaurus shoulder ram): also prey pressed in under its chin, closer than the jaws work
+			var close := tac.has("kick_max_m") and d <= _t("kick_max_m", 0.0) + _size_excess(attack_target)
+			return creature.anim.has_state(&"kick") and in_reach and (_prey_behind() or close)
+		&"grab":
+			# tactics.grab, point blank in front. SP-ALLOSAURUS (a grab_bite clip): the hands-then-jaws grab at jaw range
+			# (not under the chin), on prey it can hold. SP-SPINOSAURUS (bite_shake): the snap-and-shake, on prey its jaws can
+			# lift (a survivor, or a creature no bigger than itself).
+			if not tac.get("grab", false) or not in_reach or _prey_behind():
+				return false
+			if creature.anim.has_state(&"grab_bite"):
+				return d > _t("kick_max_m", 0.0) + _size_excess(attack_target) and _pinnable(attack_target) != null
+			return creature.anim.has_state(&"bite_shake") \
+				and (attack_target is Player or (attack_target is Creature and (attack_target as Creature).body_radius() <= creature.body_radius()))
 		&"heavy":
 			# The sweeping horn swipe (the attack_heavy clip, a CONTRACT clip): point blank only,
 			# in front (the horns sweep the head's arc). ASSUMPTION: heavy_mult, heavy_cd.
@@ -767,10 +876,17 @@ func _strike(d: float, only: Array = []) -> bool:
 					_start_lunge(&"attack_primary")
 			&"charge":
 				_start_charge()
+			&"spit":
+				_start_spit()
 			&"kick":
 				_kick()
 			&"heavy":
 				_heavy()
+			&"grab":
+				if creature.anim.has_state(&"grab_bite"):
+					_grab_hands()  # SP-ALLOSAURUS
+				else:
+					_start_grab()  # SP-SPINOSAURUS snap-and-shake
 		return true
 	return false
 
@@ -815,6 +931,8 @@ func _terminal_ready(last: StringName, d: float) -> bool:
 		&"charge":
 			return creature.can_sprint() and d >= _t("charge_min_m", 0.0) \
 				and (tac.get("charge_straight", false) or _ready_to(&"bite"))  # a homing charge ends in a bite
+		&"spit":
+			return creature.anim.has_state(&"spit")
 		&"flank":
 			return tac.get("flank", false) and creature.anim.has_state(&"flank_rake") and creature.can_sprint() and d <= _t("flank_max_m", 16.0)
 	return false
@@ -851,6 +969,11 @@ func attack_opening() -> bool:
 func _start_sequence(d: float) -> bool:
 	var row := pick_sequence(d)
 	if row.is_empty():
+		return false
+	# tactics.healthy_commit_chance (opportunist, majungasaurus): above the weak_prey HP line a ready pick only goes
+	# this often (a test rush); otherwise its cooldown is spent and it keeps circling the prey.
+	if tac.has("healthy_commit_chance") and not "weak_prey" in _active_mods() and rng.randf() >= _t("healthy_commit_chance", 1.0):
+		_start_cd(StringName((row.get("steps", []) as Array)[-1]))
 		return false
 	_seq = (row.get("steps", []) as Array).duplicate()
 	_seq_i = 0
@@ -891,6 +1014,15 @@ func _seq_next() -> void:
 				_enter_circle()
 		&"charge":
 			_start_charge()
+		&"spit":
+			var d := _flat_dist(attack_target)
+			if d >= _t("spit_min_m", 3.0) and d <= _t("spit_max_m", 10.0) + _size_excess(attack_target):
+				_start_spit()
+			elif d < _t("spit_min_m", 3.0) and _ready_to(&"bite"):
+				_bite()  # she closed in during the reposition: snap at her instead
+			else:
+				_seq = []
+				_enter_circle()
 		&"display":
 			_start_display()
 		&"flank":
@@ -925,11 +1057,30 @@ func _start_dodge(side: float) -> void:
 	if not creature.anim.has_state(clip):
 		clip = &"strafe_right" if side > 0.0 else &"strafe_left"
 	creature.stop_move()
-	_jump_begin(creature.global_position + right * side * _t("strafe_m", 2.5), clip, _t("strafe_s", 0.42), 0.0, _t("dodge_height_per_m", 0.12))
+	var dist := side_hop_m() if _style == &"hop" else _t("strafe_m", 2.5)
+	_walk_dodge = _style == &"strafe" or clip in CreatureClips.LOOPING
+	if _walk_dodge:
+		# A measured side-step (HOPSTRAFE): walked on the ground at the circling pace, the strafe clip stride-matched.
+		_hop_to = creature.global_position + right * side * dist
+		_left = dist / maxf(0.5, _strafe_mps()) + 0.5
+		reposition.emit(&"strafe")
+	else:
+		_hop_leap(creature.global_position + right * side * dist, clip, _t("strafe_s", 0.42), 0.0, _t("dodge_height_per_m", 0.12))
 	tactic.emit(&"dodge")
 
 func _dodge(delta: float) -> void:
-	creature.face_towards(attack_target.global_position, delta)
+	if _walk_dodge:
+		strafe_face = attack_target
+		speed_override = _strafe_mps()
+		creature.move_to(_hop_to)
+		_left -= delta
+		if _left > 0.0 and _flat_dist_to(_hop_to) > 0.4:
+			return
+		_walk_dodge = false
+		creature.stop_move()
+		_seq_next() if not _seq.is_empty() else _enter_circle()
+		return
+	_face_in_air(delta)
 	if not _jump_tick(delta):
 		return
 	_jump_end()
@@ -1159,7 +1310,7 @@ func _charge_cleanup() -> void:
 
 ## Hit reactions do not interrupt a committed charge (paw, run, impale); brake and recover can be punished.
 func super_armor() -> bool:
-	return state == &"charge" and _charge_phase in [&"paw", &"run", &"impale"]
+	return (state == &"charge" and _charge_phase in [&"paw", &"run", &"impale"]) or (state == &"grab" and _held != null)
 
 ## World position of the nose-horn tip on the live pose: the mesh's frontmost rest vertex, kept in Head-bone
 ## space and carried by the bone (so it follows the dip and scoop). No rig: a point ahead of the body.
@@ -1236,10 +1387,22 @@ func _charge(delta: float) -> void:
 		_enter_circle()
 
 ## A contact hit of this brain's animal landed (Creature._on_hit). tactics.heavy_shove_m: the horn ram
-## (attack_heavy) throws the survivor back along the line from the animal to her, like the charge's shove.
-## THERIZINOSAURUS: tactics.primary_shove_m, the claw sweep (attack_primary) pushes her back to claw's length;
-## tactics.hook_pull_m, the combo's first hit (the claw hook) drags her in toward it, never closer than hook_stop_m.
+## (attack_heavy) throws the survivor back along the line from the animal to her, like the charge's shove (the allosaurus'
+## shoulder ram); tactics.kick_shove_m the same for its kick. THERIZINOSAURUS: tactics.primary_shove_m, the claw sweep
+## (attack_primary) pushes her back to claw's length; tactics.hook_pull_m, the combo's first hit (the claw hook) drags her
+## in toward it, never closer than hook_stop_m. SP-ALLOSAURUS (tactics.grab): the grab_bite's first hit (the hands' clamp)
+## pins her for the bites that follow (the utahraptor's bite with arms is its own clip, arm_bite).
+## tactics.bite_pin (majungasaurus): a landed crushing bite (attack_primary) holds on: the grab (_start_pin;
+## pin_stab shakes the held prey), off pin_cd.
 func landed(clip: StringName, target: Node) -> void:
+	if clip == &"attack_primary" and tac.get("bite_pin", false) and target == attack_target and _ready_to(&"pin"):
+		_start_cd(&"pin")
+		_start_pin.call_deferred()  # after the bite's attack_hit returns: started inside it, pin_stab skipped its first hit
+		return
+	if clip == &"grab_bite" and tac.get("grab", false) and creature.anim.hit_index == 0:
+		if _hold_victim(target as Node3D, &"grab_bite"):
+			tactic.emit(&"grabbed")
+		return
 	if not target is Player:
 		return
 	var pl := target as Player
@@ -1250,6 +1413,9 @@ func landed(clip: StringName, target: Node) -> void:
 	if clip == &"attack_heavy" and _t("heavy_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6), 0.0, creature)
 		tactic.emit(&"heavy_shove")
+	elif clip == &"kick" and _t("kick_shove_m", 0.0) > 0.0:
+		pl.sim.shove(away.normalized() * _t("kick_shove_m", 0.0), _t("kick_shove_stagger_s", 0.6), 0.0, creature)
+		tactic.emit(&"kick_shove")
 	elif clip == &"attack_primary" and _t("primary_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("primary_shove_m", 0.0), _t("primary_shove_stagger_s", 0.5))
 		tactic.emit(&"sweep_shove")
@@ -1258,6 +1424,19 @@ func landed(clip: StringName, target: Node) -> void:
 		if pull > 0.05:
 			pl.sim.shove(-away.normalized() * pull, _t("hook_pull_stagger_s", 0.45))
 			tactic.emit(&"hook_pull")
+
+## SP-ALLOSAURUS grab (tactics.grab): the grab_bite clip in place; its first hit clamps the hands on the prey (landed ->
+## _hold_victim: Pinned, held pin_reach_m ahead), the next two are bites (x pin_mult). A missed clamp is just a miss.
+func _grab_hands() -> void:
+	_just_disengaged = false
+	_basic_streak = 0
+	creature.stop_move()
+	creature.anim.play_clip(&"grab_bite")
+	_start_cd(&"grab")
+	_set_state(&"attack")
+	_mark_pack()
+	tactic.emit(&"grab")
+	_log("[ai] %s grab" % creature.def.id)
 
 func _charge_impact() -> void:
 	# HITBOXES: the ram lands when the head and horns (the charge part) reach her body, not at the reach ring.
@@ -1429,6 +1608,11 @@ func _move_beat() -> void:
 	var feint_ok := not reposition or bool(tac.get("feint_repositions", false))
 	var w_feint := 0.0 if not feint_ok else (_t("w_feint", 0.15) * creature.nature_knob("tactic_feint_mult", 1.0) * _mod("w_feint", 1.0) if creature.can_sprint() and d >= ring_m() - 1.0 else 0.0)
 	var w_hop := _t("w_hop", 0.15) * creature.nature_knob("tactic_backoff_mult", 1.0) * _mod("w_hop", 1.0) if can_disengage() and d < ring_m() - 0.5 else 0.0
+	if _style == &"hop":
+		w_hop *= 2.0  # ASSUMPTION (HS2): a hopper backs off in bounds twice as often
+	elif _style == &"strafe":
+		w_strafe += w_dodge  # a heavy body side-steps instead of jumping sideways
+		w_dodge = 0.0
 	var r := rng.randf() * (w_hold + w_strafe + w_dodge + w_feint + w_hop)
 	if r < w_hold:
 		filler.emit(&"hold")
@@ -1535,7 +1719,9 @@ func _lunge(delta: float) -> void:
 			return
 		_jump_end()
 		_leaping = false
-		_left = 0.0  # landed: strike now if in reach, else back out
+		# landed: strike now if in reach, else back out; a hopper (HOPSTRAFE: no ring creep into its jaws) runs the last
+		# steps in instead
+		_left = 0.35 if _style == &"hop" and _flat_dist(attack_target) > _bite_reach() else 0.0
 	else:
 		speed_override = creature.move_speed_mps() * _t("lunge_speed_mult", 1.0)
 		creature.move_to(attack_target.global_position)
@@ -1722,6 +1908,54 @@ func _pounce_land(clip: StringName = &"pounce") -> void:
 	if CreatureAttack.apply_for(creature, &"attack_heavy", tgt, mult) and tgt is Player:
 		(tgt as Player).receive_creature_hit(creature, &"attack_heavy")
 
+## SP-DILOPHOSAURUS venom spit: it stops and faces the prey, the frill flares and the head draws back (the spit clip's
+## windup) under a ground ring on the prey that follows her until the glob leaves; then the glob flies at where she
+## stood (launch_spit), so stepping or rolling out of the ring dodges it. Not a basic: no anti-spam beat needed.
+func _start_spit() -> void:
+	_set_state(&"spit")
+	_just_disengaged = false
+	_basic_streak = 0
+	_spit_fired = false
+	creature.stop_move()
+	creature.anim.play_clip(&"spit")
+	_start_cd(&"spit")
+	var wind := _clip_len(&"spit", 1.4) * CreatureClips._hit_frac(&"spit")
+	if is_instance_valid(_telegraph):
+		_telegraph.queue_free()
+	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("spit_radius_m", 1.0) + _size_excess(attack_target), wind + 1.0, "SPIT - DODGE!")
+	_mark_pack()
+	tactic.emit(&"spit")
+	_log("[ai] %s venom spit windup" % creature.def.id)
+
+func _spit(delta: float) -> void:
+	creature.stop_move()
+	if not _spit_fired:
+		creature.face_towards(attack_target.global_position, delta)
+		if is_instance_valid(_telegraph):
+			_telegraph.global_position = attack_target.global_position
+	if not creature.anim._busy:
+		_back_off()
+
+## The spit clip's hit frame (Creature._on_hit): the glob leaves the jaws for the prey's chest where she stands now,
+## at spit_speed_mps; it lands spit_mult x attack within spit_radius_m of that point (VenomSpit), Venom riding on it.
+func launch_spit() -> VenomSpit:
+	if state != &"spit" or _spit_fired or not _valid_target():
+		return null
+	_spit_fired = true
+	var from := creature.global_position + Vector3.UP * creature.def.height_meters * creature.size_scale() * 0.7
+	var sk: Skeleton3D = creature.view.rig.skeleton if creature.view and creature.view.rig else null
+	var jaw := sk.find_bone("Jaw") if sk else -1
+	if jaw >= 0:
+		from = sk.global_transform * sk.get_bone_global_pose(jaw).origin
+	var aim := attack_target.global_position
+	aim.y = MeleeQuery.feet_y(attack_target) + minf(1.1, MeleeQuery.body_height(attack_target) * 0.6)
+	var shot := VenomSpit.fire(creature, attack_target, from, aim, _t("spit_speed_mps", 16.0), _t("spit_mult", 0.8), _t("spit_radius_m", 1.0))
+	if is_instance_valid(_telegraph):
+		_telegraph.global_position = attack_target.global_position
+		_telegraph._life = shot.flight_s() + Telegraph.LINGER
+	tactic.emit(&"spit_launch")
+	return shot
+
 ## Seconds a clip plays at its cadence, or fallback without the clip.
 func _clip_len(clip: StringName, fallback: float) -> float:
 	if not creature.anim.has_state(clip):
@@ -1799,6 +2033,59 @@ func _arc_step(from: Vector3, to: Vector3, f: float, height: float) -> void:
 	creature.move_and_collide(step)
 	creature.view.position.y = sin(PI * f) * height
 
+## HOPSTRAFE: one bound (a leap with its clip): a hopper's flight lasts as long as a real jump of that arc height
+## (2 sqrt(2h/g)), the clip stretched up to 2x, so a body-length bound reads as a jump and not a blink.
+func _hop_leap(to: Vector3, clip: StringName, fallback_s: float, land_s: float, height_per_m: float = -1.0) -> void:
+	_jump_begin(to, clip, fallback_s, land_s, height_per_m)
+	if _style == &"hop" and not _j_timed and _j_loop == &"":
+		var air := (_j_air.y - _j_air.x) * _j_len
+		var mult := clampf(2.0 * sqrt(2.0 * _j_height / HOP_G) / maxf(0.01, air), 1.0, 2.0)
+		creature.anim.stretch(clip, mult)
+		_j_len *= mult
+	last_hop = PackedVector3Array([_j_from, to])
+	reposition.emit(&"hop")
+
+## A ring bound: a side hop of side_hop_m along the ring in the circling direction (a surround pack: towards its slot),
+## landing on the ring facing the prey. False when the rig has no side-hop clip.
+func _start_circle_hop() -> bool:
+	var dist := side_hop_m()
+	var to: Vector3
+	if tac.get("surround", false) and _pack_members().size() > 1:
+		var off := _surround_slot() - creature.global_position
+		off.y = 0.0
+		if off.length() < _t("slot_tolerance_m", 1.2):
+			_circle_beat = _hop_pause()
+			return true  # on its slot: stays planted
+		to = creature.global_position + off.normalized() * minf(off.length(), dist)
+	else:
+		var r := maxf(ring_m(), dist / sqrt(3.0))  # a short ring: the bound arcs at most 120 deg round her
+		var ang := 2.0 * asin(clampf(dist / (2.0 * r), 0.0, 1.0)) * _circle_sign
+		to = attack_target.global_position + _to_me().rotated(Vector3.UP, ang) * r
+		to.y = creature.global_position.y
+	var facing := -_to_me()
+	var side := signf((to - creature.global_position).dot(Vector3(-facing.z, 0.0, facing.x)))
+	var clip := &"dodge_right" if side > 0.0 else &"dodge_left"
+	if not creature.anim.has_state(clip):
+		return false
+	creature.stop_move()
+	_circle_hop = true
+	_hop_leap(to, clip, _t("strafe_s", 0.42), 0.0, _t("dodge_height_per_m", 0.12))
+	if rng.randf() < _t("flip_chance", 0.3) * 0.5:
+		_circle_sign = -_circle_sign
+	return true
+
+## Turn to the prey while off the ground only: a body turning on its landed feet drags the toes off their prints.
+func _face_in_air(delta: float) -> void:
+	if _j_t <= _j_air.y * _j_len:
+		creature.face_towards(attack_target.global_position, delta)
+
+func _hop_pause() -> float:
+	return rng.randf_range(0.3, 0.7)  # ASSUMPTION (HS2): planted between bounds
+
+## The side-step walking pace (the ring's).
+func _strafe_mps() -> float:
+	return creature.walk_mps(creature.move_speed_mps()) * _t("circle_speed_frac", 0.8)
+
 ## Jump back away from the prey, facing it (never a walk back): hop_back over hop_m, or with `long`
 ## leap_back over leap_back_m (hop_back, then the timed arc, when the rig lacks it). Then `then` resumes.
 func _start_hop(then: StringName = &"circle", long: bool = false, dist_mult: float = 1.0) -> void:
@@ -1813,9 +2100,11 @@ func _start_hop(then: StringName = &"circle", long: bool = false, dist_mult: flo
 	_just_disengaged = true
 	_beat()
 	_hop_to = creature.global_position + _to_me() * dist
-	_scurry_left = _t("scurry_s", 0.6) if str(tac.get("backoff", "leap")) == "scurry" else 0.0
+	_scurry_left = _t("scurry_s", 0.6) if str(tac.get("backoff", "leap")) == "scurry" or _style == &"strafe" else 0.0
 	if _scurry_left <= 0.0:
-		_jump_begin(_hop_to, clip, _t("hop_s", 0.4), _t("hop_land_s", 0.15))
+		_hop_leap(_hop_to, clip, _t("hop_s", 0.4), _t("hop_land_s", 0.15))
+	else:
+		reposition.emit(&"strafe")
 	tactic.emit(&"hop")
 
 func _hop(delta: float) -> void:
@@ -1985,21 +2274,30 @@ func _end_pounce() -> void:
 ## sabres in (anim_events pin_stab hit_fracs, x pin_mult each, from the Head part). It lets go when the clip ends, the
 ## prey is no longer Pinned, or either dies. Prey bigger than itself is not pinned.
 func _start_pin() -> bool:
-	var tgt := attack_target
-	if not tac.get("pin", false) or not creature.anim.has_state(&"pin_stab"):
+	if not tac.get("pin", false) or not creature.anim.has_state(&"pin_stab") or _pinnable(attack_target) == null:
 		return false
-	var st: StatusEffects = null
+	_hold_victim(attack_target, &"pin_stab")  # the state change first: leaving the pounce ends its timed clip
+	creature.anim.play_clip(&"pin_stab")
+	return true
+
+## The statuses of prey this animal can hold down: a live survivor, or a live creature no bigger than itself.
+func _pinnable(tgt: Node3D) -> StatusEffects:
 	if tgt is Player and not (tgt as Player).dead:
-		st = (tgt as Player).statuses
-	elif tgt is Creature and not (tgt as Creature).health.dead and (tgt as Creature).body_radius() <= creature.body_radius():
-		st = (tgt as Creature).statuses
+		return (tgt as Player).statuses
+	if tgt is Creature and not (tgt as Creature).health.dead and (tgt as Creature).body_radius() <= creature.body_radius():
+		return (tgt as Creature).statuses
+	return null
+
+## Pin the prey for as long as `clip` (already playing or just started) runs: Pinned, the pin state, the hold.
+func _hold_victim(tgt: Node3D, clip: StringName) -> bool:
+	var st := _pinnable(tgt)
 	if st == null:
 		return false
 	_set_state(&"pin")
 	_pin_victim = tgt
+	_pin_clip = clip
 	st.apply(&"pinned", creature, 1)
 	creature.stop_move()
-	creature.anim.play_clip(&"pin_stab")
 	tactic.emit(&"pin")
 	_log("[ai] %s pins %s" % [creature.def.id, tgt.name])
 	return true
@@ -2008,7 +2306,7 @@ func _pin(delta: float) -> void:
 	var v := _pin_victim
 	var gone := not is_instance_valid(v) or (v is Player and ((v as Player).dead or not (v as Player).statuses.has(&"pinned"))) \
 		or (v is Creature and ((v as Creature).health.dead or not (v as Creature).statuses.has(&"pinned")))
-	if gone or creature.anim.current_clip != &"pin_stab":
+	if gone or creature.anim.current_clip != _pin_clip:
 		_end_pin()
 		if _valid_target():
 			_back_off()
@@ -2031,6 +2329,128 @@ func _end_pin() -> void:
 	var st: StatusEffects = (v as Player).statuses if v is Player else ((v as Creature).statuses if v is Creature else null)
 	if st:
 		st.clear_id(&"pinned")
+
+## SNAP-AND-SHAKE (tactics.grab, SP-SPINOSAURUS): the bite_shake clip at point blank. The windup (head drawn back, the
+## long jaws gaping, claws raised, the ground ring on her) is the tell; at the clip's hit_frac (anim_events) the jaws
+## clamp, and only if they reach her (pipeline.hit_parts.bite_shake) she is caught: carried between the jaws with no
+## control while the head thrashes (x grab_mult on the clamp), then flung off to its left at release_frac (shove + lift:
+## the throw tier once PlayerKnock is on canon). A miss snaps shut on air and leaves it open for the rest of the clip.
+var _grab_t := 0.0
+var _grab_len := 0.0
+var _grab_done := false
+var _held: Player = null
+var _held_y := 0.0
+## Where the clamp caught her (metres from the jaw point to her, -1 before one, INF on a miss): read by t_sp_spinosaurus.
+var grab_gap := -1.0
+
+func _start_grab() -> void:
+	_just_disengaged = false
+	_basic_streak = 0
+	creature.stop_move()
+	creature.anim.play_clip(&"bite_shake")
+	_grab_len = creature.anim.player.get_animation(&"bite_shake").length
+	_grab_t = 0.0
+	_grab_done = false
+	_set_state(&"grab")
+	var hit := _grab_len * CreatureClips._hit_frac(&"bite_shake")
+	if is_instance_valid(_telegraph):
+		_telegraph.queue_free()
+	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("grab_radius_m", 2.0) + _size_excess(attack_target), hit / maxf(0.01, creature.anim.cadence(&"bite_shake")))
+	_mark_pack()
+	tactic.emit(&"grab")
+	_log("[ai] %s snap-and-shake windup" % creature.def.id)
+
+func _grab(delta: float) -> void:
+	# Clip time as the tree plays it (the travel into bite_shake cross-fades, so a wall clock runs ~0.15 s ahead of the pose).
+	var an := creature.anim
+	_grab_t = an._os_t if an._os_state == &"bite_shake" and an._os_last >= 0.0 else _grab_t
+	creature.stop_move()
+	var row: Dictionary = (Data.anim_events.get("clips", {}) as Dictionary).get("bite_shake", {})
+	var hit := _grab_len * float(row.get("hit_frac", 0.3))
+	var release := _grab_len * float(row.get("release_frac", 0.78))
+	if not _grab_done:
+		creature.face_towards(attack_target.global_position, delta)  # tracks her through the windup
+		if is_instance_valid(_telegraph):
+			_telegraph.global_position = attack_target.global_position
+		if _grab_t >= hit:
+			_grab_done = true
+			_grab_clamp()
+	if _held:
+		if _grab_t < release and is_instance_valid(_held) and not _held.dead:
+			_hold_in_jaws()
+		else:
+			_grab_fling()
+	if _grab_t >= _grab_len or creature.anim.current_clip != &"bite_shake":
+		_end_grab()
+		if _valid_target():
+			_back_off()
+
+func _hold_in_jaws() -> void:
+	var at := grab_point()
+	_held.global_position = Vector3(at.x, maxf(at.y - 0.9, _held_y), at.z)  # her middle in the jaws, never in the ground
+	_held.velocity = Vector3.ZERO
+
+## Held prey follows the jaws on the drawn pose too: the thrash swings the snout metres per frame, and the physics-rate
+## think runs before the animation advances. process_priority (setup) puts this after the creature's AnimationTree.
+func _process(_delta: float) -> void:
+	if _held != null and is_instance_valid(_held) and state == &"grab":
+		_hold_in_jaws()
+
+## The jaw point: 60 % of the way from the jaw hinge to the snout tip (between the jaws), on the live pose.
+func grab_point() -> Vector3:
+	var rig := creature.view.rig if creature.view else null
+	var sk := rig.skeleton if rig else null
+	var jaw := sk.find_bone("Jaw") if sk else -1
+	if jaw < 0:
+		return horn_tip()
+	var hinge := sk.global_transform * sk.get_bone_global_pose(jaw).origin
+	return hinge.lerp(horn_tip(), 0.6)
+
+func _grab_clamp() -> void:
+	var tgt := attack_target
+	var ahead := tgt.global_position - creature.global_position
+	ahead.y = 0.0
+	if _flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(-creature.global_basis.z) < 0.0 or not creature.part_hit(&"bite_shake", tgt):
+		grab_gap = INF
+		tactic.emit(&"grab_miss")
+		if tgt is Player or tgt is Creature:
+			CombatAvoid.avoided(tgt, creature, &"miss")
+		return
+	grab_gap = _flat_between(grab_point(), tgt.global_position)
+	var mult := _t("grab_mult", 1.6)
+	tactic_hit.emit(&"bite_shake", 0, mult)
+	tactic.emit(&"grab_hit")
+	if not CreatureAttack.apply_for(creature, &"bite_shake", tgt, mult):
+		return
+	if tgt is Player:
+		var pl := tgt as Player
+		pl.receive_creature_hit(creature, &"bite_shake")
+		if pl.sim and not pl.dead:
+			_held = pl
+			_held_y = pl.global_position.y
+			pl.sim.shove(-creature.global_basis.z * 0.01, _grab_len)  # no control while in the jaws; the fling sets the throw
+
+## Flung off to its left (the clip whips the head that way and opens the jaws): grab_fling_m along the ground, up at grab_up_mps.
+func _grab_fling() -> void:
+	if _held == null or not is_instance_valid(_held):
+		_held = null
+		return
+	var pl := _held
+	_held = null
+	var dir := (-creature.global_basis.x - creature.global_basis.z * 0.4)
+	dir.y = 0.0
+	var up := _t("grab_up_mps", 5.0)
+	# KNOCKDOWN (on canon since this branch): the lift makes it a throw (PlayerKnock), as the rhino's toss.
+	pl.sim.shove(dir.normalized() * _t("grab_fling_m", 5.0), 2.0 * up / 9.8, up, creature)
+	if not pl.sim.knock.active():
+		pl.velocity.y = up  # rolling, swimming or pinned: the plain shove with the old lift
+	tactic.emit(&"grab_fling")
+
+func _end_grab() -> void:
+	_grab_fling()
+	if is_instance_valid(_telegraph):
+		_telegraph.queue_free()
+	_telegraph = null
 
 func _start_retreat(seconds: float) -> void:
 	if str(tac.get("retreat_mode", "leap")) == "flee":
@@ -2222,17 +2642,25 @@ func _end_flank() -> void:
 	_jump_end()
 
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
+	if prev == &"spit" and not _spit_fired and is_instance_valid(_telegraph):
+		_telegraph.queue_free()  # cut off before the glob left (hit, knocked down): no ring for a spit that never comes
 	if prev == &"flank":
 		_end_flank()
 	if prev == &"charge":
 		_charge_cleanup()  # never leave her hanging on the horn
 	if prev == &"pin":
 		_end_pin()
+	if prev == &"grab":
+		_end_grab()
 	if prev == &"pounce":
 		_end_pounce()
 	elif prev == &"hop" or prev == &"lunge" or prev == &"dodge" or prev == &"bound":
 		_jump_end()
 		_leaping = false
+		_walk_dodge = false
+	elif prev == &"circle" and _circle_hop:
+		_circle_hop = false
+		_jump_end()
 
 func _exit_tree() -> void:
 	if is_instance_valid(_telegraph):

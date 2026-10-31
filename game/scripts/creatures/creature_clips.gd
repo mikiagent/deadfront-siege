@@ -20,8 +20,12 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"
 ## stalk: the low hunting creep a tactics.stalk brain approaches in; pin_stab: the sabre stabs while it holds pinned prey
 ## (smilodon, SP-SMILODON). lope / sprint: extra gaits either side of the run (CreatureAnim._pick_gait's ladder), leap: the
 ## chase bound one-shot (airborne fracs in anim_events; smilodon, SMILORUN).
+## stomp / shove_left / shove_right / tackle (the coil before its body check): the ankylosaurus'
+## close-range moves (ClubTailBrain close_moves, ANKYLOCLOSE).
+## spit: the venom spit; its hit frame launches VenomSpit (dilophosaurus, SP-DILOPHOSAURUS).
+## grab_bite: the allosaurus' hands-then-jaws grab (TacticalBrain tactics.grab, SP-ALLOSAURUS); arm_bite: the utahraptor's bite with arms (UTAHARMS).
 ## bull_windup: head down, a foot pawing twice with snorts, before a charge (pachycephalosaurus, tactics.display_clip).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite"]
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120

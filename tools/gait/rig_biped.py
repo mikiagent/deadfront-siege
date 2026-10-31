@@ -73,6 +73,17 @@ bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
 bm.to_mesh(mesh.data)
 bm.free()
 print("RIG welded", n0 - len(mesh.data.vertices), "verts left", len(mesh.data.vertices))
+# spec "foot_level": z (mesh units): a foot whose lowest point floats above the floor (the allosaurus' right foot stood
+# 0.0039 above the left in the Tripo mesh, 5.6 cm in game) is lowered onto it, fading out up to this height
+if spec.get("foot_level"):
+    top = float(spec["foot_level"])
+    for sgn in (1, -1):
+        vs = [v for v in mesh.data.vertices if v.co.x * sgn > 0.01]
+        dz = min(v.co.z for v in vs)
+        for v in vs:
+            if v.co.z < top:
+                v.co.z -= dz * (1.0 - v.co.z / top)
+        print("RIG foot_level", "L" if sgn > 0 else "R", round(dz, 4))
 if "--orient-only" in a:
     bpy.ops.export_scene.gltf(filepath=OUT, export_format="GLB", export_yup=True)
     sys.exit(0)
