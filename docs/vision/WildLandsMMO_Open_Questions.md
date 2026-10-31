@@ -382,6 +382,15 @@ Owner reference: velociraptor 1.8 m, deinonychus 3 m, utahraptor 7 m long. In-ga
 | **RS2** | `real_length_m` stays "2 x true length" like the rest of the roster (compy 3.0, T. rex 24): velociraptor 3.6, deinonychus 6.0, utahraptor 14.0 (were 6.0 / 10.2 / 11.0, i.e. 3x / 3x / 2x of the old true values). Not true metres, because pens, hit radius, mass and turn-rate defaults read it as game size. | species JSONs | The pen UI line "about N m long" shows 2x true for every species; a separate display length would fix that roster-wide. |
 | **RS3** | Saddle classes follow height: velociraptor medium -> small, deinonychus small -> medium, utahraptor stays medium. Pen tiers unchanged (velociraptor small, deinonychus medium by value, utahraptor large by value); taming feeds are explicit per species, unchanged. | `PetRecord.saddle_size` | The velociraptor's back (~0.67 m) is now under the mounts rule (rider 1.78 m > back x 1.6 = no saddle), Owner 2026-10-30: "velociraptor is too small to ride": mount role and saddle removed, listed in mounts_skip.json. |
 
+## Pachycephalosaurus rework (PACHY, 2026-10-31)
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **PC1** | Fight moves: head-down charge = the dome headbutt with knockback (shove 3.5 m, was pack_mule's 2.5); point blank: hip check (kick clip) when the survivor is behind it, else stomp (attack_heavy, heavy_cd 7 s, x1.4), else dome butt (attack_primary). | `pachycephalosaurus.json` `tactics` (new per-species override of ai.json) | No PRD clip list for it; PRD verb is only "dome headbutt charge". |
+| **PC2** | Damage is the species stat (attack 48) times the move: in t_sp_pachycephalosaurus a fresh survivor takes ~49 (stomp), ~61 (hip check), ~87 (charge). Not tuned (systems before balance). | species stats, tactics mults | Three hits kill a fresh survivor. |
+| **PC3** | Dome reach: at the butt's hit frame the dome is 2.18 m ahead of the animal's centre; attack_range stays 1.8 (contact reach 2.1, hit accepted to 2.4 m), so hits land where the dome reaches. | `ai.json` pack_mule `attack_range` | Survivor-to-dome distance decides misses. |
+| **PC4** | Size kept: dome top 1.8 m; the new mesh is 3.66 m long (was 4.33 m). | `height_meters` | "pony-sized" per the look. |
+| **PC5** | Not on any island spawn table (it wasn't before); reachable through the fight lab and SPAWN. | `docs/current/biome-spawns.md` | Where it lives in the world is the owner's call. |
 ### RETIREPROTO (2026-10-31) — the protoceratops is removed (claude/mmo-retireproto)
 
 Owner: "protoceratops needs to be removed, the animations suck and the model is unappealing". Model, clips, saddle and textures are deleted (`game/assets/creatures/protoceratops/`, git history keeps them). Report `docs/orchestration/reports/claude-retireproto.md`.

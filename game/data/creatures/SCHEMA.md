@@ -82,6 +82,9 @@ larger 1.4, see `CreatureDef.default_turn_rate`), `tactics{}` (knobs that overri
 its 3x distances and the impale charge: `charge_impale`, `charge_min_m`, `impale_reach_m`, `impale_r_m`,
 `toss_up_mps`, `charge_recover_s`).
 
+Optional `tactics{}` (TacticalBrain.tactics_for_def): `{"base": <archetype>, "scale": k, ...overrides}`, e.g. the
+pachycephalosaurus: base pack_mule plus `point_blank`, `heavy_mult`, `charge_shove_m`.
+
 `archetype` values the game implements: `apex_raptor`, `raptor_pack`,
 `flock_harass`, `swarm`, `runner`, `venom_ranged`, `pack_mule`, `horned_charger`,
 `club_tail`, `spiked_tail`, `saber_cat`, `antlered`, `titan`, `tyrant`.

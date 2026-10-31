@@ -36,7 +36,6 @@
     "max_retreat_m": 24.0,
     "guard_m": 45.0,
     "charge_impale": true,
-    "drop_pose_on_move": true,
     "charge_min_m": 10.0,
     "charge_aim_deg": 12.0,
     "charge_ramp_s": 0.5,

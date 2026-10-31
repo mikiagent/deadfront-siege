@@ -64,8 +64,10 @@ Genetic alphas are separate: `tactics.alpha` multiplies the nature knobs (Creatu
   take-off (prey position + velocity over the flight), so a sidestep after take-off misses and it
   lands on the locked spot, recovering `pounce_miss_recover_s` 1.0 s; `pounce_overshoot_chance` 0.2
   sails 1.5 m past her.
-- Landing (owner 2026-10-28: "it should land some attacks"): `bite_track` keeps the bite lunging
-  after prey that walks out of its jaws until the contact frame (past `bite_track_frac` 0.6 x reach);
+- Landing (owner 2026-10-28: "it should land some attacks"): `bite_track` leads the bite: on prey
+  walking away, the charge or lunge runs in closer by her outward speed x the time to the bite's contact frame
+  (no closer than `bite_track_frac` 0.6 x reach), and the bite plays in place (2026-10-31: sliding the body
+  during the bite glided);
   `chase_hop` makes a compy at a walking survivor's heels, whose bite is not allowed yet, hop back
   and chase again instead of trotting glued to her. A filler dodge in a surrounding pack jumps towards
   its own ring slot. Off its slot by more than `slot_tolerance_m`, it hurries back at
