@@ -29,7 +29,10 @@ base, clips = a[0], a[1:]
 TOL = 0.03
 HELD = {"pin_foot"}
 LYING = {"knockdown", "death", "sleep"}
-TRAVEL = {"walk": (0, 1, 0), "run": (0, 1, 0), "walk_back": (0, -1, 0), "strafe_left": (-1, 0, 0), "strafe_right": (1, 0, 0)}
+# leaps (SP-TARBOSAURUS burst): both feet may leave the ground inside the anim_events airborne window (the game carries
+# the body along its arc there), a little wider for the push-off and touch-down frames
+LEAPS = {"pounce": (0.15, 0.7)}
+TRAVEL = {"walk": (0, 1, 0), "run": (0, 1, 0), "stalk": (0, 1, 0), "walk_back": (0, -1, 0), "strafe_left": (-1, 0, 0), "strafe_right": (1, 0, 0)}
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=base)
@@ -91,12 +94,14 @@ for path in clips:
             sink, sink_at = lz, (f - f0, tuple(round(x, 2) for x in LOW_AT[0]))
         t = toes()
         down = {s: t[s].z < rest[s].z + TOL for s in "LR"}
+        lu = (f - f0) / max(1, f1 - f0)
+        in_leap = name in LEAPS and LEAPS[name][0] <= lu <= LEAPS[name][1]
         if any(down.values()) or name in LYING:
             flo = max(flo, lz)
-        else:
+        elif not in_leap:
             airborne += 1
         for s in "LR":
-            if down[s]:
+            if down[s] and not in_leap:
                 if touch[s] is None:
                     touch[s] = t[s].copy()
                 d = t[s] - touch[s]

@@ -64,7 +64,8 @@
       "note": "ambush pounce, 0.96 s: crouch, long high forward leap nose-down, wings fully flared; the game sets the distance (owner: larger leaps, ~8-10 m from cover)",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
-      "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)"
+      "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)",
+      "note_tarbosaurus": "tarbosaurus: make_rex_moves.py --tarbo pounce, 1.0 s: the burst out of the stalk, one long low bound (both feet off 0.2-0.65, the game carries the arc), jaws thrust ahead and slammed shut on 0.7; a landed burst is an attack_heavy hit, so it pins (pin_foot)"
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing",
@@ -91,7 +92,8 @@
     "kick": {
       "hit_frac": 0.45,
       "windup": true,
-      "note": "herbivore defence: weight forward, both hind legs snap back and up (hit at 0.45), plant; tools/jaw/make_charge_kick.py"
+      "note": "herbivore defence: weight forward, both hind legs snap back and up (hit at 0.45), plant; tools/jaw/make_charge_kick.py",
+      "note_tarbosaurus": "tarbosaurus: the tail whip in the kick slot (make_rex_moves.py --tarbo kick: the rex tail whip retimed so the crack lands on 0.45); hit from Tail4-7"
     },
     "idle_cold": {
       "note": "survivor state idle, loops in place of idle when cold: hunched, arms hugged, shivering. tools/make_state_idles.py (same length and fps as idle)"
@@ -379,6 +381,26 @@
       "strafe_right": 0.845,
       "walk_back": 0.845,
       "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684)"
+    },
+    "tarbosaurus": {
+      "height_m": 6.8,
+      "run_l": 5.353,
+      "run_len": 0.792,
+      "run_r": 5.362,
+      "walk_l": 1.711,
+      "walk_len": 1.292,
+      "walk_r": 1.71,
+      "walk": 1.711,
+      "run": 5.357,
+      "stalk": 0.612,
+      "stalk_len": 2.208,
+      "strafe_left": 1.711,
+      "strafe_left_len": 1.292,
+      "strafe_right": 1.711,
+      "strafe_right_len": 1.292,
+      "walk_back": 1.711,
+      "walk_back_len": 1.292,
+      "_note": "SP-TARBOSAURUS: walk/run from tools/bake_clip_speeds.py --dry-run; stalk = make_gait stride / cycle (1.6 / 2.2 rig m/s) x 6.8 / 8; strafes and walk_back reuse the walk plan"
     }
   }
 }

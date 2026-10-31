@@ -23,7 +23,7 @@ unappealing"). It had no sheet here; its model is deleted and tamed ones load as
 | [Herrerasaurus](#herrerasaurus) | New species, no model yet | 1 |
 | [Utahraptor](#utahraptor) | In game with a model | 1 |
 | [Tyrannosaurus rex](#tyrannosaurus-rex) | In game with a model | 2 |
-| [Tarbosaurus](#tarbosaurus) | New species, no model yet | 1 |
+| [Tarbosaurus](#tarbosaurus) | Tripo model, rigged and animated (SP-TARBOSAURUS) | 1 |
 | [Carnotaurus](#carnotaurus) | No model yet | 3 |
 | [Unnamed abelisaur](#unnamed-abelisaur) | No model yet | 1 |
 | [Allosaurus](#allosaurus) | No model yet | 1 |

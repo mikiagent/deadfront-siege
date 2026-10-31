@@ -11,8 +11,9 @@ so every rex tool (make_rex_moves, make_gait + tyrannosaurus.json, check_rex_cli
      legs were bound to the opposite side; here a leg can only take its own side's bones, checked below);
   5. the old stub Jaw is removed (its skin goes back to Head); tools/jaw/add_jaw.py --open adds the real jaw next.
 
-usage: Blender -b -P tools/gait/fit_rex_rig.py -- <old_base.glb> <tripo.glb> <out.glb>
+usage: Blender -b -P tools/gait/fit_rex_rig.py -- <old_base.glb> <tripo.glb> <out.glb> [--joints <file.json>]
 """
+import json
 import math
 import sys
 
@@ -60,7 +61,18 @@ def cl_z(y):
     return CL[ks[0]] if y < ks[0] else CL[ks[-1]]
 
 
-ys = [0.9 + (TAIL_TIP[0] - 0.9) * i / 7 for i in range(8)]
+# --joints <file.json> (SP-TARBOSAURUS): another tyrannosaur's frame-A measurements in the same form: "J" (left and centre
+# bones; .R mirrored), "tail_tip", "tail_y0" (where Tail1 starts), "cl" (tail centreline z by y), "snout", "mid_z".
+_args = sys.argv[sys.argv.index("--") + 1:]
+OVR = json.load(open(_args[_args.index("--joints") + 1])) if "--joints" in _args else {}
+for name, (h, t) in OVR.get("J", {}).items():
+    J[name] = (tuple(h), tuple(t))
+    if name.endswith(".L"):
+        J[name[:-2] + ".R"] = ((-h[0], h[1], h[2]), (-t[0], t[1], t[2]))
+TAIL_TIP = tuple(OVR.get("tail_tip", TAIL_TIP))
+CL = {float(k): v for k, v in OVR["cl"].items()} if "cl" in OVR else CL
+TAIL_Y0 = OVR.get("tail_y0", 0.9)
+ys = [TAIL_Y0 + (TAIL_TIP[0] - TAIL_Y0) * i / 7 for i in range(8)]
 for i in range(7):
     J["Tail%d" % (i + 1)] = ((0, ys[i], cl_z(ys[i])), (0, ys[i + 1], cl_z(ys[i + 1])))
 
@@ -90,7 +102,7 @@ cy = (max(p.y for p in P) + min(p.y for p in P)) / 2
 new.data.transform(Matrix.Scale(HEIGHT / (z1 - z0), 4) @ Matrix.Translation((-cx, -cy, -z0)))  # frame A
 
 # ---- mirror the left half. The midline is the mean x of the back (the spine ridge and skull top are symmetric).
-mid = [v.co.x for v in new.data.vertices if v.co.z > 6.4]
+mid = [v.co.x for v in new.data.vertices if v.co.z > OVR.get("mid_z", 6.4)]
 c = sum(mid) / len(mid)
 bm = bmesh.new()
 bm.from_mesh(new.data)
@@ -159,7 +171,7 @@ bpy.ops.object.mode_set(mode="OBJECT")
 # its segment runs on to the snout tip), arms only within ARM_R of the arm, legs and arms only on their own side,
 # then the weights are averaged over the welded skin's neighbours a few times so joints bend smoothly.
 ARM_R, POW, SMOOTH = 0.7, 4.0, 4
-SNOUT = Vector(a2b((0, 8.45, 6.0)))
+SNOUT = Vector(a2b(tuple(OVR.get("snout", (0, 8.45, 6.0)))))
 
 
 def seg_d(p, h, t):

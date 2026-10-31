@@ -17,7 +17,7 @@ extends Node3D
 ## with its brain off, side-on beside the survivor, 6 frames per clip saved as DIR/<clip>_<k>.png, then the lab quits.
 ## --clipsheet=DIR [--clips=investigate,sniff]: contact sheets of the first creature's clips (8 frames, front
 ## three-quarter row over a side row) to DIR/<species>_<clip>.png, then quits. Brain off, tree stepped by hand.
-## --pinshots=DIR (with --species=tyrannosaurus): PINFEEL. The brain's real stomp on the survivor (GOD on, hits
+## --pinshots=DIR (with --species=tyrannosaurus, or tarbosaurus: its burst): PINFEEL. The brain's real stomp on the survivor (GOD on, hits
 ## forced): the windup, the impact, the foot pin held and the release, from a high three-quarter camera and the
 ## game camera, saved as DIR/pin_<k>_<what>.png; then the lab quits.
 ## --lineup=DIR [--species=a,b,c]: those species (default the three raptors) side-on in a row at body size 1.0
@@ -264,18 +264,19 @@ func _pinshots(dir: String, id: StringName) -> void:
 	for n in get_tree().get_nodes_in_group("creatures"):
 		if n is Creature and (n as Creature).def.id == id and not (n as Creature).is_pet:  # the lab's tame mount is a rex too
 			c = n
-	if c == null or not c.brain is TyrantBrain:
-		push_error("[pinshots] no %s with a TyrantBrain" % id)
+	if c == null or not (c.brain is TyrantBrain or c.brain is TacticalBrain):
+		push_error("[pinshots] no %s with a TyrantBrain or TacticalBrain" % id)
 		get_tree().quit(1)
 		return
 	CombatTuning.force_accuracy = 1.0
 	CombatTuning.force_dodge = 0.0
 	c.global_position = Vector3(-18, 0, -24)  # clear of the lab crates
 	c.rotation.y = -PI / 2.0  # faces +X
-	_player.global_position = c.global_position + Vector3(4.2, 0.9, 0.0)
+	# SP-TARBOSAURUS: a TacticalBrain pinner (the tarbosaurus) pins from its burst, so she stands in burst range.
+	var tb := c.brain as TacticalBrain
+	_player.global_position = c.global_position + Vector3(4.2 if tb == null else 13.0, 0.9, 0.0)
 	_player.face_world(c.global_position)
 	var brain := c.brain as TyrantBrain
-	brain.attack_target = _player
 	var game_cam := get_viewport().get_camera_3d()
 	var cam := Camera3D.new()
 	add_child(cam)
@@ -285,7 +286,15 @@ func _pinshots(dir: String, id: StringName) -> void:
 	low.fov = 40.0
 	# The brain's own stomp: whenever it is between moves, its next attack is made the third (the stomp).
 	var waited := 0.0
-	while not (brain.phase == &"windup" and brain.windup_clip == &"attack_heavy") and waited < 15.0:
+	if tb:
+		tb.attack_target = _player
+		tb._combat_memory_left = 30.0
+		tb.tac = tb.tac.duplicate()
+		tb.tac["pounce_overshoot_chance"] = 0.0
+		tb._start_pounce()
+	else:
+		brain.attack_target = _player
+	while brain and not (brain.phase == &"windup" and brain.windup_clip == &"attack_heavy") and waited < 15.0:
 		if brain.phase == &"idle" and not c.anim.is_busy():
 			brain.attack_number = 2
 			brain._do_attack()
