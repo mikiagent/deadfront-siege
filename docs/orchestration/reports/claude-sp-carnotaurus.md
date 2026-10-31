@@ -53,10 +53,10 @@ The attacks, alert, idle, hit_react and feed come from the new `tools/gait/make_
 - **Horn ram** (the point-blank `heavy`, x1.8): a landed hit throws her 4 m away from it (`heavy_shove_m`, new hook `TacticalBrain.landed`).
 - **Snap bite**: the point-blank basic.
 - **Turning**: `turn_rate` is 2.0, so it turns badly at speed. Its flank is the safe side.
-- **Hits use the attacking part.** The hitbox system (claude/mmo-hitboxes) is not on canon. As the brief allows, `pipeline.hit_parts` names a bone and a radius per move: Jaw 1.6 m for the bite, Head 1.9 m for the ram and the charge. `Creature.part_reach` checks that bone's posed position at the hit frame.
+- **Hits use the attacking part.** The hitbox system (claude/mmo-hitboxes) is not on canon. `pipeline.hit_parts` names the bone and radius per move in canon's format (the woolly rhino's `Creature.part_hit`): Jaw 1.6 m for the bite, Head 1.9 m for the ram and the charge. My own `part_reach` was dropped at the 9ec93a1c merge.
   - Under its chest or at its flank the jaws miss. `t_sp_carnotaurus` checks a flank miss at 3 m from its centre.
-  - The shortcut is marked in the code. Move it to hitboxes.json when that branch lands.
-- **Alphas**: any species can set `pipeline.alpha_texture`, and its alphas wear it (`CreatureView.apply_alpha_skin`, called in `Creature.spawn` before the colour rebind).
+  - Move these rows to hitboxes.json when that branch lands.
+- **Alphas**: the alpha map is `pipeline.model_variants.alpha`, canon's alpha-skin mechanism. My own `alpha_texture`/`apply_alpha_skin` was dropped at the 9ec93a1c merge.
 - **Spawns**: one on desert_35's far shore and one in desert_50's working ring. The lab lists it because it has a model.
 - Every number is an ASSUMPTION, logged as CA1-CA6 in `docs/vision/WildLandsMMO_Open_Questions.md`.
 
@@ -83,6 +83,11 @@ What read wrong and was fixed:
 - the bite and ram landing at 3+ m head height (dropped to about 2.5 m);
 - the survivor's auto-attack flashing the animal red in the lab shots (the lab now pauses her).
 
+## Second canon merge (9ec93a1c: woolly rhino, megaloceros stag/doe, isocam)
+- I took canon's `part_hit` and model-variant alpha skin and dropped my duplicates. Canon's hit check also needs the centre reach, so the bite test now stands her at 4.8 m (inside reach).
+- Kept: charge_turn, the sideways charge toss (now combined with the rhino's toss lift), heavy_shove, every species' anim_events rows, and the dynamic `>= 21` species counts from canon.
+- After this merge these pass: t_sp_carnotaurus, t_sp_woolly_rhino, t_sp_megaloceros, t_noboxes, t_combat, t_canim, t_data, t_ai, t_labspawn, t_coelomoves, t_compyfeel, t_zebra and t_tactical. run_all gives `[tests] PASS`, smoke gives SMOKE PASS.
+
 ## Gates (after merging canon aba7ecc3)
 - `tools/gait/check_carno.py --height 5.74` (new, adapted from check_ankylo): **CARNO_CHECK PASS**, 16 clips. It checks:
   - stretch (worst 9.7 in sleep);
@@ -102,11 +107,11 @@ What read wrong and was fixed:
   - the spawn rows and the lab list are right.
 - t_noboxes, t_combat, t_canim, t_data, t_ai, t_zebra, t_tactical, t_styraco, t_swarm, t_labspawn, t_sp_pachycephalosaurus, t_sp_megaloceros, t_coelomoves, t_compyfeel: PASS.
 - `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: SMOKE PASS.
-- t_ai and run_all now expect 21 species. Bump them again if another new species merges first.
+- t_ai and run_all count species dynamically (canon's `>= 21`).
 
 ## For the next agent / known issues
 - **Merge notes:**
-  - `tactical_brain.gd`, `creature.gd` (part_reach, alpha skin call), `creature_view.gd`, `creature_anim.gd` and `creature_clips.gd` gained small additive hooks; take both sides on merge.
+  - `tactical_brain.gd`, `creature_anim.gd`, `creature_clips.gd` and `lab_spawn_panel.gd` gained small additive hooks; take both sides on merge.
   - `anim_events.json` has a `charge_turn` row and a `natural_speeds.carnotaurus` row. The natural speeds are the make_gait ground speed x the model scale, not a Godot bake.
 - **Collider vs. visible body:** the body collider sits at the bbox centre, and the head is about 5 m ahead of it. Melee reach (attack_range 4.6) and the part check cover that. A BIGREACH-style collider fit was not done.
 - **Clips I left as they are:**

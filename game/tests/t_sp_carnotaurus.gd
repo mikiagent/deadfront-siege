@@ -200,7 +200,7 @@ func _test_fight() -> void:
 	var tac: Dictionary = load("res://scripts/creatures/brains/tactical_brain.gd").tactics_for(&"horned_hunter")
 
 	# 1. Snap bite: in front, the jaws land; at its flank (inside the centre reach) the jaws are not on her.
-	var c = _spawn(Vector3(0, 0.1, -5.6), Vector3(0, 0, 0))
+	var c = _spawn(Vector3(0, 0.1, -4.8), Vector3(0, 0, 0))  # inside its reach (attack_range 4.6 + 0.3)
 	_expect(c.view.using_glb and _boxes(c.view) == 0 and c.brain.get_script().get_global_name() == &"TacticalBrain", "a spawned carnotaurus draws the GLB and runs the TacticalBrain")
 	c.brain.process_mode = Node.PROCESS_MODE_DISABLED  # the clip alone: the brain would pick its own moves
 	await _sim(0.1)
