@@ -50,6 +50,8 @@ Owner: "build some of the models ... be creative with what moves you think they 
 - Species tactics (`CreatureDef.tactics`, `TacticalBrain.tactics_for_def/resolve`): written to COELOMOVES' shape;
   after merging canon, canon's copy is the one kept.
 - `TacticalBrain._charge_impact`: plays `toss` when the rig has it and passes `toss_lift_mps`; the impact needs `part_hit(&"charge")`.
+  Under COMPYFEEL's no-glide rule the toss is a one-shot (`CreatureAnim.ONESHOT`, not an ATTACK, so no second hit
+  event): the rhino stops where the horn met her, plays the toss in place, and the charge ends when the clip does.
 - `PlayerSim.shove(push, stagger, lift_mps = 0.0)`: the optional upward kick.
 - `Creature._on_hit` also requires `part_hit`; `Creature.spawn` gives an alpha the `alpha` model variant;
   `CreatureView.pick_variant` never rolls `alpha`.
@@ -100,4 +102,9 @@ Left: knockdown/death are a roll onto the right side; the run is a heavy gallop 
 - `docs/current/biome-spawns.md` is generated; rerun `tools/docs_wiki/gen_game_data.py` after merge.
 - No ragdoll profile, no eye-glow points.
 
-Report head: merge commit e3bd4f3f on `claude/mmo-sp-woolly_rhino` (pushed); this line is updated in the follow-up commit.
+Second canon merge (ee6bfcbb: COMPYFEEL, new pachy): `OPTIONAL` keeps charge_crouch, pin_foot and toss. Rerun:
+t_sp_woolly_rhino (now also: the run plays the rhino's own charge clip; the toss plays in place, 0.00 m slide),
+t_compyfeel, t_coelomoves, t_combat, t_canim, t_mounts, t_alphas, t_styraco, t_zebra, t_ai: 10/10 PASS;
+run_all [tests] PASS; SMOKE PASS; RHINO_CHECK PASS; GATE PASS.
+
+Report head: merge commit d0fd565d on `claude/mmo-sp-woolly_rhino` (pushed); this line is updated in the follow-up commit.
