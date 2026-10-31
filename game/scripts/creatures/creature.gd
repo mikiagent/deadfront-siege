@@ -926,9 +926,17 @@ func _on_hit(clip: StringName) -> void:
 	if brain is TyrantBrain or brain is ClubTailBrain: return  # those brains land their own hits (ClubTailBrain: from the club)
 	var target := brain.attack_target if brain else null
 	if target:
-		# A contact attack lands at impact, not anywhere the target ran during windup.
+		# A contact attack lands at impact, not anywhere the target ran during windup. HITBOXES: the
+		# clip's attacking part (jaw, club, horns, feet) must have swept through one of its hurtboxes.
 		var offset := global_position - target.global_position
-		if brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
+		if Hitbox.applies(self, target):
+			var hit := Hitbox.strike(self, clip, target as Node3D, anim.hit_index)
+			if hit.is_empty():
+				if target is Player or target is Creature:
+					CombatAvoid.avoided(target, self, &"miss")  # the jaws closed on air
+				return
+			Hitbox.mark(target, hit)
+		elif brain and (Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3 or not part_hit(clip, target)):
 			if target is Player or target is Creature:
 				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
@@ -939,7 +947,8 @@ func _on_hit(clip: StringName) -> void:
 		if brain is TacticalBrain:
 			(brain as TacticalBrain).landed(clip, target)
 
-## Where a move hits (species JSON pipeline.hit_parts.<clip>: {bones, radius_m}; until the hitbox system lands): at
+## Where a move hits a body without hurtboxes (a structure; species JSON pipeline.hit_parts.<clip>: {bones,
+## radius_m}). HITBOXES: against hurtboxes those bones are the move's parts in hitboxes.json instead: at
 ## the hit frame one of the named bones must be within radius_m (x body size) of the target's body, a vertical
 ## segment from its feet to its height. True when the species lists no parts for the clip or the rig lacks them.
 func part_hit(clip: StringName, target: Node3D) -> bool:
