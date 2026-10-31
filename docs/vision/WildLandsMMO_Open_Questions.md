@@ -469,7 +469,7 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 
 ### MEGAREX (2026-10-31) — the v2 open-mouth rex as a boss species (claude/mmo-sp-tyrannosaurus)
 
-Owner: "call that monstrosity MegaRex ... make it a boss fight". Report `docs/orchestration/reports/claude-sp-tyrannosaurus.md`.
+Owner: "call that monstrosity MegaRex ... make it a boss fight". Report `docs/orchestration/reports/claude-sp-megarex.md`.
 
 | # | Default taken | Where | Why it matters |
 |---|---|---|---|
