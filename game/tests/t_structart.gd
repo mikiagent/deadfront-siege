@@ -21,7 +21,7 @@ const MAX_TRIS := 4000
 const TOL := 0.05
 ## Rows whose GLB is one piece of a larger assembly: aabb_m is the assembly (the collider), which must
 ## cover the footprint; the piece itself is only checked for triangles and material.
-const ASSEMBLIES := ["taming_pen"]
+const ASSEMBLIES := ["taming_pen", "taming_pen_medium", "taming_pen_large", "taming_pen_apex"]
 ## W1-HARBOUR's t_harbour: the dock must be a composite of at least this many meshes.
 const HARBOUR_MIN_PARTS := 20
 
@@ -155,7 +155,7 @@ func _check_tent_faces_sun(buildings: Dictionary) -> void:
 	var yaw := (float(yaw_band[0]) + float(yaw_band[1])) * 0.5
 	# A DirectionalLight3D shines along -Z and the camera looks along -Z, so +Z points at each.
 	var to_sun := Basis.from_euler(Vector3(deg_to_rad(-elevation), deg_to_rad(yaw), 0.0)).z
-	var to_cam := Basis.from_euler(Vector3(deg_to_rad(-35.264), deg_to_rad(45.0), 0.0)).z
+	var to_cam := IsoCamera.view_basis().z  # the shipped camera angle (CAMERA package)
 	var seen := 0.0
 	var lit := 0.0
 	var root := (load(path) as PackedScene).instantiate() as Node3D

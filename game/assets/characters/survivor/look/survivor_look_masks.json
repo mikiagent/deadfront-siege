@@ -1,0 +1,168 @@
+{
+ "atlases": {
+  "base": {
+   "file": "survivor_look_base.png",
+   "regions": {
+    "hair": {
+     "channel": "a",
+     "lum": 0.035,
+     "mean": "#3b332e",
+     "texels": 129940
+    },
+    "outfit1": {
+     "channel": "r",
+     "lum": 0.0647,
+     "mean": "#484847",
+     "texels": 773006
+    },
+    "outfit2": {
+     "channel": "g",
+     "lum": 0.0639,
+     "mean": "#484746",
+     "texels": 454702
+    },
+    "skin": {
+     "channel": "b",
+     "lum": 0.3265,
+     "mean": "#c38e6f",
+     "texels": 1240431
+    }
+   },
+   "texture": "Color_82d5db79-577f-4f8f-b6bf-930a520b5272"
+  },
+  "face": {
+   "file": "survivor_look_face.png",
+   "regions": {
+    "eyes": {
+     "channel": "r",
+     "lum": 0.0424,
+     "mean": "#43382f",
+     "texels": 978
+    },
+    "lips": {
+     "channel": "g",
+     "lum": 0.1584,
+     "mean": "#8d6251",
+     "texels": 3979
+    }
+   },
+   "texture": "Color_82d5db79-577f-4f8f-b6bf-930a520b5272"
+  },
+  "forager": {
+   "file": "survivor_look_forager.png",
+   "pieces": [
+    "chest",
+    "legs",
+    "arms",
+    "helmet"
+   ],
+   "regions": {
+    "outfit1": {
+     "channel": "r",
+     "lum": 0.1193,
+     "mean": "#6e5a3f",
+     "texels": 283823
+    },
+    "outfit2": {
+     "channel": "g",
+     "lum": 0.1099,
+     "mean": "#6d573e",
+     "texels": 740395
+    },
+    "outfit3": {
+     "channel": "b",
+     "lum": 0.1239,
+     "mean": "#725a40",
+     "texels": 615813
+    },
+    "skin": {
+     "channel": "a",
+     "lum": 0.2675,
+     "mean": "#ab7d60",
+     "texels": 41186
+    }
+   },
+   "texture": "Color_c3bfda26-4e67-47e6-9221-9d1be6c6c6e9"
+  },
+  "hide_and_bone": {
+   "file": "survivor_look_hide_and_bone.png",
+   "pieces": [
+    "chest",
+    "legs",
+    "arms",
+    "helmet"
+   ],
+   "regions": {
+    "outfit1": {
+     "channel": "r",
+     "lum": 0.1313,
+     "mean": "#6c5643",
+     "texels": 237787
+    },
+    "outfit2": {
+     "channel": "g",
+     "lum": 0.1491,
+     "mean": "#725c48",
+     "texels": 875526
+    },
+    "outfit3": {
+     "channel": "b",
+     "lum": 0.1789,
+     "mean": "#79624c",
+     "texels": 474651
+    },
+    "skin": {
+     "channel": "a",
+     "lum": 0.2076,
+     "mean": "#926d53",
+     "texels": 86123
+    }
+   },
+   "texture": "Color_8580350f-a0da-4f8e-b701-7b59d6a86dcc"
+  },
+  "travel_clothes": {
+   "file": "survivor_look_travel_clothes.png",
+   "pieces": [
+    "chest",
+    "legs",
+    "arms"
+   ],
+   "regions": {
+    "outfit1": {
+     "channel": "r",
+     "lum": 0.087,
+     "mean": "#585045",
+     "texels": 387982
+    },
+    "outfit2": {
+     "channel": "g",
+     "lum": 0.0895,
+     "mean": "#52504e",
+     "texels": 1131140
+    },
+    "outfit3": {
+     "channel": "b",
+     "lum": 0.1084,
+     "mean": "#615549",
+     "texels": 309706
+    },
+    "skin": {
+     "channel": "a",
+     "lum": 0.3533,
+     "mean": "#c59477",
+     "texels": 88638
+    }
+   },
+   "texture": "Color_d088045c-07c9-46f7-bfb6-659589fbf7d0"
+  }
+ },
+ "checks": {
+  "hair_shell_faces": 3979,
+  "skin_in_hair": 0,
+  "skin_in_outfit1": 0,
+  "skin_in_outfit2": 0
+ },
+ "dilate_texels": 8,
+ "size": 2048,
+ "source": "assets/characters/survivor (survivor.glb and armor/<kit>/*.glb)"
+}

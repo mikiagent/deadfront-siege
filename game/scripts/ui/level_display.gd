@@ -8,8 +8,24 @@ extends RefCounted
 ## Shown where a level cannot be worked out yet (a recipe the bag cannot make).
 const NONE := "Lv. —"
 
+## The World autoload, resolved at runtime: `--script` test entry points compile this file before
+## the engine registers autoloads, where a bare `World` identifier is a compile error.
+static func world() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("World")
+
+## The Data autoload, resolved at runtime for the same reason as world().
+static func data() -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return null
+	return tree.root.get_node_or_null("Data")
+
 static func player_level() -> int:
-	return shown(World.pioneer_level)
+	var w := world()
+	return shown(int(w.get("pioneer_level")) if w else 0)
 
 ## The level a stored pioneer level reads as. World.pioneer_changed carries the stored value; a
 ## handler that formats it goes through here instead of re-reading World.
@@ -22,6 +38,23 @@ static func label(level: int) -> String:
 
 static func player_label() -> String:
 	return label(player_level())
+
+## The bottom bar's segments for a level costing `cost` XP (owner 2026-10-28: segments proportional
+## to a unit of XP, more of them as levels cost more). Each segment is `unit` XP: segment_xp, or the
+## smallest multiple of it that keeps the count at or under max_segments. Returns [count, unit].
+static func xp_segments(cost: int) -> Vector2i:
+	var c: Dictionary = World.xp_curve()
+	var unit := maxi(1, int(c.get("segment_xp", 100)))
+	var cap := maxi(1, int(c.get("max_segments", 40)))
+	unit *= ceili(float(ceili(float(cost) / unit)) / cap)
+	return Vector2i(ceili(float(cost) / unit), unit)
+
+## The player's bar: XP into the level, the level's cost, its segments and their unit.
+static func xp_bar() -> Dictionary:
+	var w := world()
+	var cost := World.xp_for_level(int(w.get("pioneer_level")) if w else 0)
+	var seg := xp_segments(cost)
+	return {"xp": int(w.get("pioneer_xp")) if w else 0, "cost": cost, "segments": seg.x, "unit": seg.y}
 
 static var _titles: Dictionary = {}
 
@@ -37,6 +70,21 @@ static func current_title(level: int) -> String:
 			best = int(key)
 	return str(_titles.get(str(best), ""))
 
+## Titles earned at shown `level`, lowest first: every titles.json key at or under it (the rule above).
+static func earned_titles(level: int) -> PackedStringArray:
+	current_title(level)  # loads _titles
+	var keys: Array = _titles.keys().filter(func (k: Variant) -> bool: return str(k).is_valid_int() and int(k) <= level)
+	keys.sort_custom(func (a: Variant, b: Variant) -> bool: return int(a) < int(b))
+	var out: PackedStringArray = []
+	for k: Variant in keys:
+		out.append(str(_titles[k]))
+	return out
+
+## The title worn over her name: World.player_title while she has earned it, else "" (no line).
+static func worn_title() -> String:
+	var t := World.player_title
+	return t if t != "" and earned_titles(player_level()).has(t) else ""
+
 ## A recipe's level: "Lv. 12", or NONE when the bag cannot make it yet. Crafting.preview_level
 ## reports the recipe's top level for an invalid pick, which read as "Lv. 60" on every row the
 ## player could not craft.
@@ -47,7 +95,8 @@ static func recipe_label(inv: Inventory, rec: Dictionary) -> String:
 
 ## Readable name for an item id or ingredient category ("lashing" -> "Lashing").
 static func nice_name(id: String) -> String:
-	var d := Data.item(StringName(id))
+	var catalog := data()
+	var d: ItemDef = catalog.item(StringName(id)) if catalog else null
 	if d and d.display_name != "":
 		return d.display_name
 	return id.replace("_", " ").capitalize()

@@ -1,0 +1,11 @@
+climate,tiers,home,resist,vegetation,materials
+blue_tropical,55,,heat_high;humidity,PalmTree;Plant;Lilypad;Rock;Grass;WildGrass;CoralNode;PearlNode,pearl;coral+hard;palm_frond;blue_dye;coconut+water
+desert,35;50,,heat_high;sun,Cactus;CactusFlowers;CactusFlower;Rock;CommonTree_Dead;WildGrass;CopperOreNode;SaltNode;SandstoneNode,cactus_flesh+water;cactus_spine+needle;sandstone;copper_ore;salt;stone
+grassland,10,True,,CommonTree;BirchTree;Bush;BushBerries;Grass;Grass_Short;Flowers;Rock;WoodLog;TreeStump;WildGrass;GraniteBoulder;HerbPlant;FibreTuft;BranchPile;BerrySprig;Corn,fibre_stalk;branch;wood_log;stone;herb_leaf;berries;clay;corn
+savannah,15;45,,heat_weak,CommonTree_Dead;Grass;Grass_Short;Rock;Bush;TreeStump;WildGrass;AcaciaTree;SandstoneNode;OchreNode;FlaxPlant;DryGrassTuft;BranchPile,dry_grass+dry;acacia_wood+light;sandstone;ochre;branch;stone
+snowfield,50;60,,cold_high;wind,PineTree_Snow;BirchTree_Snow;Willow_Snow;Rock_Snow;Bush_Snow;CommonTree_Dead_Snow;WildGrass;IceNode;SilverOreNode,ice;snow_pine+resinous;silver_ore;stone
+swamp,45;55;60,,heat_weak;humidity,Willow;Willow_Dead;Lilypad;Plant;Grass;Rock_Moss;WoodLog_Moss;WildGrass;PeatNode;ReedPlant;MarshHerbPlant,reed;willow_wood+pliant;peat;clay;marsh_herb+medicinal;leech
+temperate,20;35,,cold_weak,CommonTree;BirchTree;Willow;PineTree;Bush;BushBerries;Grass;Plant;Flowers;Rock_Moss;Rock;WoodLog_Moss;TreeStump_Moss;WildGrass;FlintNode;GraniteBoulder;FlaxPlant;ReedPlant;HerbPlant;FibreTuft;BranchPile;BerrySprig;TinOreNode;Wheat,fibre_stalk;herb_leaf;branch;wood_log+straight;reed;flint;clay;berries;stone;tin_ore;wheat
+tropical,25;40,,heat_high,PalmTree;Plant;Grass;Bush;Rock_Moss;Lilypad;WildGrass;ObsidianNode;BambooPlant;MangoBush;VinePlant,palm_frond;coconut+water;bamboo+flexible;mango;vine;obsidian+hard;stone
+tundra,30;40;55,,cold_high,ResinPine;PineTree_Snow;Bush_Snow;Rock_Snow;Grass_Short;WoodLog_Snow;WildGrass;IceNode;TinOreNode,pine_log+resinous;resin;ice;bone;stone;branch;tin_ore
+volcanic,60,,heat_volcanic,Rock;CommonTree_Dead;Rock_Snow;WildGrass;BlackIronNode;SulphurNode;LavaRockNode;AshNode,black_iron+hard;lava;sulphur;ash

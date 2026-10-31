@@ -17,7 +17,9 @@ const GATHER_FATIGUE_PER_UNIT := PlayerActions.GATHER_FATIGUE_PER_UNIT
 @export var run_speed: float = 7.0
 @export var sprint_speed: float = 8.5
 @export var accel: float = 30.0
-@export var turn_speed: float = 14.0
+## Owner: "player has the turn speed glitch too". ASSUMPTION: 720 deg/s on foot, so a 180 deg turn
+## takes 0.25 s (PlayerSim.face_tick is the one writer of her facing while she walks).
+@export var turn_rate_deg: float = 720.0
 
 @onready var visual: Node3D = $Visual
 @onready var rig: RiggedModel = $Visual/Rig
@@ -29,8 +31,10 @@ var view: PlayerView
 var controls: PlayerInput
 var actions: PlayerActions
 var pets: PlayerPets
+## TRIBE M1: the boat, the roster and the tribe members' live bodies (TribeDirector).
+var tribe: TribeDirector
 
-var inventory: Inventory = Inventory.new(20)
+var inventory: Inventory = Inventory.new() # Inventory.BASE_SLOTS (pack 05)
 var vitals: Vitals
 var statuses: StatusEffects
 var hunt: Hunt
@@ -39,6 +43,9 @@ var skills: SkillState
 var equipment: PlayerEquipment
 var ui: InventoryUI
 var craft_ui
+## The Craft/Build construction menu (BuildUI); HuntHud creates it on first use, so a lab without
+## the HUD still opens sites through actions.building_interact only when one exists.
+var build_ui
 var station_craft: StationCraft
 var eat_session: EatSession
 var food_buffs := FoodBuffState.new()
@@ -49,6 +56,21 @@ var _saddle_view: CreatureView
 var rolling: bool = false
 ## Feet under the water plane (river or sea); PlayerSim sets it every physics frame (WaterAccess).
 var in_water: bool = false
+## Deep enough that the survivor is buoyant rather than wading; PlayerSim owns the transition.
+var swimming: bool = false
+## Persistent mobile/desktop sprint mode. The keyboard/gamepad hold action still works alongside it.
+var sprint_toggled: bool = false
+## CHASESPRINT (owner: "when chasing a fleeing enemy, when it leaves a certain radius around the
+## player, toggle sprint to chase it"): the hunt target pulling away switches sprint on by itself.
+## Own flag, never written into sprint_toggled, so the player's own latch is never switched off from
+## here. Sim.wants_sprint and PlayerPets.wants_mount_sprint read it.
+var chase_sprint: bool = false
+## # ASSUMPTION: sprint on once the target is past 7 m, off again inside 4 m (hysteresis, so a target
+## hovering at the edge cannot make her stutter between walk and sprint).
+const CHASE_SPRINT_ON_M := 7.0
+const CHASE_SPRINT_OFF_M := 4.0
+## # ASSUMPTION: a forced chase sprint resumes only once the stamina bar is back to a quarter.
+const CHASE_SPRINT_RESUME_FRAC := 0.25
 ## The climate of the island the survivor is on, set by the island each frame. The fatigue panel reads it.
 var current_climate: String = ""
 ## True from the fatal hit until respawn(): no input, no regen, creatures lose interest,
@@ -57,6 +79,11 @@ var dead: bool = false
 ## Presentation only: who landed the hit that left the survivor down. Cleared on respawn.
 var downed_by: String = ""
 var _last_hit_taken_s: float = -999.0
+## The physics frame a roll dodged a hit on (RollRules window), so the hit reaction skips it.
+var _roll_dodged_frame: int = -1
+## Skill node bonuses cached by the SP spent, so refresh_equipment_vitals (every frame) does not walk trees.json.
+var _skills_bonus_sp: int = -1
+var _skills_health_bonus: float = 0.0
 var _sleep_left: float = 0.0
 
 # Work in progress. PlayerActions drives these; labs, the HUD and the anim tick read them.
@@ -73,6 +100,12 @@ var _field_radial_opts: Array = []
 # Tap-to-walk route (PlayerSim keeps the waypoints).
 var nav_active: bool = false
 var _path_goal: Vector3 = Vector3.ZERO
+## [owner 2026-10-28] A ground click/tap put her on a move order: auto-attack and auto-chase never
+## pull her off that path (Hunt checks this), until she arrives, a new order comes, she takes a real
+## hit (not a status tick), or the move is otherwise replaced. Cleared by PlayerSim when the route ends.
+var move_order: bool = false
+## The creature whose hit broke a move order in the hurt stun, fought once the stun lets her act.
+var _retaliate_target: Creature
 
 ## Pets out right now (PlayerPets keeps the list). `summoned_pet` is the first one, for old callers.
 var summoned_pets: Array[Creature]:
@@ -102,6 +135,11 @@ func _ready() -> void:
 		set_process_unhandled_input(false)
 		return
 	add_to_group(PlayerRegistry.GROUP)
+	# Owner 2026-10-28: running is faster (combat_tuning movement.run_speed_mult); every reader of
+	# run_speed / sprint_speed (the mount floor included) sees the scaled numbers.
+	var run_mult := CombatTuning.num("movement", "run_speed_mult", 1.0)
+	run_speed *= run_mult
+	sprint_speed *= run_mult
 	if agent == null:
 		agent = _child(NavigationAgent3D.new(), "Agent")
 	vitals = _child(Vitals.new(), "Vitals")
@@ -114,6 +152,8 @@ func _ready() -> void:
 	view.setup_ui()
 	vitals.damaged.connect(_on_vitals_damaged)
 	vitals.died.connect(_on_vitals_died)
+	tribe = _child(TribeDirector.new(), "Tribe")
+	tribe.setup(self)
 
 func _child(n: Node, node_name: String) -> Node:
 	n.name = node_name
@@ -128,10 +168,12 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		sim.hold_still(delta)
 	else:
+		chase_sprint_tick()
 		view.draw_path_line(delta)
 		food_buffs.tick(delta)
 		sim.tick_survival_xp(delta)
 		sim.tick_autofeed(delta)
+		sim.tick_spoilage(delta)
 		controls.tick_hold_walk(delta)
 		sim.tick(delta)
 	view.tick(delta)
@@ -152,6 +194,71 @@ func half_height() -> float:
 func feet_position() -> Vector3:
 	return global_position - Vector3(0.0, half_height(), 0.0)
 
+func is_swimming() -> bool:
+	return swimming
+
+## The selected resource or animal that the follow camera should leave room for.
+func camera_interest() -> Node3D:
+	if hunt and hunt.target and is_instance_valid(hunt.target):
+		return hunt.target
+	if tame_target and is_instance_valid(tame_target):
+		return tame_target
+	if gather_target and is_instance_valid(gather_target):
+		return gather_target
+	if _gather_radial:
+		var radial_target: Variant = _gather_radial.focus_node()
+		if radial_target is Node3D and is_instance_valid(radial_target):
+			return radial_target as Node3D
+	return null
+
+func toggle_sprint() -> bool:
+	sprint_toggled = not sprint_toggled
+	return sprint_toggled
+
+## CHASESPRINT: every physics frame, before the movement tick. On while the hunt has a live target
+## farther than CHASE_SPRINT_ON_M, off once it is inside CHASE_SPRINT_OFF_M, and off when the chase
+## ends (a click-to-move order, a dead/cleared target, her own death). A winded survivor is never
+## forced to sprint; mounted, the mount's own pool decides (its energy pays the run, not hers).
+func chase_sprint_tick() -> void:
+	var t: Creature = null
+	if hunt and hunt.target and is_instance_valid(hunt.target) and not hunt.target.health.dead:
+		t = hunt.target
+	if t == null or dead or move_order:
+		chase_sprint = false
+		return
+	var mount: Creature = mounted_on if is_instance_valid(mounted_on) else null
+	var spent := false
+	var recovered := true
+	if mount:
+		spent = not mount.can_sprint()
+		recovered = mount.can_sprint()
+	else:
+		# Winded: an empty or exhausted pool never forces a sprint, and it only comes back once a
+		# quarter of the bar has refilled (# ASSUMPTION), so an empty bar cannot make her stutter.
+		spent = vitals.energy <= 0.0 or vitals.exhausted
+		recovered = not spent and vitals.energy >= vitals.effective_max_energy() * CHASE_SPRINT_RESUME_FRAC
+	var offset := t.global_position - global_position
+	var d := Vector2(offset.x, offset.z).length()
+	if chase_sprint:
+		if d <= CHASE_SPRINT_OFF_M or spent:
+			chase_sprint = false
+	elif d > CHASE_SPRINT_ON_M and recovered:
+		chase_sprint = true
+
+## Combat mode targets the nearest wild animal; a second tap cleanly disengages.
+func toggle_combat() -> bool:
+	if hunt == null:
+		return false
+	if hunt.target and is_instance_valid(hunt.target):
+		hunt.stop()
+		return false
+	var target := actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+	if target == null:
+		notice("No animal in range")
+		return false
+	hunt.start(target)
+	return true
+
 # ---------------------------------------------------------------- movement, facing
 
 func nav_to(pos: Vector3) -> void:
@@ -159,13 +266,6 @@ func nav_to(pos: Vector3) -> void:
 
 func clear_nav() -> void:
 	sim.clear_nav()
-
-## Turn toward a point over time (combat facing while swinging).
-func face_world_smooth(pos: Vector3, delta: float, speed: float = 12.0) -> void:
-	var to := pos - global_position
-	to.y = 0.0
-	if to.length_squared() > 0.0001:
-		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(-to.x, -to.z), clampf(speed * delta, 0.0, 1.0))
 
 func face_world(pos: Vector3) -> void:
 	var to := pos - global_position
@@ -194,8 +294,10 @@ func open_station_craft(st: Node3D) -> void:
 		station_craft.open_station_menu(st)
 
 ## From the craft menu: craft `count` of a recipe (walks to the station if needed).
-func craft_recipe(rid: StringName, count: int = 1) -> void:
-	actions.craft(rid, count)
+## `uids` (one per recipe slot, CraftUI's place-materials view) name the instance that leads each
+## slot; empty = the default picks.
+func craft_recipe(rid: StringName, count: int = 1, uids: Array[String] = []) -> void:
+	actions.craft(rid, count, uids)
 
 func begin_eat_slot(index: int) -> bool:
 	return actions.eat(index)
@@ -284,6 +386,11 @@ func play_punch() -> void:
 	if anim:
 		anim.on_punch()
 
+## kick / tackle clip, or the attack swing (heavy for the tackle) when it is missing.
+func play_tactic(clip: StringName, heavy: bool) -> void:
+	if anim:
+		anim.on_tactic(clip, heavy)
+
 func play_attack(heavy: bool = false) -> void:
 	if anim:
 		anim.on_attack(heavy)
@@ -317,41 +424,90 @@ func display_name() -> String:
 		return World.player_name
 	return str(view.survivor_meta().get("display_name", "Survivor"))
 
+## The title line over the nameplate's name ("" = no line). Any plate owner (tribe members, other
+## players) answers this too, and HudLayout.draw_nameplate draws it the same way.
+func display_title() -> String:
+	return LevelDisplay.worn_title()
+
 # ---------------------------------------------------------------- damage, death, respawn
 
+## Worn gear's health bonus, plus the skill nodes whose stat effect the game runs (Defense's Max Health I-III,
+## Survival's Belly Fat 1): SkillRules.ability totals, recounted here so a purchase shows the next frame.
 func refresh_equipment_vitals() -> void:
 	if vitals and inventory:
 		vitals.equipment_health_bonus = inventory.equipped_health_bonus()
+		if skills and skills.sp_spent != _skills_bonus_sp:
+			# Recount only when a purchase or refund changed (this runs every physics frame): the totals
+			# walk every node in trees.json.
+			_skills_bonus_sp = skills.sp_spent
+			_skills_health_bonus = float(SkillRules.ability(skills, "max_health"))
+			vitals.energy_bonus = float(SkillRules.ability(skills, "max_energy"))
+		if skills:
+			vitals.equipment_health_bonus += _skills_health_bonus
 		vitals.health = minf(vitals.health, vitals.effective_max_health())
 
 func receive_creature_hit(who: Creature, _clip: StringName) -> void:
+	if _roll_dodged_frame >= 0 and Engine.get_physics_frames() - _roll_dodged_frame <= 1:
+		_roll_dodged_frame = -1  # rolled through: no hit reaction, no fatigue, no separate XP
+		return
 	_last_hit_taken_s = Time.get_ticks_msec() * 0.001
 	if who and who.def:
 		downed_by = str(who.def.id).replace("_", " ").capitalize()
 	actions.cancel_work()
+	# [owner 2026-10-28] Taking a hit breaks a click-to-move order: the walk ends and she turns on the
+	# creature that hit her (or, with no live source, the nearest hostile). A status tick never reaches
+	# here (Player._on_vitals_damaged returns before the flinch for ticks), so bleed stays a walk.
+	if move_order and not dead:
+		move_order = false
+		clear_nav()
+		var foe: Creature = who if (who != null and is_instance_valid(who) and not who.is_pet \
+				and not who.health.dead \
+				and global_position.distance_to(who.global_position) <= PlayerActions.ATTACK_SEEK_RANGE) else null
+		if foe == null:
+			# Unknown, gone, or out of reach: turn on the nearest hostile instead.
+			foe = actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+		if foe and hunt:
+			hunt.start(foe)
+			print("[combat] retaliate %s" % foe.def.id)
 	# Self-defence: bitten with no live target -> turn on the biter (auto-attack takes it from there).
-	if not dead and hunt and who and not who.is_pet and not who.health.dead:
+	if not dead and hunt and who and not who.is_pet and not who.health.dead and hunt.target != who:
 		var cur := hunt.target
 		if cur == null or not is_instance_valid(cur) or cur.health.dead or global_position.distance_to(cur.global_position) > 6.0:
 			hunt.start(who)
 			print("[combat] retaliate %s" % who.def.id)
-	if skills:
-		skills.add_xp("defense", 1)
+	# Owner 2026-10-28: Defense trains only on a defensive action that avoids an attack (roll_dodge), never on a hit taken.
 	vitals.add_fatigue(2.0, &"combat")
 	WaterAccess.soil(self, &"hit")
 	_flinch()
-	sim.on_hit()
 
-## Hit reaction clip; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse).
+## A creature hit that reached her inside the roll's opening window: no damage, no stagger, no
+## statuses (CreatureAttack returns before any of them) and a "Dodged" float. Defense XP is paid
+## only when the attack would have hit her anyway (`lands`, the accuracy roll), once per attack, so
+## pressing Roll alone never pays (spec 07 §2).
+func roll_dodge(clip: StringName, who: Creature, lands: bool) -> void:
+	if sim == null:
+		return
+	_roll_dodged_frame = Engine.get_physics_frames()
+	CombatAvoid.avoided(self, who, &"dodge", lands)  # "Dodged" floats over her; Defense XP only if it would have landed
+	print("[combat] dodged by roll %s %s t=%.2f xp=%s" % [who.def.id if who and who.def else "?", clip, sim.roll_elapsed(), lands])
+
+## Hit reaction; a roll in flight keeps its clip (the roll cancels the flinch, not the reverse). The
+## hurt clip plays only with the stun (PlayerSim.on_hit): inside the stun immunity a hit damages
+## without restarting it, so bites cannot chain-stun her.
 func _flinch() -> void:
 	if anim == null or rolling:
 		return
+	var stunned := sim.on_hit() if sim else true
 	if statuses and statuses.has_flag(&"knockdown"):
 		anim.play_clip(&"knockdown")
-	else:
+	elif stunned:
 		anim.on_damaged()
 
 func _on_vitals_damaged() -> void:
+	# A status tick (starving, poison, bleed, cold, smoke) hurts but never stuns, ends a rest or sleep, or
+	# cancels a gather (owner 2026-10-29: "let me harvest berries while im hungry"). Only hits do (spec 01:19).
+	if statuses.ticking:
+		return
 	sim.interrupt_sleep()
 	actions.cancel_work()
 	_flinch()
@@ -387,8 +543,7 @@ func respawn() -> void:
 	dead = false
 	downed_by = ""
 	if statuses:
-		for inst in statuses.instances().duplicate():
-			statuses.clear_id(inst.id)
+		statuses.clear_all()  # also gives back what a status took off max HP (SAVEFIX)
 	vitals.revive(0.5)
 	var at := global_position
 	if World.runtime and World.runtime.get("_camp_pos") != null:
@@ -455,5 +610,6 @@ func tick_climate_fatigue(delta: float, climate: String) -> void:
 	var group := "heat" if Game.phase_name() == &"day" else "cold"
 	var points := float(short[group])
 	if points > 0.0:
-		var mult := statuses.heat_fatigue_mult() if group == "heat" else 1.0  # Quenched (PRD :314)
+		var mult := statuses.heat_fatigue_mult() if group == "heat" else statuses.cold_fatigue_mult()  # Quenched (PRD :314); Wet (PRD :284)
+		mult *= sim.rest.climate_mult(group)  # sitting by the fire (PRD :285)
 		vitals.add_fatigue(delta * points * (per_min / 60.0) * mult, StringName("climate_" + group))

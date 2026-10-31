@@ -81,14 +81,14 @@ const HOSTILE := [
 	["act.equip", {"clear": true, "slot": "bogus"}, "bad_request"],
 	["act.equip", {"clear": true, "slot": 7}, "bad_request"],
 	["act.equip", {"clear": true, "slot": "xxxxxxxxxxxxxxxxx"}, "bad_request"],
-	["act.equip", {"bag_slot": 1}, "not_found"],
+	["act.equip", {"bag_slot": 50}, "not_found"], # W2-INV: stone no longer stacks, so slot 1 holds the second stone
 	["act.equip", {"bag_slot": 0}, "bad_request"],
 	["act.eat", {}, "bad_request"],
 	["act.eat", {"bag_slot": -1}, "bad_request"],
 	["act.eat", {"bag_slot": 999}, "bad_request"],
 	["act.eat", {"bag_slot": 1.5}, "bad_request"],
 	["act.eat", {"bag_slot": "0"}, "bad_request"],
-	["act.eat", {"bag_slot": 1}, "not_found"],
+	["act.eat", {"bag_slot": 50}, "not_found"],
 	["act.eat", {"bag_slot": 0}, "bad_request"],
 	["act.tame", {}, "bad_request"],
 	["act.tame", {"net_id": "compy1"}, "bad_request"],
@@ -114,7 +114,7 @@ const HOSTILE := [
 	["act.deposit", {"bag_slot": -1}, "bad_request"],
 	["act.deposit", {"bag_slot": 1.5}, "bad_request"],
 	["act.deposit", {"bag_slot": 999}, "bad_request"],
-	["act.deposit", {"bag_slot": 1}, "not_found"],
+	["act.deposit", {"bag_slot": 50}, "not_found"],
 	["act.deposit", {"bag_slot": 0, "count": 0}, "bad_request"],
 	["act.deposit", {"bag_slot": 0, "count": -3}, "bad_request"],
 	["act.deposit", {"pet_uid": "p0.0"}, "not_found"],
@@ -324,6 +324,7 @@ func _tame_once(seed: int) -> CharacterStore:
 	expect(early.get("err") == "not_ready" and st.state_hash() == h, "tame refuses a creature that is not knocked out below 30 %")
 	w.creatures.compy1.hp = 20.0
 	w.creatures.compy1.knocked = true
+	w.creatures.compy1.torpor = 1.0  # FOODTORPOR: knocked out = weak + torpor past the threshold
 	for i in 3:
 		_ok(st.apply("act.tame", 1, {"net_id": "compy1", "food": "berry"}, 4 + i), "tame feed %d" % i)
 	return st
@@ -428,7 +429,7 @@ func _receive_checks() -> void:
 	# edited body are refused; with a real pet exported, a forged pet with a fresh uid is too.
 	_gather_until(st, 1, "rock", 0, "stone", 3, 6)
 	var da := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 7), "deposit A")
-	var db := _ok(st.apply("act.deposit", 1, {"bag_slot": 0, "count": 1}, 7), "deposit B")
+	var db := _ok(st.apply("act.deposit", 1, {"bag_slot": st.character(1).inventory().find_first(&"stone"), "count": 1}, 7), "deposit B") # W2-INV: one stone per slot
 	var ua: Dictionary = da.r.get("asset", {}) if da.ok else {}
 	var ub: Dictionary = db.r.get("asset", {}) if db.ok else {}
 	var a1 := st.apply("char.receive", 1, {"asset": ua}, 8)
@@ -479,6 +480,7 @@ func _capture_checks() -> void:
 	var got := {}
 	while throws < 30:
 		w.creatures.compy1.knocked = true # a missed net wakes it; the fixture knocks it down again
+		w.creatures.compy1.torpor = 1.0
 		throws += 1
 		got = _ok(st.apply("act.capture", 1, {"net_id": "compy1"}, 5 + throws), "capture throw %d" % throws)
 		if not got.get("ok", false) or bool(got.r.get("captured", false)):
@@ -526,6 +528,9 @@ func _hardening_checks() -> void:
 	tune["unarmed_damage"] = 20.0 # the cached section; dropped again below
 	var hit := _ok(st.apply("act.attack", 1, {"net_id": "compy1"}, 8), "attack, unarmed 20")
 	CombatTuning._data = {} # the next section() reloads the file
+	# TACTICS: the basic attack has its own cooldown on the server too (basic_cooldown_s, 1/rate).
+	var spam: Dictionary = st.apply("act.attack", 1, {"net_id": "compy1", "ms": 300}, 8)
+	expect(spam.get("err") == "not_ready", "a second swing 300 ms later is refused on cooldown (%s)" % spam.get("err", "ok"))
 	var base := maxf(20.0 * float(tune.min_damage_frac), 20.0 - 10.0 * float(tune.defense_factor)) * CombatCounters.multiplier(Data.creature(&"compsognathus").archetype, &"blunt")
 	var want := base * (float(tune.crit_mult) if hit.r.get("kind") == "crit" else 1.0)
 	var tuned: bool = miss.r.get("kind") == "dodge" and absf(float(hit.r.get("dealt", 0.0)) - want) < 0.001
@@ -620,7 +625,7 @@ func _fuzz_and_replay(n: int, seed: int) -> void:
 			return
 	var a := st.state_json()
 	var b := fresh.state_json()
-	expect(a == b, "journal replay from empty reproduces byte-identical canonical JSON (%d vs %d bytes)" % [a.length(), b.length()])
+	expect(a == b, "journal replay from empty reproduces byte-identical canonical JSON (%d vs %d bytes) live: %s replayed: %s" % [a.length(), b.length(), _around(a, b), _around(b, a)])
 	print("[srvdom] replay lines=%d byte_identical=%s bytes=%d sha256=%s" % [st.lines.size(), a == b, a.length(), b.sha256_text().substr(0, 16)])
 
 ## The island moving on between ops: knockdowns, deaths and respawns, regrowth, new corpses.
@@ -631,6 +636,7 @@ static func _simulate(w: WorldFacade, spawned: int) -> int:
 			w.creatures.erase(id)
 		elif float(c.hp) < 0.3 * float(c.hp_max):
 			c.knocked = true
+			c.torpor = 1.0
 	while w.creatures.size() < 3:
 		spawned += 1
 		var p := Vector3([0.8, -0.8, 0.0][spawned % 3], 0, [0.6, 0.6, -0.9][spawned % 3])

@@ -18,10 +18,21 @@ const PROVOKE_HITS := 3
 const PROVOKE_SECONDS := 15.0
 
 static var _pack_cooldown_until: Dictionary = {} ## pack_id -> seconds
+## Every state in which the animal is on its prey (the ring, the leash and the post-kill reset read it).
+## circle/feint/lunge/pounce/combo are TacticalBrain's manoeuvres.
+const COMBAT_STATES: Array[StringName] = [&"alert", &"approach", &"attack", &"retreat", &"circle", &"feint", &"lunge", &"pounce", &"combo", &"hop", &"hold"]
+
+## TACTICS: >= 0 replaces the locomotion speed (m/s); strafe_face makes the body face that node while it
+## moves (a sidestep around prey instead of turning to the velocity). Creature._physics_process reads both.
+var speed_override: float = -1.0
+var strafe_face: Node3D
+## TACTICS: a named locomotion loop to play while moving (the charge); "" = the normal gait.
+var gait_clip: StringName = &""
 
 var creature: Creature
 var state: StringName = &"roam"
 var attack_target: Node3D
+var _siege_cd := 0.0  # next time _approach may ask StructureHealth.siege_target
 var perception: float = 12.0
 var profile: Dictionary = {}
 var _roam_cd: float = 0.0
@@ -42,14 +53,46 @@ var _last_hit_s: float = -999.0
 var _provoked_until: float = -1.0
 var _retarget_cd: float = 0.0
 var _think_phase: int = 0
+var _frame_n: int = 0  ## physics steps this brain has run
 var _think_dt: float = 0.0
 var _dt: float = 0.0
 var _awake_until: float = -1.0
 ## Flight, leash and temporary home (see BrainFlight).
 var flight := BrainFlight.new(self)
 
+## ENRAGE x natures (owner 2026-10-28: "timid dinosaurs when they get enraged they run away"): an
+## enraged animal whose nature has enrage_flee panics and runs from its attacker, and comes back to
+## the fight when the rage ends (or it walks home once it is out of range).
+var _enrage_fled := false
+
+func enraged() -> bool:
+	return creature != null and creature.statuses.has(&"enraged")
+
+func _enrage_panic() -> void:
+	if enraged() and creature.nature_flag("enrage_flee") and _valid_target():
+		if state != &"flee":
+			_set_state(&"flee")
+			_enrage_fled = true
+	elif _enrage_fled:
+		_enrage_fled = false
+		if state == &"flee":
+			_set_state(&"approach" if _valid_target() else &"roam")
+
+## The lighter enrage of brains without a tactics profile: attack cooldowns x ai.json
+## default.enraged_cd_mult (ASSUMPTION 0.6), scaled by the nature's enrage_mult.
+func _rage_cd() -> float:
+	if not enraged():
+		return 1.0
+	return clampf(1.0 - (1.0 - float(profile.get("enraged_cd_mult", 0.6))) * creature.nature_knob("enrage_mult", 1.0), 0.2, 1.0)
+
+## NATURES: an Aggressive (auto_engage) grazer is always provoked; natures.json says it charges on
+## sight, but the alert step used to send it back to grazing.
 func _provoked() -> bool:
-	return _now_s() < _provoked_until
+	return _now_s() < _provoked_until or (_is_herbivore() and creature.nature_flag("auto_engage"))
+
+## TacticalBrain: a flight it started on purpose (hurt, a rage) that provocation must not cut short.
+func _holds_flee() -> bool:
+	return false
 
 func setup(c: Creature) -> void:
 	creature = c
@@ -65,7 +108,7 @@ func setup(c: Creature) -> void:
 func on_player_killed(at: Vector3) -> void:
 	if creature == null or creature.health.dead or creature.is_pet:
 		return
-	var was_hunting := attack_target is Player or state in [&"alert", &"approach", &"attack", &"retreat"]
+	var was_hunting := attack_target is Player or state in COMBAT_STATES
 	if not was_hunting:
 		return
 	var away := creature.global_position - at
@@ -98,7 +141,9 @@ func on_player_killed(at: Vector3) -> void:
 	_log("[ai] %s post-kill retreat %.1fm" % [creature.def.id, creature.global_position.distance_to(destination)])
 
 func _effective_perception() -> float:
-	var p := perception
+	# NATURES (one place): super.setup() runs before Creature.spawn() has rolled the nature, so
+	# re-apply the nature's widening of the scan radius here instead of in setup().
+	var p := perception * creature.nature_knob("aggro_radius_mult", 1.0)
 	if Game.phase_name() == &"night" and bool(profile.get("night_predator_bonus", true)) and not _is_herbivore():
 		p *= 1.0 + float(Data.world_rules.get("night_predator_perception_bonus", 0.5))
 	return p
@@ -106,15 +151,33 @@ func _effective_perception() -> float:
 func _is_herbivore() -> bool:
 	return bool(profile.get("is_herbivore", false))
 
+## NATURES (one place): fear_immune (Stubborn) never bolts; auto_engage (Aggressive) makes even a
+## skittish grazer come at a threat instead of running from it.
 func _flees_on_sight() -> bool:
+	if creature.nature_flag("fear_immune") or creature.nature_flag("auto_engage"):
+		return false
 	return _is_herbivore() and bool(profile.get("flee_on_sight", true))
+
+## The HP fraction at which this animal's fight would end: the archetype's retreat_threshold_frac
+## times its nature's multiplier (Brave 0.5, Stubborn 0.6, Timid 1.8 on a grazer).
+func retreat_fraction() -> float:
+	var mult := creature.nature_knob("flee_threshold_mult", 1.0) if _is_herbivore() else creature.nature_knob("retreat_threshold_mult", 1.0)
+	return clampf(float(profile.get("retreat_threshold_frac", 0.3)) * mult, 0.0, 0.95)
+
+## The damage that ends a fight for this animal: the archetype/temperament threshold (ai.json
+## retreat_threshold_frac x max HP) times its nature's multiplier (Timid backs off sooner, Brave and
+## Stubborn fight on). One place; note_damage and every species brain read it.
+func damage_threshold() -> float:
+	var frac := float(profile.get("retreat_threshold_frac", 0.3))
+	var mult := creature.nature_knob("flee_threshold_mult", 1.0) if _is_herbivore() else creature.nature_knob("retreat_threshold_mult", 1.0)
+	return creature.health.max_hp * frac * mult
 
 ## Leash radius: past this the chase ends at once (see BrainFlight.track). Drawn as the red
 ## dotted ring while the creature is on the survivor. A pack shares its alpha's leash.
 func aggro_radius() -> float:
 	var leader := _pack_leader()
 	var src: CreatureBrain = leader.brain if leader and leader != creature and leader.brain else self
-	return maxf(26.0 if attack_target is FieldCatapult else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
+	return maxf(26.0 if StructureHealth.is_structure(attack_target) else 0.0, src._effective_perception() * float(src.profile.get("leash_mult", 2.2)))
 
 ## True while this creature is actively on the survivor (ring shown).
 func hunting_player() -> bool:
@@ -122,22 +185,30 @@ func hunting_player() -> bool:
 		return false
 	var on_player := attack_target is Player and not (attack_target as Player).dead
 	var on_pet := attack_target is Creature and (attack_target as Creature).is_pet and not (attack_target as Creature).health.dead
-	var on_siege := attack_target is FieldCatapult and (attack_target as FieldCatapult).hp > 0
+	var on_siege := StructureHealth.is_structure(attack_target) and not StructureHealth.of(attack_target, true).dead
 	if not (on_player or on_pet or on_siege):
 		return false
-	return state in [&"alert", &"approach", &"attack", &"retreat"]
+	return state in COMBAT_STATES
+
+## Damage multiplier for the hit_index-th hit of clip (TacticalBrain: the combo's rising bites).
+func hit_damage_mult(_clip: StringName, _hit_index: int) -> float:
+	return 1.0
 
 func _physics_process(delta: float) -> void:
 	if creature == null or creature.health.dead:
 		_set_state(&"dead")
 		return
+	if creature.ridden:
+		return  # the rider steers; the brain resumes on dismount
 	if creature.statuses.has(&"knockdown") or not creature.statuses.can_act():
 		_set_state(&"downed")
 		creature.stop_move()
 		return
 	_think_dt += delta
 	_face_target(delta)
-	if not _should_think(Engine.get_physics_frames()):
+	_frame_n += 1
+	# The brain's own step count, not the engine's: the 10 Hz stagger then replays the same from spawn.
+	if not _should_think(_frame_n):
 		return
 	var dt := _think_dt
 	_think_dt = 0.0
@@ -145,18 +216,28 @@ func _physics_process(delta: float) -> void:
 		return
 	tick(dt)
 
-## Standing combat states turn every physics frame; thinking at 10 Hz made them snap. The turn
-## rates match the old every-frame calls (face_towards(p, delta) and face_towards(p, 0.05) at 60 Hz).
+## Standing combat states turn every physics frame; thinking at 10 Hz made them snap. The speed is
+## the species' turn_rate (Creature.face_towards), the same for alert and attack.
 func _face_target(delta: float) -> void:
 	if (state == &"alert" or state == &"attack") and not _full_rate() and _valid_target():
-		creature.face_towards(attack_target.global_position, delta if state == &"alert" else delta * 3.0)
+		creature.face_towards(attack_target.global_position, delta)
 
 ## One think step: the shared rules, then the species think.
 func tick(dt: float) -> void:
 	_dt = dt
 	if not _pre_think(dt):
+		_break_in()
 		_think(dt)
 	creature.brain_state = state
+
+## W2-BUILDSYS: prey behind walls the creature cannot path around: the blocking wall comes down first.
+func _break_in() -> void:
+	if not _valid_target() or StructureHealth.is_structure(attack_target) or _now_s() < _siege_cd:
+		return
+	_siege_cd = _now_s() + 1.0  # one TilePath query a second per hunter, not one per think
+	var wall := StructureHealth.siege_target(creature, attack_target.global_position)
+	if wall:
+		attack_target = wall
 
 ## THINK_HZ, staggered by _think_phase; a timed move (_full_rate) thinks every frame.
 func _should_think(frame: int) -> bool:
@@ -179,6 +260,7 @@ func _pre_think(dt: float) -> bool:
 		return false
 	_attack_cd = maxf(0.0, _attack_cd - dt)
 	_combat_memory_left = maxf(0.0, _combat_memory_left - dt)
+	_enrage_panic()
 	flight.tick_home()
 	if state == &"downed":
 		_set_state(&"alert" if _valid_target() else &"roam")
@@ -243,9 +325,11 @@ func note_damage(amount: float) -> void:
 			_damage_window.remove_at(i)
 			continue
 		total += float(row.get("a", 0.0))
-	var trigger := creature.health.max_hp * float(profile.get("retreat_threshold_frac", 0.3))
-	if total >= trigger:
-		if _is_herbivore():
+	var trigger := damage_threshold()
+	if total >= trigger and not creature.nature_flag("fear_immune"):
+		# NATURES: Timid (retreat_as_flee) avoids the fight altogether; everyone else backs off a
+		# predator's way (retreat), the same reset it always did.
+		if _is_herbivore() or creature.nature_flag("retreat_as_flee"):
 			if not _provoked():
 				_set_state(&"flee")
 		else:
@@ -359,7 +443,7 @@ func _scan() -> void:
 ## A survivor or pet is in sight (or woke us). Predators and territorial grazers come at it,
 ## skittish grazers start and then flee, defensive grazers keep grazing until they are hit.
 func _spot(who: Node3D) -> void:
-	if _is_herbivore() and not _flees_on_sight():
+	if _is_herbivore() and not _flees_on_sight() and not creature.nature_flag("auto_engage"):
 		var territory := float(profile.get("territory_m", 0.0))
 		if territory <= 0.0 or _surface_dist(who) > territory:
 			return
@@ -369,7 +453,7 @@ func _spot(who: Node3D) -> void:
 	_set_state(&"alert")
 	_alert_left = maxf(_alert_left, 0.6)
 	creature.mark_aggro_now()
-	creature.anim.play_clip(&"alert")
+	creature.anim.play_clip(&"sniff" if creature.anim.has_state(&"sniff") else &"alert")
 	_propagate_alert(who)
 
 func _nearest_live_prey(radius: float) -> Node3D:
@@ -390,6 +474,10 @@ func _nearest_live_prey(radius: float) -> Node3D:
 				best_d = d
 	return best
 
+## Aware of prey but not attacking it: the creature stands in its investigate idle (CreatureAnim.play_idle).
+func aware_idle() -> bool:
+	return state == &"alert" and _valid_target()
+
 func _valid_target() -> bool:
 	if attack_target == null or not is_instance_valid(attack_target):
 		return false
@@ -399,6 +487,8 @@ func _valid_target() -> bool:
 		return false  # a survivor on the floor is not prey; wander off
 	if attack_target is Creature and (attack_target as Creature).health.dead:
 		return false
+	if attack_target is TribeMember and (attack_target as TribeMember).health.dead:
+		return false  # TRIBE M1: a knocked-out member is not prey
 	return true
 
 ## Both sides can contact a giant's body edge without body overlap or safe-edge cheese.
@@ -465,9 +555,9 @@ func _do_attack() -> void:
 	else:
 		_primary_chain += 1
 	creature.anim.play_clip(clip)
-	_attack_cd = 1.2 if clip == &"attack_primary" else 1.8
+	_attack_cd = (1.2 if clip == &"attack_primary" else 1.8) * _rage_cd()
 	if _is_pack_member():
-		_pack_cooldown_until[creature.pack_id] = _now_s() + 0.4
+		_pack_cooldown_until[creature.pack_id] = _sim_s() + 0.4
 
 func _retreat(delta: float) -> void:
 	if not _valid_target():
@@ -529,7 +619,7 @@ func _pack_ready() -> bool:
 	if not _is_pack_member():
 		return true
 	var until := float(_pack_cooldown_until.get(creature.pack_id, 0.0))
-	if until > _now_s():
+	if until > _sim_s():
 		return false
 	if _is_pack_leader():
 		return true
@@ -596,7 +686,7 @@ func _cornered() -> bool:
 	return true
 
 func _should_heavy() -> bool:
-	if _primary_chain >= int(profile.get("heavy_after_primaries", 3)):
+	if _primary_chain >= int(profile.get("heavy_after_primaries", 3)) - (1 if enraged() else 0):  # enraged: the special comes sooner
 		return true
 	if not _valid_target():
 		return false
@@ -654,6 +744,11 @@ func _set_state(next: StringName) -> void:
 func _log(msg: String) -> void:
 	if Game and Game.debug_overlay:
 		print(msg)
+
+## Physics-step seconds (steps / ticks per second): the pack's shared attack gap is timed on this, not
+## the wall clock, so a seeded replay (t_tactical, t_swarm) gaps the same way under any machine load.
+func _sim_s() -> float:
+	return float(Engine.get_physics_frames()) / float(Engine.physics_ticks_per_second)
 
 func _now_s() -> float:
 	return float(Time.get_ticks_msec()) * 0.001

@@ -14,8 +14,18 @@ var nature_families: Dictionary = {}
 var world_rules: Dictionary = {}
 var world_climates: Dictionary = {}
 var world_islands: Dictionary = {}
+## LANDMARKS M1 (data/world/landmarks.json): the landmark types, per-climate site rows, budgets and
+## validation rules. Empty when the file is missing (the landmark pass then places nothing).
+var world_landmarks: Dictionary = {}
 var world_objectives: Array = [] ## ordered standing orders; see data/world/objectives.json
+## TUTORIAL ISLAND: the orders a new survivor follows before owning a home (objectives.json "tutorial"),
+## and the standing order id the main list resumes at once the tutorial is done.
+var world_tutorial: Array = []
+var tutorial_resume_at: String = ""
 var props_manifest: Dictionary = {}
+## Scenery props (world/props.json): non-resource decoration, biome weights and the resource
+## scatter weighting. IslandProps reads it through this field; a missing file leaves it empty.
+var world_props: Dictionary = {}
 var creature_ai: Dictionary = {}
 
 func _ready() -> void:
@@ -62,13 +72,24 @@ func has_capture_technique(tier: int) -> bool:
 			return is_survival_unlocked(id)
 	return false
 
+## The Butchering tree's level (its nodes open cadaver parts), 0 with no local survivor.
 func butchering_level() -> int:
+	var p := PlayerRegistry.local()
+	if p != null and p.skills != null:
+		return p.skills.level_of("butchering")
 	var lvl := 0
 	for id in survival_nodes:
 		var n: Dictionary = survival_nodes[id]
 		if str(n.get("kind", "")) == "butchering" and is_survival_unlocked(id):
 			lvl = maxi(lvl, int(n.get("tier", 1)))
 	return lvl
+
+## "" when the local survivor's Butchering nodes open this drop, else the node to learn (corpse skips the row).
+func butcher_row_open(item: String) -> bool:
+	var p := PlayerRegistry.local()
+	if p == null or p.skills == null:
+		return true
+	return SkillRules.butcher_block(p.skills, item) == ""
 
 func butcher_drops(species: StringName) -> Array:
 	var table: Dictionary = butcher_tables.get(str(species), {})
@@ -113,7 +134,7 @@ func _load_creatures(dir: String) -> void:
 	da.list_dir_begin()
 	var fname := da.get_next()
 	while fname != "":
-		if not da.current_is_dir() and fname.ends_with(".json") and fname != "anim_events.json" and fname != "ai.json":
+		if not da.current_is_dir() and fname.ends_with(".json") and fname != "anim_events.json" and fname != "ai.json" and fname != "ragdoll.json" and fname != "natures.json":
 			var path := "%s/%s" % [dir, fname]
 			var root := _parse_json(path)
 			if not root.has("species"):
@@ -156,6 +177,13 @@ func _load_recipes(path: String) -> void:
 		# Their sleep prerequisites must exist before a player can spend resources.
 		if str(row.get("implementation_status", "")) == "staged":
 			continue
+		# OUTPUTS: a keyed output must name a real item, or the craft would mint nothing.
+		var by: Variant = row.get("outputs_by_primary", null)
+		if by is Dictionary:
+			for k: Variant in by:
+				var o: Variant = (by as Dictionary)[k]
+				if not o is Dictionary or item(StringName(str((o as Dictionary).get("id", "")))) == null:
+					push_error("recipe %s: outputs_by_primary[%s] names no item" % [id, k])
 		recipes[id] = row
 		recipe_list.append(row)
 
@@ -179,10 +207,15 @@ func _load_world() -> void:
 	world_rules = _parse_json("res://data/world/rules.json")
 	world_climates = _parse_json("res://data/world/climates.json")
 	world_islands = _parse_json("res://data/world/islands.json")
+	world_landmarks = _parse_json("res://data/world/landmarks.json")
 	props_manifest = _parse_json("res://data/props_manifest.json")
+	world_props = _parse_json("res://data/world/props.json")
 	var obj := _parse_json("res://data/world/objectives.json")
 	var steps: Variant = obj.get("steps", [])
 	world_objectives = steps if steps is Array else []
+	var tut: Variant = obj.get("tutorial", [])
+	world_tutorial = tut if tut is Array else []
+	tutorial_resume_at = str(obj.get("tutorial_resume_at", ""))
 
 func _load_creature_ai(path: String) -> void:
 	if not FileAccess.file_exists(path):

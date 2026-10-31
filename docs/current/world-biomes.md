@@ -1,0 +1,420 @@
+# World — islands, biomes, flora & fauna
+
+> Generated 2026-10-30 by `tools/docs_wiki/gen_game_data.py` from the build's own data. Never hand-edit; re-run after any balance pass.
+
+Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/world/rules.json` (weather), `game/data/world/sky.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.
+
+For which creatures spawn on each biome and island (levels, alpha, tameable, model status), see [biome-spawns.md](biome-spawns.md).
+
+## Island roster (16)
+
+| island | name | climate | tier | kind | permanent | lifetime (s) |
+|---|---|---|---|---|---|---|
+| `desert_35` | Unstable Desert | desert | 35 | unstable |  |  |
+| `desert_50` | Unstable Desert | desert | 50 | unstable |  |  |
+| `home_grassland` | Private Grassland | grassland | 10 | private | True | 0 |
+| `savannah_15` | Unstable Savannah | savannah | 15 | unstable |  |  |
+| `savannah_45` | Unstable Savannah | savannah | 45 | unstable |  |  |
+| `swamp_55` | Unstable Swamp | swamp | 55 | unstable |  |  |
+| `temperate_20` | Unstable Temperate | temperate | 20 | unstable |  |  |
+| `temperate_25` | Unstable Temperate | temperate | 25 | unstable | False |  |
+| `temperate_35` | Unstable Temperate | temperate | 35 | unstable |  |  |
+| `temperate_45` | Unstable Temperate | temperate | 45 | unstable |  |  |
+| `tropical_25` | Unstable Tropical | tropical | 25 | unstable |  |  |
+| `tropical_40` | Unstable Tropical | tropical | 40 | unstable |  |  |
+| `tundra_30` | Unstable Tundra | tundra | 30 | unstable |  |  |
+| `tundra_55` | Unstable Tundra | tundra | 55 | unstable |  |  |
+| `tutorial_isle` | Tutorial Island | grassland | 15 | tutorial | True | 0 |
+| `volcanic_60` | Unstable Volcanic | volcanic | 60 | unstable |  |  |
+
+## Climates — flora & gatherable materials
+
+### blue_tropical — tiers L55
+
+- Survival resist needed: `heat_high`, `humidity`.
+- Vegetation families: `PalmTree`, `Plant`, `Lilypad`, `Rock`, `Grass`, `WildGrass`, `CoralNode`, `PearlNode`.
+- Gatherable materials (yellow-pip latent attr when noted): `pearl`, `coral` *(attr: hard)*, `palm_frond`, `blue_dye`, `coconut` *(attr: water)*.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Palm Grove** (`PalmTree` x4-6, always); **Reef** (`CoralNode` x3-5, `PearlNode` x1-2, always); **Fern Hollow** (`Plant` x4-6).
+
+### desert — tiers L35, L50
+
+- Survival resist needed: `heat_high`, `sun`.
+- Vegetation families: `Cactus`, `CactusFlowers`, `CactusFlower`, `Rock`, `CommonTree_Dead`, `WildGrass`, `CopperOreNode`, `SaltNode`, `SandstoneNode`.
+- Gatherable materials (yellow-pip latent attr when noted): `cactus_flesh` *(attr: water)*, `cactus_spine` *(attr: needle)*, `sandstone`, `copper_ore`, `salt`, `stone`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Cactus Garden** (`CactusFlowers` x3-4, `Cactus` x2-3, always); **Copper Vein** (`CopperOreNode` x4-6, `Rock` x1-2, always); **Salt Pan** (`SaltNode` x4-6, always); **Sandstone Shelf** (`SandstoneNode` x4-6); **Dry Thicket** (`CommonTree_Dead` x4-6).
+
+### grassland — tiers L10 — **the private home island**
+
+- Vegetation families: `CommonTree`, `BirchTree`, `Bush`, `BushBerries`, `Grass`, `Grass_Short`, `Flowers`, `Rock`, `WoodLog`, `TreeStump`, `WildGrass`, `GraniteBoulder`, `HerbPlant`, `FibreTuft`, `BranchPile`, `BerrySprig`, `Corn`.
+- Gatherable materials (yellow-pip latent attr when noted): `fibre_stalk`, `branch`, `wood_log`, `stone`, `herb_leaf`, `berries`, `clay`, `corn`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Old Grove** (`CommonTree` x3-5, `BirchTree` x2-3, always); **Berry Garden** (`BerrySprig` x3-4, `HerbPlant` x2-3); **Flint Scree** (`GraniteBoulder` x3-5, `Rock` x1-2); **Clay Bank** (`clay` x3-5, `mud` x1-2, always).
+
+### savannah — tiers L15, L45
+
+- Survival resist needed: `heat_weak`.
+- Vegetation families: `CommonTree_Dead`, `Grass`, `Grass_Short`, `Rock`, `Bush`, `TreeStump`, `WildGrass`, `AcaciaTree`, `SandstoneNode`, `OchreNode`, `FlaxPlant`, `DryGrassTuft`, `BranchPile`.
+- Gatherable materials (yellow-pip latent attr when noted): `dry_grass` *(attr: dry)*, `acacia_wood` *(attr: light)*, `sandstone`, `ochre`, `branch`, `stone`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Acacia Grove** (`AcaciaTree` x4-6, always); **Flax Garden** (`FlaxPlant` x4-6, `DryGrassTuft` x2-3); **Ochre Pit** (`OchreNode` x3-5, `SandstoneNode` x2-3, always); **Termite Mound** (`DryGrassTuft` x4-6).
+
+### snowfield — tiers L50, L60
+
+- Survival resist needed: `cold_high`, `wind`.
+- Vegetation families: `PineTree_Snow`, `BirchTree_Snow`, `Willow_Snow`, `Rock_Snow`, `Bush_Snow`, `CommonTree_Dead_Snow`, `WildGrass`, `IceNode`, `SilverOreNode`.
+- Gatherable materials (yellow-pip latent attr when noted): `ice`, `snow_pine` *(attr: resinous)*, `silver_ore`, `stone`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Snow Pines** (`PineTree_Snow` x4-6, `BirchTree_Snow` x1-2, always); **Silver Vein** (`SilverOreNode` x4-6, always); **Ice Field** (`IceNode` x3-5); **Frozen Thicket** (`Bush_Snow` x4-6).
+
+### swamp — tiers L45, L55, L60
+
+- Survival resist needed: `heat_weak`, `humidity`.
+- Vegetation families: `Willow`, `Willow_Dead`, `Lilypad`, `Plant`, `Grass`, `Rock_Moss`, `WoodLog_Moss`, `WildGrass`, `PeatNode`, `ReedPlant`, `MarshHerbPlant`.
+- Gatherable materials (yellow-pip latent attr when noted): `reed`, `willow_wood` *(attr: pliant)*, `peat`, `clay`, `marsh_herb` *(attr: medicinal)*, `leech`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Willow Stand** (`Willow` x3-5, `Willow_Dead` x1-2, always); **Mud Pit** (`mud` x3-4, `clay` x2-3, always); **Peat Bog** (`PeatNode` x4-6, always); **Marsh Garden** (`MarshHerbPlant` x4-6, `ReedPlant` x2-3).
+
+### temperate — tiers L20, L35
+
+- Survival resist needed: `cold_weak`.
+- Vegetation families: `CommonTree`, `BirchTree`, `Willow`, `PineTree`, `Bush`, `BushBerries`, `Grass`, `Plant`, `Flowers`, `Rock_Moss`, `Rock`, `WoodLog_Moss`, `TreeStump_Moss`, `WildGrass`, `FlintNode`, `GraniteBoulder`, `FlaxPlant`, `ReedPlant`, `HerbPlant`, `FibreTuft`, `BranchPile`, `BerrySprig`, `TinOreNode`, `Wheat`.
+- Gatherable materials (yellow-pip latent attr when noted): `fibre_stalk`, `herb_leaf`, `branch`, `wood_log` *(attr: straight)*, `reed`, `flint`, `clay`, `berries`, `stone`, `tin_ore`, `wheat`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Old Grove** (`CommonTree` x3-5, `Willow` x2-3, always); **Flax Garden** (`FlaxPlant` x3-5, `HerbPlant` x2-3); **Flint Quarry** (`FlintNode` x4-6, `Rock` x1-2, always); **Tin Vein** (`TinOreNode` x4-6); **Reed Pond** (`mud` x3-4, `clay` x2-3, always); **Wheat Field** (`Wheat` x5-7).
+
+### tropical — tiers L25, L40
+
+- Survival resist needed: `heat_high`.
+- Vegetation families: `PalmTree`, `Plant`, `Grass`, `Bush`, `Rock_Moss`, `Lilypad`, `WildGrass`, `ObsidianNode`, `BambooPlant`, `MangoBush`, `VinePlant`.
+- Gatherable materials (yellow-pip latent attr when noted): `palm_frond`, `coconut` *(attr: water)*, `bamboo` *(attr: flexible)*, `mango`, `vine`, `obsidian` *(attr: hard)*, `stone`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Palm Grove** (`PalmTree` x4-6, always); **Bamboo Grove** (`BambooPlant` x4-6); **Fruit Garden** (`MangoBush` x3-5); **Obsidian Ridge** (`ObsidianNode` x4-6, `Rock` x1-2, always); **Iron Vein** (`IronOreNode` x4-6, `Rock` x1-2, from tier 40, always); **Vine Tangle** (`VinePlant` x4-6).
+
+### tundra — tiers L30, L40, L55
+
+- Survival resist needed: `cold_high`.
+- Vegetation families: `ResinPine`, `PineTree_Snow`, `Bush_Snow`, `Rock_Snow`, `Grass_Short`, `WoodLog_Snow`, `WildGrass`, `IceNode`, `TinOreNode`.
+- Gatherable materials (yellow-pip latent attr when noted): `pine_log` *(attr: resinous)*, `resin`, `ice`, `bone`, `stone`, `branch`, `tin_ore`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Resin Pines** (`ResinPine` x4-6, `PineTree_Snow` x1-2, always); **Dead Stand** (`CommonTree_Dead_Snow` x3-5); **Tin Vein** (`TinOreNode` x4-6, always); **Iron Vein** (`IronOreNode` x4-6, `Rock` x1-2, from tier 55, always); **Ice Field** (`IceNode` x3-5, always); **Snowbound Scree** (`Rock_Snow` x3-5).
+
+### volcanic — tiers L60
+
+- Survival resist needed: `heat_volcanic`.
+- Vegetation families: `Rock`, `CommonTree_Dead`, `Rock_Snow`, `WildGrass`, `BlackIronNode`, `SulphurNode`, `LavaRockNode`, `AshNode`.
+- Gatherable materials (yellow-pip latent attr when noted): `black_iron` *(attr: hard)*, `lava`, `sulphur`, `ash`.
+- Landmarks (`world/landmarks.json`; island level +5, rare-trait bonus by hand): **Black Iron Vein** (`BlackIronNode` x4-6, always); **Sulphur Vents** (`SulphurNode` x4-6); **Ash Field** (`AshNode` x4-6); **Lava Rock** (`LavaRockNode` x3-5); **Scorched Stand** (`CommonTree_Dead` x3-5).
+
+A climate's `materials` list is what its island generator may place; gather yields per family are the gather-system's own table (`world/rules.json`).
+
+### One per harvest (ONEGATHER)
+
+Every gather pass at a resource node lands **exactly one** item instance (owner 2026-10-28: "cap it to 1 per harvest and upgrades can change the speed and quality of the materials you harvest, not the amount"). The manifest's `[min, max]` per pass (`nature_manifest.json` `harvest`) no longer counts, and the old tool/skill count multiplier (up to ×4, so a [2, 4] rock gave up to 12 stone a pass) is gone, on the client (`PlayerActions.finish_gather`) and the server (`act.gather`) alike. A node's pool (how many passes it gives before it depletes) is unchanged: a Rock or tree still gives 30, a Bush 12.
+
+- **Speed** — the tool and Gathering level shorten a pass (`ProgressionScaling.gather_seconds`): a Rock pass at Gathering 1 takes 3.78 s by hand, 2.80 s with a stone pick, 2.24 s flint, 1.73 s copper, 1.32 s iron, 1.14 s steel.
+- **Quality** — the tool's material tier raises each unit's rare-trait odds (5% at stone, +15% of that per tier, 10.25% at steel; `items-traits.md`). Gathering level never does (spec 12:42).
+- **Feed** — each pass shows "+1 Item" in the top-middle column; repeats of one item still collapse ("+1" then "+2").
+
+Code: `game/scripts/world/harvest_node.gd` (`roll_yield`), `game/scripts/gather/gather_service.gd`, `game/scripts/gather/loot_roller.gd` (`trait_chance`). Test: `game/tests/t_onegather.gd`.
+
+## Ground: smooth terrain, blended zone colours
+
+How the island ground is drawn (TERRAINSMOOTH, 2026-10-28). Code: `game/scripts/world/island_terrain.gd`,
+`game/scripts/world/terrain_tiles.gdshader`; test `game/tests/t_terrainsmooth.gd`; review shots
+`game/scripts/dev/terrain_lab.gd`.
+
+- **Two grids.** `IslandShape` still computes the 161 x 161 data grid (cells 2.3-2.9 m). Tile types, zones,
+  the walk mask, the fresh-water mask, TilePath and spawns read only that grid, so they are unchanged.
+  The ground you see and stand on is that grid **refined 2x** (321 x 321, cells about 1.3 m): grid
+  nodes keep their heights, each new midpoint is a cubic (-1, 9, 9, -1)/16 clamped between its two
+  neighbours, so hills curve but cliffs and the shore never overshoot into ridges or dips.
+- **One surface.** The terrain mesh (8 x 8 indexed chunks with smooth normals shared across chunk edges),
+  the collision heightmap, the water shader's height texture and `surface_y` all read the refined
+  array; `surface_y` follows the mesh's own triangles, so feet, nodes and buildings sit exactly on the
+  drawn ground. The nav bake still reads the data grid.
+- **Zone colours blend.** Each zone's tint and layer mix are baked into two small textures (one texel
+  per 2 m) with mipmaps; the shader reads them at the LOD of the zone edge width (`biome_edge_m`, 8 m by
+  default) at two points warped by 18 m and 9 m noise and averages them, so a border is a soft band
+  about 9 m wide that wanders instead of a line along the tile grid.
+- **No tile stair steps.** Rock, ash, river mud and crater dirt come from a mipmapped mask texture read
+  blurred over 1.5-3 m at a noise-warped point; harvested (bare) tiles, which change in play, use a
+  bilinear mask over the 1 m tile grid with a noise-wandering edge.
+- **Macro variation** at 41 m, 15 m (`macro_scale`) and 6.5 m wavelengths, scaled by `macro_strength`.
+- Works the same under Forward+ and gl_compatibility (the web build).
+
+## Sandy beaches and shore vegetation
+
+Every island has sandy beaches on part of its coast (owner 2026-10-28), not all of it.
+
+- **Where.** `IslandTerrain._beach_plan` uses a low-frequency noise around the coast to pick stretches
+  covering `beach_share` of the coast's bearings. A stretch's sand reaches 4-10 m inland of the
+  waterline (`beach_width_m`), wider on flatter shore, and its ends taper with noise. Sand only lands on
+  grass or dry ground under `beach_max_h` (2 m), on shore slopes under `beach_max_slope` (0.45
+  rise/run). It never lands on cliffs, rock, the river mouth, the camp clearing or the crater.
+- **Share per climate** (`biomes.json`, each row's `beach_share`; *ASSUMPTION* numbers): desert,
+  tropical and blue_tropical 60 %; grassland and savannah 50 %; temperate and swamp 45 %; tundra,
+  snowfield and volcanic 40 %. Measured on test islands: home 56 %, savannah_15 49 %, tropical_25 62 %,
+  tundra_30 42 %.
+- **Tiles.** Beach tiles are `SAND`, which matters in play:
+  - TilePath weights sand 1.4, so paths prefer grass a little;
+  - no ground-cover grass grows on sand;
+  - props and dressing treat sand as beach.
+  The walk mask is unchanged, because sand was already walkable. Beach tiles take the `beach` zone, so
+  they are painted in the climate's sand colours and blend into the inland zone. The thin waterline
+  sand strip runs round the whole coast as before.
+- **Shore vegetation** (`biome_dress.json` `zones.beach`). A zone entry's optional `climates` list
+  limits it (*ASSUMPTION* mapping):
+
+  | climate | beach dressing |
+  |---|---|
+  | tropical, blue_tropical | young palm cards, coral, shells, driftwood, boulders; tropical also gets reeds |
+  | grassland, temperate, savannah, swamp | dune (straw) grass, reeds, driftwood, shells, pebbles, boulders |
+  | desert | dry straw grass, aloe scrub, shells, driftwood, boulders |
+  | tundra, snowfield | driftwood only |
+  | volcanic | basalt chunks and basalt pebbles, plus driftwood |
+
+- **Palms.** Harvestable `PalmTree` nodes (palm fronds, wood, coconuts) grow by the shore only on
+  climates whose `biomes.json` row lists `PalmTree` in `palm_allowlist` (tropical, blue_tropical).
+  Before this change every climate except tundra and volcanic grew them, including the home grassland.
+
+## Claimed land is clear of scenery
+
+A domain cell (spec 29) is bare of decoration the moment it is staked, and stays that way:
+
+- **Props go.** Claiming or expanding removes every scenery prop whose footprint overlaps the new
+  cells — fallen logs, tree stumps, boulders, reeds, clutter cards, and even a cliff/mesa that an attack
+  cannot clear (a claim is not an attack). The sweep is `IslandClaims.clean_claimed()` →
+  `IslandProps.clear_claimed()`; the props layer also refuses to place a prop on a claimed tile or with
+  a footprint reaching in (`IslandProps._claimed_footprint`).
+- **Resources stay.** Trees, rocks, bushes and plants that really can be gathered remain on owned land:
+  spec 29 gives the owner the right to build and manage, not a stripped plot. A "harvest node" with no
+  valid gather option is a prop and is removed with the rest.
+- **Grass stays off.** Grass families and the ground-cover instances are cleared separately
+  (`IslandClaims._clear_grass_cells`, `GroundCover`), and never scattered back on a claim.
+- **Loads and rebuilds match.** A save stores only the domain cells, never the absence of props; the
+  domain is restored before the props regenerate from the island seed, so a reloaded island has no
+  scenery inside its claims and nothing regrows there later. No save-format change.
+
+## Weather
+
+Code: `game/scripts/world/world_weather.gd` (state), `game/scripts/world/weather_fx.gd` (screen layer, light pulse, camera shake), `game/shaders/weather/`. Numbers: `game/data/world/rules.json` `weather`. Test: `game/tests/t_weather.gd`; lab: `scenes/dev/weather_lab.tscn`.
+
+- **Rain** in three modes: every 50.0-90.0 s (first check 40.0 s) the island rolls its climate's rain chance; a spell lasts 18.0-30.0 s in a mode picked by the climate's weights (default {'drizzle': 0.35, 'rain': 0.45, 'pour': 0.2}). Each mode has its own particle share, drop size and speed, darkening (grey wash and sun dimming up to half) and wet-ground strength (the terrain darkens and gets a sheen through the `weather_wet` shader global); only pouring rain splashes. Modes: drizzle particles x0.25, dark 0.3, wet 0.35; rain particles x0.55, dark 0.65, wet 0.7; pour particles x1.0, dark 1.0, wet 1.0. `WorldWeather.rain_mode` / `rain_level()` (1-3) are what the day/night dial reads; `rain_mode_changed` is the sound hook.
+- **Storm** (pouring rain and lightning): a rain spell is a storm on the climate's storm roll and lasts 30.0-45.0 s. A strike every 8.0-20.0 s lands at a real ground point around the survivor, at a distance from the bands [[0.2, 6.0, 40.0], [0.55, 40.0, 700.0], [0.25, 700.0, 2500.0]] ([share, min m, max m]: some close, most mid, some far). It spawns a jagged bolt with two branches, a ground flash and a scorch that fades over 6 s (`LightningBolt`, unshaded additive quads, gl_compatibility-safe), a double flicker of the screen and a light from the strike's direction. Thunder lands the strike's distance / 343.0 m/s later (near: at once; 2.5 km: 7.3 s) and the camera rumble scales down with log distance (up to 0.12 m). `WorldWeather.lightning(position, distance)` / `thunder(distance)` are the sound hooks (no audio yet). ASSUMPTION: strikes damage nothing.
+- **Wet** (an effect box beside her, like bleed and poison: water-drop glyph, `UiTokens.WET` blue, drips and a sheen, a tooltip on press): rain soaks her to 1 / 2 / 3 stacks by mode, water to 3. Each stack lasts the status's duration in the open; heat (x(1 + 3.0 x heat)) and a burning fire within 4.0 m (+4.0) dry her faster; sitting by a fire still clears it. Wet keeps heat fatigue x0.8, makes cold fatigue and the cold look x1.3 and resting recover x0.85.
+- **Rain on fires** (`game/scripts/world/fire_weather.gd`, rules.json `fire_weather`): an unsheltered fire burns fuel faster by mode ({'drizzle': 1.15, 'rain': 1.4, 'pour': 2.0}) and wears faster ({'drizzle': 1.2, 'rain': 1.5, 'pour': 2.0}); the stone firepit feels 0.5 of that. Only pouring rain and storms soak a fire: a bonfire or campfire goes out in about 90 s of pouring (60 s of storm), the firepit in about 5 min. The flame shrinks and sputters and steam rises. No lighting or placing a fire in pouring rain without a roof ("Too wet to light a fire"). `WorldWeather.fire_out` is the hiss hook.
+- **Smoke under a roof**: a roof (or ceiling) over the fire's module keeps the rain off, but smoke pools under it toward 0.15 + 0.85 x enclosure (walls 1, windows 0.8, doorways 0.5 on the module's four edges) over 90.0 s, and clears in 12.0 s once the fire is out or the roof is gone; an open-sided shelter stays thin. From 0.3 it gives **Smoke Inhalation** (an ash-grey hazard box, cough puffs, grey tick numbers) within 3.0 m under the roof: 0.4 Health a second per stack, stacks at [0.3, 0.6, 0.85]; it ends 3 s after she leaves.
+- **Heat** (by day where the climate asks for heat resistance): an orange screen edge in the combat red edge's style, a warm wash, a heat shimmer (high quality) and a slow sway up to 0.012 m.
+- **Cold** (any hour where it asks for cold resistance): a blue-white edge, frost creeping in from the borders (corners first) and a shiver (0.05 m) on getting cold, on defrosting, and every 14.0-28.0 s while cold.
+- **Strength**: severity = resistance need / 3 (0.4-1) x (0.4 + 0.6 x unmet share); the unmet share counts while climate fatigue charges it (heat by day, cold otherwise). Wet and Quenched cool the heat, sitting by a fire warms the cold.
+- **Screen rules**: the layer is canvas layer -1, under every HUD layer, so HUD rects and the combat red edge draw over it; during a hunt or a red-edge status the weather edges drop to 35 %. Weather shake never exceeds 0.15 m; `--reduce-shake` turns off every camera shake (combat too).
+- **Idle by mood**: standing still, the survivor plays `idle_exhausted` (fatigue 75 %+) > `idle_cold` / `idle_heat` (weather feel 0.5+, the stronger) > `idle_tired` (50 %+) > `idle`, each only when its clip exists in `assets/characters/survivor/anim/` (the next in line otherwise), blended over 0.5 s; moving and busy clips win (`PlayerAnim.pick_idle`).
+- **Debug**: `--weather=clear|drizzle|rain|pour|storm|heat|cold` holds a state; `--weather-quality=low|high` (low drops the shimmer; default low on iOS / Android).
+
+| climate | rain chance per check | storm share of spells | heat look by day | cold look |
+|---|---|---|---|---|
+| blue_tropical | 1.0 | 0.5 | 0.40-1.00 | - |
+| desert | 0 | 0 | 0.40-1.00 | - |
+| grassland | 1.0 | 0.15 | - | - |
+| savannah | 0 | 0 | 0.16-0.40 | - |
+| snowfield | 0 | 0 | - | 0.40-1.00 |
+| swamp | 1.0 | 0.25 | 0.27-0.67 | - |
+| temperate | 1.0 | 0.2 | - | 0.16-0.40 |
+| tropical | 1.0 | 0.45 | 0.27-0.67 | - |
+| tundra | 0 | 0 | - | 0.27-0.67 |
+| volcanic | 0 | 0 | 0.40-1.00 | - |
+
+The look columns run from fully resisted to fully unmet.
+
+## Island shapes, the southern-most dock and topography (ISLANDSHAPES)
+
+Owner 2026-10-29: "Start at the southern-most port of any island. Be creative with the shapes ... most of
+the area is flat but there are some large rocks, plateaus, etc that are non-navigable", plus "mountains and
+volcanos could be good props too". Code: `game/scripts/world/island_shape.gd` (families, topography),
+`harbour_site.gd` (dock rule), `island_props.gd` (`_place_outcrops`), `island_terrain.gd` (CLIFF tiles,
+nav cut), `island_runtime.gd` (`_volcano_fx`). Data: `game/data/world/island_families.json`.
+
+**Shape families.** Every landmass is drawn from one family. The family adds features to the old
+star-shaped body in the generator's unit space, then one field decides the coast: islets and land capsules
+are unioned in, lagoons, reef passes and atoll rings are cut out, and sandbars are laid back over the cut.
+
+| family | what it is (reference image numbers) | roster islands |
+|---|---|---|
+| `classic` | the pre-ISLANDSHAPES body, unchanged | home meadow (seed 17), tutorial |
+| `bulky` | broad heavy land, short headlands, offshore rocks | savannah_15, tundra_30 |
+| `round_peak` | round island with a big peak near the middle (2, 11, 13) | temperate_35, volcanic_60 |
+| `lobed` | multi-lobed land with deep narrow bays (4, 6, 9) | savannah_45, desert_35 |
+| `crescent` | a hook round a shallow lagoon, barrier islets across its mouth (5, 12) | temperate_25, tropical_40 |
+| `atoll` | a ring round a lagoon, a central island on two sandbars, one reef pass (8) | tropical_25, swamp_55 |
+| `spiral` | a core with a spiral arm of islets (15) | temperate_45, tundra_55 |
+| `chain` | a diagonal archipelago: chunks joined by sandbars, loose islets at both ends (1, 3, 7, 10, 14) | temperate_20, desert_50 |
+
+A roster island names its family in `islands.json` (`shape_family`); a row without one draws from
+`roster_pick` by its seed. Other Tamed Island picks (forest, rocky, riverside, coastal) draw bulky or lobed;
+the meadow keeps the classic body so old saves keep their ground. Shaped coasts are jagged (unit-space
+noise), and past the beach a shallow turquoise shelf (-0.85 m, still boat-deep) runs 6-50 m out before the
+drop; a lagoon's whole floor is shelf. Each island still has one river (radial; along the ring or round the
+lagoon on atolls and crescents; down the spine on chains) with its minimum length scaled by the family
+(`river_scale`).
+
+**Dock.** `HarbourSite.find` puts the dock on the southern-most legal mainland coast (+z is south):
+every legal pose is collected and the one farthest south wins (ties: nearer the x = 0 midline). An islet
+is skipped and the scan looks at the coast behind it. New games (the Tamed Island pick) and travel
+arrivals land at `arrival_point()`, so every arrival is at the southern-most port. The tutorial island
+follows the same rule since TUTTOWN (`tutorial_isle.json` `"dock_rule": "south"`, owner 2026-10-29); its
+town sits just inland of the dock. Since NORTHUP (2026-10-29) the camera looks due north
+(`IsoCamera.YAW_DEG` 0), so south, and the dock, is the bottom of the screen. A save's own dock pose
+(`World.camp_layout`) is kept while it is legal. Death respawns at the camp, as before (there is no
+respawn-at-dock).
+
+**Topography.** Shaped islands get volcanoes, mountains, ridges and mesas as ground (heightfield), so they
+are grounded by construction, each on a 2.4 m cliff skirt. Every tile inside a footprint is CLIFF: not
+walkable (TilePath, `is_dry`), not buildable, no spawns, and cut out of the nav mesh. A feature keeps its
+whole footprint inland, off the camp disc and its claim, the river and ford, the camp-to-dock walk, the
+dock end of the island and the row's fixed points (crater, fixed spawns), with a walkable gap between
+features. A volcanic-climate island always has a live volcano (glowing crater, smoke); others may get a
+dormant one. Rock outcrops (3-6 big cliff blocks, boulders, spires) are scattered as blocking props on flat
+inland ground, never on the camp ring, the dock or its approach, the walk, the river or claimed land.
+Every size and count is an ASSUMPTION (Open Questions, ISLANDSHAPES).
+
+Check: `t_islandgen` (families, dock rule, topography solid and clear, mainland walkable from the dock).
+Contact sheet: `docs/orchestration/reports/islandshapes/`; quick headless map of every landmass:
+`Godot --headless --path game --script res://scripts/dev/islandshapes_sheet.gd -- --out=/abs/sheet.png`.
+
+## Landmarks, island resets and unstable isles (ISLANDMATRIX, UNSTABLEISLES)
+
+Merged 2026-10-29/30 (`4a685bc4`, `7259b47a`, `8b633980`). Plan of record:
+`docs/design/unstable-isles.md` (the island-resources design doc it extends lives on
+`claude/mmo-island-resources-doc`, not on this branch). Every number below is # ASSUMPTION unless noted.
+
+**Landmarks (M1-M3).** Each climate's named sites are rows in `game/data/world/landmarks.json`, placed
+by `IslandLandmarks` (`game/scripts/world/island_landmarks.gd`) only where TilePath can reach them; the
+per-climate list is in the climate sections above. Walking within a landmark's radius finds it once and
+pays Gold by island tier (20 at 15 up to 60 at 60); an island's first find also gives the Joy of
+Discovery rest. The map shows "Landmarks Found x / y" and draws found landmarks (gold diamond, violet
+while sealed) on the atlas and minimap; unfound ones never show. Landmark nodes are island level +5
+(cap 60; home capped at 10). A hand harvest at a landmark node rolls rare traits x1.5 and the perk-tier
+step +0.05; tribe ASSIGN jobs skip landmark nodes. From tier 30 one site per expedition island is
+dormant (`LandmarkSeal`, `landmark_seal.gd`): INTERACT "Open (50 Gold)" grows its nodes for a 20-minute
+window, then they wither and the site stays spent; never Warp Gems. Test `game/tests/t_landmarks.gd`.
+
+**Island reset (M4, owner-approved A1/A2).** Every expedition island has its own clock and state
+(`World.expeditions`, saved as `expeditions`). Lifetime is `rules.json` `lifetime_hours` by tier band:
+6 h (15-25), 12 h (30-45), 24 h (50-60) of play, started on the first visit, never restarted by an
+arrival, counting while the game runs on any island and never while it is closed (the old 2 h
+`temperate_25` override is gone). Warnings at 10 min and 60 s. At 0 the island rerolls: generation +1,
+a new seed, landmarks 40 m off the old centres, found landmarks, opened sites, fog and harvest state
+cleared. Standing on it, placed buildings' storage goes to the home vault and each refunds half its kit
+recipe, and the survivor lands at the harbour with the sail menu open. Regrowth: ambient nodes on
+expedition islands regrow 5x slower than home; expedition landmark nodes trickle back one unit per
+10 min and stay empty once stripped; home landmark pools refill after an in-game day. Test
+`game/tests/t_island_reset.gd`.
+
+**Matrix (M5).** `iron_ore` (IronOreNode, bronze pick, landmark-only) through Iron Vein landmarks on
+tropical (tier 40+) and tundra (tier 55+) via a per-row `min_tier`, so iron opens at 40, not 60. Resin
+is tundra's signature rare: the tundra-only `ResinPine` replaces `PineTree` there and `PineTree` no
+longer yields resin. `game/tests/t_matrix.gd` audits the tool ladder (earliest island level per tool
+rung) and one signature rare per climate. M6, the fun pass (bot runs plus Milan's play), is not done.
+
+**Unstable isles.** Generated, short-life islands on top of the roster (`rules.json` `unstable_isles`).
+One at a time (`max_live` 1) rolls in the background at most every 30 min of play once Survival is 10,
+named "<Climate> Drift <n>" (id `drift_<n>`): a level band within 5 of the highest roster tier you can
+sail to, a non-home climate with a roster island in that band as template, a shape family from
+`roster_pick`, 90-100 % of the template's size. It sits on the harbour board with a countdown for
+20 min; once you land it lives 40 min of play, then sinks for good. Landmark budget top +2, landmark
+level +8, one Rift Pool whose Driftglass Node yields `driftglass` (only on isles; sell-only for now),
+rare-trait chance x1.25, and ambient nodes effectively do not regrow. Only packed kits can be placed
+there ("Only packed kits stand on an unstable isle"). When it sinks with you on it you are pulled to the
+home harbour with your bag (carried goods keep their unstable flag); placed kits and their storage sink
+with no refund; the isle's row, landmarks, fog and harvest state are deleted. State: `World.drift`
+(saved as `drift`), `World.roll_drift` / `tick_drifts` / `sink_drift`. Test
+`game/tests/t_unstable_isles.gd`.
+
+## Sea and shore
+
+Code: `game/scripts/world/water.gdshader` (sea), `game/scripts/world/shore_wash.gdshader` (swash skin), `game/scripts/world/sea_waves.gd` (weather driver, skin and surf mask). Test: `game/tests/t_waves.gd`; lab: `scenes/dev/waves_lab.tscn`.
+
+- **Swell**: summed Gerstner waves along a prevailing wind (30 m and 17 m move the sea mesh; 9 m and, on high quality, 5.5 m only shade it per pixel). Crests are lighter and troughs darker so the swell reads from the high game camera; ripples and sun glints come from scrolling noise normals.
+- **Shore**: two breaker foam lines run in from 0.55 m of depth to the waterline, half a cycle (7 s) apart, their timing jittered along the coast. Each then runs up the sand as a foam lip over a thin sheet of water, drains back leaving bubbles, and leaves a wet darkening line at that cycle's high mark which fades until the next one. Only sea-facing beaches get surf: none in or beside the river (6-14 m) or on inland water.
+- **Weather**: sea state 0 (clear) to 1 (storm) = rain_amount x 0.5 + 0.5 in a storm (rain about 0.35), eased over about 6 s. Clear to storm: swell 0.08 to 0.40 m, chop 0.25 to 1.0, foam 0.55 to 1.0, swash run-up 0.07 to 0.20 m of height above the sea, a greyer sea, whitecaps on the crests from about half way, and the wind swings up to 0.5 rad.
+- **Gameplay**: none. The logical sea stays at -0.05 m (`HarbourSite.WATER_Y`) for swimming, wading, harbours, walkability and building. Near the shore the swell only rises, never dips, so the drawn waterline stays on the logical one.
+- **Opacity**: shallow water fades from 62 % at the waterline to solid at 1.6 m, so the bed shows in the shallows but never through open water.
+- **Quality**: `--water-quality=low|high`; low (default on web and phones) uses 16 m sea quads instead of 8 m, three swell waves instead of four, and no glint layer.
+
+## Sky shadows — cloud cover and pteranodons
+
+Soft cloud shadows drift across the ground with the wind, the sun dips a little while a cloud covers the survivor, and 1-3 pteranodons glide in wide circles overhead. Only their shadows are drawn (the camera's narrow lens would show a flyer mid-screen, not at an edge); everything fades out at night. The terrain, grass, ground cover, dirt pads, water and painted cards darken; 3D props and creatures do not. Off on a phone browser and with `--skyshadows=off`. Code: `game/scripts/world/sky_shadows.gd`, `game/shaders/sky/sky_shadow.gdshaderinc`; numbers: `game/data/world/sky.json` (all ASSUMPTION look values).
+
+| climate | cloud cover | cloud darkening | wind (m/s) | flyers |
+|---|---|---|---|---|
+| blue_tropical | 50% | 0.6 | 1.8, 0.8 | 3 |
+| desert | 12% | 0.6 | 2.6, 0.4 | 3 |
+| grassland | 40% | 0.6 | 1.8, 0.8 | 2 |
+| savannah | 25% | 0.6 | 1.8, 0.8 | 3 |
+| snowfield | 65% | 0.6 | 3.0, 1.2 | 1 |
+| swamp | 65% | 0.5 | 1.0, 0.6 | 1 |
+| temperate | 50% | 0.6 | 1.8, 0.8 | 2 |
+| tropical | 55% | 0.6 | 1.8, 0.8 | 3 |
+| tundra | 60% | 0.6 | 2.8, 1.4 | 1 |
+| volcanic | 55% | 0.66 | 1.8, 0.8 | 2 |
+
+Shared: flyer shadow darkening 0.75, glide 9.0 m/s, sun dip 0.22 at full cover, web-renderer scale 0.7.
+
+## Fauna (21 species)
+
+| tier | species | climate | clade | period | length (m) |
+|---|---|---|---|---|---|
+| 13 | **Zebraceratops** | grassland | Ceratopsia | Durango original (fictional) | 4.3 |
+| 15 | **Compsognathus** | savannah | Compsognathidae | Late Jurassic | 3.0 |
+| 16 | **Pachycephalosaurus** | grassland | Pachycephalosauria | Late Cretaceous | 4.5 |
+| 18 | **Coelophysis** | savannah | Coelophysoidea | Late Triassic | 6.0 |
+| 20 | **Protoceratops** | temperate | Ceratopsia | Late Cretaceous | 4.0 |
+| 25 | **Velociraptor** | temperate | Dromaeosauridae | Late Cretaceous | 6.0 |
+| 30 | **Gallimimus** | desert | Ornithomimidae | Late Cretaceous | 12.0 |
+| 30 | **Megaloceros** | tundra | Cervidae | Pleistocene | 3.0 |
+| 35 | **Deinonychus** | tropical | Dromaeosauridae | Early Cretaceous | 10.2 |
+| 40 | **Dilophosaurus** | tropical | Neotheropoda | Early Jurassic | 12.0 |
+| 45 | **Smilodon** | tundra | Machairodontinae | Pleistocene | 2.5 |
+| 45 | **Stegosaurus** | temperate | Stegosauridae | Late Jurassic | 18.0 |
+| 45 | **Styracosaurus** | savannah | Ceratopsia | Late Cretaceous | 11.0 |
+| 50 | **Allosaurus** | desert | Allosauridae | Late Jurassic | 18.0 |
+| 50 | **Ankylosaurus** | desert | Ankylosauridae | Late Cretaceous | 16.0 |
+| 50 | **Utahraptor** | desert | Dromaeosauridae | Early Cretaceous | 11.0 |
+| 55 | **Triceratops** | swamp | Ceratopsia | Late Cretaceous | 18.0 |
+| 60 | **Brachiosaurus** | any | Brachiosauridae | Late Jurassic | 44.0 |
+| 60 | **Tarbosaurus** | tundra | Tyrannosauridae | Late Cretaceous | 20.0 |
+| 60 | **Tyrannosaurus rex** | volcanic | Tyrannosauridae | Late Cretaceous | 24.0 |
+
+## Butchering: choosing what to cut
+
+A kill leaves a carcass. Tapping it, its name pill, or BUTCHER opens the **gather radial** on it (LOOTRADIAL, `game/scripts/ui/gather_radial.gd`, the same fan a harvest node opens; see `hud.md`): one hex per part that species offers, its icon, the seconds a cut takes on top, how many are still on the carcass at the bottom, a gold ★ on a rare part, and a red ⊘ with the reason on the label of any part that cannot be cut now. The cut budget is on the title ("Lv. 3 · 2 cuts left"). The old boxy part picker and its "Loot chest" button are gone; a carcass with no part table still opens the chest screen.
+
+Picking a part starts a timed cut (the picked hex pie-fills, the others lock, the gain shows in the top-middle feed). The survivor must stay in reach; walking away or cancel takes nothing and spends nothing. A finished cut hands over **only that part** — the other parts stay on the carcass:
+
+- **Cut budget** — `1 + floor(Butchering level / 10)` cuts per carcass (Lv1 → 1, Lv10 → 2, Lv30 → 4, Lv60 → 7). When it runs out the carcass is spent; the parts never cut are lost (`# ASSUMPTION`, the spec is silent on carcass size).
+- **Yield** — exactly **one** part instance per cut (owner rule 2026-10-28, one per harvest; `# ASSUMPTION` that it applies to butchering). The knife and Butchering level change the cut's **speed** (1.6 s / (1 + 15% per knife tier above stone + 1% per Butchering level), `butcher.cut_speed_*`) and its **quality** (the rare-part odds below), never the count. A part's rare roll replaces that one instance with the rare one.
+- **Rare parts** — one rare roll per chosen part, at that part's `rare` row odds (default 0.12, +15% per knife tier, cap 0.6) and only once its butcher skill node is learned.
+- **Blocked parts** — a part gated by a Butchering skill node, a part already cut, a carcass with no cuts left, or spoiled meat from a poisonous species reads its reason on the hex.
+- **Saves** — the carcass's species, its cuts left and which parts were cut round-trip through save/load (`docs/current/saves-persistence.md`); loading into a scene respawns the carcass with that state.
+
+Numbers: `game/data/loot_tables.json` `butcher`; code: `game/scripts/gather/carcass_parts.gd` (`CarcassParts.parts/cut_budget/cut`), `game/scripts/creatures/corpse.gd` (the cut in flight), `game/scripts/gather/loot_roller.gd` (`roll_part`). Test: `game/tests/t_butcher.gd`.
+
+`base` rows fall on a cut of that part and `rare` rows need butcher skill at least the listed level.
+
+## Butchering drops per species
+
+`base` drops fall on every kill, counts scaled by the local survivor's best knife tier (+15% per tier above stone, 0.75x with no knife, never below 1) and Butchering level (+1% per level); `rare` drops need butcher skill at least the listed level and then roll a chance (default 0.12, +15% per knife tier, cap 0.6). Any part a Butchering skill node gates waits until that node is learned. Numbers: `game/data/loot_tables.json` `butcher`; code: `game/scripts/gather/loot_roller.gd` `roll_carcass`.
+
+- **Zebraceratops** — base: `raptor_meat` 2–3; `stout_leg_bone` 2–3; `raw_hide` 1–2; `brow_horn` 1–2; `frill_plate` 1–1; rare: `stout_leg_bone` 1–1 (skill 1)
+- **Compsognathus** — base: `raw_meat` 2–4; `hollow_bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
+- **Coelophysis** — base: `raw_meat` 2–4; `hollow_bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
+- **Protoceratops** — base: `raptor_meat` 3–4; `stout_leg_bone` 2–3; `raw_hide` 1–2; `dense_bone` 1–2; `frill_plate` 1–1; rare: `stout_leg_bone` 1–1 (skill 1)
+- **Velociraptor** — base: `raptor_meat` 2–3; `raptor_bone` 1–2; `raptor_hide` 1–1; `predator_tendon` 1–2; rare: `raptor_talon` 1–1 (skill 1)
+- **Gallimimus** — base: `raw_meat` 4–7; `hollow_bone` 2–3; `raw_hide` 1–2; rare: 
+- **Megaloceros** — base: `raw_meat` 2–4; `bone` 1–2; `raw_hide` 1–1; rare: 
+- **Deinonychus** — base: `raptor_meat` 2–4; `raptor_bone` 1–2; `raptor_hide` 1–1; `predator_tendon` 1–2; rare: `raptor_talon` 1–1 (skill 1)
+- **Dilophosaurus** — base: `raw_meat` 4–7; `hollow_bone` 2–3; `raw_hide` 1–2; `venom_gland` 1–2; rare: 
+- **Smilodon** — base: `raw_meat` 2–4; `bone` 1–2; `raw_hide` 1–1; `predator_tendon` 1–2; rare: 
+- **Stegosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `tail_spike` 1–2; `dorsal_plate` 1–1; rare: 
+- **Styracosaurus** — base: `raw_meat` 4–7; `large_leg_bone` 2–3; `raw_hide` 1–2; `brow_horn` 1–2; `frill_plate` 1–1; rare: 
+- **Allosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `predator_tendon` 1–2; rare: 
+- **Ankylosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `tail_club` 1–2; `armor_scute` 1–1; rare: 
+- **Utahraptor** — base: `raptor_meat` 3–5; `raptor_bone` 2–3; `raptor_hide` 1–2; `predator_tendon` 1–2; rare: `raptor_talon` 1–1 (skill 2)
+- **Triceratops** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `brow_horn` 1–2; `frill_plate` 1–1; rare: 
+- **Brachiosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `armor_scute` 1–1; rare: 
+- **Tarbosaurus** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `skull_plate` 1–1; rare: 
+- **Tyrannosaurus rex** — base: `raw_meat` 8–14; `large_leg_bone` 3–5; `raw_hide` 2–4; `dense_bone` 1–2; `skull_plate` 1–1; rare: 
+

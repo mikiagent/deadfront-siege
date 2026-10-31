@@ -1,0 +1,182 @@
+diff --git a/game/scripts/creatures/corpse.gd b/game/scripts/creatures/corpse.gd
+index 24a7dbb6..d03c0fdb 100644
+--- a/game/scripts/creatures/corpse.gd
++++ b/game/scripts/creatures/corpse.gd
+@@ -134,29 +134,8 @@ func _process(delta: float) -> void:
+ 		_expires_left = minf(_expires_left, _empty_despawn)
+ 
+ func _roll_loot() -> void:
+-	var skill := Data.butchering_level()
+-	for row_v in Data.butcher_drops(species):
+-		if not (row_v is Dictionary):
+-			continue
+-		var row := row_v as Dictionary
+-		if skill < int(row.get("skill", 0)):
+-			continue
+-		var item_id := StringName(str(row.get("id", "")))
+-		if item_id == &"":
+-			continue
+-		var item_def := Data.item(item_id)
+-		if poison_spoiled and item_def and item_def.has_category(&"meat"): continue
+-		var n := randi_range(int(row.get("min", 1)), int(row.get("max", int(row.get("min", 1)))))
+-		if n <= 0:
+-			continue
+-		var attrs: Dictionary = {}
+-		var raw_attrs: Variant = row.get("attributes", {})
+-		if raw_attrs is Dictionary:
+-			attrs = (raw_attrs as Dictionary).duplicate(true)
+-		# Preserve the defeated creature's material quality. The catalogue base
+-		# is a default for spawned items, not the quality of an earned corpse.
+-		attrs["level"] = level
+-		loot.add_growing(ItemStack.make(item_id, n, attrs, level)) # W2-INV: n instances, none dropped
++	# W2-GATHER: knife tier + Butchering level scale the parts, rare rows roll real odds.
++	ButcherLoot.roll_into(self, _owner)
+ 
+ func _on_take_from_loot() -> void:
+ 	# Taking from the chest screen trains Butchering (and so the player level), once per take
+diff --git a/game/scripts/items/inventory.gd b/game/scripts/items/inventory.gd
+index fcffe3a5..8d83a3d2 100644
+--- a/game/scripts/items/inventory.gd
++++ b/game/scripts/items/inventory.gd
+@@ -176,6 +176,10 @@ func wear_gather_tool(tool: StringName) -> bool:
+ 	var s := find_gather_tool(tool)
+ 	if s == null:
+ 		return false
++	return wear_tool(s)
++
++## One gather's wear on this tool stack (W2-GATHER wears the helper tool a node's role picked).
++func wear_tool(s: ItemStack) -> bool:
+ 	var d := s.def()
+ 	# ASSUMPTION: work tools lose 1 durability per gather; combat weapons used as tools lose 3.
+ 	var cost := 1
+diff --git a/game/scripts/player/player_actions.gd b/game/scripts/player/player_actions.gd
+index 1581e811..6cbd2716 100644
+--- a/game/scripts/player/player_actions.gd
++++ b/game/scripts/player/player_actions.gd
+@@ -170,6 +170,7 @@ func finish_gather() -> void:
+ 			p.skills.add_xp("processing", 1)
+ 	var attrs := stack.attributes.duplicate(true)
+ 	var before := stack.count
++	var had := p.inventory.uids()  # W2-GATHER: the units this pass lands are the instances not in it
+ 	var left := p.inventory.add(stack)
+ 	var gained := before - left
+ 	if gained <= 0:
+@@ -179,6 +180,7 @@ func finish_gather() -> void:
+ 		p.gather_target = null
+ 		return
+ 	gt.consume_unit()
++	GatherService.after_unit(p, gt, stack, gained, had)  # W2-GATHER: helper-tool wear, rare traits and finds, yield popup
+ 	if p._gather_radial and p._gather_radial.is_open():
+ 		p._gather_radial.refresh()
+ 	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gt.pool_units_left(), gt.pool_max])
+@@ -194,16 +196,10 @@ func finish_gather() -> void:
+ 	_start_gather_cycle(_scaled_gather_seconds(gt))
+ 
+ func _scaled_gather_seconds(node: HarvestNode) -> float:
+-	var tool := p.inventory.find_gather_tool(node.required_tool_class)
+-	var skill_level := maxi(1, p.skills.level_of("gathering")) if p.skills else 1
+-	var zone_level := int(node.yield_attributes.get("level", 1))
+-	return ProgressionScaling.gather_seconds(node.gather_seconds, zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", skill_level)
++	return GatherService.unit_seconds(p, node)  # W2-GATHER: role tool helps, bare hands slower
+ 
+ func _gather_yield_multiplier(node: HarvestNode) -> float:
+-	var tool := p.inventory.find_gather_tool(node.required_tool_class)
+-	var skill_level := maxi(1, p.skills.level_of("gathering")) if p.skills else 1
+-	var zone_level := int(node.yield_attributes.get("level", 1))
+-	return ProgressionScaling.gather_yield_multiplier(zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", skill_level)
++	return GatherService.yield_multiplier(p, node)
+ 
+ func _start_gather_cycle(seconds: float) -> void:
+ 	p._gathering = true
+diff --git a/game/scripts/server/intent_handlers.gd b/game/scripts/server/intent_handlers.gd
+index d19f8337..509455b2 100644
+--- a/game/scripts/server/intent_handlers.gd
++++ b/game/scripts/server/intent_handlers.gd
+@@ -114,7 +114,9 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
+ 	var stack := ItemStack.make(def.id, rng.randi_range(int(o.get("min", 1)), int(o.get("max", 1))), attrs, zone)
+ 	if bool(n.get("unstable", false)):
+ 		stack.set_flag(&"unstable", true)
+-	var mult := ProgressionScaling.gather_yield_multiplier(zone, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, ch.level_of("gathering")))
++	var family := str(n.get("family", ""))
++	# W2-GATHER: the same tool rule as the client (the role's tool helps on hand-pickable nodes).
++	var mult := GatherService.yield_multiplier_with(inv, tool_class, family, zone, maxi(1, ch.level_of("gathering")))
+ 	stack.count = maxi(1, int(floor(float(stack.count) * mult)))
+ 	if rng.randf() < fmod(mult, 1.0):
+ 		stack.count += 1
+@@ -123,16 +125,24 @@ func _gather(ch: CharacterState, a: Dictionary) -> Dictionary:
+ 		stack.level = cap
+ 		stack.attributes["level"] = cap
+ 	var before := stack.count
++	var had := inv.uids()  # W2-GATHER: the units this pass lands are the instances not in it
+ 	var gained := before - inv.add(stack)
+ 	if gained <= 0:
+ 		return no("bag_full", "bag is full")
++	# W2-GATHER: as on the client, a helper tool wears, each item rolls the green rare trait, and the
++	# finds roll on the node's island climate, all with this op's rng.
++	GatherService.wear_role_tool(inv, tool_class, family)
++	var traits := GatherService.stamp_traits(inv, had, stack, gained, rng)
++	var rares := GatherService.add_finds(inv, family, tool_class, str(attrs.get("climate", "")), stack.level, maxi(1, ch.level_of("gathering")), rng)
+ 	_write("take_node_unit", [node_id, str(def.id)])
+ 	var uids := ch.commit(inv, "gather", seq)
+ 	count("minted", def.id, gained)
++	for id in rares:
++		count("minted", id, 1)
+ 	ch.add_xp("gathering", 2)
+-	if str(n.get("family", "")).begins_with("Rock") or str(n.get("family", "")) == "clay":
++	if family.begins_with("Rock") or family == "clay":
+ 		ch.add_xp("processing", 1)
+-	return ok({"item": str(def.id), "gained": gained, "uids": uids})
++	return ok({"item": str(def.id), "gained": gained, "uids": uids, "rares": rares.map(func(id: StringName) -> String: return str(id)), "traits": traits.map(func(t: StringName) -> String: return str(t))})
+ 
+ ## act.loot {corpse_id, slot, count?}: move a corpse slot (or part of it) into the bag.
+ func _loot(ch: CharacterState, a: Dictionary) -> Dictionary:
+diff --git a/game/scripts/ui/hunt_hud.gd b/game/scripts/ui/hunt_hud.gd
+index e0019aa2..ec655719 100644
+--- a/game/scripts/ui/hunt_hud.gd
++++ b/game/scripts/ui/hunt_hud.gd
+@@ -568,7 +568,12 @@ func _draw_bites(cam: Camera3D) -> void:
+ 		if k < 0.2 and heavy:
+ 			draw_rect(Rect2(0, 0, get_viewport_rect().size.x, get_viewport_rect().size.y), Color(0.9, 0.1, 0.1, 0.18 * (1.0 - k / 0.2)))
+ 
+-func notice(text: String) -> void:
++## tint: a rare result (gold find, green trait), drawn in its colour on ink instead of the red refusal
++## box; GatherFeedback sets how long it lives (W2-GATHER).
++func notice(text: String, tint: Color = Color(0, 0, 0, 0)) -> void:
++	if tint.a > 0.0:
++		GatherFeedback.add_notice(_events.notices, text, tint, player)  # W2-GATHER: a repeat counts up ("x2")
++		return
+ 	_events.add_notice(text)
+ 
+ func toast(id: StringName, n: int) -> void:
+@@ -971,6 +976,7 @@ func _process(delta: float) -> void:
+ 		_levelup_t += delta
+ 		if _levelup_t > 6.5:
+ 			_levelup_t = -1.0
++	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
+ 	_events.tick(delta)
+ 	_domain.tick(delta, World.runtime, player.global_position)
+ 	_minimap.queue_redraw()
+@@ -1135,11 +1141,22 @@ func _draw() -> void:
+ 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
+ 		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0, 17)
+ 		var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
+-		var box := UiTokens.free_spot(Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30), taken, r)
++		var cand := Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30)
++		# W2-GATHER: a rare (tinted) notice also keeps off the radial, plates and the survivor, and keeps its side
++		var box := GatherFeedback.notice_box(n, player, cand, taken, r) if n.has("tint") else UiTokens.free_spot(cand, taken, r)
+ 		if not box.has_area():
+ 			continue
+ 		taken.append(box)
+ 		drawn_blocks["notice%d" % i] = box
++		if n.has("tint"):
++			var pu := GatherFeedback.notice_punch(n)  # lands big and bright, eases back
++			var c := GatherFeedback.notice_colors(n["tint"], alpha, pu.y)
++			draw_set_transform(box.get_center() * (1.0 - pu.x), 0.0, Vector2.ONE * pu.x)
++			draw_rect(box, c[0])
++			draw_rect(box, c[1], false, 2.0)
++			draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, c[2])
++			draw_set_transform(Vector2.ZERO)
++			continue
+ 		draw_rect(box, Color(0.35, 0.08, 0.06, 0.85 * alpha))
+ 		draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
+ 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way

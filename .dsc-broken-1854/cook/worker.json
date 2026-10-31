@@ -1,0 +1,20 @@
+{
+  "pid": 47609,
+  "startedAt": "2026-10-21T23:10:38.164Z",
+  "args": [
+    "cook",
+    "--once",
+    "--verify",
+    "bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/verify_job.sh needs",
+    "--milestone-verify",
+    "bash /private/tmp/claude-501/-Users-milankinzy-Documents-deadfront-siege/72cebc8b-d241-430b-9ea6-94d65339bfef/scratchpad/dsc/verify_job_ms.sh needs {n}",
+    "--budget",
+    "5",
+    "--max-hours",
+    "4",
+    "--effort",
+    "medium"
+  ],
+  "state": "starting",
+  "lastEvent": "spawned"
+}

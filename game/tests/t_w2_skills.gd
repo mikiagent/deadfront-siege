@@ -8,7 +8,7 @@ extends SceneTree
 ## holds, and the craft card says what unlocks a gated recipe.
 ## Usage: godot --headless --path game --script res://tests/t_w2_skills.gd
 
-const WIRED := ["recipe", "ability", "bonded_slots", "capture_tier", "climate"]
+const WIRED := ["recipe", "ability", "bonded_slots", "capture_tier", "climate", "gather", "butcher"]
 const STATUSES := ["functional", "partial", "defined"]
 
 var failures: Array[String] = []
@@ -168,21 +168,22 @@ func _test_new_survivor() -> void:
 
 func _test_level_cap() -> void:
 	var sk := _fresh()
-	sk.add_xp("melee", 200.0, true) # mirrored: no World XP, so the character stays Lv. 1
+	sk.add_xp("melee", 500.0, true) # mirrored: no World XP, so the character stays Lv. 1
 	_expect(sk.level_of("melee") == 1, "melee cannot pass character Lv. 1 (got %d)" % sk.level_of("melee"))
 	# Spec 03:7 "even when the player has lots of category XP": XP at the cap is kept, not dropped
 	# (W2-DATA's t_build checks that a build still pays construction XP after earlier builds filled the bar).
-	_expect(is_equal_approx(sk.xp_of("melee"), 200.0), "XP at the cap is banked, not dropped (xp %.0f of 200)" % sk.xp_of("melee"))
+	_expect(is_equal_approx(sk.xp_of("melee"), 500.0), "XP at the cap is banked, not dropped (xp %.0f of 500)" % sk.xp_of("melee"))
 	_expect(sk.sp_earned == 0, "no SP while the character is Lv. 1")
 	_world().pioneer_level = 4 # character Lv. 5
 	_world().pioneer_changed.emit(4)
-	# Survival trained alongside (every gain also trains Survival), so it banked too. 200 XP pays
-	# levels 2-5 (28 + 36 + 44 + 52 = 160) and 40 stay banked at the new cap.
-	_expect(sk.level_of("melee") == 5 and sk.level_of("survival") == 5 and is_equal_approx(sk.xp_of("melee"), 40.0), "a character level-up spends the banked XP (melee %d, survival %d, %.0f XP left)" % [sk.level_of("melee"), sk.level_of("survival"), sk.xp_of("melee")])
+	# Survival (research-exempt) trained alongside, so it banked too: 500 XP pays levels 2-5
+	# ((28 + 36 + 44 + 52) x 2.5 skill_xp_cost_mult = 400). Melee is research-gated (owner 2026-10-28):
+	# the lifted cap only makes it research ready, its 500 XP stay banked.
+	_expect(sk.level_of("melee") == 1 and sk.research_ready("melee") and sk.level_of("survival") == 5 and is_equal_approx(sk.xp_of("melee"), 500.0), "a character level-up spends Survival's bank; melee waits for research (melee %d, survival %d, %.0f XP)" % [sk.level_of("melee"), sk.level_of("survival"), sk.xp_of("melee")])
 	_expect(sk.sp_earned == Rules.paid_for_level(sk, 5) and sk.sp_available == sk.sp_earned, "character Lv. 5 pays levels 2-5 (%d SP), the released tree levels pay nothing" % sk.sp_earned)
 	sk.add_xp("melee", 99999.0, true)
-	_expect(sk.level_of("melee") == 5, "melee stays at the character level 5 (got %d)" % sk.level_of("melee"))
-	_expect(is_equal_approx(sk.xp_of("melee"), SkillStateS.xp_to_max(5)), "the bank holds what melee can still use up to Lv. 60, no more (%.0f, want %.0f)" % [sk.xp_of("melee"), SkillStateS.xp_to_max(5)])
+	_expect(sk.level_of("melee") == 1, "melee never levels without research (got %d)" % sk.level_of("melee"))
+	_expect(is_equal_approx(sk.xp_of("melee"), SkillStateS.xp_to_max(1)), "the bank holds what melee can still use up to Lv. 60, no more (%.0f, want %.0f)" % [sk.xp_of("melee"), SkillStateS.xp_to_max(1)])
 	_done_with(sk)
 	# Pacing probe (an open owner decision, so nothing is asserted): gathers at 2 XP each (player_actions)
 	# to reach Survival 10 (first sail route, World.route_level) and 15 (next route, Capture Technique I).
@@ -318,7 +319,8 @@ func _test_sp_from_character_level() -> void:
 	var at10: int = sk.sp_earned
 	_expect(at10 == Rules.paid_for_level(sk, 10) and at10 == 9 * sk.sp_for_level(2), "character Lv. 10 has earned levels 2-10 (%d SP)" % at10)
 	for tree in ["melee", "gathering", "cooking"]:
-		sk.add_xp(tree, 5000.0, true)
+		sk.trees[tree]["level"] = 10  # researched to the cap (research is t_research's)
+		sk._recount_sp()
 	_expect(sk.level_of("melee") == 10 and sk.level_of("cooking") == 10 and sk.sp_earned == at10 and sk.sp_available == at10, "three trees at Lv. 10 pay no SP of their own (earned %d, want %d)" % [sk.sp_earned, at10])
 	_world().pioneer_level = 19
 	_world().pioneer_changed.emit(19)
@@ -451,12 +453,12 @@ func _test_pen_cap() -> void:
 	pen.running = true
 	pen.remaining = 0.0
 	pen.force_result = 1
-	pen._process(0.0)
-	_expect(data.bonded_cap() == 3 and p.bonded.size() == 3 and pen.occupant != null and pen.running and pen._told_full, "3 / 3 bonded: the pen keeps the animal and says why (bonded %d, occupant %s)" % [p.bonded.size(), pen.occupant])
+	pen.resolve(p) # PENCLAIM: the roll holds the pet in the pen; the cap is checked at Bond
+	_expect(not pen.claim(p) and data.bonded_cap() == 3 and p.bonded.size() == 3 and pen.occupant != null and pen.tamed != null, "3 / 3 bonded: Bond is refused and the tamed animal stays in the pen (bonded %d, occupant %s)" % [p.bonded.size(), pen.occupant])
 	p.inventory.add(IS.make(&"raptor_meat", 1))
 	_expect(not pen.feed(p) and p.inventory.count_of(&"raptor_meat") == 1, "meat is refused while the finished animal waits")
 	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
-	pen._process(0.0)
+	pen.claim(p)
 	var rec: Variant = p.bonded[-1]
 	_expect(data.bonded_cap() == 4 and p.bonded.size() == 4 and pen.occupant == null and rec.origin == &"capture" and rec.level == 7, "Animal Handling I (cap 4) bonds the waiting Lv. 7 raptor (bonded %d)" % p.bonded.size())
 	p.inventory.add(IS.make(&"tamed_animal", 1, {"species": "velociraptor"}))
@@ -501,6 +503,7 @@ func _test_field_tame_cap() -> void:
 	c.add_child(c.statuses)
 	c.health.hp = def.hp * 0.2
 	c.statuses.apply(&"knockdown")
+	c.torpor = c.torpor_max()  # FOODTORPOR: knocked out = weak + torpor past the threshold
 	var food: StringName = def.preferred_food[0]
 	p.inventory.add(IS.make(food, 2))
 	var hint: Dictionary = FT.plate_hint(c, p.inventory)
@@ -512,13 +515,13 @@ func _test_field_tame_cap() -> void:
 	var pets: Control = (load("res://scripts/ui/animal_screen.gd") as GDScript).new()
 	get_root().add_child(pets)
 	pets.open(p)
-	_expect(str(pets._title.text).contains("3 / 3"), "the pets screen shows bonded / cap (title '%s')" % pets._title.text)
-	_expect(str(pets._summon.text).contains("ACTIVE 0 / "), "the equip button names its counter, so it cannot be read as the bonded cap ('%s')" % pets._summon.text)
+	_expect(str(pets._bonded.text).contains("3 / 3"), "the pets screen shows bonded / cap (header '%s')" % pets._bonded.text)
+	_expect(str(pets._summon.text).to_upper().contains("ACTIVE 0 / "), "the equip button names its counter, so it cannot be read as the bonded cap ('%s')" % pets._summon.text)
 	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
 	hint = FT.plate_hint(c, p.inventory)
 	_expect(str(hint.get("kind", "")) == "tame", "Animal Handling I (cap 4) offers the tame again (got %s '%s')" % [hint.get("kind", ""), hint.get("text", "")])
 	pets.open(p)
-	_expect(str(pets._title.text).contains("3 / 4"), "the pets screen follows the cap (title '%s')" % pets._title.text)
+	_expect(str(pets._bonded.text).contains("3 / 4"), "the pets screen follows the cap (header '%s')" % pets._bonded.text)
 	for n in [pets, hud, p]:
 		get_root().remove_child(n)
 		n.free()
@@ -552,8 +555,9 @@ func _test_sheet_rows() -> void:
 				inert += 1 if (b as Button).text == SkillStateS.NOT_IN_GAME else 0
 			if str(row.name).begins_with("SkillsLater_"):
 				rows += 1
-				var t := str(row.get("text"))
-				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and t.contains(" SP") and t.contains("Lv. ")):
+				# The SP cost is the brain glyph plus its number (SpCost), not the letters "SP".
+				var t := " ".join(row.find_children("*", "Label", true, false).map(func (l: Node) -> String: return (l as Label).text))
+				if row is Button or not row.find_children("*", "Button", true, false).is_empty() or not (t.contains(SkillStateS.NOT_IN_GAME) and row.find_child("SpCost", true, false) != null and t.contains("Lv. ")):
 					bad.append(t)
 			elif row.name == "SkillsLearnedAuto":
 				autos = row.text
@@ -561,12 +565,11 @@ func _test_sheet_rows() -> void:
 		_expect(autos.begins_with("Learned automatically: "), "%s at Lv. 1: the learned AUTO nodes share one line ('%s')" % [tree, autos])
 	# XP banked at the cap shows as a full bar, like Durango's skill screen, not "200 / 28 XP".
 	sk.add_xp("melee", 200.0, true)
-	sheet.open(sk)
-	var melee: Node = sheet._box.find_child("Skill_melee", true, false)
-	var xp_text := ""
-	for l in (melee.find_children("*", "Label", true, false) if melee else []):
-		xp_text = (l as Label).text if (l as Label).text.ends_with(" XP") else xp_text
-	_expect(xp_text == "28 / 28 XP", "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
+	sheet.open(sk, "melee")
+	var xp_label: Label = sheet.find_child("SkillXp", true, false)
+	var xp_text := xp_label.text if xp_label else ""
+	var rung := int(SkillStateS.xp_to_next(1))
+	_expect(xp_text == "%d / %d" % [rung, rung], "melee at the cap with 200 XP banked reads a full bar ('%s')" % xp_text)
 	_done_with(sk)
 	sk = _fresh(59)
 	_grant(sk, "processing", 25)
@@ -579,9 +582,9 @@ func _test_sheet_rows() -> void:
 		var btn: Button = row.find_children("*", "Button", true, false)[0] if row else null
 		var why: Label = row.find_child("RefundBlock", true, false) if row else null
 		if used == 0:
-			_expect(btn != null and btn.text == "Refund" and not btn.disabled and why == null, "a free refund leaves Charcoal's Refund active (button %s)" % [btn])
+			_expect(btn != null and btn.text == "Unlearn" and not btn.disabled and why == null, "a free refund leaves Charcoal's Unlearn active (button %s)" % [btn])
 		else:
-			_expect(btn != null and btn.text == "Refund" and btn.disabled and why != null and why.text.contains("free refunds"), "the day's %d refunds used: Charcoal's Refund is greyed and says why before the tap (disabled %s, reason '%s')" % [used, btn.disabled if btn else null, why.text if why else ""])
+			_expect(btn != null and btn.text == "Unlearn" and btn.disabled and why != null and why.text.contains("free refunds"), "the day's %d refunds used: Charcoal's Unlearn is greyed and says why before the tap (disabled %s, reason '%s')" % [used, btn.disabled if btn else null, why.text if why else ""])
 	get_root().remove_child(sheet)
 	sheet.free()
 	_done_with(sk)
@@ -605,9 +608,11 @@ func _test_levelup_banner() -> void:
 		_world().pioneer_level = stored
 		_world().pioneer_changed.emit(stored)
 		var want: int = Rules.paid_for_level(p.skills, stored + 1)
-		var banner := str(hud.get("_levelup_summary"))
-		var lines := ", ".join((hud.get("_levelup_lines") as Array).map(func (l: Array) -> String: return str(l[0])))
-		_expect(p.skills.sp_available == want and banner.ends_with("Skill points %d" % want) and lines.contains("Available Skill Points: %d" % want), "character Lv. %d: the level-up banner shows the %d SP SkillState holds (%d): '%s' | %s" % [stored + 1, want, p.skills.sp_available, banner, lines])
+		var banner := str(hud.get("_levelup_sp"))
+		var brain_rows := (hud.get("_levelup_lines") as Array).filter(func (l: Array) -> bool: return l.size() > 3 and l[3] == &"brain")
+		var lines := ", ".join(brain_rows.map(func (l: Array) -> String: return str(l[0])))
+		# Skill points are the brain glyph (BRAINICON): the phone banner's number and the stack's brain row.
+		_expect(p.skills.sp_available == want and banner == str(want) and brain_rows.size() == 1 and lines.begins_with("%d" % want), "character Lv. %d: the level-up banner shows the %d SP SkillState holds (%d): '%s' | %s" % [stored + 1, want, p.skills.sp_available, banner, lines])
 	for n in [hud, p]:
 		get_root().remove_child(n)
 		n.free()
@@ -634,9 +639,9 @@ func _test_craft_card_lock() -> void:
 	var text := lock.text if lock else ""
 	var ingredients := -1
 	for c in ui._detail.get_children():
-		if c is Label and (c as Label).text == "INGREDIENTS":
+		if c.name == "DetailMaterialsHead":  # UICRAFT: the "Materials" bar heads the ingredients
 			ingredients = c.get_index()
-	var above := lock != null and lock.get_index() < ingredients
+	var above := lock != null and (lock if lock.get_parent() == ui._detail else lock.get_parent()).get_index() < ingredients
 	_expect(text.begins_with("Learn Charcoal (Processing Lv. 10, 1 SP); you have 0 SP") and above, "the charcoal craft card says what unlocks it, above the ingredients: '%s'" % text)
 	for n in [ui, p]:
 		get_root().remove_child(n)

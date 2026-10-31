@@ -3,13 +3,11 @@ extends RefCounted
 ## Survivor movement and physics: walking, tap-to-walk routes, roll, stagger, sleep, and the
 ## guards that keep the body on the island. Player._physics_process calls tick() once a frame.
 
-const ROLL_SPEED := 13.0
-const ROLL_SECONDS := 0.45  # ~5.9 m
-const ROLL_BUFFER := 0.2
-const ROLL_COST := 12.0
-## The v2 roll clip tumbles and stands back up over ~1.9 s; played faster so the visible roll ends
-## with the dash instead of locking the survivor for the whole clip (pc-combat-01).
-const ROLL_CLIP_SECONDS := 0.45
+## ROLL: length, speed curve, opening invulnerable window, cost and cooldown all live in
+## data/combat_tuning.json "roll" and are timed by RollRules (the server reads the same rules).
+## The front-loaded curve carries her ~10.9 m in 0.55 s; a wall still stops her where a walk would.
+## The v2 roll clip tumbles and stands back up over ~1.9 s; played over the dash so the visible
+## roll ends with it instead of locking the survivor for the whole clip (pc-combat-01).
 
 var p: Player
 ## Tap-run or sprint this frame; the anim tick and footsteps read it.
@@ -27,17 +25,49 @@ var _roll_direction := Vector3.ZERO
 var _roll_through: Array[Creature] = []
 var _roll_buffer_left: float = 0.0
 var _roll_buffer_dir := Vector3.ZERO
+## Seconds since this roll began (the i-frame clock) and the cooldown left after it ends.
+var _roll_elapsed: float = 0.0
+var _roll_cd_left: float = 0.0
 ## Stagger: a short unmovable hurt window after a hit (0.35 s), at most once every 1.5 s.
 var _stagger_left: float = 0.0
 var _stagger_immune_until: float = -1.0
+## Ram shove (a grazer's body-slam charge): slid along _shove, decaying to 0 over _shove_s of stagger.
+var _shove := Vector3.ZERO
+var _shove_s: float = 0.0
 var _wet_acc: float = 0.0
+var _swim_damage_acc: float = 0.0
 var _survival_acc: float = 0.0
-var _shoreline_logged: bool = false
+
+## Seconds spent in the wake pose; a guard in tick() releases the player if the clip never ends.
+var _wake_elapsed: float = 0.0
 var _sleep_spot: Node3D
+var _sleep_dur := 0.0 ## the spot's full sleep duration, stored for the gradual-onset payout
+var _sleep_drained := 0.0 ## exhaustion already paid out of this sleep
+var _sleep_f0 := 0.0 ## fatigue when she lay down: what the sleep removed sizes Well Rested
+## A sleep spot the survivor is walking to; sleep starts when the route ends.
+var _sleep_pending: Node3D
+## Capsule-centre height above the ground the survivor had when they lay down (the sleep pose moves
+## the visual, not the body), reused so waking puts them back on their feet at the same height.
+var _stand_offset: float = 0.9
+## The bedding she lies IN: her capsule ignores its collider until she is back out at the door, or the
+## tent's box would push her out to its edge on the first move_and_slide (owner: "doesn't place me
+## within the actual tent").
+var _in_bed: Node3D
 var _autofeed_cd: float = 0.0
+## STARVING: a Starving stack more every STARVE_STACK_S of an empty stomach (ASSUMPTION: no spec rule).
+## HUNGER (owner-approved memo 2026-10-29 Part 1 s1.4 step 3): the clock only reaches Starving after
+## STARVING_AFTER (rules.json hunger.starving_after_s) and stacks every STARVE_STACK_S after that; both
+## are the data's. The clock itself is Digestion.empty_for_s, which the save carries.
+const STARVE_STACK_S := 180.0  # ASSUMPTION: no spec gives a starvation rule (memo 1.4)
+const STARVING_AFTER := 600.0  # ASSUMPTION (memo 1.4): ten minutes on an empty stomach
+## Mirror of Digestion.empty_for_s for the tests/panels that read it.
+var starving_s := 0.0
+## Sitting down to rest (the Rest hex, the X key): RestState.
+var rest: RestState
 
 func _init(player: Player) -> void:
 	p = player
+	rest = RestState.new(player)
 
 ## Dead: no input, only gravity.
 func hold_still(delta: float) -> void:
@@ -53,31 +83,115 @@ func tick_survival_xp(delta: float) -> void:
 		_survival_acc -= 60.0
 		p.skills.add_xp("survival", 1)
 
+## STARVING (owner 2026-10-28): an empty stomach is the Starving status, a stack more every
+## STARVE_STACK_S of it (statuses.json max_stacks); leaving "empty" clears it at once.
+## HUNGER (owner-approved memo 2026-10-29 Part 1 s1.4 step 3): the first stack waits STARVING_AFTER
+## (10 min) on an empty stomach, the same rule for the survivor, members and (later) tames. The clock
+## is Digestion.empty_for_s, which the save keeps, so a reload does not restart the ten minutes.
+func _tick_starving(delta: float) -> void:
+	var dig := Digestion.of(p)
+	if starving_s <= 0.0 and dig != null:
+		starving_s = dig.empty_for_s  # a loaded save keeps the time she has already gone unfed
+	if p.dead or p.vitals.fullness_state != &"empty":
+		starving_s = 0.0
+	else:
+		starving_s += delta
+	if dig != null:
+		dig.empty_for_s = starving_s
+	if p.dead or p.vitals.fullness_state != &"empty" or starving_s < Digestion.starving_after_s():
+		if p.statuses.has(&"starving"):
+			p.statuses.clear_id(&"starving")
+		return
+	var after := Digestion.starving_after_s()
+	if not p.statuses.has(&"starving"):
+		p.statuses.apply(&"starving", p)
+	var inst := p.statuses.get_instance(&"starving")
+	var def := Data.status(&"starving")
+	if inst and def:
+		inst.stacks = clampi(1 + int((starving_s - after) / Digestion.starving_stack_s()), 1, def.max_stacks)
+		inst.time_left = def.duration  # until fed, never runs out
+
+## HUNGER (memo s1.4 step 3): the Well Fed band shows as a chip and heals a little faster; leaving the
+## band takes the chip off. The fatigue side of the band is already in fullness_mult (fatigue_gain_mult).
+func _tick_well_fed(delta: float) -> void:
+	var fed := p.vitals.fullness_state == &"well_fed"
+	if p.statuses.has(&"well_fed") != fed:
+		if fed:
+			p.statuses.apply(&"well_fed", p)
+			var inst := p.statuses.get_instance(&"well_fed")
+			var def := Data.status(&"well_fed")
+			if inst and def:
+				inst.time_left = def.duration  # until the band is left, never runs out
+		else:
+			p.statuses.clear_id(&"well_fed")
+	if fed and not p.dead and not p.vitals.blocks_regen:
+		p.vitals.heal(Digestion.well_fed_regen() * delta)
+
 func tick(delta: float) -> void:
 	var anim := p.anim
 	if p.statuses != null and p.vitals != null:
 		# Before any branch returns, so mounted, rolling and staggered survivors see current statuses.
-		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult()
+		# FULLFATIGUE (owner 2026-10-28): an empty stomach tires her much faster, a hungry one moderately.
+		var dig := Digestion.of(p)
+		p.vitals.fullness_state = Digestion.state_for(dig.fullness())
+		p.vitals.fullness_mult = Digestion.fatigue_mult_for(p.vitals.fullness_state)
+		p.vitals.fatigue_gain_mult = (0.5 if _in_coziness() else 1.0) * p.statuses.fatigue_mult() * p.vitals.fullness_mult
+		_tick_starving(delta)
+		_tick_well_fed(delta)
 	p.in_water = WaterAccess.in_water(p.global_position)
+	p.swimming = p.in_water and WaterAccess.is_swimming(p.global_position)
+	_tick_swimming(delta)
+	if _sleep_pending != null:
+		# Walking to the bedding: finish on arrival even if the route stalls at the tent's edge, and
+		# drop the errand if the bedding vanished (its last use spent elsewhere) .
+		if not is_instance_valid(_sleep_pending) or int(_sleep_pending.get("sleeps_left")) == 0:
+			_sleep_pending = null
+			clear_nav()
+		else:
+			var anchor: Vector3 = _sleep_pending.sleep_anchor() if _sleep_pending.has_method("sleep_anchor") else _sleep_pending.global_position
+			if p.global_position.distance_to(anchor) <= SLEEP_REACH:
+				clear_nav()
+				var spot := _sleep_pending
+				_sleep_pending = null
+				start_sleep(spot)
+				return
 	if p._sleep_left > 0.0 and p.statuses != null and p.vitals != null:
 		_tick_sleep(delta)
 		return
+	if rest.tick(delta):
+		return
 	if anim and anim._waking:
+		_wake_elapsed += delta
+		# The wake clip is ~1 s. If its finished signal never arrives (a clip that failed to load, a
+		# paused player), the survivor would hold still forever; release them instead. Give playback a
+		# few frames to start before treating "not playing" as a dead clip.
+		var ap: AnimationPlayer = anim.rig.anim_player if anim.rig else null
+		if _wake_elapsed > 3.0 or (_wake_elapsed > 0.25 and (ap == null or not ap.is_playing())):
+			anim.force_awake()
+			_wake_elapsed = 0.0
 		hold_still(delta)
 		return
+	_wake_elapsed = 0.0
 	if p.statuses == null or p.vitals == null:
 		p.move_and_slide()
 		return
-	if not p.is_on_floor() and p.mounted_on == null:
+	if not p.is_on_floor() and p.mounted_on == null and not p.swimming:
 		p.velocity += p.get_gravity() * delta
+	_roll_cd_left = maxf(0.0, _roll_cd_left - delta)
 	if _roll_left > 0.0:
 		_roll_left -= delta
+		_roll_elapsed += delta
 		if _roll_left <= 0.0:
 			_end_roll()
 	if _roll_buffer_left > 0.0:
 		_roll_buffer_left -= delta
+		# A buffered press fires the moment the dash ends; if the cooldown is still running (the
+		# buffer outlived the roll, e.g. a lagging frame) it is dropped silently instead of the
+		# "on cooldown" notice firing every frame.
 		if not p.rolling:
-			try_roll(_roll_buffer_dir)
+			_roll_buffer_left = 0.0
+			if _roll_cd_left <= 0.0:
+				try_roll(_roll_buffer_dir)
 	# Fight or move, not both: no walking while a swing or punch plays.
 	if anim and anim._busy and anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
 		p.velocity.x = 0.0
@@ -86,16 +200,24 @@ func tick(delta: float) -> void:
 		return
 	if _stagger_left > 0.0:
 		_stagger_left -= delta
-		p.velocity.x = 0.0
-		p.velocity.z = 0.0
+		var k := clampf(_stagger_left / _shove_s, 0.0, 1.0) if _shove_s > 0.0 else 0.0
+		p.velocity.x = _shove.x * k
+		p.velocity.z = _shove.z * k
 		p.move_and_slide()
-		if anim:
+		if _stagger_left <= 0.0:
+			_shove = Vector3.ZERO
+			_shove_s = 0.0
+		if _stagger_left <= 0.0 and anim:
+			anim.end_hurt()  # the stun is over: locomotion takes the body back this frame
+		elif anim:
 			anim._physics_tick(0.0)
 		return
 	if p.rolling:
-		# Committed dash: constant speed, ignores input and nav, slips through creatures.
-		p.velocity.x = _roll_direction.x * ROLL_SPEED
-		p.velocity.z = _roll_direction.z * ROLL_SPEED
+		# Committed dash: RollRules' front-loaded curve, ignores input and nav, slips through
+		# creatures but never through walls (move_and_slide stops her like a walk would).
+		var speed := RollRules.speed_at(_roll_elapsed)
+		p.velocity.x = _roll_direction.x * speed
+		p.velocity.z = _roll_direction.z * speed
 		p.move_and_slide()
 		shoreline_guard()
 		return
@@ -119,30 +241,37 @@ func _walk(delta: float) -> void:
 	if input.length_squared() > 0.0:
 		p.clear_nav()
 		p.view.clear_ground_marker()
+		# Taking the survivor in hand is the same decision as a ground click: the errand she was
+		# walking to (sleep at a tent, gather, craft) is off, not merely paused.
+		cancel_errand()
 		p.actions.cancel_work()
+		drop_pending_craft(p)
 	var dir := cam_dir(input)
-	var can_sprint := Input.is_action_pressed("sprint") and not p.statuses.has_flag(&"no_sprint")
-	running = can_sprint or (p.nav_active and not p.statuses.has_flag(&"no_sprint"))
-	# Stamina: sprint 9/s, tap-run 3/s; empty -> walk until it refills.
+	if p.sprint_toggled and (p.vitals.energy <= 0.0 or p.statuses.has_flag(&"no_sprint")):
+		p.sprint_toggled = false
+	var can_sprint := wants_sprint()
+	# A tap route uses the same mode as direct movement. Sprint off means walk; Sprint on or held
+	# means sprint. The old nav_active branch silently forced every screen click into a run.
+	running = can_sprint
+	# Stamina: sprint 9/s; empty -> walk until it refills.
 	p.vitals.in_combat = (p.hunt != null and p.hunt.target != null) or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0
 	if running and p.velocity.length_squared() > 0.5:
-		if not p.vitals.drain_energy(9.0 if can_sprint else 3.0, delta):
+		if not p.vitals.drain_energy((9.0 if can_sprint else 3.0) * CombatTuning.num("movement", "run_stamina_mult", 1.0), delta):
 			running = false
 			can_sprint = false
 	elif running and p.vitals.energy <= 0.0:
 		running = false
 		can_sprint = false
 	var target_speed := p.sprint_speed if can_sprint else (p.run_speed if running else p.walk_speed)
-	target_speed *= p.statuses.move_mult()
+	target_speed *= p.statuses.move_mult() * WaterAccess.movement_speed_multiplier(p.global_position)
 	if p.nav_active:
 		dir = _nav_dir(delta, dir)
 	var horizontal := Vector3(p.velocity.x, 0.0, p.velocity.z)
 	horizontal = horizontal.move_toward(dir * target_speed, p.accel * delta)
 	p.velocity.x = horizontal.x
 	p.velocity.z = horizontal.z
+	face_tick(delta, dir)
 	if dir.length_squared() > 0.0:
-		var target_yaw := atan2(-dir.x, -dir.z)  # RiggedModel faces -Z (the old capsule faced +Z)
-		p.visual.rotation.y = lerp_angle(p.visual.rotation.y, target_yaw, p.turn_speed * delta)
 		# ASSUMPTION: walking 0.05/s, tap-running 0.09/s, sprint 0.2/s (was 0.25-0.8/s, which
 		# filled the bar in a few minutes and then blocked gathering).
 		p.vitals.add_fatigue(delta * (0.2 if can_sprint else (0.09 if running else 0.05)), &"walk")
@@ -150,7 +279,7 @@ func _walk(delta: float) -> void:
 		_wet_acc += delta
 		var need := float(Data.world_rules.get("wet_after_seconds_in_water", 5))
 		if _wet_acc >= need:
-			p.statuses.apply(&"wet", null)
+			WorldWeather.soak(p, 3)  # in the water: soaked through
 			_wet_acc = need - 1.0  # keep refreshing while in water, once a second rather than every frame
 	else:
 		_wet_acc = 0.0
@@ -162,14 +291,78 @@ func _walk(delta: float) -> void:
 	if p.anim:
 		p.anim._physics_tick(Vector2(p.velocity.x, p.velocity.z).length(), running)
 
+## The one writer of her facing on foot, each physics frame. Movement (stick or route) owns it; standing
+## still in a fight, the hunt target does. Never from _process (physics interpolation is on, so a
+## _process write fought this one every render), never a snap, never from speed near zero.
+## ASSUMPTION (PRDs give none): the move heading is low-passed over 0.04 s, ignored below 0.3 of full
+## (a stick flip through centre holds the old facing), and the body only turns once it is 3 deg off,
+## as Creature does, so stick noise and path wobble cannot dither the yaw.
+const FACE_TAU_S := 0.04
+const FACE_MIN := 0.3
+const FACE_SLACK_RAD := 0.05
+var _face_dir := Vector3.ZERO
+
+func face_tick(delta: float, move_dir: Vector3) -> void:
+	var goal := Vector3.ZERO
+	var slack := 0.0
+	if move_dir.length_squared() > 0.0:
+		_face_dir = _face_dir.lerp(move_dir, 1.0 - exp(-delta / FACE_TAU_S))
+		if _face_dir.length() > FACE_MIN:
+			goal = _face_dir
+			slack = FACE_SLACK_RAD
+	else:
+		_face_dir = Vector3.ZERO
+		var h := p.hunt
+		if h and h.target and is_instance_valid(h.target) and not h.target.health.dead and not p.move_order:
+			goal = h.target.global_position - p.global_position
+	goal.y = 0.0
+	if goal.length_squared() < 0.0001:
+		return
+	var yaw := p.visual.rotation.y
+	var err := angle_difference(yaw, atan2(-goal.x, -goal.z))  # RiggedModel faces -Z
+	if absf(err) > slack:
+		p.visual.rotation.y = rotate_toward(yaw, yaw + err - signf(err) * slack, deg_to_rad(p.turn_rate_deg) * delta)
+
+func wants_sprint() -> bool:
+	return (Input.is_action_pressed("sprint") or p.sprint_toggled or p.chase_sprint) \
+		and not p.statuses.has_flag(&"no_sprint") and not p.in_water
+
+## Buoyancy, continuous swimming stamina, and the exhausted-swimming health consequence.
+## ASSUMPTION: swimming costs 6 Energy/s and drowning strain deals 5 Health once per second.
+func _tick_swimming(delta: float) -> void:
+	if not p.swimming or p.vitals == null:
+		_swim_damage_acc = 0.0
+		return
+	var ground_y: float = World.runtime.surface_y(p.global_position.x, p.global_position.z) if World.runtime else -INF
+	var float_y := maxf(HarbourSite.WATER_Y + 0.08, ground_y + p.half_height() + 0.05)
+	# Rise as velocity, not a position nudge: move_and_slide's floor snap undid the nudge every frame,
+	# so a survivor who walked in down the beach slope kept walking on the seabed.
+	p.velocity.y = clampf((float_y - p.global_position.y) / maxf(delta, 0.001), -4.0, 4.0)
+	if p.vitals.drain_energy(6.0, delta):
+		_swim_damage_acc = 0.0
+		return
+	_swim_damage_acc += delta
+	while _swim_damage_acc >= 1.0:
+		_swim_damage_acc -= 1.0
+		p.vitals.take_damage(5.0)
+
 ## Steering while routed. Neither router promises a walkable answer: the tile graph returns a
 ## degenerate route when the goal tile is occupied (a bush and its collider sit on it), and
 ## NavigationAgent3D does the same when its map is not ready. Walk straight at the goal in both
 ## cases, and give up rather than freeze.
 func _nav_dir(delta: float, dir: Vector3) -> Vector3:
+	if p.swimming or WaterAccess.in_water(p._path_goal):
+		var water_remain := p._path_goal - p.global_position
+		water_remain.y = 0.0
+		if water_remain.length() <= _arrive_tolerance():
+			p.nav_active = false
+			p.move_order = false
+			p.actions.on_arrived()
+			return Vector3.ZERO
+		return water_remain.normalized()
 	var next_dir := Vector3.ZERO
 	var finished := false
-	if use_tile_path():
+	if use_tile_path() or _navmesh_ready():
 		next_dir = _tile_nav_dir(delta)
 		finished = next_dir.length_squared() <= 0.0
 	elif not p.agent.is_navigation_finished():
@@ -181,6 +374,10 @@ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
 		finished = true
 	var remain := p._path_goal - p.global_position
 	remain.y = 0.0
+	# Standing on the goal ends the route even when the router keeps asking for another waypoint
+	# (an empty map or a goal tile with no baked route answers with itself): the walk has arrived.
+	if remain.length() <= _arrive_tolerance():
+		finished = true
 	# A router with no direction (map not ready) also falls back; it used to creep one frame per
 	# 1.2 s stall because moving reset the stall timer.
 	var stalled := _stalled(delta)
@@ -196,7 +393,12 @@ func _nav_dir(delta: float, dir: Vector3) -> Vector3:
 				unstick(next_dir)
 	if finished:
 		p.nav_active = false
+		p.move_order = false
 		p.actions.on_arrived()
+		if _sleep_pending != null:
+			var spot := _sleep_pending
+			_sleep_pending = null
+			start_sleep(spot)
 		return Vector3.ZERO
 	return next_dir if next_dir.length_squared() > 0.0 else dir
 
@@ -221,6 +423,9 @@ func _no_creature_climb(y0: float) -> void:
 		p.velocity.y = minf(p.velocity.y, 0.0)
 
 func input_vector() -> Vector2:
+	# Typing in a text field (the pet Rename) must not walk her: the field takes the keys, polling still sees them.
+	if p.get_viewport().gui_get_focus_owner() is LineEdit:
+		return Vector2.ZERO
 	return Input.get_vector("move_left", "move_right", "move_up", "move_down")
 
 func cam_dir(input: Vector2) -> Vector3:
@@ -236,12 +441,15 @@ func cam_dir(input: Vector2) -> Vector3:
 
 # ---------------------------------------------------------------- roll and stagger
 
+
 ## Roll toward `dir` (camera-relative input; zero = where she faces). Cancels a swing, a flinch (and
-## its stagger) or a work clip, buffers ROLL_BUFFER s while another roll finishes, says why when refused.
+## its stagger) or a work clip, buffers RollRules.buffer_s() while another roll finishes, says why
+## when refused.
 func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 	var why := roll_refusal()
 	if why == "busy":
-		_roll_buffer_left = ROLL_BUFFER
+		# A press while another roll is in flight waits RollRules.buffer_s() for it to finish.
+		_roll_buffer_left = RollRules.buffer_s()
 		_roll_buffer_dir = dir
 		return false
 	_roll_buffer_left = 0.0
@@ -249,22 +457,30 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 		if why != "dead":
 			p.notice(why)
 		return false
-	if not p.vitals.spend_energy(ROLL_COST):
+	if not p.vitals.spend_energy(RollRules.stamina()):
 		p.notice("Out of stamina.")
 		return false
 	dir.y = 0.0
-	if dir.length_squared() < 0.0001:
-		dir = -p.visual.global_basis.z
+	# OWNER RULE 2026-10-28: the roll is directional. Held input rolls that way; with no direction
+	# she rolls BACKWARD, away from where she faces, and keeps her facing (the body moves back, she
+	# does not spin round first). There is no dedicated back-roll clip, so the roll clip plays as is.
+	roll_backward = dir.length_squared() < 0.0001
+	if roll_backward:
+		dir = p.visual.global_basis.z
 		dir.y = 0.0
 	_roll_direction = dir.normalized()
-	p.visual.rotation.y = atan2(-_roll_direction.x, -_roll_direction.z)
+	if not roll_backward:
+		p.visual.rotation.y = atan2(-_roll_direction.x, -_roll_direction.z)
 	p.rolling = true
-	_roll_left = ROLL_SECONDS
+	_roll_left = RollRules.seconds()
+	_roll_elapsed = 0.0
+	_roll_cd_left = RollRules.cooldown_s()  # counted from the press: no chaining after the dash
 	_stagger_left = 0.0
 	p.clear_nav()
 	p.actions.cancel_work()  # a swing in flight is lost: Hunt checks rolling when it would land
-	p.velocity.x = _roll_direction.x * ROLL_SPEED
-	p.velocity.z = _roll_direction.z * ROLL_SPEED
+	var speed := RollRules.speed_at(0.0)
+	p.velocity.x = _roll_direction.x * speed
+	p.velocity.z = _roll_direction.z * speed
 	# Roll through creatures: collision exceptions with everything close, restored at the end.
 	for n in p.get_tree().get_nodes_in_group("creatures"):
 		var c := n as Creature
@@ -274,8 +490,9 @@ func try_roll(dir: Vector3 = Vector3.ZERO) -> bool:
 	if p.anim:
 		p.anim.on_roll()
 		var ap := p.rig.anim_player if p.rig else null
-		if ap and ap.has_animation(&"roll"):
-			ap.speed_scale = maxf(1.0, ap.get_animation(&"roll").length / ROLL_CLIP_SECONDS)
+		var rc: StringName = p.anim.current_clip if p.anim.current_clip in [&"roll", &"roll_back"] else &"roll"
+		if ap and ap.has_animation(rc):
+			ap.speed_scale = maxf(1.0, ap.get_animation(rc).length / RollRules.seconds())
 	print("[combat] roll")
 	return true
 
@@ -291,12 +508,29 @@ func roll_refusal() -> String:
 		return "Can't roll while resting."
 	if p.statuses.has_flag(&"cannot_act") or (p.anim and p.anim._busy and p.anim.current_clip == &"knockdown"):
 		return "Can't roll while knocked down."
+	if _roll_cd_left > 0.0:
+		return "Roll on cooldown (%.1fs)." % _roll_cd_left
 	if p.statuses.has_flag(&"no_roll"):
 		return "Too hampered to roll."
 	return ""
 
 func roll_left() -> float:
 	return _roll_left
+
+## True when the current (or last) roll was the no-input backward roll: the facing stays put.
+var roll_backward: bool = false
+
+## Seconds since this roll began; the opening RollRules.iframes_s() of it dodge creature hits.
+func roll_elapsed() -> float:
+	return _roll_elapsed if p.rolling else -1.0
+
+## True while a creature hit landing now would be dodged (the live dash, never a stale one).
+func roll_invulnerable() -> bool:
+	return p.rolling and RollRules.invulnerable_at(_roll_elapsed)
+
+## Seconds until another roll is allowed, counted from the press (RollRules.cooldown_s()).
+func roll_cooldown_left() -> float:
+	return _roll_cd_left
 
 func _end_roll() -> void:
 	p.rolling = false
@@ -307,15 +541,39 @@ func _end_roll() -> void:
 	p.velocity.x *= 0.3
 	p.velocity.z *= 0.3
 	# The dash is over, so is the oneshot: idle is not a busy clip, the next tick picks locomotion.
-	if p.anim and p.anim.current_clip == &"roll":
+	if p.anim and p.anim.current_clip in [&"roll", &"roll_back"]:
 		p.anim.play_clip(&"idle")
 
-func on_hit() -> void:
+## Hurt (owner 2026-10-28): a hit stuns her for exactly the hurt clip's length, then she is free to
+## walk/run; for HIT_STUN_IMMUNE_S after that, further hits (the combo's 2nd and 3rd bites) still
+## damage but cannot stun again, so nothing can chain-stun her. Returns true when this hit stunned.
+# ASSUMPTION: 0.8 s of stun immunity after the stun ends.
+const HIT_STUN_IMMUNE_S := 0.8
+
+func on_hit() -> bool:
 	var now_s := Time.get_ticks_msec() * 0.001
-	if not p.rolling and now_s >= _stagger_immune_until:
-		_stagger_left = 0.35
-		_stagger_immune_until = now_s + 1.5
-		p.clear_nav()
+	if p.rolling or now_s < _stagger_immune_until:
+		return false
+	_stagger_left = hurt_stun_seconds()
+	_stagger_immune_until = now_s + _stagger_left + HIT_STUN_IMMUNE_S
+	p.clear_nav()
+	return true
+
+## Knocked back push metres (flat) over stagger_s, no control meanwhile; walls stop the slide (move_and_slide).
+## A roll in flight dodged the hit, so it is not shoved.
+func shove(push: Vector3, stagger_s: float) -> void:
+	if p.rolling or stagger_s <= 0.0 or push.length_squared() <= 0.0:
+		return
+	push.y = 0.0
+	_shove_s = stagger_s
+	_shove = push * (2.0 / stagger_s)  # linear decay from 2d/T to 0 covers d metres
+	_stagger_left = maxf(_stagger_left, stagger_s)
+	p.clear_nav()
+
+## The hurt clip's length as PlayerAnim plays it (speed 1); 0.35 s without a rig or clip.
+func hurt_stun_seconds() -> float:
+	var ap: AnimationPlayer = p.rig.anim_player if p.rig else null
+	return ap.get_animation(&"hit_react").length if ap and ap.has_animation(&"hit_react") else 0.35
 
 # ---------------------------------------------------------------- tap-to-walk routes
 
@@ -330,16 +588,34 @@ func nav_to(pos: Vector3) -> void:
 	_path_blocked_left = 0.0
 	_path_stuck = 0.0
 	_unreachable_said = false
-	if use_tile_path():
+	if WaterAccess.in_water(pos):
+		_path_points = PackedVector3Array()
+	elif use_tile_path():
 		_request_tile_path()
 	else:
 		p.agent.target_position = pos
 
 func clear_nav() -> void:
 	p.nav_active = false
+	p.move_order = false
 	_path_points = PackedVector3Array()
 	_path_index = 0
 	p.agent.target_position = p.global_position
+
+## A ground click replaces what she was walking to do: drop the sleep errand (the route ending must
+## not lie her down) and the marker. Gather/butcher errands are PlayerActions'.
+func cancel_errand() -> void:
+	_sleep_pending = null
+
+## The craft half of the same rule, kept here so Player and StationCraft need no new public API: a
+## recipe she was walking to a station to make is forgotten (nothing was consumed until the bench
+## starts it), while a craft already running keeps going — its own distance check cancels it.
+static func drop_pending_craft(p: Player) -> void:
+	var sc: StationCraft = p.station_craft if p else null
+	if sc == null or sc.crafting or sc.recipe_id == &"":
+		return
+	print("[craft] abandoned pending %s (a move order replaced it)" % sc.recipe_id)
+	sc.cancel_and_refund()
 
 func path_points() -> PackedVector3Array:
 	return _path_points
@@ -354,17 +630,29 @@ func closest_nav_point(pos: Vector3) -> Vector3:
 	if use_tile_path():
 		return BuildGrid.tile_centre(BuildGrid.tile_of(pos), World.runtime)
 	var map := p.get_world_3d().navigation_map
-	if NavigationServer3D.map_get_iteration_id(map) == 0:
+	# No map, or a map with no region in it (a lab floor before a bake, a test host): there is
+	# nothing to snap to, and an empty map answers the origin, which would send her to (0,0,0).
+	if NavigationServer3D.map_get_iteration_id(map) == 0 or NavigationServer3D.map_get_regions(map).is_empty():
 		return pos
 	return NavigationServer3D.map_get_closest_point(map, pos)
 
+## Off an island (labs, the creature lab): no tile router, but a baked navmesh. Its route feeds the
+## same waypoint follower. The agent's own follower never advanced for her: it measures in 3D from the
+## capsule centre, 0.5 m or more above the mesh, against path_desired_distance 0.5, so she stepped
+## back and forth over her first waypoint (owner: "clicking on the ground glitches you out").
+func _navmesh_ready() -> bool:
+	return not use_tile_path() and NavigationServer3D.map_get_iteration_id(p.get_world_3d().navigation_map) > 0
+
 func _request_tile_path() -> void:
 	if not use_tile_path():
+		if _navmesh_ready():
+			_path_points = NavigationServer3D.map_get_path(p.get_world_3d().navigation_map, p.global_position, p._path_goal, true)
+			_path_index = 0
 		return
 	var pathing: Variant = World.runtime.get("pathing")
 	if pathing == null:
 		return
-	_path_points = pathing.path(p.global_position, p._path_goal, 96)
+	_path_points = pathing.path(p.global_position, p._path_goal, 96, true)  # the owner walks through its own walls (HANDOFF 8)
 	_path_index = 0
 	# A plain ground move to a tile nothing reaches stops at the closest reachable tile and says
 	# so, instead of pressing into the wall for 10 s (phys-path-01). Targets keep their own goal.
@@ -382,7 +670,10 @@ func _request_tile_path() -> void:
 		seg.y = 0.0
 		var rel := p.global_position - p0
 		rel.y = 0.0
-		if seg.dot(rel) > 0.0 and rel.length() < 1.5:
+		# Past it along the segment, however far along (a 1.5 s re-plan mid-way down a long straight leg
+		# sent her back to its start tile), or standing on it (its own tile's centre is a step back
+		# or sideways): skip it. Both were visible jitter on a walk.
+		if (seg.dot(rel) > 0.0 and rel.length() < seg.length() + 1.5) or rel.length() < 0.75:
 			_path_index += 1
 		else:
 			break
@@ -460,29 +751,92 @@ func _track_tile_blocked(delta: float) -> bool:
 
 ## ASSUMPTION: straw rolls take 12 seconds and restore 65 exhaustion once;
 ## tents take 10 seconds and restore 100. Only a completed, uninterrupted sleep
-## spends a use. No time skip, no partial restoration on interruption.
+## spends a use. No time skip; an interrupted sleep keeps the exhaustion already
+## paid out (the restore drains gradually, owner 2026-10-27 — the HUD treadmill
+## should run left through the whole sleep, not snap at wake).
+## While asleep she also heals at the shelter rest rate (data/rest.json, RestState.heal);
+## exhaustion moves only by the sleep's own drain above, never by the rest rate too.
+## A tent keeps her (owner 2026-10-28: "stay in the tent for as long as you would like. It kicks you
+## out when you are no longer exhausted"): once the drain is paid the sleep counts as completed, and she
+## sleeps on inside until she gets up (Get up hex, a move, a real hit). The use and Well Rested land then.
 func _tick_sleep(delta: float) -> void:
 	var hurt := (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 1.0
 	if input_vector().length_squared() > 0.04 or p.nav_active or p.vitals.in_combat or hurt or p.dead \
 			or not is_instance_valid(_sleep_spot) or p.global_position.distance_to(_sleep_spot.global_position) > 3.2:
-		p._sleep_left = 0.0
-		_sleep_spot = null
-		if p.anim:
-			p.anim.wake_from_sleep()
+		if _slept_full:
+			_end_sleep(true)
+			return
+		var slept := _sleep_dur - p._sleep_left
+		_end_sleep(false)
 		p.notice("Sleep interrupted")
+		if not (p.vitals.in_combat or hurt or p.dead):  # got up on purpose: a long enough nap still counts
+			rest.grant_well_rested(_sleep_f0 - p.vitals.fatigue, slept)
 		return
-	p._sleep_left = maxf(0.0, p._sleep_left - delta)
+	# Payout across the duration: every tick eases exhaustion linearly, so a straw
+	# roll (65 pts / 12 s) drops ~5.4 pts per second and the belt reads the slope
+	# directly. A completed sleep lands the tiny float remainder exactly.
+	var spot: Node3D = _sleep_spot
+	if not _slept_full:
+		if _sleep_dur > 0.0 and _sleep_drained < spot.sleep_restore():
+			var step: float = spot.sleep_restore() * delta / _sleep_dur
+			p.vitals.rest(step)
+			_sleep_drained += step
+		p._sleep_left = maxf(0.0, p._sleep_left - delta)
+	rest.heal(&"shelter", delta)
 	p.velocity.x = 0.0
 	p.velocity.z = 0.0
 	p.move_and_slide()
+	if not _slept_full and p._sleep_left <= 0.0:
+		p.vitals.rest(maxf(0.0, spot.sleep_restore() - _sleep_drained))
+		_sleep_drained = 0.0
+		if spot.has_method("keeps_sleeper") and spot.keeps_sleeper():
+			_slept_full = true
+			p._sleep_left = STAY_LEFT
+			p.notice("Rested - get up when you like")
+			return
+		_end_sleep(true)
+
+## While she stays in a tent after a full sleep, _sleep_left holds this, so every "asleep" check
+## (_sleep_left > 0: HUD, roll, rest, autofeed, status-tick guard) still reads her as asleep.
+const STAY_LEFT := 0.001
+## The drain is paid and she is sleeping on in a tent (see _tick_sleep).
+var _slept_full := false
+
+## Get up (the Get up hex): a completed stay ends with its rewards, an early one as a move would.
+func get_up() -> void:
 	if p._sleep_left <= 0.0:
-		var spot := _sleep_spot
-		_sleep_spot = null
-		p.vitals.rest(spot.sleep_restore())
-		spot.complete_sleep()
-		if p.anim:
-			p.anim.wake_from_sleep()
+		return
+	if _slept_full:
+		_end_sleep(true)
+		return
+	var slept := _sleep_dur - p._sleep_left
+	_end_sleep(false)
+	p.notice("Sleep interrupted")
+	rest.grant_well_rested(_sleep_f0 - p.vitals.fatigue, slept)
+
+## Every end of a sleep: out of the bedding, the wake clip, and for a completed one the spent use,
+## "Rested" and Well Rested (sized by what the sleep removed).
+func _end_sleep(completed: bool) -> void:
+	var spot := _sleep_spot
+	var was_asleep := p._sleep_left > 0.0
+	p._sleep_left = 0.0
+	_sleep_drained = 0.0
+	_sleep_spot = null
+	_slept_full = false
+	_leave_bed()
+	if was_asleep and p.anim:
+		p.anim.wake_from_sleep()
+	if completed:
+		if is_instance_valid(spot):
+			spot.complete_sleep()
 		p.notice("Rested")
+		rest.grant_well_rested(_sleep_f0 - p.vitals.fatigue, _sleep_dur)
+
+## The running sleep's exhaustion drain per minute (restore / duration), for the HUD; 0 when awake.
+func sleep_fatigue_per_min() -> float:
+	if p._sleep_left <= 0.0 or _slept_full or not is_instance_valid(_sleep_spot) or _sleep_dur <= 0.0:
+		return 0.0
+	return float(_sleep_spot.sleep_restore()) / _sleep_dur * 60.0
 
 func nearest_sleep_spot() -> Node3D:
 	var best: Node3D = null
@@ -497,45 +851,106 @@ func nearest_sleep_spot() -> Node3D:
 			best_d = d
 	return best
 
+## How close the survivor must be to the bedding to lie down. The route ends at the tent's collision
+## edge, which is ~1.5 m from its centre (2.2 m footprint + capsule radius), so this is a little wider;
+## the step onto the anchor below is what actually places them on the bedding.
+const SLEEP_REACH := 2.2
+
 func start_sleep(spot: Node3D = null) -> void:
 	if spot == null:
 		spot = nearest_sleep_spot()
 	if spot == null or not is_instance_valid(spot) or not spot.is_in_group("sleep_spot") or int(spot.get("sleeps_left")) == 0:
 		return
-	if p.global_position.distance_to(spot.global_position) > 3.2:
-		p.notice("Move closer to sleep")
+	var anchor: Vector3 = spot.sleep_anchor() if spot.has_method("sleep_anchor") else spot.global_position
+	if p.global_position.distance_to(anchor) > SLEEP_REACH:
+		# Sleep from anywhere: walk to the bedding, then lie down (the route ending calls start_sleep).
+		_sleep_pending = spot
+		p.gather_target = null
+		nav_to(anchor)
+		p.notice("Walking to sleep")
 		return
+	_sleep_pending = null
 	if p.vitals.in_combat or (Time.get_ticks_msec() * 0.001 - p._last_hit_taken_s) < 5.0 or p.dead:
 		p.notice("Can't sleep in combat")
 		return
 	if p.vitals.fatigue < 1.0:
 		p.notice("Already rested")
 		return
+	rest.stop(false)  # from sitting straight to lying down
 	p.clear_nav()
 	p.actions.cancel_work()
 	_sleep_spot = spot
-	p._sleep_left = spot.sleep_duration()
+	_sleep_dur = maxf(0.01, spot.sleep_duration())
+	_slept_full = false
+	_sleep_drained = 0.0
+	_sleep_f0 = p.vitals.fatigue
+	p._sleep_left = _sleep_dur
+	_enter_bed(spot, anchor)
 	if p.anim:
 		p.anim.start_sleep()
 	p.notice("Sleeping - move to wake")
 
+func _surface_y(at: Vector3) -> float:
+	if World.runtime and World.runtime.has_method("surface_y"):
+		return float(World.runtime.surface_y(at.x, at.z))
+	return at.y
+
+## Lie IN the bedding: step onto its centre at the survivor's own standing height, along its long
+## axis, with her collision against it off. The anchor is a GROUND point (a tent's origin is its
+## ground centre), so copying it verbatim drops the capsule through the floor.
+func _enter_bed(spot: Node3D, anchor: Vector3) -> void:
+	_stand_offset = p.global_position.y - _surface_y(p.global_position)
+	if spot is PhysicsBody3D:
+		p.add_collision_exception_with(spot)
+	_in_bed = spot
+	Occlusion.hold(spot, true)  # the tent goes see-through around her (owner: "slightly transparent")
+	p.global_position = Vector3(anchor.x, _surface_y(anchor) + _stand_offset, anchor.z)
+	if spot.has_method("sleep_yaw"):
+		p.visual.rotation.y = float(spot.sleep_yaw())
+
+## Stand up outside the bedding: the tent is too low to stand in, so waking steps the survivor out of
+## the doorway, then her collision with it comes back. Every way a sleep ends comes through here.
+func _leave_bed() -> void:
+	var spot := _in_bed
+	_in_bed = null
+	if spot == null or not is_instance_valid(spot):
+		return
+	var at: Vector3 = spot.wake_anchor() if spot.has_method("wake_anchor") else spot.global_position
+	p.global_position = Vector3(at.x, _surface_y(at) + _stand_offset, at.z)
+	if spot is PhysicsBody3D:
+		p.remove_collision_exception_with(spot)
+	Occlusion.hold(spot, false)
+
+## A real hit or death: she gets up and out of the bedding (status ticks never reach here, Player).
+## A tent stay whose drain was already paid still counts as completed.
 func interrupt_sleep() -> void:
-	p._sleep_left = 0.0
-	_sleep_spot = null
+	_end_sleep(_slept_full)
+	_sleep_pending = null
+	rest.stop()  # hurt or dead: a rest ends too, with the stand-up
 
 # ---------------------------------------------------------------- autofeed
 
-## Offer quick food when energy is low or exhaustion is high, outside combat.
+## Offer quick food when the stomach is Peckish (HUNGER, memo s1.4 step 5), or when energy is low or
+## exhaustion is high, outside combat. A player who keeps a good dish in the quick slot never has to
+## look at hunger.
 func tick_autofeed(delta: float) -> void:
 	_autofeed_cd = maxf(0.0, _autofeed_cd - delta)
 	var v := p.vitals
-	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or p.dead \
-			or (v.energy > v.max_energy * 0.5 and v.fatigue < v.max_fatigue * 0.6):
+	if _autofeed_cd > 0.0 or v == null or p._sleep_left > 0.0 or rest.resting or p.dead:
+		return
+	var peckish := v.fullness_state == &"peckish" or v.fullness_state == &"empty"
+	if not peckish and v.energy > v.max_energy * 0.5 and v.fatigue < v.max_fatigue * 0.6:
 		return
 	if p.eat_session == null or p.eat_session.eating or p.nav_active or p._gathering or Vector2(p.velocity.x, p.velocity.z).length() > 0.3:
 		return
 	if p.hunt and p.hunt.target:
 		return
+	# FOODTORPOR: the Food Bag feeds first, front to back; quick food is the fallback.
+	for idx in p.inventory.food_bag_prune():
+		if Food.can_eat(p, p.inventory.slots[idx]) == "" and p.actions.eat(idx):
+			p.notice("Auto-eating %s (Food Bag)" % p.inventory.slots[idx].def().display_name)
+			_autofeed_cd = 12.0
+			return
 	for fid in p.inventory.quick_food:
 		if str(fid) == "":
 			continue
@@ -547,6 +962,23 @@ func tick_autofeed(delta: float) -> void:
 				_autofeed_cd = 12.0
 				return
 	_autofeed_cd = 3.0
+
+# ---------------------------------------------------------------- spoilage
+
+const SPOIL_TICK_S := 5.0
+var _spoil_cd: float = 0.0
+
+## FOODTORPOR: the bag's food spoils on the wall clock (Spoilage); spoiled lots leave the Food Bag.
+## shortcut: the client's own bag only; pet bags, chests and the online server do not spoil yet.
+func tick_spoilage(delta: float) -> void:
+	_spoil_cd -= delta
+	if _spoil_cd > 0.0 or p.actions == null or p.actions.online:
+		return
+	_spoil_cd = SPOIL_TICK_S
+	var n := Spoilage.tick(p.inventory)
+	if n > 0:
+		p.inventory.food_bag_prune()
+		p.notice("%d food lot%s spoiled" % [n, "" if n == 1 else "s"])
 
 # ---------------------------------------------------------------- guards
 
@@ -571,18 +1003,5 @@ func fall_guard() -> void:
 	print("[player] fell out of the world; re-seated at y=%.2f" % y)
 
 func shoreline_guard() -> void:
-	if World.runtime == null or not World.runtime.has_method("surface_y"):
-		return
-	if World.runtime.surface_y(p.global_position.x, p.global_position.z) >= -0.40:
-		return  # ankle-deep wading is fine (reference); deeper is blocked
-	var out := Vector2(p.global_position.x, p.global_position.z)
-	if out.length_squared() < 0.0001:
-		out = Vector2(0.0, 1.0)
-	var inward := -out.normalized()
-	p.global_position.x += inward.x * 0.55
-	p.global_position.z += inward.y * 0.55
-	p.velocity.x = 0.0
-	p.velocity.z = 0.0
-	if not _shoreline_logged and Game.debug_overlay:
-		_shoreline_logged = true
-		print("[world] shoreline blocked")
+	# Kept as a call-site-compatible hook: deep water is now traversable by swimming.
+	pass

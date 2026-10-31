@@ -10,6 +10,7 @@ var _cam: IsoCamera
 var _failures: Array[String] = []
 
 func _ready() -> void:
+	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	var kit := LabKit.build(self, 40.0)
 	_player = kit["player"]
 	_cam = kit["cam"]

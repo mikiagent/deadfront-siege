@@ -10,7 +10,17 @@ signal hit_landed(target: Creature)
 
 var target: Creature
 var hold: bool = false
+## A ground tap during the fight (Player.move_order; owner: "pathfind to where I want to walk and then
+## re-engage"): the hunt keeps its target but neither chases, swings nor faces until the order ends, then
+## re-engages. A hit ends the order and Player.receive_creature_hit retargets (start() clears this).
+var _resume_after_move: bool = false
 var auto: bool = true  # HUD Auto hexagon: auto-attack when in range
+## AUTO-ABILITY (owner: on by default): with a target and any auto-castable ability ready, cast the
+## most powerful one instead of the next basic swing. The HUD hex toggles it; the picker is
+## scripts/combat/auto_ability.gd over data/combat_tuning.json "auto_ability".
+var auto_ability: bool = true
+## The ability id the last auto-cast chose ("tackle" / "kick"), for tests and the HUD row. "" = none.
+var last_auto_cast: StringName = &""
 var _ring: MeshInstance3D
 var _ranged_pending := false
 var _swing_cd: float = 0.0
@@ -24,6 +34,13 @@ const NOTICE_THROTTLE_S := 3.0
 var player: Player
 ## Last refusal or warning shown to the player (labs and tests read it).
 var last_notice: String = ""
+## Spec 09: one "stun it" hint per creature, when a tameable wild animal under the hunt drops to
+## <= 50 % HP and is not stunned. Keyed by instance id so a second animal gets its own hint.
+const STUN_HINT := "Weaken and sedate the dinosaur to capture it."
+const STUN_HINT_FRAC := 0.50  ## the early tutorial target the spec names (not a hard capture rule)
+const TRANQ_DART := &"tranquilizer_dart"
+const CAPTURE_REFUSAL := "Weaken it and sedate it until it is knocked out to capture it."
+var _stun_hinted: Dictionary = {}
 
 func setup(p: Player) -> void:
 	player = p
@@ -32,12 +49,14 @@ func start(t: Creature) -> void:
 	if t == null or t.health.dead or t.is_pet:
 		return  # F / retaliation / taps never turn the survivor on his own pet
 	target = t
+	_resume_after_move = false
 	_attach_ring(t)
 	started.emit(t)
 	print("[combat] hunt start %s" % t.def.id)
 
 func stop() -> void:
 	target = null
+	_resume_after_move = false
 	if _ring and is_instance_valid(_ring):
 		_ring.queue_free()
 	_ring = null
@@ -68,9 +87,11 @@ func tactic_label(slot: int) -> String:
 		2:
 			return "Kick" if _kick_cd <= 0.0 else "Kick %.0f" % _kick_cd
 		3:
-			return "Roll"
+			# Spec 07 §8: the HUD shows the roll's cooldown, so a chained press reads why it is refused.
+			var left: float = player.sim.roll_cooldown_left() if player and player.sim else 0.0
+			return "Roll" if left <= 0.0 else "Roll %.0f" % ceilf(left)
 		4:
-			if target and target.capturable() and _net_health_ok() and _best_net_ok():
+			if target and _net_health_ok() and _best_net_ok():
 				return "Net"
 			return "—"
 		_:
@@ -82,19 +103,37 @@ func _process(delta: float) -> void:
 	_kick_cd = maxf(0.0, _kick_cd - delta)
 	_net_cd = maxf(0.0, _net_cd - delta)
 	_tactic_lock = maxf(0.0, _tactic_lock - delta)
+	if player.move_order:
+		_resume_after_move = _resume_after_move or target != null
+		return  # [owner 2026-10-28] a click-to-move order outranks combat: no chase, swing or facing
+	if _resume_after_move:
+		_resume_after_move = false
+		if target == null or not is_instance_valid(target) or target.health.dead \
+				or player.global_position.distance_to(target.global_position) > 28.0:
+			var near := player.actions.nearest_creature(PlayerActions.ATTACK_SEEK_RANGE, false)
+			if near:
+				start(near)  # her target is gone: the nearest animal, as ATTACK picks
+			else:
+				stop()
+			return
 	if target == null or not is_instance_valid(target) or target.health.dead:
 		if target:
 			stop()
 		return
+	_maybe_stun_hint()
 	if not auto:
 		return  # Auto off: only F / pad X / a tap swings (swing_now)
 	if not hold and player.global_position.distance_to(target.global_position) > 28.0:
 		stop()
 		return
-	# Square up to the target while close and not walking, so swings and punches land facing it.
-	if not player.nav_active and player.global_position.distance_to(target.global_position) <= 4.0:
-		player.face_world_smooth(target.global_position, delta)
-	_auto_attack()
+	if player.sim.input_vector().length_squared() > 0.0:
+		return  # the stick owns her: no chase, no swing; she re-engages when it lets go
+	# AUTO-ABILITY before the swing: a ready ability outranks the basic attack. A click-to-move order
+	# (checked again inside _auto_attack) still outranks everything.
+	last_auto_cast = &""
+	if _swing_cd <= 0.0 and not _swing_pending and AutoAbility.try_cast(self):
+		return
+	_auto_attack()  # facing the target is PlayerSim.face_tick's (physics), not a _process write
 
 ## Keep small-creature reach unchanged, but strike the edge of large collision bodies.
 ## T-rex radius2.88m previously made the fixed2.1m center distance unreachable.
@@ -104,14 +143,17 @@ static func melee_reach(creature: Creature) -> float:
 	return maxf(2.1, maxf(0.18, creature.def.real_length_m * 0.12) + 0.65)
 
 func _auto_attack() -> void:
+	# A click-to-move order outranks the auto-attack: she keeps her own path to the clicked point.
+	if player.move_order:
+		return
 	# An attended siege platform never fires or chases automatically.
 	var platform := player._nearest_group("catapult") as FieldCatapult
 	if platform and player.global_position.distance_to(platform.global_position) <= 3.0:
 		return
 	if player.statuses.has_flag(&"cannot_act"):
 		return
-	if player.rolling or _tactic_lock > 0.0:
-		return
+	if player.rolling or _tactic_lock > 0.0 or (player.sim and player.sim._stagger_left > 0.0):
+		return  # a hurt stun is a hard stun: no swings either
 	var ranged_weapon := _weapon()
 	if ranged_weapon and ranged_weapon.def() and ranged_weapon.def().range_m > 0.0:
 		if player.global_position.distance_to(target.global_position) > ranged_weapon.def().range_m and not hold:
@@ -126,7 +168,6 @@ func _auto_attack() -> void:
 			player.nav_to(target.global_position)
 		return
 	player.clear_nav()
-	player.face_world(target.global_position)
 	if _swing_cd > 0.0 or _swing_pending:
 		return
 	if not MeleeQuery.clear(player, target):
@@ -138,7 +179,7 @@ func _auto_attack() -> void:
 ## last swing has recovered, with Auto off or on HOLD too. False = nothing started (out of reach,
 ## cooling down, rolling); auto-attack still walks over when Auto is on and HOLD is off.
 func swing_now() -> bool:
-	if target == null or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
+	if target == null or player.move_order or player.rolling or _tactic_lock > 0.0 or _swing_cd > 0.0 or _swing_pending \
 			or player.statuses.has_flag(&"cannot_act"):
 		return false
 	var w := _weapon()
@@ -162,7 +203,8 @@ func begin_swing() -> void:
 		player.play_punch()
 	else:
 		player.play_attack(def != null and def.damage_type == &"blunt" and _swing_damage(w) > CombatTuning.num("player_melee", "heavy_swing_min_damage", 10.0))
-	_swing_cd = 1.0 / maxf(0.2, rate)
+	# Basic attack cooldown (owner: no basic spam): the weapon's cadence, never under basic_cooldown_s.
+	_swing_cd = maxf(1.0 / maxf(0.2, rate), CombatTuning.num("player_melee", "basic_cooldown_s", 0.8))
 	var forward := target.global_position - player.global_position
 	forward.y = 0.0
 	_swing_pending = true
@@ -189,8 +231,10 @@ func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3) -> void:
 	offset.y = 0.0
 	var tune := CombatTuning.section("player_melee")
 	if offset.length() > melee_reach(t) + float(tune.get("hit_reach_slack_m", 0.3)):
+		CombatAvoid.avoided(t, player, &"miss")
 		return  # it stepped out of the swing
 	if forward != Vector3.ZERO and offset.normalized().dot(forward) < float(tune.get("hit_arc_min_dot", 0.0)):
+		CombatAvoid.avoided(t, player, &"miss")
 		return  # it got behind the swing
 	if not MeleeQuery.clear(player, t):
 		return
@@ -201,6 +245,11 @@ func hit_chance(t: Creature) -> float:
 	var acc := CombatTuning.num("player_melee", "base_accuracy", 1.0) * player.statuses.accuracy_mult()
 	var dodge := t.dodge_chance() + t.statuses.evasion_add() * CombatTuning.top("evasion_add_scale", 0.01)
 	return CombatTuning.hit_chance(acc, dodge)
+
+## One roll of a swing on it: &"" hit, &"dodge" (its dodge) or &"miss" (her accuracy).
+func swing_outcome(t: Creature) -> StringName:
+	var acc := CombatTuning.num("player_melee", "base_accuracy", 1.0) * player.statuses.accuracy_mult()
+	return CombatTuning.swing_outcome(acc, t.dodge_chance() + t.statuses.evasion_add() * CombatTuning.top("evasion_add_scale", 0.01))
 
 func _swing_damage(w: ItemStack) -> float:
 	var tune := CombatTuning.section("player_melee")
@@ -214,8 +263,9 @@ func _swing_damage(w: ItemStack) -> float:
 ## Resolve one swing that reached the target. Returns whether it landed. Statuses, wear, XP
 ## and the tyrant counter happen only on a landed hit.
 func land_hit(t: Creature, w: ItemStack) -> bool:
-	if not CombatTuning.roll(hit_chance(t)):
-		t.combat_float.emit(0.0, &"dodge")
+	var how := swing_outcome(t)
+	if how != &"":
+		CombatAvoid.avoided(t, player, how)
 		return false
 	var tune := CombatTuning.section("player_melee")
 	var def := w.def() if w else null
@@ -246,6 +296,8 @@ func land_hit(t: Creature, w: ItemStack) -> bool:
 	wear_weapon(w)
 	apply_counter_hit(w, t)
 	if dtype == &"blunt" and t.brain is TyrantBrain: (t.brain as TyrantBrain).blunt_counter()
+	if dtype == &"blunt":
+		t.add_torpor(CombatTuning.num("torpor", "blunt", 6.0), player)
 	if dtype == &"blunt" and not t.health.dead and CombatTuning.roll(float(tune.get("blunt_groggy_chance", 0.35))):
 		t.statuses.apply(&"groggy", player)
 	if kind == &"crit" or (dtype == &"blunt" and dmg > float(tune.get("heavy_swing_min_damage", 10.0))):
@@ -289,10 +341,14 @@ static func effectiveness(c: Creature, dtype: StringName) -> StringName:
 	if value < 1.0: return &"weak"
 	return &"hit"
 
+## Tackle and Kick may cut the auto-attack's own swing short (it was always busy mid-fight, so both
+## refused silently); a roll, a hurt stun, a knockdown or the previous tactic's lock still block them.
 func can_start_tactic() -> bool:
 	if player == null or player.rolling or player.statuses.has_flag(&"cannot_act"):
 		return false
-	if player.anim and player.anim._busy:
+	if player.anim and player.anim._busy and not player.anim.current_clip in [&"attack_primary", &"attack_heavy", &"punch"]:
+		return false
+	if player.sim and player.sim._stagger_left > 0.0:
 		return false
 	return _tactic_lock <= 0.0
 
@@ -314,17 +370,39 @@ func use_tackle() -> void:
 func use_kick() -> void:
 	CombatTactics.kick(self)
 
-## Nets follow the capture rule: knocked out and under 30 % health (HANDOFF section 8).
+## Nets follow the one capture rule (FieldTame.capture_window): weak (stunned, or <= 30 %) and torpor
+## past the knock-out threshold.
 func use_net() -> void:
-	if target == null or not target.capturable():
+	if target == null:
+		return
+	# ALPHATAG (owner 2026-10-29): an alpha cannot be netted; the refusal names the rule, not the HP.
+	if FieldTame.is_alpha(target):
+		say(FieldTame.ALPHA_REFUSAL)
 		return
 	if not _net_health_ok():
-		say("Weaken it below 30% health before netting it.")
+		say(FieldTame.refusal(target))
 		return
 	CaptureSystem.attempt(player, target)
 
 func _net_health_ok() -> bool:
-	return target != null and FieldTame.health_allows_capture(target.health.fraction())
+	return target != null and FieldTame.capture_window(target)
+
+## Spec 09 §1: a tameable wild animal you are fighting that is unstunned and at or under 50 % HP
+## gets one hint per creature, through say() (no new widget).
+func _maybe_stun_hint() -> void:
+	if player == null or target == null or not is_instance_valid(target):
+		return
+	if target.def == null or target.health == null or not target.def.tameable or target.is_pet:
+		return
+	if target.health.dead or target.health.fraction() > STUN_HINT_FRAC:
+		return
+	if target.statuses != null and target.statuses.has(&"knockdown"):
+		return
+	var key := target.get_instance_id()
+	if _stun_hinted.has(key):
+		return
+	_stun_hinted[key] = true
+	say(STUN_HINT)
 
 func _best_net_ok() -> bool:
 	var net := player.inventory.best_capture_net()
@@ -352,13 +430,18 @@ func apply_counter_hit(w: ItemStack, victim: Creature) -> void:
 			victim.statuses.apply(&"bleeding_target", player)
 	elif def and def.damage_type == &"slashing" and not victim.health.dead and CombatTuning.roll(CombatTuning.num("player_melee", "slashing_bleed_chance", 0.25)):
 		victim.statuses.apply(&"bleeding_target", player)
+	if w and int(w.attributes.get("sedative_hits", 0)) > 0:
+		w.attributes["sedative_hits"] = int(w.attributes["sedative_hits"]) - 1
+		victim.add_torpor(CombatTuning.num("torpor", "sedative", 20.0), player)
+		player.inventory.changed.emit()
 	if w and int(w.attributes.get("toxin_hits", 0)) > 0:
 		w.attributes["toxin_hits"] = int(w.attributes["toxin_hits"]) - 1
 		if not victim.health.dead: victim.statuses.apply(&"poisoned_target", player)
 		player.inventory.changed.emit()
 
 ## Fixed aim at launch, real projectile collision. Auto and Fire context share this action.
-func fire_ranged() -> bool:
+## `ammo` overrides the weapon's own ammo (a Tranquilizer Dart from the "Dart" hex).
+func fire_ranged(ammo: StringName = &"") -> bool:
 	if target == null or not is_instance_valid(target) or target.health.dead: return false
 	var weapon := _weapon()
 	var def := weapon.def() if weapon else null
@@ -374,8 +457,9 @@ func fire_ranged() -> bool:
 	if not hit.is_empty() and hit.get("collider") != target:
 		say_throttled("No clear shot: something is in the way.")
 		return false
-	if player.inventory.count_of(def.ammo_id) < 1:
-		say("Need stone shot")
+	var ammo_id := ammo if ammo != &"" else def.ammo_id
+	if player.inventory.count_of(ammo_id) < 1:
+		say("Need %s" % (Data.item(ammo_id).display_name.to_lower() if Data.item(ammo_id) else str(ammo_id)))
 		_swing_cd = 1.0
 		return false
 	player.clear_nav()
@@ -388,12 +472,15 @@ func fire_ranged() -> bool:
 	player.get_tree().create_timer(0.25).timeout.connect(func () -> void:
 		_ranged_pending = false
 		if not is_instance_valid(player) or player.dead or player.rolling or player.inventory.equipped_weapon() != weapon or not is_instance_valid(runtime) or runtime != World.runtime or player.anim.current_clip != &"attack_primary": return
-		if not player.inventory.consume(def.ammo_id, 1): return
+		if not player.inventory.consume(ammo_id, 1): return
 		var shot := StoneProjectile.new()
 		shot.source = player
 		shot.weapon = weapon
 		shot.velocity = StoneProjectile.launch_velocity(offset)
 		shot.damage = weapon.scaled_damage()
+		if ammo_id == TRANQ_DART:
+			shot.damage *= CombatTuning.num("torpor", "dart_damage_mult", 0.25)
+			shot.torpor = CombatTuning.num("torpor", "dart", 30.0)
 		# The arc flies past the weapon's straight range so a lobbed stone can land on a target at
 		# the edge; the multiplier is tuning, not code (combat_tuning.json ranged.arc_range_mult).
 		shot.range_left = def.range_m * float(CombatTuning.section("ranged").get("arc_range_mult", 1.5))

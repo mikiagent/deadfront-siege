@@ -1,0 +1,2379 @@
+{
+  "goal": "A first hour that is fun on a phone: gather, loot, craft, build and skill up in one loop that pays out, on islands worth looking at. Then the Durango-style long game (capture and ride, regional trade, city islands) and the online world, with balance last and every step checked against a bot-run beat sheet instead of vibes.",
+  "updated": "2026-10-30",
+  "seed_note": "Statuses checked 2026-10-30 against the merges into claude/mmo-overhaul up to 4aa0ba62 (NORTHFOLLOW) and the reports in docs/orchestration/reports/. 'next' = queued now; a feature is buildable when its dependencies are done. Correct a status in-page (it becomes a mark) or restructure here.",
+  "phases": [
+    {
+      "phase": 0,
+      "title": "Foundations",
+      "theme": "The plumbing every system stands on: data, saves, tests, docs, budgets and the island shape. Mostly done; what is left keeps the rest honest.",
+      "features": [
+        {
+          "id": "data-twins",
+          "title": "Doc and data twins: gen_game_data + sync_game_data apply owner sheet edits into build JSON",
+          "status": "done",
+          "depends": [],
+          "source": "tools/docs_wiki/sync_game_data.py",
+          "note": "Owner edits land through the wiki tuning sheets; wiki is the truth line."
+        },
+        {
+          "id": "save-schema",
+          "title": "Save schema discipline: no schema bump without t_save fixtures, load rescue, restore re-validation",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "W2-BUILDSYS carried it to schema v4 in canon."
+        },
+        {
+          "id": "test-reliability",
+          "title": "Test reliability: no false-green Godot suites, headless runs through gslot",
+          "status": "done",
+          "depends": [],
+          "source": "docs/agent-context.md",
+          "note": "Strict verifier stops false-green Godot runs (t_bags, run_all printing SCRIPT ERROR while passing). Merged 3ab29b52.",
+          "evidence": [
+            "commit:3ab29b52"
+          ]
+        },
+        {
+          "id": "items-ladder",
+          "title": "Items ladder: Stone-to-Steel materials (tin, forge, anvil), 28 named tools, nets I-V, armour bands 1-60",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/durango-prompts/04_loot_material_processing_crafting.md",
+          "note": "W2-DATA merged 9c4226c8 / c206a97f: 223 items, 155 recipes at the time, t_data validator.",
+          "evidence": [
+            "commit:9c4226c8",
+            "commit:c206a97f"
+          ]
+        },
+        {
+          "id": "instance-inventory",
+          "title": "Instance inventory: materials and food are single instances with uids, never stacked by name (spec 08/09 ruling)",
+          "status": "done",
+          "depends": [
+            "save-schema"
+          ],
+          "source": "docs/design/durango-prompts/05_inventory_stacking_storage.md",
+          "note": "W2-INV merged e42d8219 (owner-approved save change): stacked saves migrate without loss.",
+          "evidence": [
+            "commit:e42d8219"
+          ]
+        },
+        {
+          "id": "perf-gates",
+          "title": "Performance gates: island build time, scene nodes, heap, camp primitives, web p95 frame",
+          "status": "next",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "Numbers live in plan §1.7 with a Today column; web p95 and heap-per-island unmeasured — every package must fit. TUTPERF added t_perfgates (tutorial nodes and ticking budgets); PERF2 found home's 2.5 s build budget met only at the low end."
+        },
+        {
+          "id": "shape-generator",
+          "title": "Island shape generator: ragged / elongated coasts (eff_rad precompute), cove+harbour, peninsulas, hills, cliffs, river polyline, pond, crater — plus the legacy-core blend for the home",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "island_shape.gd (ISLANDGEN 876cf962, fix round: grid-edge cut, canal rivers, sawtooth, mesas).",
+          "evidence": [
+            "commit:876cf962"
+          ]
+        },
+        {
+          "id": "shape-consumers",
+          "title": "Shape consumers fixed: TilePath from the dry bbox, scatter windows, spawn clamp, rings named from the landing point, camp within 40 m of the dock, harbour hint repairs",
+          "status": "next",
+          "depends": [
+            "shape-generator",
+            "save-schema"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "SHAPEGATES measured on the current generator: rivers break into dry stretches (head, camp disc, beach) and heads sit on lowland. Folded into country-islands."
+        },
+        {
+          "id": "climate-material-base",
+          "title": "Environment material base: per-climate texture/activity sets land so zones have something to paint (W1-BIOME)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "biome_material.gd + BIOMEASSETS df9d8d0e. The original W1-BIOME branch never merged and is superseded.",
+          "evidence": [
+            "commit:df9d8d0e"
+          ]
+        },
+        {
+          "id": "zone-map",
+          "title": "Per-tile biome zone map: coast / river / slope / elevation / moisture painting into the tile map G channel, patched biomes.json zones",
+          "status": "done",
+          "depends": [
+            "climate-material-base",
+            "shape-generator"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "biome_zones.gd, BIOMEZONES 03fdac84; volcanic basalt black, home zones keyed to terrain picks.",
+          "evidence": [
+            "commit:03fdac84"
+          ]
+        },
+        {
+          "id": "card-pipeline",
+          "title": "CARD2D resource card bake (card_prop, resource_render flag) adopted as the resource art route",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "Owner 2026-10-21: switch resources to painted 2D cards. CARD2D + SPRITES2D + SWITCH2D a012f228.",
+          "evidence": [
+            "commit:a012f228"
+          ]
+        },
+        {
+          "id": "current-docs",
+          "title": "Current-implementation pages for the five unwritten systems",
+          "status": "done",
+          "depends": [],
+          "source": "docs/current/README.md",
+          "note": "CURRENTDOCS merged 080f2617: inventory/bags, creatures/capture/taming, saves, server contract, economy.",
+          "evidence": [
+            "commit:080f2617"
+          ]
+        },
+        {
+          "id": "map-lab",
+          "title": "Map lab: author islands in a versioned map format with a validator and importer (MAPLAB)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_maplab.gd",
+          "note": "MAPLAB merged 3ed8c5f7.",
+          "evidence": [
+            "commit:3ed8c5f7"
+          ]
+        },
+        {
+          "id": "canon-tests",
+          "title": "Canon test runner: standalone tests green on canon, tools/all_tests.sh with a per-test HOME (CANONRED, TESTHOME)",
+          "status": "done",
+          "depends": [],
+          "source": "tools/all_tests.sh",
+          "note": "CANONRED merged 5b4bf4ad, TESTHOME merged 7595702d.",
+          "evidence": [
+            "commit:5b4bf4ad",
+            "commit:7595702d",
+            "tools/all_tests.sh"
+          ]
+        },
+        {
+          "id": "wiki-steward",
+          "title": "Wiki steward: roadmap evidence field, phase_map audit, experiment and milestone templates (WIKI-STEWARD)",
+          "status": "done",
+          "depends": [
+            "current-docs"
+          ],
+          "source": ".claude/skills/wiki-steward/SKILL.md",
+          "note": "WIKI-STEWARD merged 465b1827.",
+          "evidence": [
+            "commit:465b1827",
+            "docs/orchestration/reports/claude-wiki-steward.md",
+            "tools/docs_wiki/test_phase_map.py"
+          ]
+        },
+        {
+          "id": "dev-quickstart",
+          "title": "Dev quick start: --skip-charcreate / --occupation / WILDLANDS_QUICKSTART=1 skip character creation (QUICKSTART)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/current/ui-screens.md",
+          "note": "QUICKSTART merged bf0f4765; usage in HANDOFF.md.",
+          "evidence": [
+            "commit:bf0f4765"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 1,
+      "title": "Core loop: gather, loot, craft, skills, build",
+      "theme": "The priority: a first hour that is fun. Every step of gather -> process -> craft -> build -> skill up must work, pay out and read clearly before polish or balance. The merge queue that remains lives here.",
+      "features": [
+        {
+          "id": "claim-interact",
+          "title": "Claim and placement polish: re-press to pick up claims, placer ghost (CLAIMFIX)",
+          "status": "done",
+          "depends": [
+            "survivor-core"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "build-system",
+          "title": "Build system: modular placer, structures data, basket 100 slots (W2-BUILDSYS)",
+          "status": "done",
+          "depends": [
+            "claim-interact"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "In canon with save schema v4."
+        },
+        {
+          "id": "process-stations",
+          "title": "Processing stations: smoker / crock pot / drying stations keep working after you walk away (W2-PROCESS)",
+          "status": "done",
+          "depends": [
+            "survivor-core"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "Queues that keep running landed in canon (2e26c9de).",
+          "evidence": [
+            "commit:2e26c9de"
+          ]
+        },
+        {
+          "id": "skill-buy",
+          "title": "Skill trees buyable: 12 trees, spec 07.3 specialisation pressure (SKILLBUY)",
+          "status": "done",
+          "depends": [
+            "survivor-core"
+          ],
+          "source": "docs/design/skills.md",
+          "note": "103 of 213 nodes live in canon.",
+          "evidence": [
+            "commit:dfcf833e"
+          ]
+        },
+        {
+          "id": "bag-slots",
+          "title": "Bag as a scrolling slot grid, one item per slot, upgradeable bags (spec 31)",
+          "status": "done",
+          "depends": [
+            "instance-inventory"
+          ],
+          "source": "docs/design/durango-prompts/31_bag_levels_quality_and_capacity.md",
+          "note": "INVSLOTS grid + BAGS 75a1253d (bag types, levels, inherited storage, Pocket +6/level); multi-select Lock/Drop/Destroy d77d5464.",
+          "evidence": [
+            "commit:75a1253d",
+            "commit:d77d5464"
+          ]
+        },
+        {
+          "id": "construction-sites",
+          "title": "Construction sites: components, site, Basic Workbench, station jobs (spec 30)",
+          "status": "done",
+          "depends": [
+            "build-system"
+          ],
+          "source": "docs/design/durango-prompts/30_building_construction_and_crafting_stations.md",
+          "note": "BUILDFLOW bebf6eff: components, construction site, Basic Workbench, station jobs.",
+          "evidence": [
+            "commit:bebf6eff"
+          ]
+        },
+        {
+          "id": "domain-claims",
+          "title": "Domain land claiming: cells, cap, Domain menu, banner, Communications Center (spec 18, 29)",
+          "status": "done",
+          "depends": [
+            "claim-interact"
+          ],
+          "source": "docs/design/durango-prompts/29_domain_land_claiming_and_territories.md",
+          "note": "CLAIMS2 e643bd5c (4x4 cells, 13-cell cap, Domain menu); DOMAIN banner 0b7cb607; DOMAIN-D 979b5983 Communications Center raises the cap.",
+          "evidence": [
+            "commit:e643bd5c",
+            "commit:0b7cb607",
+            "commit:979b5983"
+          ]
+        },
+        {
+          "id": "craft-outcomes",
+          "title": "Craft outcomes from skill vs difficulty: failure curve, materials rules, great success",
+          "status": "done",
+          "depends": [
+            "skill-buy",
+            "process-stations"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": "CRAFTFEEL 18b06398: success rate, failure loses materials, flawless.",
+          "evidence": [
+            "commit:18b06398"
+          ]
+        },
+        {
+          "id": "gather-stacks",
+          "title": "Gathering and loot (W2-GATHER): tool-dependent speed and yield, data-driven rare finds, butchering by knife tier, +n popups, gather XP",
+          "status": "done",
+          "depends": [
+            "claim-interact",
+            "instance-inventory"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "W2-GATHER landed 8c2f001f (via w2gather2): tool-dependent speed/yield (bare hands 1.35x slower), loot_tables.json rare finds, butchering by knife tier and level. Knife gates on rare parts replaced by SKILLBUY Butchering nodes.",
+          "evidence": [
+            "commit:8c2f001f"
+          ]
+        },
+        {
+          "id": "xp-economy",
+          "title": "XP economy: gather XP follows pass seconds, build XP pays first-of-kind well and punishes fence spam",
+          "status": "done",
+          "depends": [
+            "survival-pacing"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "XPECON merged 2026-10-28: gather XP 1 + seconds the pass took, build XP 30/8/0 (spam within 10 m and 60 s), rules.json xp block.",
+          "evidence": [
+            "commit:c94eaac7"
+          ]
+        },
+        {
+          "id": "inventory-screens",
+          "title": "Durango inventory screens: Bag inspect panel, Character -> Gear, Equipment / My Info, storage and cargo views (spec 13)",
+          "status": "done",
+          "depends": [
+            "bag-slots"
+          ],
+          "source": "docs/design/durango-prompts/13_inventory_equipment_ui.md",
+          "note": "Branch claude/mmo-invui (+54) is stacked on the old W2-INV; BAGS/INVSLOTS since replaced its grid, so expect a redo of B1/B3 on the new grid rather than a merge."
+        },
+        {
+          "id": "rare-attributes",
+          "title": "Rare material attributes: 5% green-pip roll wired at gather, traits carried into crafts via primary slots",
+          "status": "done",
+          "depends": [
+            "gather-stacks",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "",
+          "evidence": [
+            "commit:d1222df0"
+          ]
+        },
+        {
+          "id": "outputs-by-primary",
+          "title": "One recipe, several outputs by primary material (stone/bone/metal axe from one recipe)",
+          "status": "later",
+          "depends": [
+            "craft-outcomes"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": ""
+        },
+        {
+          "id": "butchering-parts",
+          "title": "Butchering: choose carcass parts instead of a random roll (spec 12 §2)",
+          "status": "done",
+          "depends": [
+            "gather-stacks"
+          ],
+          "source": "docs/design/durango-prompts/12_remaining_skill_trees.md",
+          "note": "W2-GATHER (8c2f001f) scales parts by knife tier and Butchering level and rolls rare parts; choosing parts is what remains.",
+          "evidence": [
+            "commit:8c2f001f"
+          ]
+        },
+        {
+          "id": "processing-depth",
+          "title": "Processing depth: finite in-place modifications, tanning, ore refining and alloys, Handicraft / Metal Processing ability, delegated jobs (spec 11)",
+          "status": "later",
+          "depends": [
+            "process-stations",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/durango-prompts/11_processing_skill_material_transformations.md",
+          "note": "Owner 2026-10-18: processing must be visible and matter (drying strips change colour, smoke, the result keeps and sells)."
+        },
+        {
+          "id": "construction-quality",
+          "title": "Construction quality: building level from materials, traits to building effects, storage, comfort/antibiotic, workstation levels and job slots, durability and repair (spec 10)",
+          "status": "done",
+          "depends": [
+            "construction-sites",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/durango-prompts/10_construction_building_quality.md",
+          "note": "BUILDSYS data already carries the spec 10 §11 fields (level, inherited_attributes, durability, container_id)."
+        },
+        {
+          "id": "cooking-recipes",
+          "title": "Cooking recipes: slot roles main/topping/sauce/broth/spice with inheritance flags (spec 08 §2-4)",
+          "status": "done",
+          "depends": [
+            "food-effects",
+            "process-stations"
+          ],
+          "source": "docs/design/durango-prompts/08_cooking_food_traits_and_individual_ingredients.md",
+          "note": "FOODFX covers eating effects; this is the cooking side: new-food recipes from exact ingredient instances.",
+          "evidence": [
+            "commit:86285ce5"
+          ]
+        },
+        {
+          "id": "weapon-part-chain",
+          "title": "Weapon and tool part chain: blades, handles, heads, limbs as intermediate items (spec 12 §5)",
+          "status": "later",
+          "depends": [
+            "craft-outcomes"
+          ],
+          "source": "docs/vision/WildLandsMMO_Open_Questions.md",
+          "note": "Open question 01: adopt the blade/handle/head part chain, or keep single-stage recipes? Owner decides first."
+        },
+        {
+          "id": "farming",
+          "title": "Farming: seed instances, cultivation, growth and yield (spec 12 §3)",
+          "status": "later",
+          "depends": [
+            "gather-stacks"
+          ],
+          "source": "docs/design/durango-prompts/12_remaining_skill_trees.md",
+          "note": "FARMKIT art and field_plot.gd (plant/water/fertilise/harvest) are in; seed identity and growth per spec 12 §3 are not."
+        },
+        {
+          "id": "orders-beats",
+          "title": "Orders rewritten to the beat sheet: 16 steps that each teach one system and pay XP + T, capture at step 11",
+          "status": "later",
+          "depends": [
+            "xp-economy",
+            "capture-rule"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "Vision §1: the first tame is earned through open-world discovery, not a scripted award; the capture step must respect that."
+        },
+        {
+          "id": "material-appearance",
+          "title": "Material appearance data: wood species with a natural colour identity and per-log variation, a separate dimension from level and traits",
+          "status": "next",
+          "depends": [
+            "instance-inventory",
+            "gather-stacks"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Owner spec 35 (2026-10-28). Species palette + instance appearance carried from the tree you cut. Additive item-instance field: save gate for Milan if old saves change."
+        },
+        {
+          "id": "crafted-tint",
+          "title": "Crafted items take their look from the chosen materials: preview colour before crafting, per-part ingredient control (no averaging)",
+          "status": "later",
+          "depends": [
+            "material-appearance",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Major visual direction: blind A/B in front of Milan before merging."
+        },
+        {
+          "id": "material-inspect",
+          "title": "Inspect panel: species, colour family, grain swatch next to level and the grey/yellow/green trait boxes",
+          "status": "later",
+          "depends": [
+            "material-appearance"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": ""
+        },
+        {
+          "id": "harvest-roll",
+          "title": "Each harvest rolls its own level and traits (HARVESTROLL)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_harvestroll.gd",
+          "note": "HARVESTROLL merged 2ed2339a.",
+          "evidence": [
+            "commit:2ed2339a"
+          ]
+        },
+        {
+          "id": "perk-cap",
+          "title": "Perk cap: at most 2 perks per gathered item, 35% grey rate, pickup row shows one item's perks (PERKCAP)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-perkcap.md",
+          "note": "PERKCAP merged 2ec3e916.",
+          "evidence": [
+            "commit:2ec3e916"
+          ]
+        },
+        {
+          "id": "bone-parts",
+          "title": "Species bone parts with their own names and rendered icons (BONEPARTS)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_boneparts.gd",
+          "note": "BONEPARTS merged 64372619.",
+          "evidence": [
+            "commit:64372619"
+          ]
+        },
+        {
+          "id": "fire-fuel",
+          "title": "Firepit fuel inventory, visible logs per minute and particle flames (FIREFUEL)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_firepits.gd",
+          "note": "FIREFUEL merged 2c446449.",
+          "evidence": [
+            "commit:2c446449"
+          ]
+        },
+        {
+          "id": "station-state",
+          "title": "Station state: pen tiers, capture-then-tame, visible station state, worksites, metal nails, work loops (STATIONSTATE)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_stationstate.gd",
+          "note": "STATIONSTATE merged d701a7fd.",
+          "evidence": [
+            "commit:d701a7fd",
+            "docs/orchestration/reports/claude-stationstate.md",
+            "docs/orchestration/reports/stationstate/pen_busy.png"
+          ]
+        },
+        {
+          "id": "craft-radial",
+          "title": "Craft/Build on the right, fixed-slot station radial, Construction panel, tag-based recipes, blueprint plots (CRAFTRADIAL)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_craftradial.gd",
+          "note": "CRAFTRADIAL merged 2a95b264.",
+          "evidence": [
+            "commit:2a95b264",
+            "docs/orchestration/reports/claude-craftradial.md",
+            "docs/orchestration/reports/craftradial/craft_panel_844x390.png"
+          ]
+        },
+        {
+          "id": "bag-redesign",
+          "title": "Bag redesign: Gold + Warp Gems, perk tiers, chest tabs, market sell grid, eat queue, item tags (BAGUI)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_bagui.gd",
+          "note": "BAGUI merged 02362ad2.",
+          "evidence": [
+            "commit:02362ad2",
+            "docs/orchestration/reports/claude-bagui.md",
+            "docs/orchestration/reports/bagui/bag_detail_844x390.png"
+          ]
+        },
+        {
+          "id": "no-hands",
+          "title": "No HANDS quick-slot: Interact gathers, the bag equips and unequips tools (NOHANDS, HUDFALLOUT)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-nohands.md",
+          "note": "NOHANDS merged 900ff50b; HUDFALLOUT merged 349e2b9e fixed t_death and t_gather after it.",
+          "evidence": [
+            "commit:900ff50b",
+            "commit:349e2b9e",
+            "docs/orchestration/reports/dsc-hudfallout.md"
+          ]
+        },
+        {
+          "id": "slow-levels",
+          "title": "Slower levels: Defense XP through CombatAvoid, workbook import, spiky armor icons and rarity (SLOWLEVELS)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/durango-prompts/03_leveling_progression_skill_trees.md",
+          "note": "SLOWLEVELS merged 5f6d4c10: 2.5x slower progression, timed skill research, Defense XP from avoids, batched ghost-fill skill bars, FULL when capped, Spiky Armor.",
+          "evidence": [
+            "commit:5f6d4c10",
+            "docs/orchestration/reports/claude-slowlevels.md",
+            "game/tests/t_research.gd",
+            "docs/orchestration/reports/slowlevels/skillbatch_midbatch_1600x900.png"
+          ]
+        },
+        {
+          "id": "task-screen",
+          "title": "Task screen: Daily, Achievement, Domain Construction, Main Task and Weekly tabs with manual Receive (TASKSCREEN)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/current/ui-screens.md",
+          "note": "TASKSCREEN merged 3d5d84b0: Daily / Weekly / Achievement / Domain Construction / Main Task, manual Receive, the tutorial teaches claiming.",
+          "evidence": [
+            "commit:3d5d84b0",
+            "docs/orchestration/reports/claude-taskscreen.md",
+            "game/tests/t_taskscreen.gd",
+            "docs/orchestration/reports/taskscreen/task_achievement_844x390.png"
+          ]
+        },
+        {
+          "id": "knife-fix",
+          "title": "Tool fixes: a broken knife says so, locked tools still work, sturdier stone knife, wash in the sea (KNIFEFIX)",
+          "status": "done",
+          "depends": [
+            "no-hands"
+          ],
+          "source": "docs/current/inventory-bags.md",
+          "note": "KNIFEFIX merged c7dc0a5b (owner bugs 2026-10-29).",
+          "evidence": [
+            "commit:c7dc0a5b",
+            "game/tests/t_water.gd"
+          ]
+        },
+        {
+          "id": "tool-wear-scaling",
+          "title": "Wear by level gap: gather wear scales with resource level vs tool level, armor wears on hits taken, tribe workers stop at 1 durability (P1 WEAR)",
+          "status": "done",
+          "depends": [
+            "knife-fix",
+            "harvest-roll"
+          ],
+          "source": "docs/design/tools-durability-crafting.md",
+          "note": "WEARREPAIR merged 6afe7d9e: gather wear x clamp(1 + 0.04 x level gap, 0.5, 2.5), armor wears 1 per damaging hit, tribe workers stop at 1 durability.",
+          "evidence": [
+            "commit:6afe7d9e",
+            "game/tests/t_toolwear.gd"
+          ]
+        },
+        {
+          "id": "recipe-tool-gates",
+          "title": "Recipe tool gates: work-tool class and minimum tier on recipes, each craft wears the tool, hoe rows enforced (P2 RECIPETOOLS)",
+          "status": "done",
+          "depends": [
+            "craft-outcomes",
+            "knife-fix"
+          ],
+          "source": "docs/design/tools-durability-crafting.md",
+          "note": "RECIPETOOLS merged 95f0583e: requires_tool {class, min_tier}, work tools only, 1 wear per craft run; axe on planks and pillars, knife on hide strap, hoe on fields. Ladder walk finds no deadlock.",
+          "evidence": [
+            "commit:95f0583e",
+            "game/tests/t_recipetools.gd"
+          ]
+        },
+        {
+          "id": "gear-repair",
+          "title": "Gear repair at the tier's station: refills durability, max drops to 80 % per repair, 4 repairs (P3 GEARREPAIR)",
+          "status": "done",
+          "depends": [
+            "tool-wear-scaling"
+          ],
+          "source": "docs/design/tools-durability-crafting.md",
+          "note": "WEARREPAIR merged 6afe7d9e: REPAIR hex on the workbench / anvil, max x0.8 per repair, 4 repairs then worn out, attributes.repairs saved. Online act.repair intent not built yet (offline only).",
+          "evidence": [
+            "commit:6afe7d9e",
+            "game/tests/t_gearrepair.gd"
+          ]
+        },
+        {
+          "id": "trait-gear-stats",
+          "title": "Material traits change gear stats: durability, damage, armor and gather power from the primary's traits, clamped at 15 % (P4 TRAITGEAR)",
+          "status": "done",
+          "depends": [
+            "rare-attributes",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/tools-durability-crafting.md",
+          "note": "TRAITGEAR merged 95f0583e: density, firmness, fiber and elasticity traits shift durability, damage, armor and gather power, capped +-15 %, new crafts only; repair shrinks the trait-adjusted max.",
+          "evidence": [
+            "commit:95f0583e",
+            "game/tests/t_traitgear.gd"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "title": "Survive, fight, capture, ride",
+      "theme": "The survival and creature half of the first hour: needs you can act on, fights you can read, and a capture that leads to a living companion.",
+      "features": [
+        {
+          "id": "survivor-core",
+          "title": "Survivor core: model, action library, input, health/energy/exhaustion trio, sleeping tiers",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/world-design.md",
+          "note": "Gait/action audit-clean across the anim library; sheet-driven rest rules live."
+        },
+        {
+          "id": "creature-roster",
+          "title": "Creature roster: 12 species with gait libraries validated by tools/audit_gaits.py",
+          "status": "done",
+          "depends": [
+            "survivor-core"
+          ],
+          "source": "docs/design/world-design.md",
+          "note": "178 anim files / 21,255 samplers stepped-verified; defects tracked separately (mirrors, jaws)."
+        },
+        {
+          "id": "mounts",
+          "title": "Saddles and mounts: rideable species at game scale with the rider kept at survivor scale, seated mountidle",
+          "status": "done",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "SADDLES in canon (aa6f2853); previewer mirrors the engine exactly after the counter-scale fix.",
+          "evidence": [
+            "commit:aa6f2853"
+          ]
+        },
+        {
+          "id": "wet-weather",
+          "title": "Weather and vitals repair: Wet stops flat-draining, rain cadence sane, autosave and max-HP guard (SAVEFIX)",
+          "status": "done",
+          "depends": [
+            "survivor-core"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "",
+          "evidence": [
+            "commit:16f3114a"
+          ]
+        },
+        {
+          "id": "needs-actions",
+          "title": "Survival actions: eat, drink, wash, fill, sleep, dry off, feed pets (owner: before balance)",
+          "status": "done",
+          "depends": [
+            "survivor-core"
+          ],
+          "source": "docs/design/durango-prompts/17_water_context_actions.md",
+          "note": "WATER c5f1db63 (drink, wash, fill), NEEDS 1dc70cdf (eat, drink, wash, fill, sleep, dry off, feed pets), gradual sleep 88d5e97a, treadmill gauge 6fe26d41.",
+          "evidence": [
+            "commit:c5f1db63",
+            "commit:1dc70cdf",
+            "commit:88d5e97a",
+            "commit:6fe26d41"
+          ]
+        },
+        {
+          "id": "food-effects",
+          "title": "Food and drink effects (spec 32)",
+          "status": "done",
+          "depends": [
+            "needs-actions"
+          ],
+          "source": "docs/design/durango-prompts/32_food_drink_consumption_effects.md",
+          "note": "FOODFX dc850762: instant vs digested Energy, buff slots, drinks, bad food, taste.",
+          "evidence": [
+            "commit:dc850762"
+          ]
+        },
+        {
+          "id": "food-catalog",
+          "title": "Food catalog and effects: map the owner's Durango L60 food sheet onto our foods, every effect type working through FOODFX",
+          "status": "done",
+          "depends": [
+            "food-effects"
+          ],
+          "source": "docs/design/durango-prompts/32_food_drink_consumption_effects.md",
+          "note": "FOODCAT merged e0c6ddd6: 34 foods mapped (6 new), every catalog effect type works through FOODFX, catalog numbers scaled into our ranges (energy_k, fatigue_k, health_k ASSUMPTION, editable in the owner sheets).",
+          "evidence": [
+            "commit:e0c6ddd6"
+          ]
+        },
+        {
+          "id": "survival-pacing",
+          "title": "Survival pacing: work fatigue by sqrt(workload), construction cost, rain cadence knob, level-gap and climate-resistance fatigue factors",
+          "status": "done",
+          "depends": [
+            "wet-weather"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "LOOP1 merged; fatigue scales by island level gap and climate resistance (7ff08dc4), with a breakdown panel.",
+          "evidence": [
+            "commit:7ff08dc4"
+          ]
+        },
+        {
+          "id": "rest-action",
+          "title": "Rest: sit to heal and lower exhaustion anywhere (owner bug: it did nothing on Vercel)",
+          "status": "done",
+          "depends": [
+            "needs-actions"
+          ],
+          "source": "docs/design/durango-prompts/01_fatigue_and_exhaustion.md",
+          "note": "Branch claude/mmo-rest passed review r2 (10-21) with a pre-merge fix list; check overlap with NEEDS' sleep before landing.",
+          "evidence": [
+            "commit:4d3fbb5c"
+          ]
+        },
+        {
+          "id": "capture-rule",
+          "title": "Capture rule: stun at any HP or below 30% (spec 09) in field_tame + capture_system",
+          "status": "done",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "CAPTURE09 merged 2026-10-28: FieldTame.capture_window is the one rule (stunned at any HP or <= 30 %), chance on actual HP, 50 % stun hint, DoTs spare a capturable animal.",
+          "evidence": [
+            "commit:cd385717"
+          ]
+        },
+        {
+          "id": "target-select",
+          "title": "Target select and pet radial: tap selects, the swords start combat (spec 23)",
+          "status": "done",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/durango-prompts/23_target_select_pet_radial.md",
+          "note": "TARGETUI + PETRADIAL merged e1852ae8: tap selects, swords fight, pet radial. Desktop End Combat moved 70 px left to clear the BAG hex. Visual check at 844x390 / 1600x900 still owed.",
+          "evidence": [
+            "commit:e1852ae8"
+          ]
+        },
+        {
+          "id": "ragdoll",
+          "title": "Dinosaurs ragdoll onto the terrain on death and freeze once settled",
+          "status": "done",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/durango-prompts/07_combat_and_animal_capture.md",
+          "note": "RAGDOLL merged 73cfe915: dinosaurs ragdoll on death and settle on slopes.",
+          "evidence": [
+            "commit:73cfe915"
+          ]
+        },
+        {
+          "id": "player-death",
+          "title": "Player death: recoverable loot bag at the death spot, gear durability loss",
+          "status": "later",
+          "depends": [
+            "survivor-core"
+          ],
+          "source": "docs/vision/WildLandsMMO_Loss_Recruitment_Revival.md",
+          "note": "Owner 2026-10-18: inventory drops in a recoverable loot bag at the death spot, equipped gear loses durability. Reuse LootBag (loot_bag.gd)."
+        },
+        {
+          "id": "taming-odds",
+          "title": "Taming odds: S-curve on level gap and remaining health, odds shown before you commit, grade earned by preparation",
+          "status": "done",
+          "depends": [
+            "capture-rule"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": "",
+          "evidence": [
+            "commit:2b165162"
+          ]
+        },
+        {
+          "id": "taming-pen",
+          "title": "Taming pen and companions: feeding, bonding, roles and care (spec 02)",
+          "status": "next",
+          "depends": [
+            "capture-rule"
+          ],
+          "source": "docs/design/durango-prompts/02_dinosaur_taming_and_companions.md",
+          "note": "STATIONSTATE merged d701a7fd: pen tiers by size, capture-then-tame, visible station state. FOODTORPOR 0fa4d0bf added torpor capture (Sedative, Tranquilizer Darts). Feeding, bonding, roles and care still to do. PENDIET merged 15ea588f: pens eat the species diet (preferred x0.6, accepted x0.8) and refuse off-diet or spoiled food. Bonding, roles and care still to do."
+        },
+        {
+          "id": "caged-pets",
+          "title": "Caged pets as items: repackage, unpack, release; per-area creature caps",
+          "status": "later",
+          "depends": [
+            "taming-pen",
+            "instance-inventory"
+          ],
+          "source": "docs/design/durango-prompts/02_dinosaur_taming_and_companions.md",
+          "note": "Owner 2026-10-19: tames repackage into cages to sell, cages can be released as wild fights, mob and player caps per area. ECON trades pets as pet records today; switch the market to caged items here."
+        },
+        {
+          "id": "stagger-meter",
+          "title": "Stagger meter: visible gauge, groggy at overflow, knockdown on follow-up; T. rex exemption kept",
+          "status": "later",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": ""
+        },
+        {
+          "id": "combat-stances",
+          "title": "Combat depth: stances, telegraphs with a timed roll, parry, ranged active skills (spec 07, 12 §6-7)",
+          "status": "later",
+          "depends": [
+            "stagger-meter",
+            "target-select"
+          ],
+          "source": "docs/design/durango-prompts/07_combat_and_animal_capture.md",
+          "note": "Owner kept the auto-attack plus an action mode; the 2026-10-21 ruling: tap selects, swords fight."
+        },
+        {
+          "id": "directional-damage",
+          "title": "Directional damage and armoured fronts (raptor vs ceratopsian multipliers)",
+          "status": "later",
+          "depends": [
+            "stagger-meter"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": ""
+        },
+        {
+          "id": "creature-curves",
+          "title": "Creature stats as level curves in rules.json (health/stagger quadratic, attack linear)",
+          "status": "later",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": ""
+        },
+        {
+          "id": "breeding",
+          "title": "Breeding: eggs, incubation, growth stages, inheritance, mutations, lineage",
+          "status": "later",
+          "depends": [
+            "taming-pen"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Owner 2026-10-18: breeding, eggs, growth, mutations are IN. Branch claude/mmo-w2-breed is early."
+        },
+        {
+          "id": "ecology",
+          "title": "Ecology: herds, predators hunting, wild dinosaurs attacking structures",
+          "status": "later",
+          "depends": [
+            "creature-roster",
+            "build-system"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Owner yes: wild dinosaurs attack blocking structures. Branch claude/mmo-w2-eco is early."
+        },
+        {
+          "id": "creature-natures",
+          "title": "Creature natures: Timid, Brave, Aggressive, Loyal, Stubborn, Docile change wild and companion AI and taming, shown in the name",
+          "status": "done",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Owner 2026-10-28 (Durango named variants like Timid/Alpha Raptor). Layers on ai.json temperaments; behaviour and data only. In progress on claude/mmo-natures; PetRecord gains an additive nature field.",
+          "evidence": [
+            "commit:bfc50d13",
+            "commit:ff3a9113"
+          ]
+        },
+        {
+          "id": "creature-art",
+          "title": "Creature art queue: Triceratops mesh, Stegosaurus v2 shown, Deinonychus rebuild",
+          "status": "next",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/world-design.md",
+          "note": "Triceratops sheet approved and meshed on claude/mmo-trike (review not started, kick threshold 60 -> 40 needs checking); STEGO passed review; Deinonychus rebuild on claude/mmo-art-deinonychus."
+        },
+        {
+          "id": "gait-gate",
+          "title": "Gait gate: walk/run clips play forwards with alternating legs (tools/audit_gaits.py --gate in run_all when headless-safe); deinonychus rebuild with jaw bone, roar and bite",
+          "status": "done",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/world-design.md",
+          "note": "Art thread branch claude/mmo-jaws: reversed walk/run fixed for coelophysis, compsognathus, gallimimus, utahraptor, velociraptor; merges after the owner OKs the clips. Velociraptor and T. rex jaw changes wait for their blind tests.",
+          "evidence": [
+            "commit:db6ca929"
+          ]
+        },
+        {
+          "id": "tactical-combat",
+          "title": "Tactical creature combat and cooldowns: circle/strafe, feint, lunge, pounce with a rollable telegraph, retreat when hurt, raptor packs, natures modulate aggression; cooldowns on basic and special attacks for player and dinosaurs; stun chaining limited; tackle/kick valid with a cooldown",
+          "status": "done",
+          "depends": [
+            "creature-roster",
+            "creature-natures"
+          ],
+          "source": "docs/design/durango-prompts/07_combat_and_animal_capture.md",
+          "note": "OWNER DECISION 2026-10-28: each species fights by its innate CLASS (the archetype field: pack_flanker, pack_raptor, apex_raptor, tyrant, horned_charger, club_tail, spiked_tail, venom_ranged, saber_cat, swarm, flock_harass, antlered, runner, pack_mule, titan); its nature combines with that (no separate Berserker class). In progress on claude/mmo-tactical, deinonychus first. Owner 04:41: every attack on a cooldown (basic shortest), always use the strongest ready attack, move (jump back, strafe, feint) when all are cooling. Owner 04:44: back-offs are jumps, not walks. Owner 04:47: deinonychus redesign — smaller, wider wings, ambush predator from the trees with large forward and backward leaps. Step A (deinonychus) merged 2026-10-28.",
+          "evidence": [
+            "commit:2014221a",
+            "commit:0a777e56",
+            "commit:04016b23",
+            "commit:46368b95"
+          ]
+        },
+        {
+          "id": "genetics-alphas",
+          "title": "Genetics and alphas: heritable size and colour, 8% alpha per group (GENETICS + ALPHAS)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_genetics.gd",
+          "note": "GENETICS + ALPHAS merged 037a7c12.",
+          "evidence": [
+            "commit:037a7c12"
+          ]
+        },
+        {
+          "id": "alpha-tag",
+          "title": "Alpha prefix on names, alphas cannot be captured, alpha loot pools",
+          "status": "done",
+          "depends": [
+            "genetics-alphas"
+          ],
+          "source": "game/tests/t_alphas.gd",
+          "note": "ALPHATAG merged 2e6b33f0: Alpha prefix, larger, never tamable or capturable (torpor included), alpha-only loot pools.",
+          "evidence": [
+            "commit:2e6b33f0",
+            "docs/orchestration/reports/dsc-alphatag.md",
+            "game/tests/t_alphas.gd"
+          ]
+        },
+        {
+          "id": "starving",
+          "title": "Starving: an empty stomach applies the Starving status (STARVING)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_starving.gd",
+          "note": "STARVING merged a4dd149e.",
+          "evidence": [
+            "commit:a4dd149e"
+          ]
+        },
+        {
+          "id": "hunger-rework",
+          "title": "Hunger rework per the hunger and tribe automation memo",
+          "status": "done",
+          "depends": [
+            "starving"
+          ],
+          "source": "docs/current/survival-needs.md",
+          "note": "HUNGER merged a1ee7649: stored fullness, meal bands, meals over snacks, while-fed buffs, starving after 10 min empty.",
+          "evidence": [
+            "commit:a1ee7649",
+            "docs/orchestration/reports/dsc-hunger.md",
+            "game/tests/t_hunger.gd"
+          ]
+        },
+        {
+          "id": "food-torpor",
+          "title": "Food Bag, food spoilage and torpor taming",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/durango-prompts/02_dinosaur_taming_and_companions.md",
+          "note": "FOODTORPOR merged 0fa4d0bf: Food Bag, spoilage into Spoiled Meat and Rot, Sedative, Tranquilizer Darts, torpor capture.",
+          "evidence": [
+            "commit:0fa4d0bf",
+            "docs/orchestration/reports/claude-foodtorpor.md",
+            "game/tests/t_foodtorpor.gd",
+            "docs/orchestration/reports/foodtorpor/foodtorpor_plate_torpor_844x390.png"
+          ]
+        },
+        {
+          "id": "eat-fix",
+          "title": "A second eat is no longer refused while the Full status lasts (EATFIX)",
+          "status": "done",
+          "depends": [],
+          "source": "game/scripts/items/food.gd",
+          "note": "EATFIX merged 3df3a7e1.",
+          "evidence": [
+            "commit:3df3a7e1"
+          ]
+        },
+        {
+          "id": "dot-gather",
+          "title": "Status ticks never cancel gathering or sleep (DOTGATHER)",
+          "status": "done",
+          "depends": [],
+          "source": "game/scripts/player/player.gd",
+          "note": "DOTGATHER merged 0716fd9a.",
+          "evidence": [
+            "commit:0716fd9a"
+          ]
+        },
+        {
+          "id": "tent-sleep",
+          "title": "Sleep inside the tent: see-through tent, stay until you get up (TENTSLEEP)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_tentsleep.gd",
+          "note": "TENTSLEEP merged b779fa69.",
+          "evidence": [
+            "commit:b779fa69"
+          ]
+        },
+        {
+          "id": "survivor-rummage",
+          "title": "Survivor bag rummage, station work loops and dirt kick (RUMMAGE)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_rummage.gd",
+          "note": "RUMMAGE merged 5de47ecf.",
+          "evidence": [
+            "commit:5de47ecf"
+          ]
+        },
+        {
+          "id": "tired-idle",
+          "title": "Rebuilt tired and exhausted idles (TIREDIDLE)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-tiredidle.md",
+          "note": "TIREDIDLE merged f0b0026f.",
+          "evidence": [
+            "commit:f0b0026f"
+          ]
+        },
+        {
+          "id": "eyes-death",
+          "title": "Eye trails scale with threat, HP rounds up, death card within half a second (EYESDEATH)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-eyesdeath.md",
+          "note": "EYESDEATH merged dec42bc5.",
+          "evidence": [
+            "commit:dec42bc5"
+          ]
+        },
+        {
+          "id": "lab-spawn",
+          "title": "Creature lab dinosaur selector with every species, compsognathus swarm AI (LABSPAWN)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_labspawn.gd",
+          "note": "LABSPAWN merged 0fea2471; ZEBRAAI 67d2947f filled the species dropdown.",
+          "evidence": [
+            "commit:0fea2471",
+            "commit:67d2947f"
+          ]
+        },
+        {
+          "id": "zebra-herd",
+          "title": "Zebraceratops herd AI, then a slow heavy gallop, ramming shove and bulky model (ZEBRAAI, ZEBRA2)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_zebra.gd",
+          "note": "ZEBRAAI merged 67d2947f, ZEBRA2 merged bd9cecbb.",
+          "evidence": [
+            "commit:67d2947f",
+            "commit:bd9cecbb"
+          ]
+        },
+        {
+          "id": "compy-rebuild",
+          "title": "Compsognathus rebuilt from Milan's sheet: jaw, strafes, nervous idle, leaps, pounces and combos (COMPYSTRAFE, COMPYJUMPS)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-compyjumps.md",
+          "note": "COMPYSTRAFE merged 65f0f6f9, COMPYJUMPS merged fd745aaf.",
+          "evidence": [
+            "commit:65f0f6f9",
+            "commit:fd745aaf"
+          ]
+        },
+        {
+          "id": "new-species",
+          "title": "Styracosaurus and pachycephalosaurus: models, jaws, clips and saddles (NEWSPECIES)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-newspecies.md",
+          "note": "NEWSPECIES merged 46a53f5a.",
+          "evidence": [
+            "commit:46a53f5a"
+          ]
+        },
+        {
+          "id": "creature-chips",
+          "title": "Creature status chips with stack counts, the same chips as the player's (CREATURECHIPS)",
+          "status": "done",
+          "depends": [
+            "target-select"
+          ],
+          "source": "docs/current/hud.md",
+          "note": "CREATURECHIPS merged 7151a3e3.",
+          "evidence": [
+            "commit:7151a3e3",
+            "docs/orchestration/reports/dsc-creaturechips.md",
+            "game/tests/t_creaturechips.gd"
+          ]
+        },
+        {
+          "id": "chase-sprint",
+          "title": "Auto-sprint when a chased enemy pulls away (CHASESPRINT)",
+          "status": "done",
+          "depends": [
+            "target-select"
+          ],
+          "source": "docs/current/controls.md",
+          "note": "CHASESPRINT merged 5eede6ba.",
+          "evidence": [
+            "commit:5eede6ba",
+            "docs/orchestration/reports/dsc-chasesprint.md",
+            "game/tests/t_chasesprint.gd"
+          ]
+        },
+        {
+          "id": "styra-tactics",
+          "title": "Styracosaurus horned-charger fighting brain (STYRATACTICS)",
+          "status": "done",
+          "depends": [
+            "tactical-combat",
+            "new-species"
+          ],
+          "source": "docs/current/enemy-ai-template.md",
+          "note": "STYRATACTICS merged d243d817.",
+          "evidence": [
+            "commit:d243d817",
+            "docs/orchestration/reports/dsc-styratactics.md",
+            "game/tests/t_styraco.gd"
+          ]
+        },
+        {
+          "id": "auto-ability",
+          "title": "Auto-cast the strongest ready ability, on by default (AUTOABILITY)",
+          "status": "done",
+          "depends": [
+            "tactical-combat"
+          ],
+          "source": "docs/current/controls.md",
+          "note": "AUTOABILITY merged d989a7a6; NORTHFOLLOW 4aa0ba62 moved its desktop hex off TACKLE's caption.",
+          "evidence": [
+            "commit:d989a7a6",
+            "docs/orchestration/reports/dsc-autoability.md",
+            "game/tests/t_autoability.gd"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "title": "Islands and look",
+      "theme": "Make islands worth looking at. Most of the shape and dressing work has landed; what remains is the light, the coast and a visual sign-off nobody has given yet.",
+      "features": [
+        {
+          "id": "island-sizing",
+          "title": "Sizes from data: tier-scaled land targets (375x300 home, 330-415 m unstable) read from island JSON, centre-offset shapes inside the origin square",
+          "status": "done",
+          "depends": [
+            "shape-generator"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "island_shape.gd target_long/short by tier; Tamed Island shape picked from five at creation (ISLANDPICK cdeaeab1).",
+          "evidence": [
+            "commit:cdeaeab1"
+          ]
+        },
+        {
+          "id": "country-islands",
+          "title": "Country-like islands: long, ragged, Japan/Croatia-style coasts, more and bigger islands; starter stays modest",
+          "status": "done",
+          "depends": [
+            "shape-generator"
+          ],
+          "source": "docs/design/durango-prompts/15_island_map_scale.md",
+          "note": "Owner 2026-10-28. In progress on claude/mmo-islands2, which also fixes the broken river channels SHAPEGATES measured. Saves gate if land moves under saved claims. Since then claude/mmo-islands2 was archived and ISLANDSHAPES (cccf2115) shipped seven shape families; whether that closes this row is Milan's call. Closed 2026-10-30: owner says ISLANDSHAPES \"pretty much\" covers it.",
+          "evidence": [
+            "commit:cccf2115"
+          ]
+        },
+        {
+          "id": "zone-terrain",
+          "title": "Zone content per climate: 5-6 zones with signature nodes, creatures and landmarks; home zones keyed to the five terrain picks",
+          "status": "next",
+          "depends": [
+            "zone-map",
+            "island-sizing"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "BIOMEDRESS 977512f1, BIOMEPROPS d4b7e60a and PROPS2D 2e7b74bb dressed every zone, but no visual approval was claimed (vertex-colour props need a game-lighting look). ISLANDMATRIX (4a685bc4) added named landmarks per climate (world/landmarks.json); zone creature tables untouched."
+        },
+        {
+          "id": "home-economy-nodes",
+          "title": "Home economy nodes: clay + reeds on the riverbank, home material levels by zone replacing level_override: 1",
+          "status": "later",
+          "depends": [
+            "zone-terrain"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "ground-cover",
+          "title": "Ground cover: 32 m MultiMesh cells with retries, per-zone clump sets, per-instance tint, density thinning with distance, no shadows",
+          "status": "done",
+          "depends": [
+            "climate-material-base"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "GROUND2D a83bd3d6: painted ground cover per climate, none on claimed land (ground_cover.gd).",
+          "evidence": [
+            "commit:a83bd3d6"
+          ]
+        },
+        {
+          "id": "ground-painting",
+          "title": "Ground painting: zone tints + 41/15/6.5 m macro variation in the terrain shader, warped zone edges, blended bank mask, 7 missing climate palettes",
+          "status": "next",
+          "depends": [
+            "zone-map",
+            "climate-material-base"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "Zones are painted; the macro variation and the blind A/B against today are still owed."
+        },
+        {
+          "id": "light-grade",
+          "title": "Light and grade: shadow_opacity 0.62 / shadow_blur 1.6, per-climate ambient, mild contrast",
+          "status": "next",
+          "depends": [
+            "climate-material-base"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "LIGHTPORT built on claude/mmo-lightport (9ecf2e2e, gates PASS headless): filmic grade, glow, fog sun scatter, golden hour on canon lighting. Held for a blind A/B with the owner before merge (visual change)."
+        },
+        {
+          "id": "forest-structure",
+          "title": "Forest structure: density field with groves and clearings, home tree count 40 to 180-250, card variants with tint jitter",
+          "status": "later",
+          "depends": [
+            "zone-terrain",
+            "ground-cover",
+            "card-pipeline"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "P5; needs the owner's card verdict."
+        },
+        {
+          "id": "coast-polish",
+          "title": "Coast polish: wet-sand line, two foam bands, beach clutter cards, no sea square edges in any view",
+          "status": "later",
+          "depends": [
+            "zone-terrain"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "camp-legibility",
+          "title": "Camp legibility: clustered camp props, claim outline quieter than the tent",
+          "status": "later",
+          "depends": [
+            "zone-terrain"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "map-zones",
+          "title": "Zone-aware map: minimap and atlas colour by zone, true island silhouette",
+          "status": "done",
+          "depends": [
+            "zone-map"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "BIOMEZONES + MAPUI 80b57070.",
+          "evidence": [
+            "commit:80b57070"
+          ]
+        },
+        {
+          "id": "see-through",
+          "title": "See-through occluders: trees, bushes and roofs fade, never a hole (spec 21)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/durango-prompts/21_tall_trees_transparency.md",
+          "note": "W2-OCCLUDE and OCCLUDE2 2ebd8a20: trees fade whole to about half, roofs ghost from inside.",
+          "evidence": [
+            "commit:2ebd8a20"
+          ]
+        },
+        {
+          "id": "camera",
+          "title": "Durango camera: long lens, pitch 38.7, parallax",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/durango-prompts/15_island_map_scale.md",
+          "note": "CAMERA a7928ce3: Durango long-lens perspective, tall-tree parallax.",
+          "evidence": [
+            "commit:a7928ce3"
+          ]
+        },
+        {
+          "id": "sail-ui",
+          "title": "Sail chart: the rightward island chart instead of a text list",
+          "status": "later",
+          "depends": [
+            "island-sizing"
+          ],
+          "source": "docs/design/durango-prompts/15_island_map_scale.md",
+          "note": "SAILUI branch passed review 10-21 but predates ISLANDPICK; rebase."
+        },
+        {
+          "id": "building-material-look",
+          "title": "Buildings and prefabs inherit material appearance per part (walls, roofs, floors, doors, fences, beams), kept through pack, trade and redeploy",
+          "status": "later",
+          "depends": [
+            "crafted-tint",
+            "construction-sites"
+          ],
+          "source": "docs/design/durango-prompts/35_natural_material_color.md",
+          "note": "Prefab save rows gain appearance: save gate for Milan. Blind A/B before merge."
+        },
+        {
+          "id": "terrain-smooth",
+          "title": "Refined smooth ground with blended zone colours (TERRAINSMOOTH)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_terrainsmooth.gd",
+          "note": "TERRAINSMOOTH merged d8e013fa.",
+          "evidence": [
+            "commit:d8e013fa"
+          ]
+        },
+        {
+          "id": "tutorial-island",
+          "title": "Big tutorial island with a town, no alphas and a safe ring around the town (TUTORIAL ISLAND)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/current/tutorial.md",
+          "note": "TUTORIAL ISLAND merged 1b590eab.",
+          "evidence": [
+            "commit:1b590eab"
+          ]
+        },
+        {
+          "id": "island-shapes",
+          "title": "Island shapes, south-port spawn and topography",
+          "status": "done",
+          "depends": [
+            "map-lab"
+          ],
+          "source": "docs/current/world-biomes.md",
+          "note": "ISLANDSHAPES merged cccf2115: seven shape families, southern-most dock, volcanoes, mountains, mesas, ridges, rock outcrops. ISLANDFIXES 7259b47a re-recorded its build digests.",
+          "evidence": [
+            "commit:cccf2115",
+            "docs/orchestration/reports/claude-islandshapes.md",
+            "game/tests/t_islandgen.gd",
+            "docs/orchestration/reports/islandshapes/contact_sheet_map.png"
+          ]
+        },
+        {
+          "id": "island-landmarks",
+          "title": "Landmarks: named sites per climate, discovery Gold, Landmarks Found x / y, dormant sites, landmark level +5, hand-harvest bonus (ISLANDMATRIX M1-M3)",
+          "status": "done",
+          "depends": [
+            "island-shapes",
+            "zone-map"
+          ],
+          "source": "docs/current/world-biomes.md",
+          "note": "Merged with ISLANDMATRIX 4a685bc4; ISLANDFIXES 7259b47a fixed t_islandgen and t_buildspeed after it. Gold amounts and the 20-minute dormant window are # ASSUMPTION.",
+          "evidence": [
+            "commit:4a685bc4",
+            "commit:7259b47a",
+            "game/tests/t_landmarks.gd"
+          ]
+        },
+        {
+          "id": "island-matrix",
+          "title": "Resource matrix: iron ore and Iron Vein landmarks, tundra resin pine, tool-ladder audit, one signature rare per climate (ISLANDMATRIX M5)",
+          "status": "done",
+          "depends": [
+            "island-landmarks"
+          ],
+          "source": "docs/current/world-biomes.md",
+          "note": "ISLANDMATRIX merged 4a685bc4: iron now opens at 40, not 60.",
+          "evidence": [
+            "commit:4a685bc4",
+            "game/tests/t_matrix.gd"
+          ]
+        },
+        {
+          "id": "island-fun-pass",
+          "title": "Island resources fun pass: bot expedition runs plus Milan's play (M6)",
+          "status": "next",
+          "depends": [
+            "island-landmarks",
+            "island-matrix",
+            "island-rotation"
+          ],
+          "source": "docs/current/world-biomes.md",
+          "note": "M6 of the island-resources plan: needs Milan's play, not a build package."
+        },
+        {
+          "id": "north-up",
+          "title": "North-up camera and minimap, Y grows northward; prop cards re-baked for the north camera (NORTHUP, NORTHFOLLOW)",
+          "status": "done",
+          "depends": [
+            "camera"
+          ],
+          "source": "docs/current/hud.md",
+          "note": "NORTHUP merged 49f3318f, NORTHFOLLOW merged 4aa0ba62. Sun yaw band is an ASSUMPTION Milan may want to eyeball.",
+          "evidence": [
+            "commit:49f3318f",
+            "commit:4aa0ba62",
+            "game/tests/t_northup.gd",
+            "docs/orchestration/reports/claude-northup.md",
+            "docs/orchestration/reports/northup/game_844x390.png",
+            "docs/orchestration/reports/claude-northfollow.md"
+          ]
+        },
+        {
+          "id": "full3d-ab",
+          "title": "Full 3D package 1: plan, A/B lab, camera fov/pitch dev flags, --models for scenery",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/full-3d-plan.md",
+          "note": "3D-AB merged 23c8407c. Export baseline on the Mac: PackCore 43.2 MB + PackAssets 319.8 MB.",
+          "evidence": [
+            "commit:23c8407c"
+          ]
+        },
+        {
+          "id": "full3d-flat",
+          "title": "Full 3D: flat terrain everywhere; depth from props, structures and resources (owner 2026-10-30)",
+          "status": "next",
+          "depends": [
+            "full3d-ab"
+          ],
+          "source": "docs/design/full-3d-plan.md",
+          "note": "Owner: \"The terrain should be flat and depth is added through props, structures, buildings, resources\". TOWNPOLISH2 flattens the tutorial town first. The tutorial town is flat since TOWNPOLISH2 af77ddb8; the other islands still use the heightmap."
+        },
+        {
+          "id": "full3d-resources",
+          "title": "Full 3D: resource nodes as models; trees and palms draw under --models, dead model paths fixed",
+          "status": "next",
+          "depends": [
+            "full3d-ab"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-trees",
+          "title": "Full 3D: textured tree and palm GLBs with LOD and tall-only shadows",
+          "status": "next",
+          "depends": [
+            "full3d-resources"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-rocks",
+          "title": "Full 3D: cliffs, spires, mesas, arches, pillars, waterfalls and mountains as meshes on flat ground",
+          "status": "next",
+          "depends": [
+            "full3d-flat"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-scenery",
+          "title": "Full 3D: logs, stumps, termite mounds and big ferns as models; small clutter and ground cards stay 2D",
+          "status": "next",
+          "depends": [
+            "full3d-resources"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-light",
+          "title": "Full 3D: real window, torch and fire lights",
+          "status": "next",
+          "depends": [
+            "full3d-ab"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-perf",
+          "title": "Full 3D: web and phone gates, Compatibility shader-instance buffer overflow, creature texture shrink",
+          "status": "next",
+          "depends": [
+            "full3d-trees",
+            "full3d-rocks"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-camera",
+          "title": "Full 3D: wider fixed north-up lens; sky, fog, cascades and culls refit",
+          "status": "next",
+          "depends": [
+            "full3d-perf"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        },
+        {
+          "id": "full3d-cleanup",
+          "title": "Full 3D: remove the card paths the models replaced",
+          "status": "next",
+          "depends": [
+            "full3d-camera"
+          ],
+          "source": "docs/design/full-3d-plan.md"
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "title": "Progression breadth and economy",
+      "theme": "Turn the loop into reasons to go further: tiered materials, deeper skills, the unstable ladder, and a market that rewards specialising.",
+      "features": [
+        {
+          "id": "material-levels",
+          "title": "Material level discipline: node level = tier + ring offset, craft level = mean, downrank below skill level, unstable flag until cargo-warped",
+          "status": "later",
+          "depends": [
+            "zone-terrain",
+            "skill-buy"
+          ],
+          "source": "docs/design/world-design.md",
+          "note": "Verify live behaviour against the spec before assuming this is unbuilt."
+        },
+        {
+          "id": "cargo-warp",
+          "title": "Cargo-warp home with an unstable-goods warning (today they vanish on sail with a console print)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "cargo_warp.gd: camp chest ships unstable goods home for a T-stone fee (CARGO_FEE 2, ASSUMPTION). Verify the sail warning before relying on it."
+        },
+        {
+          "id": "currency-sinks",
+          "title": "T-stone sinks: sailing unstable islands, paid warp hops, crater openings, market listing fees",
+          "status": "later",
+          "depends": [
+            "xp-economy"
+          ],
+          "source": "docs/design/economy.md",
+          "note": "Without sinks the market is pointless — sinks are why selling matters."
+        },
+        {
+          "id": "market-system",
+          "title": "Regional markets: simulated demand, price = base x level x attributes x regional demand x saturation, listing fee, buy side, animal grades (ECON)",
+          "status": "done",
+          "depends": [
+            "gather-stacks",
+            "cargo-warp"
+          ],
+          "source": "docs/design/economy.md",
+          "note": "ECON merged aa849333 (via econ2): server-side market, auctions, buy orders, ledger, VaultBridge, crash recovery; review r3 closed with mutant-proven tests. Online only. Open: traded pets move as pet records, owner rule says cages (switch with caged-pets); trait-level bound 1..60 is an ASSUMPTION.",
+          "evidence": [
+            "commit:aa849333"
+          ]
+        },
+        {
+          "id": "exchange-ui",
+          "title": "Island Market screens: Buy / My Market / Sell, one row per instance, Receive All (spec 06, 14)",
+          "status": "done",
+          "depends": [
+            "market-system",
+            "inventory-screens"
+          ],
+          "source": "docs/design/durango-prompts/14_island_market_ui.md",
+          "note": "Branch claude/mmo-exchange (+75) stacked on ECON. Offline single-player shows an honest 'market offline' state (owner 10-20)."
+        },
+        {
+          "id": "skill-tree-coverage",
+          "title": "Skill tree coverage: the remaining spec 12 trees as data, every node marked functional or not",
+          "status": "later",
+          "depends": [
+            "skill-buy"
+          ],
+          "source": "docs/design/durango-prompts/12_remaining_skill_trees.md",
+          "note": "103 of 213 imported nodes do something; spec 12 lists 918. Each node must be marked functional, partial or defined."
+        },
+        {
+          "id": "research-gates",
+          "title": "Skill research gates every five levels past 20 (10 min to 12 h; practice shortens)",
+          "status": "later",
+          "depends": [
+            "skill-buy"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": "trees.json already describes the gates; nothing enforces them. Open product call: Durango's long waits drew complaints."
+        },
+        {
+          "id": "skill-resets",
+          "title": "Skill resets and career guides (spec 03)",
+          "status": "later",
+          "depends": [
+            "skill-buy"
+          ],
+          "source": "docs/design/durango-prompts/03_leveling_progression_skill_trees.md",
+          "note": ""
+        },
+        {
+          "id": "radio-university",
+          "title": "Radio University career guides as the SP fountain",
+          "status": "later",
+          "depends": [
+            "research-gates"
+          ],
+          "source": "docs/design/skills.md",
+          "note": ""
+        },
+        {
+          "id": "tailoring",
+          "title": "Tailoring: clothing slots, fabric traits, climate bonuses (spec 12 §4)",
+          "status": "later",
+          "depends": [
+            "needs-actions",
+            "craft-outcomes"
+          ],
+          "source": "docs/design/durango-prompts/12_remaining_skill_trees.md",
+          "note": ""
+        },
+        {
+          "id": "fishing",
+          "title": "Fishing: harpoons, fish species and a fishing action",
+          "status": "later",
+          "depends": [],
+          "source": "docs/vision/WildLandsMMO_Open_Questions.md",
+          "note": "Open question 07: no loop is specified anywhere yet."
+        },
+        {
+          "id": "unstable-tier-ladder",
+          "title": "Full unstable ladder: climate x tier islands with per-zone spawn tables, signature predators, one crater each",
+          "status": "later",
+          "depends": [
+            "zone-terrain",
+            "material-levels"
+          ],
+          "source": "docs/design/world-design.md",
+          "note": "Volcanic is a raid, not a farm — no gathering ring."
+        },
+        {
+          "id": "island-rotation",
+          "title": "Island lifetime: 6-24 h by tier, sink warning, same-climate relayout from a seed within a minute (M10)",
+          "status": "done",
+          "depends": [
+            "unstable-tier-ladder"
+          ],
+          "source": "docs/design/world-design.md",
+          "note": "ISLAND RESET (M4) merged with ISLANDMATRIX 4a685bc4: per-island clocks 6/12/24 h of play by tier band, warnings at 10 min and 60 s, reroll with a new seed (generation + 1), half kit refund to the home vault, slower expedition regrowth. Every number # ASSUMPTION except the approved A1/A2 rules.",
+          "evidence": [
+            "commit:4a685bc4",
+            "game/tests/t_island_reset.gd",
+            "docs/current/world-biomes.md"
+          ]
+        },
+        {
+          "id": "unstable-isles",
+          "title": "Unstable isles: generated short-life islands with richer loot, kits only, sinking returns you home (UNSTABLEISLES)",
+          "status": "done",
+          "depends": [
+            "island-rotation",
+            "island-landmarks"
+          ],
+          "source": "docs/design/unstable-isles.md",
+          "note": "UNSTABLEISLES merged 8b633980. Every number # ASSUMPTION; three open questions in the design doc §8.",
+          "evidence": [
+            "commit:8b633980",
+            "game/tests/t_unstable_isles.gd"
+          ]
+        },
+        {
+          "id": "home-relocation",
+          "title": "Home relocation: buy a larger home island, old buildings salvaged at 100 %",
+          "status": "later",
+          "depends": [
+            "construction-quality"
+          ],
+          "source": "docs/vision/WildLandsMMO_Crafting_Building_Math.md",
+          "note": "Owner-fixed: 100 % of invested construction materials come back through a salvage vault."
+        },
+        {
+          "id": "factions",
+          "title": "Factions and the Faction Hall (FACTIONS)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/reference/tasks.md",
+          "note": "FACTIONS merged caa4ba3c: five factions with reputation, ranks and missions, the Faction Hall and stall row on the 1 m grid facing south; landings count only on travel.",
+          "evidence": [
+            "commit:caa4ba3c",
+            "game/tests/t_factions.gd"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "title": "Online and late horizon",
+      "theme": "The MMO the vision describes: shared spaces, other people, tribes, and the optional frontier. Blocked on the loop and on a host the owner picks.",
+      "features": [
+        {
+          "id": "net-core",
+          "title": "Network core: server, auth, presence, server-owned characters (contracts v2)",
+          "status": "later",
+          "depends": [],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
+        },
+        {
+          "id": "region-chat",
+          "title": "Region chat (spec 20)",
+          "status": "later",
+          "depends": [
+            "net-core"
+          ],
+          "source": "docs/design/durango-prompts/20_region_chat.md",
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
+        },
+        {
+          "id": "server-islands",
+          "title": "Server-simulated islands and intent handlers (W3-SRVWORLD / SRVACT)",
+          "status": "later",
+          "depends": [
+            "net-core"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
+        },
+        {
+          "id": "city-islands",
+          "title": "City islands per region with domain land claiming and the domain tax (M9, DOMAIN groundwork merged)",
+          "status": "later",
+          "depends": [
+            "market-system",
+            "island-rotation"
+          ],
+          "source": "docs/design/economy.md",
+          "note": ""
+        },
+        {
+          "id": "shared-market",
+          "title": "Player listings join the simulated order book; the simulation shrinks as real volume grows",
+          "status": "later",
+          "depends": [
+            "city-islands"
+          ],
+          "source": "docs/design/economy.md",
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
+        },
+        {
+          "id": "follow-route",
+          "title": "Follow-route sailing between discovered harbours",
+          "status": "later",
+          "depends": [
+            "city-islands"
+          ],
+          "source": "docs/design/world-design.md",
+          "note": "Out of scope until co-op exists."
+        },
+        {
+          "id": "tribes-workers",
+          "title": "Tribes and workers: people with careers, families, jobs and automation (vision §5, §12)",
+          "status": "next",
+          "depends": [
+            "construction-quality"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "TRIBE M1 merged 7313728a (recruits arrive by boat, Accept/Deny at the dock). M2a hand-off in progress, see tribe-m2a."
+        },
+        {
+          "id": "recruitment-loss",
+          "title": "Recruitment, losses and costly human revival",
+          "status": "later",
+          "depends": [
+            "tribes-workers",
+            "player-death"
+          ],
+          "source": "docs/vision/WildLandsMMO_Loss_Recruitment_Revival.md",
+          "note": "Formulas there are proposals, not approved."
+        },
+        {
+          "id": "boats-transport",
+          "title": "Boats, harbours and cargo transport between islands (vision §17)",
+          "status": "later",
+          "depends": [
+            "cargo-warp"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": ""
+        },
+        {
+          "id": "frontier",
+          "title": "PvPvE frontier settlements, captives and the 72-hour ransom (vision §19-20)",
+          "status": "later",
+          "depends": [
+            "net-core",
+            "tribes-workers"
+          ],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Deferred: multiplayer servers come after the game is finished (owner 2026-10-29)."
+        },
+        {
+          "id": "siege-saddles",
+          "title": "Siege weapons, turrets and platform saddles (vision §15-16)",
+          "status": "later",
+          "depends": [
+            "frontier",
+            "mounts"
+          ],
+          "source": "docs/vision/WildLandsMMO_Combat_Math.md",
+          "note": "Owner-set caps: 1 crewed weapon, 2 automatic, 1 ammo box per platform saddle."
+        },
+        {
+          "id": "tribe-m2a",
+          "title": "Tribe M2a hand-off",
+          "status": "done",
+          "depends": [
+            "tribes-workers"
+          ],
+          "source": "docs/current/tribe.md",
+          "note": "TRIBEM2A merged 76e4a04e: members assigned to crafts and construction sites, escrowed materials, member skill and XP.",
+          "evidence": [
+            "commit:76e4a04e",
+            "docs/orchestration/reports/claude-tribem2a.md",
+            "game/tests/t_tribework.gd",
+            "docs/orchestration/reports/tribem2a/tribework_hammer_1600x900.png"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 6,
+      "title": "Polish and tuning",
+      "theme": "Last on purpose (owner: systems before balance). Verification by bot, the shine on feedback moments, art and sound, then every knob tuned once the real loop exists.",
+      "features": [
+        {
+          "id": "bot-metrics",
+          "title": "Bot metrics suite: per-minute level, XP, fatigue, Orders step, losses; hour-one targets asserted",
+          "status": "later",
+          "depends": [
+            "survival-pacing",
+            "xp-economy"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "P9 gate; also feeds the first-hour column of the tuning sheet."
+        },
+        {
+          "id": "loop-check",
+          "title": "LOOPCHECK blind judge: the new first ten minutes must beat today's on shot sequences",
+          "status": "later",
+          "depends": [
+            "bot-metrics",
+            "orders-beats"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "guide-hand",
+          "title": "Onboarding spotlight: GUIDED hand drawn to the exact button, trigger objectives at help moments",
+          "status": "later",
+          "depends": [
+            "orders-beats"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": "Branch claude/mmo-guide (r2) needs a rebase onto current hooks."
+        },
+        {
+          "id": "level-fx",
+          "title": "LEVELFX level-up flash plus skills-hex pulse wiring (skill_changed today has no listener)",
+          "status": "next",
+          "depends": [
+            "skill-buy"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "SKILLFEEL 6dfaa0d3 wired the Skills hex pulse and XP toasts; the light-effect level-up (owner: 'make it flashy') is on claude/mmo-levelfx, paused."
+        },
+        {
+          "id": "combat-fx",
+          "title": "Damage numbers (spec 24, as corrected by the owner)",
+          "status": "later",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/durango-prompts/24_crit_numbers.md",
+          "note": "Owner 10-21: small damage numbers that expand, fade and float up; crits bigger; white dealt, red taken. Branch claude/mmo-combatfx, paused."
+        },
+        {
+          "id": "item-icons",
+          "title": "Item icons: the 65 missing or weak renders, caged-animal icon",
+          "status": "next",
+          "depends": [
+            "items-ladder"
+          ],
+          "source": "docs/design/durango-prompts/13_inventory_equipment_ui.md",
+          "note": "ICONS3 merged 2026-10-28: 65 ICONS2 renders landed, 164 of 240 items rendered, armor_scute deterministic; 76 items still unrendered (list in dsc-icons3.md). CAGEICON (a dinosaur visibly in the cage) still open."
+        },
+        {
+          "id": "character-creation",
+          "title": "Character creation: Durango gender/profession screen, size, colours, rendered portrait (spec 19)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/durango-prompts/19_character_creation.md",
+          "note": "CHARCREATE passed review r1 (blind A/B 4-0) on 10-21, never merged; APPEAR-A follows. A female v2 base waits on the owner.",
+          "evidence": [
+            "commit:f692a720"
+          ]
+        },
+        {
+          "id": "hamburger-menu",
+          "title": "In-game hamburger menu with the three-currency header (spec 33)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/durango-prompts/33_ingame_hamburger_menu.md",
+          "note": ""
+        },
+        {
+          "id": "audio",
+          "title": "Audio: CC0 sound layer and Sound settings",
+          "status": "later",
+          "depends": [],
+          "source": "docs/vision/WildLandsMMO_Game_Vision.md",
+          "note": "Owner approved CC0 packs. Branch claude/mmo-audio plus a Sound settings panel and mute switches."
+        },
+        {
+          "id": "phone-hud",
+          "title": "PHONEHUD: ORDERS chip, 110 px minimap, pills only for the target at 844x390",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "PHONEHUD merged (tap targets, minimap, pills at 844x390); the ORDERS chip follows orders-beats."
+        },
+        {
+          "id": "web-pack",
+          "title": "WEBPACK: texture-set budget discipline, web p95 gates measured and held",
+          "status": "done",
+          "depends": [
+            "climate-material-base"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "WEBPACK merged; WEBPACK2 (512 px texture cap) waits on the owner because it also hits desktop and iOS. Web p95 gates move to perf-gates."
+        },
+        {
+          "id": "map-ui",
+          "title": "MAPUI: fog, trail and icons over the atlas texture",
+          "status": "done",
+          "depends": [
+            "map-zones"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "MAPUI 80b57070: fog revealed by walking, trail dots, icons.",
+          "evidence": [
+            "commit:80b57070"
+          ]
+        },
+        {
+          "id": "death-penalty",
+          "title": "Stacking death penalty: revive 50/35/20% and a recovering status",
+          "status": "later",
+          "depends": [
+            "player-death",
+            "survival-pacing"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": ""
+        },
+        {
+          "id": "body-parts",
+          "title": "Body-part damage: a leg past threshold limps the creature (needs a limp clip per rig)",
+          "status": "later",
+          "depends": [
+            "directional-damage"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": "Explicitly waits for the animation pipeline."
+        },
+        {
+          "id": "creature-budgets",
+          "title": "Creature mesh budgets: remesh 24-31k tri species toward the 1.7-3k class budgets",
+          "status": "later",
+          "depends": [
+            "creature-roster"
+          ],
+          "source": "docs/design/durango-informed-improvements.md",
+          "note": "Manual Blender queue owner-approved; triangle-count check joins the validation sheet."
+        },
+        {
+          "id": "balance-pass",
+          "title": "Balance: HP, damage, pacing, XP curve, LOOP1 bot thresholds",
+          "status": "later",
+          "depends": [
+            "bot-metrics",
+            "construction-quality",
+            "processing-depth",
+            "skill-tree-coverage"
+          ],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "Task drafted on claude/mmo-balance; waits until crafting, building and skills are done and tuned."
+        },
+        {
+          "id": "night-lighting",
+          "title": "Night-only lighting work",
+          "status": "decided-against",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "'Not worth spending on' ruling in the look section."
+        },
+        {
+          "id": "fire-glow",
+          "title": "Fire glow effects",
+          "status": "decided-against",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "beach-gradient",
+          "title": "Beach gradient art",
+          "status": "decided-against",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "survivor-scale-tweak",
+          "title": "Changing survivor scale",
+          "status": "decided-against",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "default-zoom",
+          "title": "Changing the default camera zoom",
+          "status": "decided-against",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": ""
+        },
+        {
+          "id": "sky-shadows",
+          "title": "Sky life: pteranodons circling overhead that cast moving ground shadows, and drifting cloud-cover shadows across the terrain",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/islands-and-loop-plan.md",
+          "note": "SKYSHADOWS merged 0ae592a5: drifting cloud shadows with a sun dip and pteranodon shadows.",
+          "evidence": [
+            "commit:0ae592a5"
+          ]
+        },
+        {
+          "id": "camera-rotate-25d",
+          "title": "Rotatable camera (e.g. 45° steps) with the 2.5D look kept: 2D assets stay camera-facing",
+          "status": "later",
+          "depends": [],
+          "source": "docs/vision/WildLandsMMO_Open_Questions.md",
+          "note": "Owner: 'the 2D assets maintain the same angle relative to the camera such that we can change perspectives'. Today: CARD2D resource/prop cards (card_sway.gdshader, card_prop.gd, prop_cards.gd) and ground cover already face the camera via the camera globals, so they would follow a rotation. Creatures, the survivor, trees/rocks GLBs, buildings and terrain are 3D meshes and rotate fine. Cost to check: IsoCamera assumes one yaw (occlusion, shadows fit, parallax, map/HUD north, input mapping of move directions, TilePath screen picks, sky shadows and weather screen effects)."
+        },
+        {
+          "id": "tutorial-perf",
+          "title": "Tutorial island performance",
+          "status": "done",
+          "depends": [
+            "tutorial-island"
+          ],
+          "source": "docs/current/tutorial.md",
+          "note": "TUTPERF merged 5c4b32ff: fog patch repaint, cached clips, threaded species preload, harvest nodes idle unless regrowing. Windowed frame numbers after the last change still owed (report).",
+          "evidence": [
+            "commit:5c4b32ff",
+            "docs/orchestration/reports/claude-tutperf.md",
+            "game/tests/t_perfgates.gd"
+          ]
+        },
+        {
+          "id": "perf2",
+          "title": "Perf pass 2: faster TilePath rebuild, town cards stop ticking, cached far-goal replans (PERF2)",
+          "status": "done",
+          "depends": [
+            "tutorial-perf"
+          ],
+          "source": "docs/orchestration/reports/claude-perf2-opus.md",
+          "note": "PERF2 merged 729dd10e: about 8 % off the tutorial build; home still over its 2.5 s budget with little margin.",
+          "evidence": [
+            "commit:729dd10e",
+            "game/tests/t_pathcache.gd",
+            "game/tests/t_card2d.gd"
+          ]
+        },
+        {
+          "id": "tutorial-town",
+          "title": "Tutorial town, step guidance and craft menu order",
+          "status": "done",
+          "depends": [
+            "tutorial-island"
+          ],
+          "source": "docs/current/tutorial.md",
+          "note": "TUTTOWN merged 0ee384b9: town beside the southern dock and built out, sheltered fire pit, compy and zebra only, smooth objective pointer, menu guidance, Craft/Build order. Headless only: no in-game screenshots yet.",
+          "evidence": [
+            "commit:0ee384b9",
+            "docs/orchestration/reports/claude-tuttown.md",
+            "game/tests/t_tutorial.gd",
+            "docs/orchestration/reports/tuttown/town_map.png"
+          ]
+        },
+        {
+          "id": "tutorial-town-polish",
+          "title": "Tutorial town polish loop",
+          "status": "done",
+          "depends": [
+            "tutorial-town"
+          ],
+          "source": "docs/current/tutorial.md",
+          "note": "TOWNPOLISH d1f710b3 (kit roofs, gates, lit windows, fields) and TOWNPOLISH2 af77ddb8: flat town plane, every lot on the 1 m BuildGrid facing south, flush window lights, tiled decal streets, Landfall domain with an emblem covering the whole town. The look pass (light, sky, grass, path wear) follows as its own package.",
+          "evidence": [
+            "commit:d1f710b3",
+            "commit:af77ddb8",
+            "game/tests/t_domain.gd"
+          ]
+        },
+        {
+          "id": "loading-screens",
+          "title": "Loading screens on every transition with real build progress and tips (LOADING)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/current/ui-screens.md",
+          "note": "LOADING merged 346b325c.",
+          "evidence": [
+            "commit:346b325c",
+            "docs/orchestration/reports/claude-loading.md",
+            "game/tests/t_loading.gd",
+            "docs/orchestration/reports/loading/tutorial_844x390.png"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 7,
+      "title": "Hex HUD and screens (UI redesign)",
+      "theme": "The owner-reviewed Durango-style hex HUD and screens: one token set, hex buttons everywhere, gather pie fill with yield cards, a calmer field HUD, and every sheet on shared chrome. Each visual package gets a blind A/B for the owner before merging.",
+      "features": [
+        {
+          "id": "ui-tokens-hex",
+          "title": "Tokens, HexButton extensions (rim, pie fill, grey icon, key hint, orientation flag) and shared chrome helpers (§2, §3, §8)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "UITOKENS merged 2026-10-28: palette, trait chips, brackets, header/torn edge, Roboto Condensed tokens; HexButton flat-top (owner decision), rim, pie fill, grey icon, key hint.",
+          "evidence": [
+            "commit:871ff1ed"
+          ]
+        },
+        {
+          "id": "ui-gather-pie",
+          "title": "Gather radial with pie fill, clickable name pills, camera pan, yield card above the node with trait chips, skill-XP left feed (§4, §5)",
+          "status": "done",
+          "depends": [
+            "ui-tokens-hex",
+            "gather-stacks"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Retires gather_ring.gd (ASSUMPTION: the hex's remaining count shows depletion).",
+          "evidence": [
+            "commit:57879c2f"
+          ]
+        },
+        {
+          "id": "ui-field-hud",
+          "title": "Field HUD: INTERACT hex (context gather/open/talk/mount), ATTACK NEAREST, SPRINT toggle, left rail MENU/BUILD/BAG with a notification badge, Skills + Animals in the nav menu, XP strip, treadmill visuals",
+          "status": "done",
+          "depends": [
+            "ui-tokens-hex"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Owner 2026-10-28 layout supersedes spec §6 rail (spec §11). Starts after the Rest package lands (both touch hunt_hud.gd / hud_layout.gd).",
+          "evidence": [
+            "commit:8275b7ed"
+          ]
+        },
+        {
+          "id": "ui-build-row",
+          "title": "Build placement row: ROTATE icon-only, SAVE green check, CANCEL; blueprint drawer as hex tiles (§7 D2)",
+          "status": "done",
+          "depends": [
+            "ui-tokens-hex"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": ""
+        },
+        {
+          "id": "ui-sheets",
+          "title": "Bag, Character, Skills, Craft and material placement sheets on the shared chrome (§7 C1-C3, D1, D3)",
+          "status": "done",
+          "depends": [
+            "ui-tokens-hex",
+            "inventory-screens"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Builds on the inventory-screens package."
+        },
+        {
+          "id": "ui-world-screens",
+          "title": "Domain, World Atlas, Communication (separate screen) and Animals restyles (§7 E1, F1-F3)",
+          "status": "done",
+          "depends": [
+            "ui-tokens-hex"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Animals uses the 3->7 bonded rule (owner, spec 09); the code header's 'three active' is outdated.",
+          "evidence": [
+            "commit:5f9bb36c"
+          ]
+        },
+        {
+          "id": "ui-party-frames",
+          "title": "Party frames with a leader crown (layout only until a party system exists)",
+          "status": "later",
+          "depends": [
+            "net-core"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": ""
+        },
+        {
+          "id": "ui-stretched-sheets",
+          "title": "Rebuild every stretched full-width-row sheet to the spec: Harbour / sail list (world_ui.gd), build list (build_ui.gd), skills_sheet.gd, animal_screen.gd and any other sheet with edge-to-edge rows",
+          "status": "done",
+          "depends": [
+            "ui-tokens-hex"
+          ],
+          "source": "docs/design/ui-redesign-spec.md",
+          "note": "Owner standing rule 2026-10-28: any menu that renders as stretched full-width rows is rebuilt to the UI spec, not patched. Harbour goes with F2 World Atlas 'Harbour routes'. Sweep of game/scripts/ui found world_ui, build_ui, skills_sheet, animal_screen."
+        },
+        {
+          "id": "level-bar",
+          "title": "Exponential XP curve with a segmented green level bar (LEVELBAR)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_levelbar.gd",
+          "note": "LEVELBAR merged c1bed48d.",
+          "evidence": [
+            "commit:c1bed48d"
+          ]
+        },
+        {
+          "id": "level-badge",
+          "title": "Tiered level badge, boxless top HUD, ghost-fill bars, map coordinates (LEVELBADGE)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_levelbadge.gd",
+          "note": "LEVELBADGE merged 87584993.",
+          "evidence": [
+            "commit:87584993"
+          ]
+        },
+        {
+          "id": "hud-tweak",
+          "title": "HUD tweaks: exhaustion under energy, claim above the dial, buffs aligned, big stomach under the badge (HUDTWEAK)",
+          "status": "done",
+          "depends": [],
+          "source": "docs/orchestration/reports/claude-hudtweak.md",
+          "note": "HUDTWEAK merged 6c1fad7e.",
+          "evidence": [
+            "commit:6c1fad7e"
+          ]
+        },
+        {
+          "id": "dodge-text",
+          "title": "Dodged/Blocked floating text and a debug-only aggro ring (DODGETEXT)",
+          "status": "done",
+          "depends": [],
+          "source": "game/tests/t_dodgetext.gd",
+          "note": "DODGETEXT merged cc79a457.",
+          "evidence": [
+            "commit:cc79a457"
+          ]
+        },
+        {
+          "id": "hud-redraw",
+          "title": "HUD redraws only on change; level-up banner under hunger, XP popups above Eat (HUDREDRAW)",
+          "status": "done",
+          "depends": [
+            "ui-field-hud"
+          ],
+          "source": "docs/current/hud.md",
+          "note": "HUDREDRAW merged 95ec2b69.",
+          "evidence": [
+            "commit:95ec2b69",
+            "docs/orchestration/reports/dsc-hudredraw.md",
+            "game/tests/t_hudredraw.gd"
+          ]
+        }
+      ]
+    }
+  ]
+}

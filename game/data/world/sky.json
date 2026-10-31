@@ -1,0 +1,23 @@
+{
+  "_doc": "SKYSHADOWS (scripts/world/sky_shadows.gd): cloud-cover and pteranodon ground shadows per climate. 'default' merges under each climate. ASSUMPTION: every number here is a first-pass look value, not a design rule (the PRDs are silent).",
+  "default": {
+    "cloud_cover": 0.4,
+    "cloud_strength": 0.6,
+    "wind_mps": [1.8, 0.8],
+    "sun_dip": 0.22,
+    "flyers": 2,
+    "flyer_strength": 0.75,
+    "glide_mps": 9.0,
+    "compat_scale": 0.7
+  },
+  "grassland": {"cloud_cover": 0.4, "flyers": 2},
+  "temperate": {"cloud_cover": 0.5, "flyers": 2},
+  "savannah": {"cloud_cover": 0.25, "flyers": 3},
+  "desert": {"cloud_cover": 0.12, "flyers": 3, "wind_mps": [2.6, 0.4]},
+  "tropical": {"cloud_cover": 0.55, "flyers": 3},
+  "blue_tropical": {"cloud_cover": 0.5, "flyers": 3},
+  "swamp": {"cloud_cover": 0.65, "cloud_strength": 0.5, "flyers": 1, "wind_mps": [1.0, 0.6]},
+  "tundra": {"cloud_cover": 0.6, "flyers": 1, "wind_mps": [2.8, 1.4]},
+  "snowfield": {"cloud_cover": 0.65, "flyers": 1, "wind_mps": [3.0, 1.2]},
+  "volcanic": {"cloud_cover": 0.55, "cloud_strength": 0.66, "flyers": 2}
+}

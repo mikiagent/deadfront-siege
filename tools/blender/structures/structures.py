@@ -12,6 +12,8 @@ import bmesh
 from mathutils import Euler, Matrix, Vector
 
 from lib import Part
+import farmkit
+import townkit
 
 R = math.radians
 
@@ -1308,7 +1310,806 @@ def cabin_bed():
     return [(p, (0, 0, 0))]
 
 
+# ------------------------------------------------------------------ station art (dsc-stationart)
+# Crafting stations and construction sites (owner's guide 15, docs/design/durango-prompts/30_*).
+# Same kit and atlas as the rest of the set: one material, origin at the ground centre, front -Y
+# (which becomes +Z in Godot, towards the iso camera). Sizes in metres next to a 1.8 m survivor.
+
+def _center_xy(p):
+    """Centre a part on x and y (Blender axes) so the GLB origin is the ground centre of the
+    footprint. The ground (z) is not touched."""
+    xs = [v.co.x for v in p.bm.verts]
+    ys = [v.co.y for v in p.bm.verts]
+    if not xs:
+        return
+    bmesh.ops.translate(p.bm, verts=p.bm.verts, vec=(-(min(xs) + max(xs)) / 2, -(min(ys) + max(ys)) / 2, 0))
+
+
+def _nailed_plank(p, size, loc, tile="plank", nails=True, rot=(0, 0, 0)):
+    """A plank with iron nail heads at both ends."""
+    p.box(size, loc, tile, rot=rot, tile_m=1.6)
+    if nails:
+        for sx in (-1, 1):
+            for sy in (-1, 1):
+                p.box((0.025, 0.025, 0.012), (loc[0] + sx * (size[0] / 2 - 0.05),
+                                              loc[1] + sy * (size[1] / 2 - 0.05),
+                                              loc[2] + size[2] / 2 + 0.005), "iron", rot=rot)
+
+
+def _rope_lashing(p, x, y, z, r=0.075):
+    """A strap wound round a post: a short cylinder of rope plus a loose tail."""
+    p.cyl(r, 0.06, (x, y, z), "rope", seg=8)
+    p.log((x + r * 0.7, y, z - 0.02), (x + r * 1.5, y - r * 0.6, z - 0.09), 0.012, tile="rope", seg=4,
+          end_tile="rope")
+
+
+def makeshift_workbench():
+    """Tier 0: a flat stone slab on four lashed sticks (1.2 x 0.6 m, top 0.78 m)."""
+    p = Part("makeshift_workbench")
+    L, W, H = 1.2, 0.6, 0.78
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.14), sy * (W / 2 - 0.1)
+            p.log((x + sx * 0.06, y + sy * 0.05, 0.0), (x, y, H - 0.06), 0.033, tile="bark", seg=6)
+            _rope_lashing(p, x, y, H - 0.12, r=0.05)
+    # cross sticks tying the legs, lashed
+    for sy in (-1, 1):
+        p.log((-L / 2 + 0.1, sy * (W / 2 - 0.1), 0.3), (L / 2 - 0.1, sy * (W / 2 - 0.1), 0.3), 0.022,
+              tile="bark", seg=5)
+    # the flat stone slab: two stones, the bigger one on top
+    p.rock(0.3, (-0.12, 0.0, H - 0.05), tile="stone", squash=(1.5, 1.15, 0.24), seed=101)
+    p.rock(0.24, (0.42, 0.05, H - 0.04), tile="stone_dark", squash=(1.1, 1.0, 0.22), seed=102)
+    # a split billet laid on the slab: the work surface that makes it a bench, not a table
+    p.box((0.5, 0.22, 0.06), (-0.1, 0.12, H + 0.01), "wood", rot=(0, 0, 6), tile_m=0.5)
+    # a stone hammer and a stick of cord left on the slab
+    p.log((-0.02, -0.08, H + 0.02), (0.16, -0.14, H + 0.02), 0.018, tile="wood_dark", seg=5)
+    p.rock(0.05, (0.18, -0.15, H + 0.04), tile="stone_dark", squash=(1.1, 0.9, 0.8), seed=103)
+    p.torus(0.07, 0.016, (0.4, -0.14, H + 0.01), "rope", seg=10, tube=4)
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def basic_workbench():
+    """Tier 1: rough planks on four pillars, held with strap lashings (1.6 x 0.7 m, top 0.85 m)."""
+    p = Part("basic_workbench")
+    L, W, H = 1.6, 0.7, 0.85
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.12), sy * (W / 2 - 0.09)
+            p.log((x, y, 0.0), (x, y, H - 0.07), 0.048, tile="bark", seg=7)
+            _rope_lashing(p, x, y, H - 0.14)
+    # two rough planks across the top, a third short one under them
+    p.box((L, 0.3, 0.06), (0, 0.16, H - 0.03), "wood", tile_m=1.6)
+    p.box((L, 0.28, 0.06), (0, -0.16, H - 0.03), "plank", tile_m=1.6)
+    p.box((L - 0.4, W - 0.1, 0.05), (0, 0, 0.34), "plank", tile_m=1.2)
+    for sx in (-1, 1):
+        p.plank((sx * (L / 2 - 0.12), -W / 2 + 0.08, 0.34), (sx * (L / 2 - 0.12), W / 2 - 0.08, 0.34), 0.07, 0.05,
+                "wood_dark")
+    # a stone adze head and a stick of cord on the bench
+    p.log((-0.3, -0.02, H + 0.03), (-0.05, -0.1, H + 0.03), 0.02, tile="wood", seg=5)
+    p.box((0.09, 0.05, 0.07), (-0.02, -0.11, H + 0.05), "stone_dark", rot=(0, 0, -18), tile_m=0.3)
+    p.torus(0.08, 0.018, (0.42, 0.1, H + 0.01), "rope", seg=10, tube=4)
+    # two spare planks leaning on the bench end
+    p.plank((L / 2 - 0.1, 0.1, 0.02), (L / 2 + 0.16, 0.34, 0.95), 0.2, 0.045, "wood", up=(0, 1, 0))
+    p.plank((L / 2 - 0.14, 0.22, 0.02), (L / 2 + 0.1, 0.46, 0.9), 0.18, 0.04, "wood_dark", up=(0, 1, 0))
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def journeyman_workbench():
+    """Tier 2: trimmed planks nailed to squared legs, a bench vice and a tool rack (1.8 x 0.8 m)."""
+    p = Part("journeyman_workbench")
+    L, W, H = 1.8, 0.8, 0.9
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.13), sy * (W / 2 - 0.1)
+            p.box((0.1, 0.1, H - 0.08), (x, y, (H - 0.08) / 2), "wood_dark", tile_m=0.7)
+            p.box((0.13, 0.13, 0.05), (x, y, 0.025), "stone_dark", tile_m=0.4)
+    # four trimmed planks nailed down
+    for i in range(4):
+        y = -W / 2 + (i + 0.5) * W / 4
+        _nailed_plank(p, (L, W / 4 - 0.02, 0.055), (0, y, H - 0.028), "plank")
+    # apron rails and a lower shelf
+    for sy in (-1, 1):
+        p.box((L - 0.1, 0.06, 0.14), (0, sy * (W / 2 - 0.05), H - 0.16), "wood", tile_m=1.0)
+    p.box((L - 0.5, W - 0.2, 0.05), (0, 0, 0.32), "plank", tile_m=1.4)
+    for sx in (-1, 1):
+        p.box((0.08, W - 0.2, 0.06), (sx * (L / 2 - 0.3), 0, 0.29), "wood_dark", tile_m=0.6)
+    # bench vice at the front left: iron jaws on a wooden screw
+    vx, vy = -L / 2 + 0.3, -W / 2 + 0.02
+    p.box((0.24, 0.16, 0.1), (vx, vy, H + 0.05), "iron", tile_m=0.3)
+    p.box((0.22, 0.05, 0.14), (vx, vy + 0.04, H + 0.15), "iron", tile_m=0.3)
+    p.cyl(0.022, 0.2, (vx, vy - 0.14, H + 0.15), "iron", rot=(90, 0, 0), seg=6)
+    p.cyl(0.04, 0.025, (vx, vy - 0.23, H + 0.15), "iron", rot=(90, 0, 0), seg=6)
+    p.box((0.34, 0.05, 0.05), (vx + 0.04, vy + 0.06, H + 0.24), "wood", rot=(0, 3, 0))
+    # tool rack on the back edge: two posts, a rail and pegs with hanging tools
+    for sx in (-1, 1):
+        p.box((0.07, 0.07, 0.62), (sx * 0.62, W / 2 - 0.06, H + 0.31), "wood", tile_m=0.6)
+    p.box((1.34, 0.06, 0.09), (0, W / 2 - 0.06, H + 0.58), "plank", tile_m=1.0)
+    for tx, t_tile, t_len in ((-0.4, "iron", 0.26), (-0.16, "stone_dark", 0.2), (0.16, "iron", 0.24),
+                              (0.4, "wood_dark", 0.22)):
+        p.cyl(0.016, 0.07, (tx, W / 2 - 0.1, H + 0.55), "wood", rot=(90, 0, 0), seg=5)
+        p.box((0.05, 0.05, t_len), (tx, W / 2 - 0.13, H + 0.55 - t_len / 2), t_tile, tile_m=0.3)
+    # a mallet on the bench and a coil of rope
+    p.log((0.05, -0.2, H + 0.03), (0.32, -0.12, H + 0.03), 0.02, tile="wood", seg=5)
+    p.box((0.1, 0.06, 0.06), (0.35, -0.11, H + 0.04), "wood_dark", rot=(0, 0, -20), tile_m=0.3)
+    p.torus(0.08, 0.018, (0.68, 0.16, H + 0.01), "rope", seg=10, tube=4)
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def expert_workbench():
+    """Tier 3: processed planks on heavy legs, iron fittings, drawers and glue pots (2.0 x 0.9 m)."""
+    p = Part("expert_workbench")
+    L, W, H = 2.0, 0.9, 0.95
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (L / 2 - 0.14), sy * (W / 2 - 0.12)
+            p.box((0.13, 0.13, H - 0.1), (x, y, (H - 0.1) / 2), "wood_dark", tile_m=0.8)
+            p.box((0.16, 0.16, 0.04), (x, y, 0.02), "stone_dark", tile_m=0.4)
+            # iron corner bracket at the top of each leg
+            p.box((0.05, 0.16, 0.1), (x, y, H - 0.14), "iron", tile_m=0.3)
+    # the top: four processed planks with an iron edge strip along the front
+    for i in range(4):
+        y = -W / 2 + (i + 0.5) * W / 4
+        _nailed_plank(p, (L, W / 4 - 0.02, 0.06), (0, y, H - 0.03), "plank")
+    p.box((L, 0.05, 0.09), (0, -W / 2 + 0.02, H - 0.04), "iron", tile_m=1.4)
+    # drawer unit under the top on the right half: two drawers with iron pulls
+    for i, (dx, dz) in enumerate(((0.55, H - 0.19), (0.55, H - 0.38))):
+        p.box((0.78, W - 0.22, 0.16), (dx, 0, dz), "plank", tile_m=1.0)
+        p.box((0.72, 0.05, 0.13), (dx, -W / 2 + 0.13, dz), "wood", tile_m=0.8)
+        p.box((0.16, 0.04, 0.035), (dx, -W / 2 + 0.09, dz), "iron", tile_m=0.3)
+        p.box((0.05, 0.05, 0.02), (dx + 0.34, -W / 2 + 0.11, dz), "iron", tile_m=0.2)
+    p.box((0.86, W - 0.16, 0.04), (0.55, 0, H - 0.09), "plank", tile_m=1.0)
+    # an open shelf on the left with jars and a stack of nails
+    p.box((0.6, W - 0.24, 0.05), (-0.62, 0, 0.36), "plank", tile_m=0.8)
+    p.cyl(0.075, 0.16, (-0.72, -0.16, 0.46), "clay", seg=9, r2=0.085, cap_tile="clay_dark")
+    p.cyl(0.065, 0.13, (-0.5, -0.12, 0.45), "clay", seg=9, r2=0.075, cap_tile="clay_dark")
+    p.box((0.14, 0.1, 0.05), (-0.58, 0.18, 0.41), "iron", tile_m=0.3)
+    # two glue pots with lids on the bench, and a strung bow drill
+    for px, py in ((-0.2, -0.16), (0.02, -0.22)):
+        p.cyl(0.085, 0.15, (px, py, H + 0.075), "clay", seg=10, r2=0.075, cap_tile="clay_dark")
+        p.cyl(0.082, 0.02, (px, py, H + 0.15), "wood", seg=10)
+    p.log((0.6, -0.2, H + 0.04), (0.86, -0.26, H + 0.04), 0.018, tile="wood", seg=5)
+    p.log((0.72, -0.3, H + 0.02), (0.76, -0.12, H + 0.04), 0.012, tile="rope", seg=4, end_tile="rope")
+    # a coil of rope and a hand saw hanging on the front edge
+    p.torus(0.085, 0.02, (-0.86, 0.22, H + 0.01), "rope", seg=10, tube=4)
+    p.box((0.42, 0.035, 0.09), (-0.35, -W / 2 - 0.01, H - 0.12), "iron", rot=(0, 8, 0), tile_m=0.4)
+    p.box((0.12, 0.05, 0.07), (-0.58, -W / 2 - 0.01, H - 0.15), "wood_dark", rot=(0, 8, 0), tile_m=0.3)
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def _dome(p, r, h, z0, tile="clay", seg=14, rings=4, cx=0.0, cy=0.0):
+    """A dome built from stacked frustums: the kiln and oven shells."""
+    for i in range(rings):
+        t0, t1 = i / rings, (i + 1) / rings
+        r0 = max(r * math.cos(t0 * math.pi / 2), 0.03)
+        r1 = max(r * math.cos(t1 * math.pi / 2), 0.03)
+        za, zb = z0 + h * t0, z0 + h * t1
+        p.cyl(r0, zb - za, (cx, cy, (za + zb) / 2), tile, seg=seg, r2=r1, cap_tile=tile)
+
+
+def kiln():
+    """Clay dome kiln: a firebox with an arched mouth under a domed shell, chimney on top (2x2,
+    about 1.6 m tall)."""
+    p = Part("kiln")
+    # plinth
+    p.box((1.7, 1.6, 0.1), (0, 0.05, 0.05), "cobble", tile_m=0.9)
+    # firebox: two side walls, a back wall and a soot-lined mouth at the front
+    for sx in (-1, 1):
+        p.box((0.26, 1.0, 0.62), (sx * 0.52, -0.05, 0.41), "clay", tile_m=0.7)
+    p.box((1.3, 0.22, 0.62), (0, 0.37, 0.41), "clay", tile_m=0.7)
+    p.box((0.8, 0.06, 0.52), (0, -0.48, 0.36), "soot", tile_m=0.5)  # dark inside the mouth
+    p.box((0.86, 0.9, 0.04), (0, -0.05, 0.12), "ash", tile_m=0.6)
+    p.cyl(0.24, 0.03, (0, -0.08, 0.14), "ember", seg=10, cap_tile="ember")
+    for i, (lx, ly) in enumerate(((-0.2, -0.2), (0.18, -0.28), (0.0, 0.08))):
+        p.log((lx - 0.12, ly, 0.17), (lx + 0.12, ly + 0.05, 0.19), 0.035, tile="char", seg=5, end_tile="ember")
+    # the clay dome shell over the firebox, set back so the mouth stays visible
+    _dome(p, 0.62, 0.66, 0.68, tile="clay", seg=14, rings=4, cy=0.12)
+    p.cyl(0.64, 0.06, (0, 0.12, 0.7), "clay_dark", seg=14, cap_tile="clay")
+    # a collar and the chimney
+    p.cyl(0.18, 0.1, (0, 0.12, 1.35), "clay_dark", seg=10, cap_tile="clay_dark")
+    p.cyl(0.15, 0.32, (0, 0.12, 1.53), "clay", seg=10, cap_tile="soot")
+    # the mouth's clay arch, made of two leaning slabs and a lintel
+    for sx in (-1, 1):
+        p.box((0.18, 0.16, 0.62), (sx * 0.38, -0.52, 0.41), "clay_dark", rot=(0, sx * 10, 0), tile_m=0.4)
+    p.box((1.0, 0.18, 0.16), (0, -0.52, 0.78), "clay_dark", tile_m=0.5)
+    # firewood stacked at the side and a clay pot waiting to be fired
+    for i in range(3):
+        p.log((-0.98, 0.08 + i * 0.17, 0.07 + i * 0.09), (-0.98, 0.22 + i * 0.17, 0.07 + i * 0.09), 0.05,
+              tile="bark", seg=6)
+    for i in range(2):
+        p.log((-0.86, 0.12 + i * 0.18, 0.06), (-0.86, 0.26 + i * 0.18, 0.06), 0.05, tile="bark", seg=6)
+    p.cyl(0.11, 0.18, (0.95, -0.35, 0.19), "clay", seg=10, r2=0.13, cap_tile="clay_dark")
+    p.cyl(0.125, 0.03, (0.95, -0.35, 0.29), "clay_dark", seg=10)
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def _loom_frame(p, half_w, height, warp_n, cloth_w, cloth_d, bench=False):
+    """Shared frame for the looms: two posts, a warp beam, a heddle bar, a top beam, warp threads
+    and a partly woven cloth."""
+    for sx in (-1, 1):
+        p.box((0.09, 0.09, height), (sx * half_w, 0, height / 2), "wood", tile_m=0.7)
+        p.box((0.14, 0.5, 0.08), (sx * half_w, 0, 0.04), "wood_dark", tile_m=0.5)
+        p.log((sx * half_w, 0, height - 0.2), (sx * (half_w - 0.32), 0, height - 0.5), 0.035, tile="wood_dark",
+              seg=5)
+    # beams along X
+    p.log((-half_w, 0, height - 0.08), (half_w, 0, height - 0.08), 0.05, tile="wood_dark")
+    p.log((-half_w, 0, height * 0.66), (half_w, 0, height * 0.66), 0.035, tile="wood", seg=6)
+    p.log((-half_w, 0, 0.28), (half_w, 0, 0.28), 0.05, tile="wood_dark")  # warp beam
+    # warp threads: vertical strands from the warp beam up to the heddle bar
+    z0, z1 = 0.3, height * 0.66
+    for i in range(warp_n):
+        x = -cloth_w / 2 + (i + 0.5) * cloth_w / warp_n
+        p.box((0.012, cloth_d, z1 - z0), (x, 0, (z0 + z1) / 2), "fiber", tile_m=0.6)
+    # the woven part hanging below the heddle bar
+    p.box((cloth_w, cloth_d * 0.92, 0.03), (0, 0, z1 - 0.02), "canvas", tile_m=0.8)
+    p.box((cloth_w * 0.98, cloth_d * 0.9, height * 0.66 - 0.42), (0, 0, (0.42 + z1 - 0.04) / 2), "canvas",
+          tile_m=1.2)
+    # the shuttle lying on the cloth and a peg row
+    p.box((0.16, 0.05, 0.035), (cloth_w * 0.2, 0, z1 - 0.06), "wood", rot=(0, 0, 12), tile_m=0.3)
+    for i in range(3):
+        p.cyl(0.014, 0.12, (-cloth_w * 0.3 + i * 0.1, cloth_d * 0.5, z1 - 0.02), "wood", rot=(90, 0, 0), seg=5)
+    if bench:
+        # a bench in front of the loom for the weaver
+        p.box((cloth_w * 0.8, 0.34, 0.05), (0, -cloth_d * 0.9 - 0.24, 0.46), "plank", tile_m=1.0)
+        for sx in (-1, 1):
+            p.log((sx * cloth_w * 0.32, -cloth_d * 0.9 - 0.24, 0), (sx * cloth_w * 0.32, -cloth_d * 0.9 - 0.24, 0.44),
+                  0.04, tile="wood_dark", seg=6)
+        p.log((-cloth_w * 0.36, -cloth_d * 0.9 - 0.24, 0.2), (cloth_w * 0.36, -cloth_d * 0.9 - 0.24, 0.2), 0.03,
+              tile="wood", seg=5)
+
+
+def loom():
+    """Upright frame loom with warp threads and a partly woven cloth (2x1, about 1.6 m tall)."""
+    p = Part("loom")
+    _loom_frame(p, 0.5, 1.55, 14, 0.86, 0.34, bench=False)
+    # a bundle of yarn waiting at the side and a pair of weights
+    p.cyl(0.11, 0.22, (-0.78, 0.12, 0.11), "weave", seg=9, r2=0.12, cap_tile="fiber")
+    p.cyl(0.06, 0.1, (0.76, 0.06, 0.05), "fiber", seg=8, cap_tile="fiber")
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def large_loom():
+    """The wider loom: a 2 m frame with more warp threads, a finished cloth roll and a bench (3x2,
+    about 1.6 m tall)."""
+    p = Part("large_loom")
+    _loom_frame(p, 0.92, 1.6, 22, 1.6, 0.42, bench=True)
+    # the finished cloth rolled on the warp beam
+    p.cyl(0.11, 1.5, (0, 0, 0.4), "canvas", rot=(0, 90, 0), seg=10, cap_tile="canvas")
+    p.cyl(0.03, 1.6, (0, 0, 0.4), "wood", rot=(0, 90, 0), seg=6)
+    # yarn baskets on both sides
+    p.cyl(0.13, 0.2, (-1.15, 0.1, 0.1), "weave", seg=9, r2=0.14, cap_tile="fiber")
+    p.cyl(0.11, 0.18, (1.12, -0.05, 0.09), "weave", seg=9, r2=0.12, cap_tile="fiber")
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def oven():
+    """Stone bread oven: a stone base with an arched mouth, a stone dome and a flue (2x2, 1.4 m)."""
+    p = Part("oven")
+    # hearth base with a mouth at the front
+    p.box((1.3, 1.2, 0.1), (0, 0.05, 0.05), "cobble", tile_m=0.8)
+    for sx in (-1, 1):
+        p.box((0.26, 1.05, 0.46), (sx * 0.5, 0.02, 0.33), "stone", tile_m=0.7)
+    p.box((1.2, 0.2, 0.46), (0, 0.45, 0.33), "stone", tile_m=0.7)
+    p.box((0.66, 0.06, 0.34), (0, -0.5, 0.27), "soot", tile_m=0.5)
+    p.box((0.74, 0.9, 0.04), (0, 0.0, 0.11), "ash", tile_m=0.6)
+    p.cyl(0.2, 0.03, (0, 0.02, 0.13), "ember", seg=10, cap_tile="ember")
+    p.log((-0.18, -0.18, 0.16), (0.2, -0.24, 0.17), 0.032, tile="char", seg=5, end_tile="ember")
+    # the stone dome: masonry, so it does not read as one smooth grey blob
+    _dome(p, 0.62, 0.5, 0.52, tile="cobble", seg=14, rings=4, cy=0.05)
+    p.cyl(0.64, 0.05, (0, 0.05, 0.54), "stone_dark", seg=14, cap_tile="cobble")
+    # the flue
+    p.cyl(0.15, 0.09, (0, 0.05, 1.04), "stone_dark", seg=10, cap_tile="stone_dark")
+    p.cyl(0.12, 0.3, (0, 0.05, 1.21), "stone", seg=10, cap_tile="soot")
+    # the stone arch over the mouth
+    for sx in (-1, 1):
+        p.box((0.18, 0.16, 0.42), (sx * 0.33, -0.52, 0.32), "stone_dark", rot=(0, sx * 12, 0), tile_m=0.4)
+    p.box((0.86, 0.18, 0.14), (0, -0.52, 0.58), "stone_dark", tile_m=0.5)
+    # A baking peel leaning sideways in screen space against the oven's right-hand masonry: the
+    # blade end lies on the ground, the handle rests on the stone, so it never reads as a pole
+    # stuck in a board.
+    p.log((0.95, 0.62, 0.03), (0.53, 0.3, 0.55), 0.022, tile="wood", seg=5)
+    p.box((0.34, 0.26, 0.025), (0.95, 0.62, 0.03), "wood", rot=(0, 0, 35), tile_m=0.4)
+    p.box((0.5, 0.42, 0.07), (0.85, 0.45, 0.04), "stone_dark", tile_m=0.5)
+    # a bowl of dough ready to go in
+    p.cyl(0.11, 0.07, (0.85, 0.45, 0.11), "clay", seg=9, r2=0.13, cap_tile="clay_dark")
+    p.rock(0.09, (0.85, 0.45, 0.13), tile="fiber", squash=(1.2, 1.0, 0.55), seed=111)
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def large_drying_rack():
+    """Large drying rack on four trimmed pillars (spec 30 s10: 4 Trimmed Wood Pillars, 4 Glue,
+    3 Metal Nails), the rails held by nailed iron brackets, with hides drying over the high rails.
+    Two bays, under 3 m wide (3x1)."""
+    p = Part("large_drying_rack")
+    H = 1.95
+    for x in (-1.35, -0.45, 0.45, 1.35):
+        p.box((0.13, 0.13, H), (x, 0, H / 2), "wood", tile_m=0.8)
+        p.box((0.2, 0.2, 0.06), (x, 0, 0.03), "stone_dark", tile_m=0.4)
+        # the post is chamfered at the top, like the trimmed pillars the spec asks for
+        p.cyl(0.07, 0.1, (x, 0, H + 0.03), "wood", seg=4, r2=0.02, cap_tile="log_end")
+        # iron brackets where the rails meet the post, with a nail head in each
+        for z in (H - 0.16, H * 0.55):
+            p.box((0.05, 0.3, 0.1), (x, 0, z), "iron", tile_m=0.3)
+            for sy in (-1, 1):
+                p.cyl(0.014, 0.03, (x, sy * 0.1, z + 0.03), "iron", rot=(90, 0, 0), seg=5)
+    # the high rails the hides hang over, and a lower rail per bay
+    for y in (-0.16, 0.16):
+        p.log((-1.45, y, H - 0.16), (1.45, y, H - 0.16), 0.045, tile="wood")
+    for x in (-1.45, 0.0, 1.45):
+        p.log((x, -0.16, H * 0.55), (x, 0.16, H * 0.55), 0.035, tile="wood", seg=6)
+    # hides draped over the high rails: each sheet hangs down both sides of the rail
+    for i, x in enumerate((-1.0, -0.35, 0.35, 1.0)):
+        z = H - 0.16
+        p.box((0.6, 0.02, 0.9), (x, -0.19, z - 0.44), "hide", rot=(0, 0, 3 * (i - 1)), tile_m=0.9)
+        p.box((0.6, 0.02, 0.42), (x, 0.13, z - 0.2), "hide", rot=(0, 0, -2 * (i - 1)), tile_m=0.9)
+        # the fold over the rail
+        p.cyl(0.05, 0.6, (x, -0.03, z), "hide", rot=(0, 90, 0), seg=8, cap_tile="hide")
+    # a coil of rope and a bundle of straps on the ground
+    p.torus(0.1, 0.022, (-0.75, -0.3, 0.02), "rope", seg=10, tube=4)
+    for i in range(3):
+        p.box((0.34, 0.1, 0.04), (0.75, -0.32, 0.02 + i * 0.045), "fiber", rot=(0, 0, -6 + 4 * i), tile_m=0.5)
+    _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def _site_stakes(p, hx, hy, stake_h=0.42):
+    """Four corner stakes with a string outline between them: the staked-out footprint. The stakes
+    and the string are deliberately chunky: at the phone zoom (14 m view height, ~28 px/m) a thin
+    rope and a thin stake are sub-pixel and the site reads as bare ground."""
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * hx, sy * hy
+            p.log((x, y, -0.02), (x + sx * 0.03, y + sy * 0.03, stake_h), 0.05, tile="wood_dark", seg=6)
+            # a pale tag on each stake top, so the stake line reads from the game camera
+            p.box((0.11, 0.03, 0.13), (x + sx * 0.03, y + sy * 0.03, stake_h + 0.05), "canvas",
+                  rot=(0, 0, 30 * (sx * sy)), tile_m=0.4)
+    # the string line: a rope run round the four stakes, sagging in the middle
+    corners = [(-hx, -hy), (hx, -hy), (hx, hy), (-hx, hy)]
+    for i in range(4):
+        a = corners[i]
+        b = corners[(i + 1) % 4]
+        mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        p.log((a[0], a[1], stake_h - 0.05), (mx, my, stake_h - 0.12), 0.022, tile="rope", seg=5, end_tile="rope")
+        p.log((mx, my, stake_h - 0.12), (b[0], b[1], stake_h - 0.05), 0.022, tile="rope", seg=5, end_tile="rope")
+    return corners
+
+
+def _site_logs(p, hx, hy, n=4, seed=0):
+    """A heap of logs and rolled straps inside the staked-out corner, on the camera side so the
+    pile is seen. Kept inside the footprint so the model fits its cell.
+
+    The logs are 0.6 m long at a 0.1 m radius (the review round: at the phone zoom of about
+    28 px/m a thinner log is sub-pixel). They are laid side by side in rows that step back from
+    the camera-facing corner and stack two high, so the pile reads as a heap of timber."""
+    per_row = max(2, n // 2)
+    for i in range(n):
+        col, row = i % per_row, i // per_row
+        x = hx - 0.42 - 0.2 * col
+        y = -hy + 0.42 + 0.22 * row
+        z = 0.1 + 0.19 * (row // 2)
+        p.log((x - 0.3, y, z), (x + 0.3, y + 0.03 * (i % 3 - 1), z), 0.1, tile="bark", seg=7)
+    for i in range(2):
+        p.torus(0.11, 0.028, (-hx + 0.32 + i * 0.34, -hy + 0.62, 0.02), "rope", seg=9, tube=4)
+
+
+def _site_scaffold(p, hx, hy, height, braces=True):
+    """Corner posts with horizontal rails and a diagonal brace: the scaffold frame."""
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * hx, sy * hy
+            p.log((x, y, -0.02), (x, y, height), 0.055, tile="bark", seg=7)
+    for z in (height * 0.55, height - 0.05):
+        for sy in (-1, 1):
+            p.log((-hx, sy * hy, z), (hx, sy * hy, z), 0.035, tile="wood", seg=5)
+        for sx in (-1, 1):
+            p.log((sx * hx, -hy, z), (sx * hx, hy, z), 0.035, tile="wood", seg=5)
+    if braces:
+        # The diagonal braces sit on the BACK (+Y) and LEFT (-X) faces: the iso camera looks at
+        # the front (-Y) and right (+X) faces, where they would run through the plank cladding.
+        p.log((-hx, -hy, 0.05), (-hx, hy, height - 0.1), 0.028, tile="wood_dark", seg=5)
+        p.log((-hx, hy, 0.05), (hx, hy, height - 0.1), 0.028, tile="wood_dark", seg=5)
+
+
+def site_small(stage):
+    """Unfinished 2 x 2 m construction site. Stage 0 staked out, 1 half-built frame, 2 full frame
+    with a plank wall started on one side."""
+    p = Part("site_small_%d" % stage)
+    hx, hy = 0.95, 0.95
+    if stage == 0:
+        _site_stakes(p, hx, hy)
+        _site_logs(p, hx, hy, n=6)
+    elif stage == 1:
+        _site_stakes(p, hx, hy, stake_h=0.3)
+        _site_scaffold(p, hx, hy, height=1.15, braces=True)
+        _site_logs(p, hx, hy, n=2)
+    else:
+        _site_scaffold(p, hx, hy, height=2.05, braces=True)
+        # Partial plank cladding on the front (-Y) and right (+X) sides, the two the iso camera
+        # sees: the wall is only part way up, so the frame still shows through it.
+        # The front wall is in two pieces with a doorway gap in the middle; the right wall is a
+        # second course. The cladding stops short of the frame, so the site never reads as done.
+        for i in range(3):
+            p.box((0.61, 0.06, 0.32), (-0.645, -hy, 0.36 + i * 0.34), "plank", tile_m=1.2)
+            p.box((0.61, 0.06, 0.32), (0.645, -hy, 0.36 + i * 0.34), "plank", tile_m=1.2)
+        for i in range(2):
+            p.box((0.06, hy * 2 - 0.1, 0.32), (hx, 0.02, 0.5 + i * 0.34), "plank", tile_m=1.2)
+        # two door posts carry the lintel over the open doorway
+        for sx in (-1, 1):
+            p.log((sx * 0.34, -hy, 0.02), (sx * 0.34, -hy, 1.44), 0.045, tile="wood_dark", seg=6)
+        p.log((-0.42, -hy, 1.44), (0.42, -hy, 1.44), 0.05, tile="wood_dark", seg=6)
+        # a ladder leaning on the frame inside the footprint and a plank stack
+        for sx in (-1, 1):
+            p.log((sx * 0.16, -hy + 0.62, 0.02), (sx * 0.16, -hy + 0.06, 1.55), 0.028, tile="wood", seg=5)
+        for i in range(4):
+            p.log((-0.14, -hy + 0.54 - i * 0.11, 0.36 + i * 0.34), (0.14, -hy + 0.54 - i * 0.11, 0.36 + i * 0.34),
+                  0.022, tile="wood", seg=5)
+        for i in range(3):
+            p.box((0.9, 0.18, 0.05), (0.1, 0.2, 0.04 + i * 0.055), "wood", rot=(0, 0, 3 * i), tile_m=1.0)
+        _center_xy(p)
+    return [(p, (0, 0, 0))]
+
+
+def site_large(stage):
+    """Unfinished 3 x 3 m construction site, same three stages on a bigger footprint."""
+    p = Part("site_large_%d" % stage)
+    hx, hy = 1.45, 1.45
+    if stage == 0:
+        _site_stakes(p, hx, hy, stake_h=0.5)
+        _site_logs(p, hx, hy, n=8)
+    elif stage == 1:
+        _site_stakes(p, hx, hy, stake_h=0.34)
+        _site_scaffold(p, hx, hy, height=1.4, braces=True)
+        _site_logs(p, hx, hy, n=4)
+    else:
+        _site_scaffold(p, hx, hy, height=2.5, braces=True)
+        # Partial plank cladding on the front (-Y) and right (+X) sides, the two the iso camera
+        # sees; the wall stops part way up and to the side, so the frame shows through it.
+        # The front wall is in two pieces with a doorway gap between the door posts; the right
+        # wall is a second course. The cladding stops short of the frame top.
+        for i in range(4):
+            p.box((0.9, 0.07, 0.34), (-1.0, -hy, 0.46 + i * 0.36), "plank", tile_m=1.4)
+            p.box((0.9, 0.07, 0.34), (1.0, -hy, 0.46 + i * 0.36), "plank", tile_m=1.4)
+        for i in range(3):
+            p.box((0.07, hy * 2 - 0.4, 0.34), (hx, 0.2, 0.62 + i * 0.36), "plank", tile_m=1.4)
+        # a doorway frame marked on the front
+        for sx in (-1, 1):
+            p.log((sx * 0.55, -hy, 0.02), (sx * 0.55, -hy, 1.9), 0.045, tile="wood_dark", seg=6)
+        p.log((-0.55, -hy, 1.9), (0.55, -hy, 1.9), 0.04, tile="wood_dark")
+        # A working platform: narrow scaffold boards laid ACROSS the frame, resting on the two
+        # side rails (which run front-to-back) and stopping at the corner posts, so nothing
+        # floats and no board reads as a ramp across the whole footprint.
+        for by, bz in ((-0.45, 1.41), (0.45, 1.41), (0.0, 2.48)):
+            p.box((2 * hx - 0.1, 0.24, 0.05), (0, by, bz), "plank", tile_m=1.6)
+        for sx in (-1, 1):
+            p.log((sx * 0.2, -hy + 0.66, 0.02), (sx * 0.2, -hy + 0.1, 1.8), 0.03, tile="wood", seg=5)
+        for i in range(5):
+            p.log((-0.18, -hy + 0.58 - i * 0.13, 0.4 + i * 0.34), (0.18, -hy + 0.58 - i * 0.13, 0.4 + i * 0.34),
+                  0.024, tile="wood", seg=5)
+    return [(p, (0, 0, 0))]
+
+
+
+# ------------------------------------------------------------------ house kit (modular house parts)
+# ASSUMPTION (the specs give no module numbers): the house module is 2.0 m x 2.0 m in plan, a
+# storey is 2.4 m high, walls are 0.24 m thick and a roof slope rises 0.6 m over 1.0 m of run
+# with the ridge along X at the middle of the module. Every part is centred in plan on its own
+# footprint and based at z = 0, so the three material tiers (log, timber frame, stone) share one
+# module and one pivot rule and a house can mix them. The foundation is the one part that sinks:
+# its top course is at z = 0 and its base 0.48 m below. The front faces -Y, which becomes +Z in
+# Godot, towards the iso camera. The door leaf is the one exception: its origin is on the hinge.
+HOUSE_W = 2.0
+HOUSE_H = 2.4
+HOUSE_T = 0.24
+ROOF_RUN = 1.0
+ROOF_RISE = 0.6
+ROOF_ANG = math.degrees(math.atan2(ROOF_RISE, ROOF_RUN))
+ROOF_LEN = math.hypot(ROOF_RUN, ROOF_RISE)
+WIN_W = 0.9
+WIN_SILL = 1.0
+WIN_HEAD = 1.9
+DOOR_W = 1.0
+DOOR_H = 2.0
+
+
+def _stone_rect(p, x0, x1, z0, z1, depth=HOUSE_T, row_h=0.4):
+    """Coursed stone blocks filling a rectangle of the wall face."""
+    if x1 - x0 < 0.1 or z1 - z0 < 0.1:
+        return
+    rows = max(1, int(round((z1 - z0) / row_h)))
+    ch = (z1 - z0) / rows
+    for i in range(rows):
+        z = z0 + ch * (i + 0.5)
+        off = (ch / 2) if (i % 2) else 0.0
+        k = -1
+        while True:
+            bx = x0 + k * ch + off
+            k += 1
+            if bx > x1:
+                break
+            a, b = max(bx, x0), min(bx + ch, x1)
+            if b - a < 0.12:
+                continue
+            p.box((b - a - 0.04, depth, ch - 0.04), ((a + b) / 2, 0, z),
+                  "stone" if (i + k) % 3 else "stone_dark", tile_m=0.7)
+
+
+def _window_frame(p, w=WIN_W, z0=WIN_SILL, z1=WIN_HEAD):
+    """Frame, mullions and dark glass in the front face of a wall opening."""
+    t = 0.07
+    for x in (-w / 2 - t / 2, w / 2 + t / 2):
+        p.box((t, 0.1, z1 - z0 + 2 * t), (x, -0.14, (z0 + z1) / 2), "wood_dark")
+    for z in (z0 - t / 2, z1 + t / 2):
+        p.box((w + 2 * t, 0.1, t), (0, -0.14, z), "wood_dark")
+    p.box((0.05, 0.09, z1 - z0), (0, -0.14, (z0 + z1) / 2), "wood_dark")
+    p.box((w, 0.09, 0.05), (0, -0.14, (z0 + z1) / 2), "wood_dark")
+    p.box((w - 0.02, 0.05, z1 - z0 - 0.02), (0, 0.04, (z0 + z1) / 2), "soot")
+
+
+def _roof_rafter_tails(p):
+    """Rafter ends and an eave board, so the roof edge reads as built, not a slab."""
+    p.plank((-1.0, -0.46, 0.05), (1.0, -0.46, 0.05), 0.16, 0.1, "wood_dark", up=(0, 0, 1))
+    for x in (-0.78, -0.26, 0.26, 0.78):
+        p.box((0.1, 0.26, 0.09), (x, -0.44, 0.03), "wood_dark")
+
+
+def _roof_panel(p, tile, depth=0.15, tile_m=2.0):
+    """One roof slope: 2.0 m along the ridge, 1.0 m of run, rising 0.6 m from the eave (z = 0
+    at y = -0.5) to the ridge (z = 0.6 at y = +0.5). The tile repeats twice across the slope so
+    the shingle or slate courses read at shingle size, not at slab size."""
+    p.box((2.0, ROOF_LEN, depth), (0, 0, ROOF_RISE / 2), tile, rot=(ROOF_ANG, 0, 0), tile_m=tile_m)
+
+
+def house_foundation():
+    """Stone plinth under a 2 x 2 m house module: the top course is at z = 0 and the base
+    sinks 0.48 m into the ground, so a house can stand on a slope."""
+    p = Part("house_foundation")
+    ch = 0.16
+    # three courses: the top one stands 0.12 m proud of the ground and carries the floor deck,
+    # the bottom one is 0.36 m down, so a plinth still reads on a slope.
+    for i in range(3):
+        z = 0.04 - ch * i
+        tile = "stone" if (i % 2) else "stone_dark"
+        for sy in (-1, 1):
+            for j in range(4):
+                p.box((0.46, 0.26, ch * 0.92), (-0.75 + j * 0.5, sy * 0.88, z), tile, tile_m=0.5)
+        for sx in (-1, 1):
+            for j in range(4):
+                p.box((0.26, 0.46, ch * 0.92), (sx * 0.88, -0.75 + j * 0.5, z), tile, tile_m=0.5)
+    for i in range(6):
+        a = i * 1.05
+        p.rock(0.12, (math.cos(a) * 0.86, math.sin(a) * 0.86, -0.3 + 0.09 * (i % 2)),
+               tile="stone_dark", squash=(1.1, 1.0, 0.7), seed=40 + i)
+    return [(p, (0, 0, 0))]
+
+
+def house_floor():
+    """Plank deck of a 2 x 2 m module on three joists; the boards run across the module."""
+    p = Part("house_floor")
+    for x in (-0.86, 0.0, 0.86):
+        p.box((0.12, 2.0, 0.07), (x, 0, 0.035), "wood_dark", tile_m=0.6)
+    for i in range(8):
+        p.box((2.0, 0.23, 0.06), (0, -0.875 + i * 0.25, 0.10),
+              "plank" if i % 2 else "wood", tile_m=1.0)
+    return [(p, (0, 0, 0))]
+
+
+def house_wall():
+    """Log wall of a 2 m module: 2.0 m wide, 2.4 m high, 0.24 m thick."""
+    p = Part("house_wall")
+    _log_courses(p, -1.0, 1.0, 0.0, 2.4, r=0.12)
+    for sx in (-1, 1):
+        p.cyl(0.115, 2.4, (sx * 0.92, 0, 1.2), "bark", seg=7, cap_tile="log_end")
+    return [(p, (0, 0, 0))]
+
+
+def house_wall_window():
+    """Log wall with a 0.9 x 0.9 m window (sill 1.0 m) framed and glazed on the front."""
+    p = Part("house_wall")
+    _log_courses(p, -1.0, 1.0, 0.0, WIN_SILL, r=0.12)
+    for sx in (-1, 1):
+        p.cyl(0.12, WIN_HEAD - WIN_SILL, (sx * 0.57, 0, (WIN_SILL + WIN_HEAD) / 2), "bark", seg=7,
+              cap_tile="log_end")
+    _log_courses(p, -1.0, 1.0, WIN_HEAD, 2.4, r=0.12)
+    p.box((1.3, 0.3, 0.12), (0, 0, WIN_SILL + 0.06), "wood_dark")
+    p.box((1.3, 0.3, 0.14), (0, 0, WIN_HEAD - 0.07), "wood_dark")
+    _window_frame(p)
+    return [(p, (0, 0, 0))]
+
+
+def house_wall_doorway():
+    """Log wall with a 1.0 x 2.0 m doorway for the hinged door leaf."""
+    p = Part("house_wall")
+    _log_courses(p, -1.0, -0.5, 0.0, 2.4, r=0.12)
+    _log_courses(p, 0.5, 1.0, 0.0, 2.4, r=0.12)
+    p.box((1.18, 0.3, 0.2), (0, 0, DOOR_H + 0.1), "wood_dark")
+    p.box((2.0, 0.08, 0.08), (0, -0.07, 2.36), "wood_dark")
+    p.box((DOOR_W, 0.3, 0.06), (0, 0, 0.03), "plank")
+    return [(p, (0, 0, 0))]
+
+
+def house_door():
+    """Hinged plank door leaf for the 1.0 x 2.0 m doorway. The node origin IS the hinge: the
+    leaf runs from local x = 0 (hinge) to x = 0.95 (latch), so code swings it about local Y."""
+    p = Part("house_door")
+    for i in range(5):
+        p.box((0.185, 0.06, 2.0), (0.095 + i * 0.19, 0, 1.0),
+              "plank" if i % 2 else "wood", tile_m=0.9)
+    for z in (0.35, 1.0, 1.65):
+        p.box((0.95, 0.05, 0.13), (0.475, -0.055, z), "wood_dark")
+    p.plank((0.08, -0.06, 0.28), (0.88, -0.06, 1.72), 0.1, 0.04, "wood_dark", up=(0, -1, 0))
+    for z in (0.35, 1.65):
+        p.box((0.3, 0.045, 0.07), (0.15, -0.075, z), "iron")
+    p.cyl(0.035, 0.09, (0.8, -0.08, 1.0), "iron", rot=(90, 0, 0), seg=6)
+    p.box((0.1, 0.03, 0.1), (0.8, -0.05, 1.0), "iron")
+    return [(p, (0, 0, 0))]
+
+
+def house_roof():
+    """One thatch roof slope of a 2 m module: straw on the slope, bound with rope, fringed at
+    the eave."""
+    p = Part("house_roof")
+    _roof_panel(p, "thatch_dark", tile_m=1.2)
+    _roof_rafter_tails(p)
+    for i in range(9):
+        p.box((0.16, 0.07, 0.12), (-0.9 + i * 0.225, -0.53, 0.045), "thatch_dark", rot=(0, -14, 0))
+    for x in (-0.66, 0.0, 0.66):
+        p.log((x, -0.42, 0.06), (x, 0.42, 0.6), 0.016, tile="rope", seg=4, end_tile="rope")
+    p.plank((-1.0, 0.46, 0.62), (1.0, 0.46, 0.62), 0.12, 0.1, "wood_dark", up=(0, 0, 1))
+    return [(p, (0, 0, 0))]
+
+
+def house_roof_corner():
+    """Hip cap for a roof corner: a thatch pyramid over a 1 x 1 m plan, apex 0.6 m up, with a
+    wooden hip roll along the outer corner."""
+    p = Part("house_roof_corner")
+    base = [(-0.5, -0.5, 0.0), (0.5, -0.5, 0.0), (0.5, 0.5, 0.0), (-0.5, 0.5, 0.0)]
+    apex = (0.0, 0.0, ROOF_RISE)
+    for i in range(4):
+        a, b = base[i], base[(i + 1) % 4]
+        n = (Vector(b) - Vector(a)).cross(Vector(apex) - Vector(a)).normalized()
+        p.prism([a, b, apex], n * 0.1, "thatch_dark", tile_m=1.0)
+    p.log((-0.5, -0.5, 0.03), apex, 0.06, tile="wood_dark", seg=6)
+    for i in range(4):
+        a, b = base[i], base[(i + 1) % 4]
+        p.plank((a[0], a[1], 0.04), (b[0], b[1], 0.04), 0.12, 0.08, "wood_dark", up=(0, 0, 1))
+    return [(p, (0, 0, 0))]
+
+
+def house_roof_gable():
+    """Gable end that closes the roof: a triangle 2.0 m wide, 0.6 m high and 0.24 m thick,
+    boarded, with a king post and two braces."""
+    p = Part("house_roof_gable")
+    p.prism([(-0.12, -1.0, 0.0), (-0.12, 1.0, 0.0), (-0.12, 0.0, ROOF_RISE)], (0.24, 0, 0),
+            "plank", tile_m=1.2)
+    p.plank((-0.14, -1.0, 0.03), (-0.14, 0.0, ROOF_RISE - 0.03), 0.12, 0.06, "wood_dark", up=(0, -1, 0))
+    p.plank((-0.14, 1.0, 0.03), (-0.14, 0.0, ROOF_RISE - 0.03), 0.12, 0.06, "wood_dark", up=(0, -1, 0))
+    p.box((0.26, 2.0, 0.1), (0, 0, 0.05), "wood_dark")
+    p.box((0.24, 0.1, 0.58), (0, 0, 0.29), "wood_dark")
+    for sy in (-1, 1):
+        p.plank((-0.14, sy * 0.85, 0.06), (-0.14, sy * 0.2, 0.42), 0.1, 0.05, "wood_dark", up=(0, -1, 0))
+    return [(p, (0, 0, 0))]
+
+
+def house_stairs():
+    """Four-tread timber stair up to a floor: 1.2 m wide, 0.3 m per tread, 0.2 m per rise."""
+    p = Part("house_stairs")
+    for x in (-0.55, 0.55):
+        p.plank((x, -0.6, 0.05), (x, 0.6, 0.85), 0.14, 0.16, "wood_dark", up=(0, 0, 1))
+    for i in range(4):
+        p.box((1.24, 0.3, 0.07), (0, -0.45 + i * 0.3, 0.2 * (i + 1) - 0.035), "plank", tile_m=0.8)
+    p.box((1.24, 0.32, 0.07), (0, 0.6, 0.8), "plank", tile_m=0.8)
+    # a handrail on the open side: two posts on the stringer line and a sloped rail
+    for y, z0, z1 in ((-0.5, 0.0, 1.05), (0.5, 0.8, 1.55)):
+        p.cyl(0.05, z1 - z0, (0.66, y, (z0 + z1) / 2), "bark", seg=6, cap_tile="log_end")
+    p.plank((0.66, -0.55, 1.05), (0.66, 0.55, 1.55), 0.08, 0.08, "wood", up=(0, 0, 1))
+    return [(p, (0, 0, 0))]
+
+
+def house_wall_timber():
+    """Timber-frame wall of a 2 m module: posts, rails and braces over a plank infill."""
+    p = Part("house_wall")
+    p.box((2.0, 0.24, 0.14), (0, 0, 0.07), "wood_dark")
+    p.box((2.0, 0.24, 0.16), (0, 0, 2.32), "wood_dark")
+    for x in (-0.93, 0.0, 0.93):
+        p.box((0.16, 0.22, 2.4), (x, 0, 1.2), "wood_dark")
+    for z in (0.86, 1.72):
+        p.box((2.0, 0.2, 0.12), (0, 0, z), "wood_dark")
+    p.box((1.72, 0.1, 2.1), (0, 0.06, 1.2), "plank", tile_m=1.2)
+    p.plank((-0.85, -0.12, 0.2), (-0.12, -0.12, 0.78), 0.1, 0.05, "wood_dark", up=(0, -1, 0))
+    p.plank((0.12, -0.12, 1.78), (0.85, -0.12, 1.12), 0.1, 0.05, "wood_dark", up=(0, -1, 0))
+    for x in (-0.7, 0.7):
+        p.cyl(0.028, 0.06, (x, -0.13, 1.2), "iron", rot=(90, 0, 0), seg=5)
+    return [(p, (0, 0, 0))]
+
+
+def house_wall_window_timber():
+    """Timber-frame wall with the same 0.9 x 0.9 m window opening as the log wall."""
+    p = Part("house_wall")
+    p.box((2.0, 0.24, 0.14), (0, 0, 0.07), "wood_dark")
+    p.box((2.0, 0.24, 0.16), (0, 0, 2.32), "wood_dark")
+    for x in (-0.93, -0.53, 0.53, 0.93):
+        p.box((0.16, 0.22, 2.4), (x, 0, 1.2), "wood_dark")
+    for z in (0.5, 2.1):
+        p.box((1.24, 0.2, 0.12), (0, 0, z), "wood_dark")
+    p.box((1.06, 0.1, 0.72), (0, 0.06, 0.5), "plank", tile_m=0.8)
+    p.box((1.06, 0.1, 0.26), (0, 0.06, 2.23), "plank", tile_m=0.8)
+    for sx in (-1, 1):
+        p.box((0.24, 0.1, 0.9), (sx * 0.73, 0.06, 1.45), "plank", tile_m=0.8)
+    p.plank((-0.85, -0.12, 0.2), (-0.6, -0.12, 0.78), 0.1, 0.05, "wood_dark", up=(0, -1, 0))
+    p.plank((0.6, -0.12, 1.9), (0.85, -0.12, 1.2), 0.1, 0.05, "wood_dark", up=(0, -1, 0))
+    _window_frame(p)
+    return [(p, (0, 0, 0))]
+
+
+def house_roof_timber():
+    """One roof slope of a 2 m module in the timber tier: dark cedar shingles on the slope."""
+    p = Part("house_roof")
+    _roof_panel(p, "shingle", depth=0.13, tile_m=1.3)
+    _roof_rafter_tails(p)
+    p.plank((-1.0, 0.46, 0.62), (1.0, 0.46, 0.62), 0.12, 0.1, "wood_dark", up=(0, 0, 1))
+    for x in (-0.8, -0.4, 0.0, 0.4, 0.8):
+        p.log((x, -0.4, 0.1), (x, 0.4, 0.56), 0.022, tile="wood_dark", seg=4, end_tile="wood_dark")
+    return [(p, (0, 0, 0))]
+
+
+def house_wall_stone():
+    """Stone wall of a 2 m module: coursed blocks with bigger quoins at the corners."""
+    p = Part("house_wall")
+    _stone_rect(p, -1.0, 1.0, 0.0, 2.4)
+    for i in range(6):
+        z = 0.2 + i * 0.4
+        for sx in (-1, 1):
+            p.box((0.34, 0.3, 0.3), (sx * 0.83, 0, z), "stone_dark", tile_m=0.6)
+    return [(p, (0, 0, 0))]
+
+
+def house_wall_window_stone():
+    """Stone wall with the same 0.9 x 0.9 m window opening as the log wall."""
+    p = Part("house_wall")
+    _stone_rect(p, -1.0, 1.0, 0.0, WIN_SILL, row_h=0.25)
+    _stone_rect(p, -1.0, 1.0, WIN_HEAD, 2.4, row_h=0.25)
+    _stone_rect(p, -1.0, -0.45, WIN_SILL, WIN_HEAD, row_h=0.3)
+    _stone_rect(p, 0.45, 1.0, WIN_SILL, WIN_HEAD, row_h=0.3)
+    p.box((1.24, 0.32, 0.16), (0, 0, WIN_HEAD + 0.06), "stone_dark", tile_m=0.6)
+    p.box((1.24, 0.32, 0.12), (0, 0, WIN_SILL - 0.04), "stone_dark", tile_m=0.6)
+    _window_frame(p)
+    return [(p, (0, 0, 0))]
+
+
+def house_roof_stone():
+    """One roof slope of a 2 m module in the stone tier: slate on the slope."""
+    p = Part("house_roof")
+    _roof_panel(p, "slate", depth=0.14, tile_m=1.0)
+    _roof_rafter_tails(p)
+    p.plank((-1.0, 0.46, 0.62), (1.0, 0.46, 0.62), 0.12, 0.1, "wood_dark", up=(0, 0, 1))
+    for x in (-0.8, -0.4, 0.0, 0.4, 0.8):
+        p.log((x, -0.4, 0.1), (x, 0.4, 0.56), 0.022, tile="wood_dark", seg=4, end_tile="wood_dark")
+    return [(p, (0, 0, 0))]
+
 BUILDERS = {
+    # farm kit (dsc farmkit): fields, crop stages, path tiles and farm props
+    "field_tilled": farmkit.field_tilled,
+    "field_crop_0": farmkit.field_crop_0,
+    "field_crop_1": farmkit.field_crop_1,
+    "field_crop_2": farmkit.field_crop_2,
+    "field_crop_3": farmkit.field_crop_3,
+    "path_dirt": farmkit.path_dirt,
+    "path_dirt_corner": farmkit.path_dirt_corner,
+    "path_stone": farmkit.path_stone,
+    "path_stone_corner": farmkit.path_stone_corner,
+    "fence_post_rail": farmkit.fence_post_rail,
+    "fence_post_rail_gate": farmkit.fence_post_rail_gate,
+    "trellis": farmkit.trellis,
+    "scarecrow": farmkit.scarecrow,
+    "compost_heap": farmkit.compost_heap,
+    "water_trough": farmkit.water_trough,
     "tent": tent,
     "basket": basket,
     "workbench": workbench,
@@ -1329,6 +2130,22 @@ BUILDERS = {
     "well": well,
     "catapult": catapult,
     "pier": pier,
+    "house_foundation": house_foundation,
+    "house_floor": house_floor,
+    "house_wall": house_wall,
+    "house_wall_window": house_wall_window,
+    "house_wall_doorway": house_wall_doorway,
+    "house_door": house_door,
+    "house_roof": house_roof,
+    "house_roof_corner": house_roof_corner,
+    "house_roof_gable": house_roof_gable,
+    "house_stairs": house_stairs,
+    "house_wall_timber": house_wall_timber,
+    "house_wall_window_timber": house_wall_window_timber,
+    "house_roof_timber": house_roof_timber,
+    "house_wall_stone": house_wall_stone,
+    "house_wall_window_stone": house_wall_window_stone,
+    "house_roof_stone": house_roof_stone,
     "floor": floor,
     "wall": wall,
     "wall_doorway": wall_doorway,
@@ -1351,4 +2168,21 @@ BUILDERS = {
     "field_large": field_large,
     "log_shelter": log_shelter,
     "cabin_bed": cabin_bed,
+    # station art (dsc-stationart)
+    "makeshift_workbench": makeshift_workbench,
+    "basic_workbench": basic_workbench,
+    "journeyman_workbench": journeyman_workbench,
+    "expert_workbench": expert_workbench,
+    "kiln": kiln,
+    "loom": loom,
+    "large_loom": large_loom,
+    "oven": oven,
+    "large_drying_rack": large_drying_rack,
+    "site_small_0": lambda: site_small(0),
+    "site_small_1": lambda: site_small(1),
+    "site_small_2": lambda: site_small(2),
+    "site_large_0": lambda: site_large(0),
+    "site_large_1": lambda: site_large(1),
+    "site_large_2": lambda: site_large(2),
 }
+BUILDERS.update(townkit.builders())

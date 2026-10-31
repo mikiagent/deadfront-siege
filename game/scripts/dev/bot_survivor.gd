@@ -45,6 +45,7 @@ const CATEGORY_ITEMS := {
 	"fuel": ["charcoal"],
 	"meat": ["raw_meat", "raptor_meat"],  # looted from a corpse, never gathered
 	"stone_mat": ["stone"],
+	"tier_stone": ["stone"],  # KNIFESPLIT: the Stone Dagger
 }
 
 var player: Player
@@ -234,6 +235,7 @@ func _recover_for_work() -> String:
 		player._start_sleep(spot)
 		if player._sleep_left <= 0.0: return "sleep was refused"
 		await _beat(spot.sleep_duration() + 0.5)
+		player.sim.get_up()  # a tent keeps her until she gets up
 		if player.vitals.fatigue >= 70.0: return "sleep interrupted"
 	var deadline := _t + 12.0
 	while _t < deadline and player.vitals.energy < 65.0:
@@ -322,7 +324,7 @@ func _craft(rec: Dictionary) -> bool:
 			if not await _beat(0.25):
 				break
 		if player.global_position.distance_to(st.global_position) > Crafting.STATION_RANGE:
-			_event("craft-blocked", "%s: could not reach the %s (%.0f m short)" % [rid, station, player.global_position.distance_to(st.global_position)])
+			_event("craft-blocked", "%s: could not reach the %s (%.0f m short) at %s, station %s" % [rid, station, player.global_position.distance_to(st.global_position), player.global_position.snapped(Vector3.ONE * 0.1), st.global_position.snapped(Vector3.ONE * 0.1)])
 			return false
 	# Stop the station approach first. StationCraft starts only when nav is idle;
 	# a near-enough path can still be active when this loop exits.
@@ -400,9 +402,10 @@ func _build(kind: StringName) -> String:
 	for a in player.context_actions():
 		acts.append(str(a["id"]))
 	if acts.has("claim"):
-		player.context_action("claim")
+		# CLAIMFIX: with land held CLAIM opens the expand panel; the bot confirms it like a player would.
+		if player.actions.claim_confirmed():
+			_event("claim", "claimed the plot under the survivor")
 		await _beat(0.4)
-		_event("claim", "claimed the plot under the survivor")
 	var before := get_tree().get_nodes_in_group("placed_building").size()
 	placer.begin(kind)
 	await _beat(0.4)
@@ -574,7 +577,7 @@ func _travel() -> String:
 	var locked := ""
 	for button in ui.find_children("*", "Button", true, false):
 		var candidate := button as Button
-		if not candidate.text.begins_with("SAIL "): continue
+		if str(candidate.get_meta("route_id", "")) in ["", "home", "camp"]: continue
 		if candidate.disabled:
 			if locked == "": locked = candidate.text
 			continue
@@ -623,7 +626,7 @@ func _return_home() -> String:
 	ui.call("show_harbour")
 	var route: Button = null
 	for button in ui.find_children("*", "Button", true, false):
-		if (button as Button).text.contains("FREE RETURN HOME"):
+		if str(button.get_meta("route_id", "")) == "home":
 			route = button as Button
 			break
 	if route == null:

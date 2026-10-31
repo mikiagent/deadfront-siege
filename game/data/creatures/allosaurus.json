@@ -21,6 +21,7 @@
     "defense": 180,
     "speed": 520
   },
+  "turn_rate": 2.0,
   "tamed_role": [],
   "look": "9 meter large theropod with a boxy skull bearing two small horns above the eyes, powerful jaws, three-fingered arms folded at the chest, thick tail, mottled ochre and brown scaly hide,",
   "texture_prompt": "mottled ochre and dark brown scales, pale underside, dark eye horns, matte surface",
@@ -41,5 +42,39 @@
     "feeds_needed": 6,
     "window_seconds": 45,
     "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 12,
+    "sat": 0.16,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "rufous"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 0.85,
+        "strength": 0.26
+      },
+      {
+        "id": "spots",
+        "weight": 1.0,
+        "scale": 0.9,
+        "strength": 0.48
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
   }
 }

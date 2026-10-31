@@ -1,0 +1,1 @@
+round3: scene1 A=new B=old; scene2 A=old B=new; scene3 A=old B=new; roar mp4 A=new; bite mp4 A=old

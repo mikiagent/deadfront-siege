@@ -22,6 +22,9 @@ var name: String = ""
 var parent_uids: Array[String] = []
 var species: StringName = &""
 var variant: StringName = &""
+## NATURES: the animal's nature (natures.json), kept when it was tamed. Optional in a save: a record
+## without one gets a nature derived from its uid, so every load agrees (PetRecord.from_dict).
+var nature: StringName = &""
 var grade: StringName = &"B"
 var hunger: float = 0.0
 var hunger_max: float = 0.0
@@ -39,7 +42,11 @@ var speed: float = 0.0
 var genetics: CreatureGenetics
 var tamed_role: Array[StringName] = []
 var bag: Inventory
+## SADDLES: what the tame wears (EntityEquipment.TAME_SLOTS). Never null; an old save loads with none.
+var gear := EntityEquipment.new()
 var summoned: bool = false
+## PETSTAY: the radial Stay/Follow command, kept through dismiss/summon and saved ("command"). Old saves load as follow.
+var command: StringName = &"follow"
 ## A dead pet comes back after this long; the PETS sheet shows the countdown ring.
 ## GAUNTLET/HANDOFF rule: 3-minute death cooldown.
 const RESPAWN_TIME := 180.0
@@ -47,6 +54,44 @@ var respawn_left: float = 0.0
 
 func respawning() -> bool:
 	return respawn_left > 0.0
+
+## The individual's natural colours. Never null once genetics exist: a record with no profile (saved
+## before colour profiles existed, or built by hand) derives one from its uid, which is stable, so
+## loading the same pet twice never recolours it.
+func coloration() -> CreatureColoration:
+	if genetics != null and genetics.coloration != null:
+		return genetics.coloration
+	return CreatureColoration.derive(uid)
+
+## SADDLES: the saddle size class a species takes, from its standing height (height_meters).
+# ASSUMPTION: bands small < 2.2 m <= medium < 5 m <= large (the PRDs give no size classes).
+const SADDLE_SIZES: Array[StringName] = [&"small", &"medium", &"large"]
+static func saddle_size(def: CreatureDef) -> StringName:
+	var h := def.height_meters if def != null else 1.0
+	return &"small" if h < 2.2 else (&"medium" if h < 5.0 else &"large")
+
+func saddle() -> ItemStack:
+	return gear.worn(&"saddle")
+
+## "" when `s` is a saddle of this species' size class, else what the player reads.
+func saddle_fit(s: ItemStack) -> String:
+	var d := s.def() if s else null
+	if d == null or not d.has_category(&"saddle"):
+		return "Not a saddle" if d else "Needs a saddle"
+	var want := saddle_size(Data.creature(species))
+	return "" if d.has_category(StringName("saddle_%s" % want)) else "Needs a %s saddle" % want
+
+## Labs and tests: put a new saddle of this species' size on, no bag involved.
+func fit_saddle() -> ItemStack:
+	var s := ItemStack.make(StringName("saddle_%s" % saddle_size(Data.creature(species))))
+	gear.put(&"saddle", s)
+	return s
+
+## Why the survivor cannot ride this tame now, or "" when she can.
+func ride_refusal() -> String:
+	if not (&"mount" in tamed_role):
+		return "Cannot be ridden"
+	return "Needs a saddle" if saddle() == null else saddle_fit(saddle())
 
 func tick_respawn(delta: float) -> void:
 	if respawn_left > 0.0:
@@ -57,12 +102,12 @@ func start_respawn() -> void:
 	summoned = false
 ## Pet level: kills by the pet pay most, kills by the survivor with the pet fighting nearby pay
 ## less. Each level adds three random growth points; PetStats turns level and points into stats.
-## ASSUMPTION: level n needs 30 + 15 n XP.
+## ASSUMPTION: level n needs (30 + 15 n) x pet_xp_cost_mult XP (progression.json).
 var level: int = 1
 var xp: float = 0.0
 
 static func xp_to_next(lv: int) -> float:
-	return 30.0 + 15.0 * float(lv)
+	return (30.0 + 15.0 * float(lv)) * Progression.mult("pet_xp_cost_mult")
 
 ## Returns the number of levels gained.
 func add_xp(amount: float) -> int:
@@ -135,7 +180,11 @@ static func from_def(def: CreatureDef, _legacy_grade: StringName = &"", variant:
 	r.tamed_at = int(Time.get_unix_time_from_system())
 	r.species = def.id
 	r.variant = variant
-	r.genetics = p_genetics if p_genetics != null else CreatureGenetics.roll()
+	r.genetics = p_genetics if p_genetics != null else CreatureGenetics.for_species(def)
+	if r.genetics.coloration == null:
+		# A hand-built genetics record (labs, probes) still gets this individual's own colours, kept
+		# on the record so taming and saving hand the very same profile on.
+		r.genetics.coloration = CreatureColoration.roll(def.coloration)
 	r.level = clampi(p_level, 1, PetStats.MAX_LEVEL)
 	r.wild_level = r.level
 	r.tamed_role = def.tamed_role.duplicate()
@@ -145,16 +194,26 @@ static func from_def(def: CreatureDef, _legacy_grade: StringName = &"", variant:
 	r.bag = Inventory.new(bag_slots_for(def))
 	return r
 
+## The values a pet fights with. Health, defense, accuracy and speed are the cached species numbers;
+## the two attack stats carry the nature's damage multiplier (Docile hits softer, natures.json
+## damage_dealt_mult), so every path that damages with a pet reads the nature without knowing about
+## it. The cached `attack` field and the PETS sheet keep showing the plain species number.
 func stat_value(stat: StringName) -> float:
 	match stat:
 		&"health": return hp
 		&"melee_defense": return defense
 		&"ranged_defense": return ranged_defense
-		&"melee_attack": return attack
-		&"ranged_attack": return ranged_attack
+		&"melee_attack": return attack * _nature_damage()
+		&"ranged_attack": return ranged_attack * _nature_damage()
 		&"accuracy": return accuracy
 		&"speed": return speed
 	return 0.0
+
+## NATURES: the nature's damage multiplier, 1.0 for a record without a known nature.
+func _nature_damage() -> float:
+	if nature == &"":
+		return 1.0
+	return float(CreatureNatures.knobs(nature).get("damage_dealt_mult", 1.0))
 
 func accuracy_chance() -> float:
 	return clampf(0.90 + (accuracy - 100.0) * 0.004, 0.72, 0.99)
@@ -183,6 +242,7 @@ func to_dict() -> Dictionary:
 		"parent_uids": parents,
 		"species": str(species),
 		"variant": str(variant),
+		"nature": str(nature),
 		"grade": str(grade),
 		"hunger": hunger,
 		"hunger_max": hunger_max,
@@ -199,9 +259,11 @@ func to_dict() -> Dictionary:
 		"genetics": genetics.to_dict() if genetics else {},
 		"tamed_role": roles,
 		"bag": bag.to_array() if bag else [],
+		"gear": gear.to_dict(),
 		"level": level,
 		"xp": xp,
 		"respawn_left": respawn_left,
+		"command": str(command),
 	}
 
 ## Stored stats, grade and rates are not trusted: they are recomputed (legacy saves carry the
@@ -225,6 +287,11 @@ static func from_dict(d: Dictionary) -> PetRecord:
 			r.parent_uids.append(str(p))
 	r.species = StringName(str(d.get("species", "")))
 	r.variant = StringName(str(d.get("variant", "")))
+	# NATURES: additive optional field. A record saved before natures (or hand-built) has none: it
+	# gets the same nature its uid derives, so nothing is lost and every load agrees.
+	var nat := StringName(str(d.get("nature", "")))
+	var def_for_arch := Data.creature(r.species) if Data else null
+	r.nature = nat if CreatureNatures.is_valid(nat) else CreatureNatures.from_uid(r.uid, r.species, def_for_arch.archetype if def_for_arch != null else &"")
 	r.grade = StringName(str(d.get("grade", "B")))
 	r.hunger = float(d.get("hunger", 0.0))
 	r.hunger_max = float(d.get("hunger_max", 0.0))
@@ -239,6 +306,12 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	r.accuracy = float(d.get("accuracy", 100.0))
 	r.speed = float(d.get("speed", 0.0))
 	r.genetics = CreatureGenetics.from_dict(d.get("genetics", {})) if d.get("genetics", {}) is Dictionary else CreatureGenetics.neutral()
+	# A save written before colour profiles has none (an all-junk block is erased down to {} by the
+	# sanitizer, so from_dict leaves it null too): derive one from the uid, never paint it neutral.
+	if r.genetics.coloration == null:
+		# A save written before colour profiles: derive one from the pet's uid, so it is the same on
+		# every load (a roll folded into the raw genetics table, which then round-trips like any other).
+		r.genetics.coloration = CreatureColoration.derive(r.uid, Data.creature(r.species).coloration if Data.creature(r.species) != null else {})
 	r.tamed_role.clear()
 	for v in d.get("tamed_role", []):
 		r.tamed_role.append(StringName(str(v)))
@@ -254,4 +327,6 @@ static func from_dict(d: Dictionary) -> PetRecord:
 	# Saved rows only keep a legacy 10-slot bag; a padded save cannot grow the bag past that.
 	r.bag = Inventory.new(bag_slots_for(def, mini(bag_rows.size(), 10)))
 	r.bag.load_array(bag_rows)
+	r.gear = EntityEquipment.from_dict(d.get("gear", {}))
+	r.command = &"stay" if str(d.get("command", "")) == "stay" else &"follow"
 	return r

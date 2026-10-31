@@ -112,7 +112,7 @@ Implement:
 
 The original Weapon/Tool category contains **126 nodes**, making it one of the largest trees. Prior crafting guides explain item level and property transfer but did not fully cover all its recipe unlock lines.
 
-**Documented examples:** Stone Blade Lv1 AUTO, makeshift shovel/hoe Lv1 purchased, stone saw Lv10/2 SP, bone saw Lv25/3 SP, metal saw Lv45/5 SP; corresponding tool tiers influence which high-level materials can be gathered. Handle Lv20/3 SP, Improved Handle Lv40/4 SP, Shaft Lv60/6 SP unlock higher-level weapon parts. Stone Mortar Lv20/3 SP, Earthenware Mortar Lv40/4 SP and Metal Mortar Lv60/6 SP unlock progressively demanding culinary implements. Standard Bow appears around Lv20. Instrument making also appears as a skill line.
+**Documented examples:** Stone Blade Lv1 AUTO, makeshift shovel/hoe Lv1 purchased, stone saw Lv10/2 SP, bone saw Lv25/3 SP, metal saw Lv45/5 SP; corresponding tool tiers influence which high-level materials can be gathered. Handle Lv20/3 SP, Improved Handle Lv40/4 SP, Shaft Lv60/6 SP unlock higher-level weapon parts. Stone Mortar Lv20/3 SP, Earthenware Mortar Lv40/4 SP and Metal Mortar Lv60/6 SP unlock progressively demanding culinary implements. Standard Bow appears around Lv20. Owner's 2026-10-27 screenshots pin the early tool ladder: **Wooden Harpoon** at Lv. 3 for 1 SP — its detail rail reads "Learn how to make a wooden harpoon used for catching fish." and links straight to the recipe (04's reference section) — then **Stone Hoe** and **Stone Pickaxe** at 2 SP from Lv. 10, following the Lv. 1 makeshift shovel/hoe pair. Instrument making also appears as a skill line. The complete quantified weapon-part chains (blades/heads/limbs/bodies/bowstrings through the three knife/axe tier generations and the PRO-class bows) are transcribed in `34_crafting_materials_catalog.md` § Weapons and tools; the adoption question is `docs/vision/WildLandsMMO_Open_Questions.md` 01.
 
 Implement:
 - Weapon families (clubs, knives, axes, hammers, spears, bows and others already in-game), tool families (saw, pickaxe, shovel, hoe, knife), specialty handles/shafts, mortars, and appropriate instruments.
@@ -174,7 +174,7 @@ Implement:
 
 This is the **13th category** recorded in extracted client skill data, with **18 nodes costing 0 SP** and specialized island progression. It should be a separate optional/late-game expansion, not silently folded into normal Survival.
 
-**Documented unlocks include:** Moss Hut, Wooden Harpoon, Vine Work Outfit, Vine Work Hat, Work Tools, Cooking Bonfire, Insect Gruel, Makeshift Bow, Fog Shelter, Recycled Gloves, Recycled Work Outfit, Recycled Boots and Recycled Gas Mask. The outfit descriptions refer to oil fog and toxicity protection.
+**Documented unlocks include:** Moss Hut, Wooden Harpoon, Vine Work Outfit, Vine Work Hat, Work Tools, Cooking Bonfire, Insect Gruel, Makeshift Bow, Fog Shelter, Recycled Gloves, Recycled Work Outfit, Recycled Boots and Recycled Gas Mask. The outfit descriptions refer to oil fog and toxicity protection. (A 2026-10-27 screenshot places a Wooden Harpoon purchase in the ordinary Weapon/Tool tree at Lv. 3 / 1 SP — either revisions moved it or two versions coexisted; keep the packs' entries separate until extracted data say otherwise.)
 
 Implement only if the project has an appropriate Toxic Oil Island biome or if new-world content is explicitly within scope:
 - Toxic exposure and weather/fog sources, protective gear levels, and equipment condition.

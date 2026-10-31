@@ -1,7 +1,7 @@
 class_name PlayerActions
 extends RefCounted
 ## The survivor's command layer: every verb that changes the bag, gear, the world or a creature
-## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash) goes through here. Offline each verb
+## (gather, loot, craft, place, equip, eat, tame, attack, drink, wash, rest) goes through here. Offline each verb
 ## applies locally exactly as before. Online (W3-SRVACT) the same call becomes an `act.<verb>`
 ## intent for the server (contracts.md section 0.3) and nothing changes locally until the
 ## server's delta arrives. To add a verb (W2-ACTION: swing, dodge, block, aim): add one method
@@ -21,6 +21,9 @@ var online: bool = false
 var sent: Array[Dictionary] = []
 var _corpse_slot: int = -1
 var _gather_unit_time: float = 1.0
+## XPECON: the seconds the last gather pass really took (tools and Gathering shorten it). The pass
+## pays rules.json xp.gather_base + round(this), so faster work pays less XP and slow work pays more.
+var _gather_pass_seconds: float = 1.0
 
 func _init(player: Player) -> void:
 	p = player
@@ -148,16 +151,15 @@ func finish_gather() -> void:
 		stop_gather_cycle()
 		p.gather_target = null
 		return
+	# ONEGATHER: one instance per pass, never more; HARVESTROLL: its own level and traits every pass.
+	var stack := gt.roll_yield(GatherService.rng, GatherService.tool_tier(p.inventory, gt.required_tool_class, gt.family), GatherService._skill(p))
 	if gt.required_tool_class != &"" and gt.required_tool_class != &"none":
-		if not p.inventory.wear_gather_tool(gt.required_tool_class):
+		# P1 WEAR: the lot's level after the downrank below sets the wear.
+		var lot_level := mini(stack.level, maxi(p.skills.level_of("gathering"), 5)) if p.skills else stack.level
+		if not p.inventory.wear_gather_tool(gt.required_tool_class, lot_level):
 			stop_gather_cycle()
 			p.gather_target = null
 			return
-	var stack := gt.roll_yield()
-	var yield_mult := _gather_yield_multiplier(gt)
-	stack.count = maxi(1, int(floor(float(stack.count) * yield_mult)))
-	if randf() < fmod(yield_mult, 1.0):
-		stack.count += 1
 	if p.skills:
 		# rules.json gathering_downrank: a node above your Gathering level yields at your level.
 		# ASSUMPTION: floor of 5 so a fresh survivor still gets usable materials.
@@ -165,11 +167,15 @@ func finish_gather() -> void:
 		if stack.level > cap:
 			stack.level = cap
 			stack.attributes["level"] = cap
-		p.skills.add_xp("gathering", 2)
+		# XPECON (islands-and-loop 3.3/3.4): the pass pays 1 + round(its own seconds), so bare hands
+		# and a slow node pay more, a better tool or a higher Gathering level pay less. SkillState
+		# mirrors every grant into World.add_xp, so the character bar follows.
+		p.skills.add_xp("gathering", gather_pass_xp(_gather_unit_time))
 		if gt.family.begins_with("Rock") or gt.family == "clay":
 			p.skills.add_xp("processing", 1)
 	var attrs := stack.attributes.duplicate(true)
 	var before := stack.count
+	var had := p.inventory.uids()  # W2-GATHER: the units this pass lands are the instances not in it
 	var left := p.inventory.add(stack)
 	var gained := before - left
 	if gained <= 0:
@@ -179,11 +185,12 @@ func finish_gather() -> void:
 		p.gather_target = null
 		return
 	gt.consume_unit()
+	GatherService.after_unit(p, gt, stack, gained, had)  # W2-GATHER: helper-tool wear, rare traits and finds, yield popup
 	if p._gather_radial and p._gather_radial.is_open():
 		p._gather_radial.refresh()
 	print("[item] +%d %s %s (pool %d/%d)" % [gained, stack.def_id, attrs, gt.pool_units_left(), gt.pool_max])
 	if p.skills == null:
-		World.add_xp(2)
+		World.add_xp(gather_pass_xp(_gather_unit_time))
 	p.toast(stack.def_id, gained)
 	p.vitals.add_fatigue(GATHER_FATIGUE_PER_UNIT, &"gather")
 	WaterAccess.soil(p, &"gather")
@@ -193,17 +200,15 @@ func finish_gather() -> void:
 		return
 	_start_gather_cycle(_scaled_gather_seconds(gt))
 
-func _scaled_gather_seconds(node: HarvestNode) -> float:
-	var tool := p.inventory.find_gather_tool(node.required_tool_class)
-	var skill_level := maxi(1, p.skills.level_of("gathering")) if p.skills else 1
-	var zone_level := int(node.yield_attributes.get("level", 1))
-	return ProgressionScaling.gather_seconds(node.gather_seconds, zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", skill_level)
+## XPECON (islands-and-loop 3.3/3.4): one gather pass pays rules.json xp.gather_base plus the pass's
+## own whole seconds, so the stone (4 s) and log (4 s) passes pay 5 and a berry pass (2 s) pays 3,
+## and a tool or a Gathering level that shortens the work shortens the award with it.
+static func gather_pass_xp(seconds: float) -> int:
+	var cfg: Dictionary = Data.world_rules.get("xp", {})
+	return int(cfg.get("gather_base", 1)) + int(roundf(maxf(0.0, seconds)))
 
-func _gather_yield_multiplier(node: HarvestNode) -> float:
-	var tool := p.inventory.find_gather_tool(node.required_tool_class)
-	var skill_level := maxi(1, p.skills.level_of("gathering")) if p.skills else 1
-	var zone_level := int(node.yield_attributes.get("level", 1))
-	return ProgressionScaling.gather_yield_multiplier(zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", skill_level)
+func _scaled_gather_seconds(node: HarvestNode) -> float:
+	return GatherService.unit_seconds(p, node)  # W2-GATHER: role tool helps, bare hands slower
 
 func _start_gather_cycle(seconds: float) -> void:
 	p._gathering = true
@@ -225,11 +230,16 @@ func stop_gather_cycle(fade_ring: bool = true) -> void:
 	if fade_ring and radial and radial.is_open() and radial.active_index >= 0:
 		radial.close()  # the gather ended (cancelled, pool empty, bag full): drop the menu
 
-## While the radial is open on this node the picked hex shows the unit progress; otherwise
-## the floating hex over the node does.
+## The picked hex on the radial pie-fills with the unit progress (UIGATHER, spec §4). A gather that
+## started without the fan (INTERACT, Space) opens it on its node with that option running.
+## ASSUMPTION (spec open question 7): the floating gather ring is retired for harvest nodes; it stays
+## only as the fallback when there is no radial (taming and crafting still use it).
 func _update_gather_ring(progress: float) -> void:
 	var radial := p._gather_radial
-	if radial and radial.is_open() and p.gather_target and radial.active_node() == p.gather_target:
+	var gt := p.gather_target
+	if radial and gt and is_instance_valid(gt) and radial.active_node() != gt:
+		radial.show_running(gt, p.inventory)
+	if radial and radial.is_open() and gt and radial.active_node() == gt:
 		radial.set_progress(progress)
 		if p._gather_ring:
 			p._gather_ring.clear_now()
@@ -241,7 +251,7 @@ func _update_gather_ring(progress: float) -> void:
 	else:
 		p._gather_ring.fade_out()
 
-## A hex picked on the shared radial: a field action, a corpse stack or a gather option.
+## A hex picked on the shared radial: a field action, a carcass part to cut or a gather option.
 func on_option_picked(anchor: Node3D, index: int) -> void:
 	if anchor == null or not is_instance_valid(anchor):
 		return
@@ -254,9 +264,16 @@ func on_option_picked(anchor: Node3D, index: int) -> void:
 		p._field_radial_opts.clear()
 		return
 	if anchor is Corpse:
-		var opts := (anchor as Corpse).loot_options(p.inventory)
-		if index < opts.size():
-			begin_corpse_take(anchor as Corpse, int(opts[index]["slot"]))
+		# LOOTRADIAL: a part hex starts that part's timed cut (the carcass's own clock pie-fills the hex).
+		var c := anchor as Corpse
+		var opts := c.radial_options(p)
+		var why := "" if index < opts.size() else "nothing left"
+		if why == "":
+			auto_equip_tool(&"knife")
+			why = c.begin_cut(StringName(str(opts[index]["item"])), p)
+		if why != "":
+			p.notice(why.left(1).to_upper() + why.substr(1))
+			p._gather_radial.refresh()
 		return
 	if anchor is HarvestNode:
 		gather(anchor as HarvestNode, index)
@@ -264,6 +281,11 @@ func on_option_picked(anchor: Node3D, index: int) -> void:
 # ---------------------------------------------------------------- tame
 
 func begin_field_tame(creature: Creature) -> bool:
+	# ALPHATAG (owner 2026-10-29): an alpha is never tamable; the tap says so.
+	if FieldTame.is_alpha(creature):
+		p.notice(FieldTame.ALPHA_REFUSAL)
+		print("[tame] refused: %s" % FieldTame.ALPHA_REFUSAL)
+		return false
 	if not FieldTame.can_attempt(creature):
 		return false
 	var food := FieldTame.food_in_bag(p.inventory, creature)
@@ -323,6 +345,12 @@ func _update_tame_ring(progress: float) -> void:
 		ring.fade_out()
 
 func pen_interact(pen: TamingPen) -> void:
+	# E2: with the HUD up, the pen opens the Taming Pen screen (tame-or-store, timer, feed); a lab
+	# or test without a HUD keeps the direct insert / feed path below.
+	var hud := p.get_tree().get_first_node_in_group("hud") if p.is_inside_tree() else null
+	if hud != null and hud.has_method("open_taming_pen"):
+		hud.call("open_taming_pen", pen)
+		return
 	if pen.running:
 		pen.feed(p)
 	else:
@@ -384,7 +412,7 @@ func _corpse_take_timer(corpse: Corpse, slot: int) -> void:
 	p.get_tree().create_timer(CORPSE_TAKE_SECONDS).timeout.connect(func () -> void: loot(corpse, slot))
 
 ## Move one corpse loot stack into the bag. Only what fits moves; the rest stays in the corpse
-## (sec-loss-08), and Butchering XP is paid once, only when units moved (sec-xpfarm-07).
+## (sec-loss-08), and Butchering XP is paid only when units moved (sec-xpfarm-07), once per drop kind.
 func loot(corpse: Corpse, slot: int) -> int:
 	if corpse == null or not is_instance_valid(corpse) or slot < 0 or slot >= corpse.loot.slot_count:
 		return 0
@@ -399,13 +427,14 @@ func loot(corpse: Corpse, slot: int) -> int:
 	if moved <= 0:
 		p.notice("Bag is full.")
 		return 0
-	p.inventory.wear_gather_tool(&"knife")
+	p.inventory.wear_gather_tool(&"knife", corpse.level)  # P1 WEAR: the carcass level
 	print("[item] +%d %s (loot %s)" % [moved, def_id, corpse.species])
-	if p.skills:
-		p.skills.add_xp("butchering", 3)
-	else:
-		World.add_xp(3)
-	WaterAccess.soil(p, &"butcher")
+	if corpse.first_take_of(def_id): # W2-INV: once per drop kind, not per instance taken
+		if p.skills:
+			p.skills.add_xp("butchering", 3)
+		else:
+			World.add_xp(3)
+		WaterAccess.soil(p, &"butcher") # one loot stack's grime (water.json), per kind as XP is
 	p.toast(def_id, moved)
 	return moved
 
@@ -427,9 +456,25 @@ func fill_water() -> bool:
 		return _send(&"fill", {})
 	return WaterAccess.fill(p)
 
+# ---------------------------------------------------------------- rest
+
+## Sit down to rest, or get up when already resting (the Rest hex, the X key). Online the intent
+## carries the wanted state, so a retried send does not flip it back. The rules are RestState's.
+func rest() -> bool:
+	var on := not p.sim.rest.resting
+	if online:
+		return _send(&"rest", {"on": on})
+	if on:
+		return p.sim.rest.start()
+	p.sim.rest.stop()
+	return true
+
 # ---------------------------------------------------------------- craft, eat, equip, place
 
-func craft(rid: StringName, count: int = 1) -> bool:
+## `uids`: the instance that leads each recipe slot (empty = default picks).
+## ASSUMPTION: online crafts send no picks yet (the server intent takes recipe_id + count); the server
+## uses its default picks, the same ones the craft card showed before the place-materials view.
+func craft(rid: StringName, count: int = 1, uids: Array[String] = []) -> bool:
 	if p.station_craft == null:
 		return false
 	if online:
@@ -437,13 +482,45 @@ func craft(rid: StringName, count: int = 1) -> bool:
 	cancel_work()
 	if p.hunt:
 		p.hunt.stop()
-	p.station_craft.begin(rid, count)
+	p.station_craft.begin(rid, count, uids)
 	return true
+
+## COLLECT on a process station (drying rack, smoker, crock pot, steamer): its finished outputs into
+## the bag, one toast per item id (a rack can hold dried meat and dried hide at once).
+func collect(st: Node3D) -> bool:
+	if online:
+		return _send(&"collect", {"station": net_id(st)})
+	var ps := ProcessStation.of(st)
+	if ps == null or ps.collect_into(p.inventory, p) <= 0:
+		return false
+	for id in ps.last_collected:
+		p.toast(id, int(ps.last_collected[id]))
+	return true
+
+## TAKE BACK on a process station: jobs still waiting for a slot return their own inputs to the bag.
+func take_back(st: Node3D) -> bool:
+	if online:
+		return _send(&"take_back", {"station": net_id(st)})
+	var ps := ProcessStation.of(st)
+	return ps != null and ps.take_back_into(p.inventory, p) > 0
 
 func eat(index: int) -> bool:
 	if online:
 		return _send(&"eat", {"slot": index})
 	return p.eat_session != null and p.eat_session.begin_eat(index)
+
+## FOODTORPOR: eat the Food Bag front to back (the BAGUI eat queue); online, one lot per intent.
+func eat_food_bag() -> bool:
+	var order := p.inventory.food_bag_prune().filter(func (i: int) -> bool: return Food.can_eat(p, p.inventory.slots[i]) == "")
+	if order.is_empty():
+		p.notice("Nothing in the Food Bag can be eaten now")
+		return false
+	if online or p.eat_session == null:
+		return eat(order[0])
+	var stacks: Array[ItemStack] = []
+	for i: int in order:
+		stacks.append(p.inventory.slots[i])
+	return p.eat_session.begin_queue(stacks) > 0
 
 func equip(slot: StringName, def_id: StringName) -> bool:
 	if online:
@@ -474,12 +551,41 @@ func attack(target: Creature = null) -> bool:
 	if target == null:
 		target = hunt.target if hunt.target and is_instance_valid(hunt.target) and not hunt.target.health.dead else nearest_creature(ATTACK_SEEK_RANGE, false)
 	if target == null or target.is_pet:
+		# Nothing alive to hit: a swing clears the scenery in front (owner: most props can be
+		# destroyed; a cliff refuses and stays). ASSUMPTION: clearing gives no loot.
+		return clear_prop_in_front()
+	if target.is_pet:
 		return false
 	if online:
 		return _send(&"attack", {"net_id": net_id(target)})
 	if hunt.target != target:
 		hunt.start(target)
 	return hunt.swing_now()
+
+## The pet radial's Rename: the character-name rule (CharacterStore.name_problem). Returns "" or why not.
+func rename_pet(rec: PetRecord, new_name: String) -> String:
+	var nm := new_name.strip_edges()
+	var why := CharacterStore.name_problem(nm)
+	if rec == null or why != "":
+		return why if why != "" else "no pet"
+	if online:
+		_send(&"pet_rename", {"pet_uid": rec.uid, "name": nm})
+		return ""
+	rec.name = nm
+	print("[pets] renamed %s to %s" % [rec.species, nm])
+	return ""
+
+## One swing at the scenery: the nearest destroyable prop in front of the survivor goes.
+func clear_prop_in_front() -> bool:
+	if World == null or World.runtime == null:
+		return false
+	var props: Variant = World.runtime.get("props")
+	if props == null or not is_instance_valid(props) or not props.has_method("clear_in_front"):
+		return false
+	if not bool(props.call("clear_in_front", p, 2.6)):
+		return false
+	p.play_attack()
+	return true
 
 func nearest_creature(max_d: float, include_pets: bool) -> Creature:
 	var best: Creature = null
@@ -504,18 +610,20 @@ func use_medicine() -> void:
 		print("[item] used pressure_dressing")
 
 ## Normal context action. One dose gives three landed hits; never overwrites live charges.
-func coat_weapon() -> bool:
+## `coating` toxin_coating (poison) or sedative (FOODTORPOR: each charged hit adds sedative torpor).
+func coat_weapon(coating: StringName = &"toxin_coating") -> bool:
 	var weapon := p.inventory.equipped_weapon()
+	var attr := "sedative_hits" if coating == &"sedative" else "toxin_hits"
 	if p.dead or p.rolling or p.anim._busy or p.vitals.in_combat or (p.hunt and p.hunt.target != null):
 		p.notice("Coat your weapon outside combat")
 		return false
-	if weapon == null or int(weapon.attributes.get("toxin_hits", 0)) > 0:
+	if weapon == null or int(weapon.attributes.get(attr, 0)) > 0:
 		p.notice("Equip an uncoated weapon")
 		return false
-	if not p.inventory.consume(&"toxin_coating", 1): return false
-	weapon.attributes["toxin_hits"] = 3
+	if not p.inventory.consume(coating, 1): return false
+	weapon.attributes[attr] = 3
 	p.inventory.changed.emit()
-	p.notice("Toxin ready:3 landed hits")
+	p.notice("%s ready: 3 landed hits" % ("Sedative" if coating == &"sedative" else "Toxin"))
 	return true
 
 ## Place one snare 2 m ahead using normal HUD action, valid dry terrain and real inventory.
@@ -566,23 +674,81 @@ func place_snare(id: StringName) -> bool:
 
 ## Claim a 14x14 plot here. Home: free (expansion by Pioneer level is M10's problem).
 ## Unstable: the first plot is free, later ones consume a claim_stake. ASSUMPTION.
+## A survivor who holds no plot on this island stakes one straight away (first claim, the tutorial
+## flow). Holding any plot, the same press only asks: the HUD opens its CLAIM confirm and only that
+## panel's confirm calls claim_confirmed(). A press never moves or drops land already held; the
+## plots only ever add, so nothing can be orphaned by a press. ASSUMPTION: the PRD (13.1) and spec
+## 18 are silent on a second claim; they describe expansions, one free then paid, which this is.
 func claim() -> void:
 	var rt := World.runtime
 	if rt == null or not rt.has_method("claim_at"):
 		return
-	if not World.is_home():
-		if World.free_claim_used:
-			if not p.inventory.consume(&"claim_stake", 1):
-				print("[world] claim refused: needs claim_stake")
-				return
-		World.free_claim_used = true
+	# CLAIMS2 / spec 29: at the cap the press says so before it asks, naming the numbers.
+	var capped: String = str(rt.call("claim_limit_reason")) if rt.has_method("claim_limit_reason") else ""
+	if capped != "":
+		print("[world] claim refused: %s" % capped)
+		p.notice("%s. Raise your Pioneer rank (or the Communications Center) to claim more." % capped)
+		return
+	if not (rt.get("claims") as Array).is_empty():
+		if online:
+			p.notice("Expanding a claim online is not wired yet.")
+			return
+		var hud := p.get_tree().get_first_node_in_group("hud")
+		if hud and hud.has_method("open_claim_confirm"):
+			hud.call("open_claim_confirm")
+			return
+		print("[world] claim refused: you already hold land here; nothing moved")
+		p.notice("You already hold land here. Nothing moved.")
+		return
+	claim_confirmed()
+
+## Stake the plot under the survivor. The CLAIM confirm calls this; a first claim calls it directly.
+## True when the plot is yours now (a refused plot keeps the stake and the free first plot).
+func claim_confirmed() -> bool:
+	var rt := World.runtime
+	if rt == null or not rt.has_method("claim_at"):
+		return false
+	if World.is_tutorial():
+		p.notice("The tutorial island can't be claimed: your own island comes at the end of the orders")
+		return false
+	# PRD 13.1: with land already held a claim is one orthogonal expansion of it, never a plot out on
+	# its own (the confirm path runs this too, so a stale panel cannot stake a hop).
+	if not (rt.get("claims") as Array).is_empty() and rt.has_method("claim_expand_reason"):
+		var why := str(rt.call("claim_expand_reason", BuildGrid.tile_of(p.global_position)))
+		if why != "":
+			print("[world] claim refused: %s" % why)
+			p.notice("Can't claim here: %s" % why)
+			return false
+	var stake := not World.is_home() and World.free_claim_used
+	if stake and p.inventory.count_of(&"claim_stake") < 1:
+		print("[world] claim refused: needs claim_stake")
+		p.notice("Needs a claim stake.")
+		return false
+	var why_now := str(rt.call("claim_expand_reason", BuildGrid.tile_of(p.global_position)))
 	if not rt.claim_at(BuildGrid.tile_of(p.global_position)):
-		print("[world] claim refused: not dry land")
+		print("[world] claim refused: %s" % why_now)
+		p.notice("Can't claim here: %s." % (why_now if why_now != "" else "not dry land, or another survivor's"))
+		return false
+	# Paid only once the plot is yours: a refused claim keeps the stake (and the free first plot).
+	if stake:
+		p.inventory.consume(&"claim_stake", 1)
+	if not World.is_home():
+		World.free_claim_used = true
+	return true
 
 # ---------------------------------------------------------------- structures
 
 ## Tap on a placed structure. Gates open and close (structure.interact), shift-tap at home packs
 ## any kind up (one shared pack-up, all-or-nothing on the bag), baskets open their storage.
+## A basket's storage (the radial's OPEN wedge): a pet's bag empties into it first.
+func open_basket(b: Node) -> void:
+	if b == null or not b.get("storage") or p.ui == null:
+		return
+	var pet := p.pets.nearest(9999.0)
+	if pet and pet.pet_record and pet.pet_record.bag:
+		p.pets.dump_bag_into(pet, b.storage)
+	p.ui.show_storage(b.storage, p, {"title":"Basket","allow_deposit":true})
+
 func building_interact(b: Node) -> void:
 	if World.is_home() and Input.is_action_pressed("sprint"):
 		BuildPlacer.pack_up_node(b, p)
@@ -592,14 +758,14 @@ func building_interact(b: Node) -> void:
 	if b is FieldPlot:
 		p.open_field(b as FieldPlot)
 		return
+	if b.is_in_group("construction_site"):
+		b.call("interact", p)
+		return
 	if StationCraft.is_craft_station(b) or b.is_in_group("sleep_spot"):
 		p.open_station_craft(b as Node3D)
 		return
 	if str(b.get("kind")) == "basket" and b.get("storage") and p.ui:
-		var pet := p.pets.nearest(9999.0)
-		if pet and pet.pet_record and pet.pet_record.bag:
-			p.pets.dump_bag_into(pet, b.storage)
-		p.ui.show_storage(b.storage, p, {"title":"Basket","allow_deposit":true})
+		p.open_station_craft(b as Node3D)  # CRAFTRADIAL: the radial's OPEN wedge calls open_basket
 		return
 	if str(b.get("kind")) == "sign":
 		print("[world] sign: %s" % (str(b.get("sign_text")) if str(b.get("sign_text")) != "" else "(blank)"))

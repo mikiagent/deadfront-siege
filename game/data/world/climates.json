@@ -258,7 +258,14 @@
       "rain",
       "storm"
     ],
-    "day_night": true
+    "day_night": true,
+    "palette": {
+      "grass": "#3f8f3a",
+      "dry": "#6f9a45",
+      "dirt": "#6a4a30",
+      "sand": "#e6d3a0",
+      "rock": "#6c6a5e"
+    }
   },
   "tundra": {
     "tiers": [
@@ -270,7 +277,7 @@
       "cold_high"
     ],
     "vegetation": [
-      "PineTree",
+      "ResinPine",
       "PineTree_Snow",
       "Bush_Snow",
       "Rock_Snow",
@@ -309,7 +316,14 @@
       "snow",
       "wind"
     ],
-    "day_night": true
+    "day_night": true,
+    "palette": {
+      "grass": "#8a9a78",
+      "dry": "#a6a58a",
+      "dirt": "#6b6052",
+      "sand": "#b9b29c",
+      "rock": "#8a8a88"
+    }
   },
   "desert": {
     "tiers": [
@@ -358,7 +372,14 @@
       "scorching",
       "sandstorm"
     ],
-    "day_night": true
+    "day_night": true,
+    "palette": {
+      "grass": "#a8925c",
+      "dry": "#b89e68",
+      "dirt": "#8f6c46",
+      "sand": "#d8bc88",
+      "rock": "#8a6c50"
+    }
   },
   "swamp": {
     "tiers": [
@@ -410,7 +431,14 @@
       "overcast",
       "fog"
     ],
-    "day_night": true
+    "day_night": true,
+    "palette": {
+      "grass": "#4f6a3a",
+      "dry": "#6a6a40",
+      "dirt": "#4a3f2c",
+      "sand": "#8a7d5a",
+      "rock": "#5c5e52"
+    }
   },
   "snowfield": {
     "tiers": [
@@ -452,7 +480,14 @@
       "wind",
       "clear"
     ],
-    "day_night": true
+    "day_night": true,
+    "palette": {
+      "grass": "#dfe6ea",
+      "dry": "#c8d0d4",
+      "dirt": "#8a8478",
+      "sand": "#d6d8d6",
+      "rock": "#7a7e82"
+    }
   },
   "blue_tropical": {
     "tiers": [
@@ -495,7 +530,14 @@
       "clear",
       "storm"
     ],
-    "day_night": true
+    "day_night": true,
+    "palette": {
+      "grass": "#3e9a5a",
+      "dry": "#78a85a",
+      "dirt": "#6a5038",
+      "sand": "#f0e6c8",
+      "rock": "#6e7470"
+    }
   },
   "volcanic": {
     "tiers": [
@@ -533,6 +575,13 @@
       "ash_storm",
       "clear"
     ],
-    "day_night": true
+    "day_night": true,
+    "palette": {
+      "grass": "#6f6a52",
+      "dry": "#80785f",
+      "dirt": "#5d534b",
+      "sand": "#6e6963",
+      "rock": "#514e4c"
+    }
   }
 }

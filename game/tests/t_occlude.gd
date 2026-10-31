@@ -22,7 +22,7 @@ const BACK := Vector3(0.5773503, 0.5773503, 0.5773503)
 ## The survivor's chest (the player origin is its capsule centre, 0.9 m above the feet).
 const CHEST := Vector3(0, 1.2, 0)
 ## The fade body every derived material includes.
-const INCLUDE := "res://shaders/occlusion/occlusion.gdshaderinc"
+const INCLUDE := "res://scripts/world/occlu_fade.gdshaderinc"
 
 func _process(_delta: float) -> bool:
 	if _started or root.get_node_or_null("Data") == null:

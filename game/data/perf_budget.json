@@ -1,0 +1,73 @@
+{
+  "_about": "PERFGATES budget: the numbers behind the islands plan's section 1.7 budget table (docs/design/islands-and-loop-plan.md). game/tests/t_perfgates.gd reads this file, builds the home island and the two unstable islands listed here, and gates the headless measures on these numbers. Edit a number here, not in the test. A measure the headless run cannot take (web build time, camp-view primitives/draws/shadows, web frame p95) is listed under not_headless and printed as 'not measured headless' - never faked.",
+  "source": "docs/design/islands-and-loop-plan.md#17-performance-budget",
+  "enforce": false,
+  "_enforce_note": "A measure with its own \"enforce\" entry is gated by that entry (build_ms has one: it is under budget on all three islands). Measures without one are gated by this top-level flag, still false because the plan has one known miss left (the heap, ~171 MB against 90, owned by another job): those over-budget measures are printed and reported, never silently dropped, and the measurement itself is always asserted (builds happen, counters agree, cells are 32 m and shadowless).",
+  "islands": {
+    "home": "home_grassland",
+    "unstable": [
+      "savannah_15",
+      "volcanic_60"
+    ]
+  },
+  "measures": {
+    "build_ms": {
+      "_rule": "Island build, native: <= home_max on the home island, <= unstable_max on an unstable one",
+      "_note": "The island's figure is the fastest of 5 builds (t_buildspeed); the single build t_perfgates measures is judged the same way. Other jobs on this box only add wall-clock time to a build, they never make one finish early. The worst of the five is printed beside it and must stay under the budget + overrun_pct.",
+      "home_max": 2500,
+      "unstable_max": 3000,
+      "overrun_pct": 35,
+      "enforce": true
+    },
+    "harvest_nodes": {
+      "_rule": "HarvestNodes per island inside [min, max]",
+      "home": [
+        450,
+        600
+      ],
+      "unstable": [
+        500,
+        750
+      ]
+    },
+    "scene_nodes": {
+      "_rule": "Scene nodes the build adds (Performance.OBJECT_NODE_COUNT delta) <= max",
+      "max": 6000
+    },
+    "ground_cover": {
+      "_rule": "Ground cover is one MultiMesh per 32 m cell, no shadow, drawn to at least 120 m; instances per island <= max_instances",
+      "cell_m": 32,
+      "range_m": 120,
+      "shadow": false,
+      "_max_instances_note": "# ASSUMPTION: the plan gives the mechanism, not a count; this ceiling only catches a runaway regression (today's cover is ~52k instances per island).",
+      "max_instances": 80000
+    },
+    "creatures": {
+      "_rule": "The plan's cap is 24 creatures per island; the home island's target is 11 (spawner top-up). A home count under target is printed as UNDER but is a content shortfall, not a perf breach, so only the cap gates.",
+      "home_target": 11,
+      "max": 24
+    },
+    "heap_mb": {
+      "_rule": "Static memory the build adds to the process <= max MB",
+      "max": 90
+    }
+  },
+  "not_headless": [
+    "island_build_web_ms",
+    "camp_view_draws",
+    "camp_view_prims",
+    "camp_view_shadow_prims",
+    "web_frame_p95_ms"
+  ],
+  "tutorial": {
+    "_about": "TUTPERF (2026-10-29): the 880 m tutorial island every new survivor lands on. Gated by counts, not milliseconds (other agents' jobs share this box): nodes ticking every frame under the island, harvest nodes ticking while full (must be 0: only a regrowing node ticks), creatures standing at build (0: ZoneSpawners wake them near the survivor). build_ms is printed and judged against build_max_ms but only enforced when enforce_build is true (one ~6 s build, no best-of-5).",
+    "island": "tutorial_isle",
+    "ticking_max": 900,
+    "_ticking_note": "2026-10-29: 1,245 before TUTPERF (637 CardProps + 608 HarvestNodes), 637 after (CardProps keep facing the camera); 900 catches a new per-node _process on a populated island.",
+    "harvest_ticking_max": 0,
+    "creatures_at_build_max": 0,
+    "scene_nodes_max": 9000,
+    "build_max_ms": 7500,
+    "enforce_build": false
+  }
+}

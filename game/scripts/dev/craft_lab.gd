@@ -58,10 +58,7 @@ func _shot_setup() -> void:
 	if _player.station_craft:
 		_player.station_craft._sync_hand_tool()
 	if Game.shot_path.contains("held"):
-		if _player.station_craft and _player.station_craft.held_slot:
-			_player.station_craft.held_slot.refresh()
-			_player.station_craft.held_slot.open_swap_for_shot()
-			print("[ui] held-slot shot ready tools=%d" % _player.inventory.gather_tools_in_bag().size())
+		print("[ui] held-slot shot ready tools=%d" % _player.inventory.gather_tools_in_bag().size())
 		return
 	if Game.shot_path.contains("stmenu_bonfire"):
 		_player.global_position = _bonfire.global_position + Vector3(1.6, 0, 0.6)
@@ -264,18 +261,30 @@ func _full_bag_craft() -> void:
 	var out := Crafting.craft(_player, rec, Crafting.default_picks(_player.inventory, rec))
 	var hud := get_tree().get_first_node_in_group("hud")
 	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
-	_check(out == null and _player.inventory.to_array() == before, "full bag: craft refused, inputs unchanged")
+	# W2-INV: inputs are one instance per slot, so spending them frees the slot the knife needs.
+	_check(out != null and _player.inventory.count_of(&"stone_knife_work") == 1 and _player.inventory.count_of(&"stone") == 1, "full bag: the craft goes through on the slots its inputs free")
+	_check(not notices.contains("Bag is full"), "full bag: no refusal notice")
+	# Sashimi makes 3 instances from 1 meat: a full bag refuses before consuming (sec-loss-08).
+	_empty_bag()
+	_player.inventory.add(ItemStack.make(&"raw_meat", 1, {}, 1))
+	_fill_bag()
+	_player.global_position = _bonfire.global_position + Vector3(0.8, 0, 0)
+	before = _player.inventory.to_array()
+	var sashimi := Crafting.recipe(&"sashimi")
+	out = Crafting.craft(_player, sashimi, Crafting.default_picks(_player.inventory, sashimi))
+	notices = str(hud.get("_events").notices) if hud and hud.get("_events") else ""
+	_check(out == null and _player.inventory.to_array() == before, "full bag: a 3-instance craft is refused, inputs unchanged")
 	_check(notices.contains("Bag is full"), "full bag: refusal notice shown")
 
 ## Start a skewer at `fire` with one meat and one branch (level 4) in an otherwise empty bag.
-func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1) -> StationCraft:
+func _start_skewer(fire: Node3D, meat: int = 1, branch: int = 1, recipe: StringName = &"skewer") -> StationCraft:
 	var sc := _player.station_craft
 	_empty_bag()
 	_player.inventory.add(ItemStack.make(&"raw_meat", meat, {}, 4))
 	_player.inventory.add(ItemStack.make(&"branch", branch, {}, 4))
 	_player.global_position = fire.global_position + Vector3(0.8, 0, 0)
 	sc.station = fire
-	sc._begin_recipe(&"skewer")
+	sc._begin_recipe(recipe)
 	_player.clear_nav()
 	sc._start_craft_cycle()
 	return sc
@@ -299,20 +308,28 @@ func _recipe_switch_refunds() -> void:
 	sc.cancel_and_refund()
 
 ## The bag fills up during the craft: the finished craft waits at 100 % with its inputs, then
-## completes once a slot frees up.
+## completes once there is room. A skewer needs only the slot its inputs free (W2-INV: one instance
+## per slot); sashimi makes 3 instances from 1 meat, so it waits for two more.
 func _finish_waits_for_room() -> void:
-	# Two of each, so consuming one of each frees no slot for the skewer.
 	var sc := _start_skewer(_bonfire, 2, 2)
+	_fill_bag()
+	sc.progress = 0.99
+	sc._process(0.1)
+	_check(not sc.crafting and _inputs_home(1, 1) and _player.inventory.count_of(&"skewer") == 1, "a finished skewer with a full bag lands in the slot its inputs freed")
+	sc = _start_skewer(_bonfire, 1, 0, &"sashimi")
 	_fill_bag()
 	sc.progress = 0.99
 	sc._process(0.1)
 	var hud := get_tree().get_first_node_in_group("hud")
 	var notices := str(hud.get("_events").notices) if hud and hud.get("_events") else ""
-	_check(sc.crafting and _inputs_home(2, 2) and _player.inventory.count_of(&"skewer") == 0, "a finished craft with a full bag waits, inputs untouched")
-	_check(notices.contains("make room to finish"), "the wait tells the player to make room")
+	_check(sc.crafting and _inputs_home(1, 0) and _player.inventory.count_of(&"sashimi") == 0, "a finished sashimi with a full bag waits, the meat untouched")
+	_check(notices.contains("make room to finish the Sashimi"), "the wait tells the player to make room")
 	_player.inventory.remove_at(_player.inventory.slot_count - 1, 1)
 	sc._process(FULL_RETRY)
-	_check(not sc.crafting and _player.inventory.count_of(&"skewer") == 1 and _inputs_home(1, 1), "it finishes once a slot frees up")
+	_check(sc.crafting and _player.inventory.count_of(&"sashimi") == 0, "one freed slot is not enough: it still waits")
+	_player.inventory.remove_at(_player.inventory.slot_count - 2, 1)
+	sc._process(FULL_RETRY)
+	_check(not sc.crafting and _player.inventory.count_of(&"sashimi") == 3 and _inputs_home(0, 0), "it finishes once there is room for all 3")
 
 const FULL_RETRY := StationCraft.FULL_RETRY_S + 0.05
 

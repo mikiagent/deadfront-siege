@@ -6,7 +6,8 @@ I = {}
 I["bleed"] = {"s": ['<path d="%s"/>' % drop(32, 6, 17)]}
 
 
-I["knockdown"] = {"l": ['<path d="M17 8 L32 21 L47 8 M17 23 L32 36 L47 23 M8 53 H56"/>']}
+# Chevrons 34 wide (were 30): the thinnest line icon sat on the t_uiicons 0.60 x median weight floor.
+I["knockdown"] = {"l": ['<path d="M15 8 L32 22 L49 8 M15 24 L32 38 L49 24 M8 53 H56"/>']}
 
 
 I["fracture"] = {"s": ['<path d="%s %s %s M17 41 L30.5 27.5 L28 34.5 L33.5 33 L23 47 Z"/>' % (circ(9.5, 48.5, 5), circ(15.5, 54.5, 5), cap(13, 51, 24, 40, 8.5)),

@@ -29,12 +29,11 @@ func show_for(st: Node3D, recipes: Array[Dictionary], inv: Inventory) -> void:
 		var btn := HexButton.new(HEX_SIZE)
 		btn.color_icon = true
 		var rid := StringName(str(rec.get("id", "")))
-		var out_row: Dictionary = rec.get("output", {})
+		var out_row := CraftUI.output_row(inv, rec)
 		var out_id := StringName(str(out_row.get("id", rid)))
-		var secs := Crafting.recipe_seconds(rec)
 		var missing := Crafting.missing_ingredient_name(inv, rec)
 		var label := "%s %s" % [str(rec.get("display_name", rid)), LevelDisplay.recipe_label(inv, rec)]
-		btn.setup(_icon_for(out_id), _glyph_for(out_id), label, "%.1fs" % secs, "×%d" % int(out_row.get("count", 1)))
+		btn.setup(_icon_for(out_id), _glyph_for(out_id), label, Crafting.preview_time(rec), "×%d" % int(out_row.get("count", 1)))
 		if missing != "":
 			btn.set_blocked(missing)
 		btn.pressed.connect(_on_pressed.bind(rid, missing))
@@ -74,8 +73,10 @@ func _update_screen_pos() -> void:
 	size = get_viewport_rect().size
 	var world := station.global_position + Vector3(0.0, 1.4, 0.0)
 	var screen := cam.unproject_position(world)
-	var spots := ContextRadial.hex_positions(screen, _buttons.size(), size, UiTokens.safe_insets(get_viewport()), HEX_SIZE, 0.0, UiTokens.hud_reserved(size))
+	var hx := StationMenu.hex_px(size)
+	var spots := ContextRadial.hex_positions(screen, _buttons.size(), size, UiTokens.safe_insets(get_viewport()), hx, StationMenu.pill_width(_title(), size), UiTokens.hud_reserved(size))
 	for i in _buttons.size():
+		HudField.fit(_buttons[i], hx)
 		if i < spots.size():
 			_buttons[i].position = spots[i]
 	queue_redraw()
@@ -87,14 +88,13 @@ func _draw() -> void:
 	if cam == null:
 		return
 	var screen := cam.unproject_position(station.global_position + Vector3(0.0, 1.4, 0.0))
-	var font := ThemeDB.fallback_font
-	var view := get_viewport_rect().size
+	StationMenu.draw_pill(self, screen, _title(), get_viewport_rect().size)  # B4 name pill in the ring's centre
+
+func _title() -> String:
+	if station == null or not is_instance_valid(station):
+		return ""
 	var sid := str(station.get("station_id")) if station.get("station_id") != null else str(station.name)
-	var title := UiTokens.ellipsis(font, sid.replace("_", " ").capitalize(), 160.0, UiTokens.body(view))
-	var tw := font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.body(view)).x
-	var pos := screen + Vector2(-tw * 0.5, 22.0)
-	draw_rect(Rect2(pos + Vector2(-8, -16), Vector2(tw + 16, 24)), UiTokens.INK)
-	draw_string(font, pos, title, HORIZONTAL_ALIGNMENT_LEFT, -1, UiTokens.body(view), Color.WHITE)
+	return sid.replace("_", " ").capitalize()
 
 func _gui_input(event: InputEvent) -> void:
 	# Tap empty radial area does nothing; outside is handled by StationCraft.

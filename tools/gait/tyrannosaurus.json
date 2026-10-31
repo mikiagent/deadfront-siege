@@ -1,0 +1,154 @@
+{
+  "forward": [
+    0,
+    1,
+    0
+  ],
+  "body": "Hips",
+  "view_size": 24,
+  "view_centre": [
+    0.5,
+    5
+  ],
+  "legs": {
+    "L": {
+      "up": "Thigh.L",
+      "low": "Shin.L",
+      "foot": "Metatarsal.L",
+      "root": "Hips",
+      "end": "hind"
+    },
+    "R": {
+      "up": "Thigh.R",
+      "low": "Shin.R",
+      "foot": "Metatarsal.R",
+      "root": "Hips",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck1": {
+      "key": "head",
+      "axis": "pitch",
+      "phase": 0.1
+    },
+    "Neck2": {
+      "key": "head_yaw",
+      "axis": "yaw"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.2
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.3
+    },
+    "Tail6": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "note": "T. rex rig (30 bones, faces +Y). The metatarsal is posed as the foot: IK solves thigh+shin to its head. walk/run hold the stalking carriage of tools/gait/make_rex_moves.py (STALK, LEAN): head low and level with the back.",
+  "clips": {
+    "walk": {
+      "cycle_s": 1.4,
+      "duty": 0.62,
+      "stride": 2.2,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.5,
+      "swing_curl_hind": -4,
+      "toe_roll": 0,
+      "bob": 0.08,
+      "bob_harmonic": 2,
+      "roll_deg": 2.5,
+      "lean_deg": 5,
+      "hold": {
+        "Chest": [
+          "pitch",
+          -2
+        ],
+        "Neck1": [
+          "pitch",
+          -12
+        ],
+        "Neck2": [
+          "pitch",
+          -5
+        ],
+        "Head": [
+          "pitch",
+          10
+        ],
+        "Tail1": [
+          "pitch",
+          3
+        ],
+        "Tail2": [
+          "pitch",
+          2
+        ]
+      },
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 3.0,
+      "wiggle_tail": 3.0,
+      "sway": 0.12,
+      "crouch": 0.1
+    },
+    "run": {
+      "cycle_s": 0.9,
+      "duty": 0.42,
+      "stride": 4.2,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.9,
+      "swing_curl_hind": -6,
+      "toe_roll": 0,
+      "bob": 0.16,
+      "bob_harmonic": 2,
+      "roll_deg": 3,
+      "lean_deg": 10,
+      "hold": {
+        "Chest": [
+          "pitch",
+          -2
+        ],
+        "Neck1": [
+          "pitch",
+          -16
+        ],
+        "Neck2": [
+          "pitch",
+          -5
+        ],
+        "Head": [
+          "pitch",
+          14
+        ],
+        "Tail1": [
+          "pitch",
+          6
+        ],
+        "Tail2": [
+          "pitch",
+          3
+        ]
+      },
+      "wiggle_head": 3.5,
+      "wiggle_harmonic_head": 2,
+      "wiggle_head_yaw": 2.0,
+      "wiggle_tail": 4.5,
+      "sway": 0.15,
+      "crouch": 0.35
+    }
+  }
+}

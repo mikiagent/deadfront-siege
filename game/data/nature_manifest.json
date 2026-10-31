@@ -580,13 +580,35 @@
           1,
           2
         ],
-        "resin": [
-          0,
-          1
-        ],
         "pine_log": [
           0,
           1
+        ]
+      },
+      "tool_class": "axe",
+      "collision": "cylinder"
+    },
+    "ResinPine": {
+      "_note": "Island resources M5: resin is tundra's signature rare (doc section 4.2), so it grows only on this tundra pine; same model and card as PineTree.",
+      "models": [
+        "res://assets/nature/generated/tree-pine-a.glb"
+      ],
+      "role": "tree",
+      "climates": [
+        "tundra"
+      ],
+      "harvest": {
+        "branch": [
+          1,
+          2
+        ],
+        "pine_log": [
+          1,
+          2
+        ],
+        "resin": [
+          1,
+          2
         ]
       },
       "tool_class": "axe",
@@ -1230,6 +1252,33 @@
         0.8
       ]
     },
+    "IronOreNode": {
+      "models": [
+        "res://assets/resources/generated/min2-black_iron-final.glb"
+      ],
+      "role": "rock",
+      "climates": [
+        "tropical",
+        "tundra"
+      ],
+      "harvest": {
+        "iron_ore": [
+          1,
+          2
+        ],
+        "stone": [
+          1,
+          2
+        ]
+      },
+      "min_pick_tier": {"iron_ore": "bronze"},
+      "tool_class": "pick",
+      "collision": "box",
+      "height": [
+        0.8,
+        1.2
+      ]
+    },
     "BlackIronNode": {
       "models": [
         "res://assets/resources/generated/min2-black_iron-final.glb"
@@ -1325,6 +1374,26 @@
       "height": [
         0.6,
         1.0
+      ]
+    },
+    "DriftglassNode": {
+      "_note": "UNSTABLE ISLES: the Rift Pool's glassy shards; placed only by the generated-only landmark row (never in a climate's vegetation).",
+      "models": [
+        "res://assets/resources/generated/min-ice-final.glb"
+      ],
+      "role": "rock",
+      "climates": [],
+      "harvest": {
+        "driftglass": [
+          1,
+          1
+        ]
+      },
+      "tool_class": "pick",
+      "collision": "box",
+      "height": [
+        0.5,
+        0.8
       ]
     },
     "PearlNode": {
@@ -1749,6 +1818,36 @@
         0.8,
         1.3
       ]
+    },
+    "narcoberry_bush": {
+      "models": [
+        "res://assets/nature/generated/bush-berries-a.glb",
+        "res://assets/nature/generated/bush-berries-b.glb"
+      ],
+      "role": "bush",
+      "climates": [
+        "temperate",
+        "grassland"
+      ],
+      "harvest": {
+        "narcoberry": [
+          1,
+          2
+        ]
+      },
+      "tool_class": null,
+      "collision": "none",
+      "pool": 6,
+      "tint": [
+        0.62,
+        0.5,
+        0.95
+      ],
+      "depleted_models": {
+        "res://assets/nature/generated/bush-berries-a.glb": "res://assets/nature/generated/bush-berries-a-empty.glb",
+        "res://assets/nature/generated/bush-berries-b.glb": "res://assets/nature/generated/bush-berries-b-empty.glb"
+      },
+      "_about": "FOODTORPOR: the berry bush art tinted violet. ASSUMPTION placement: 2 per island on grass/dry tiles (IslandScatter._scatter_special_tiles), every climate."
     }
   }
 }

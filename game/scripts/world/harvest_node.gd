@@ -38,8 +38,15 @@ var _batch: VegBatch
 var _batch_idx: int = -1
 var _empty_batch: VegBatch
 var _empty_batch_idx: int = -1
+## CARD2D: the card drawing this node and, when the family swaps models on depletion, its empty card.
+var _card: CardProp
+var _card_empty: CardProp
 var _tile: Vector2i = Vector2i.ZERO
 var _regen_left: float = 0.0
+## ISLAND RESET (doc section 5.4): a landmark node on an expedition island regrows only partly: while
+## any unit is left it gains one back every `trickle_seconds`, and a pool taken to 0 stays empty until
+## the island resets. 0 = the normal rule (a spent pool refills after regen_seconds).
+var trickle_seconds: float = 0.0
 
 func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Dictionary, tool: StringName, color: Color, gather: float = 1.2, regen: float = 8.0, p_family: String = "", p_falls: bool = false, p_pool_max: int = 0) -> void:
 	node_id = p_id
@@ -74,6 +81,8 @@ func setup(p_id: StringName, def_id: StringName, amin: int, amax: int, attrs: Di
 	_apply_tint()
 
 func _ready() -> void:
+	# TUTPERF: only a regrowing node ticks (600-odd nodes per island used to run an empty _process).
+	set_process(not _pool_regen.is_empty())
 	var runtime := get_parent()
 	if runtime and runtime.has_method("surface_y"):
 		_tile = BuildGrid.tile_of(global_position)
@@ -81,7 +90,7 @@ func _ready() -> void:
 	else:
 		_tile = BuildGrid.tile_of(global_position)
 	add_to_group("harvest")
-	collision_layer = 1
+	collision_layer = 1 if blocks_movement() else 0
 	collision_mask = 0
 	pool_max = _resolve_pool_max(pool_max)
 	if pool <= 0.0:
@@ -128,6 +137,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if _pool_regen.is_empty() or regen_seconds <= 0.0:
+		set_process(false)
 		return
 	var refilled := false
 	for item in _pool_regen.keys():
@@ -136,7 +146,15 @@ func _process(delta: float) -> void:
 			# Regrowing now would wrap the collider around whoever stands here.
 			_pool_regen[item] = OCCUPIED_RETRY
 			continue
-		if left <= 0.0:
+		if left <= 0.0 and trickle_seconds > 0.0:
+			var mx := float(pool_maxes.get(item, pool_max))
+			pools[item] = minf(mx, float(pools.get(item, 0.0)) + 1.0)
+			if float(pools[item]) >= mx:
+				_pool_regen.erase(item)
+			else:
+				_pool_regen[item] = trickle_seconds
+			refilled = true
+		elif left <= 0.0:
 			pools[item] = float(pool_maxes.get(item, pool_max))
 			_pool_regen.erase(item)
 			refilled = true
@@ -178,6 +196,12 @@ func _all_empty() -> bool:
 			return false
 	return true
 
+## A node stays selectable until every one of its resource pools is exhausted. Callers that only
+## inspect `pool_units_left()` accidentally treat an empty active choice (for example wood logs)
+## as a depleted tree even when branches or fruit remain.
+func has_harvests_left() -> bool:
+	return not _all_empty()
+
 func units_left_for(item: StringName) -> int:
 	if pools.has(str(item)):
 		return maxi(0, int(floor(float(pools[str(item)]) + 0.0001)))
@@ -200,6 +224,7 @@ func restore_pools(snap: Dictionary) -> void:
 		pool_maxes = (m as Dictionary).duplicate()
 	if r is Dictionary:
 		_pool_regen = (r as Dictionary).duplicate()
+		set_process(not _pool_regen.is_empty())
 	_ensure_pools()
 	_regen_left = _min_regen()
 	_sync_visual_state()
@@ -279,7 +304,7 @@ func min_pick_tier(item: StringName) -> StringName:
 static func best_pick(inv: Inventory) -> ItemStack:
 	var best: ItemStack = null
 	for s in inv.slots:
-		if s == null or s.is_locked() or s.is_broken() or s.def() == null or s.def().tool_class != &"pick":
+		if s == null or s.is_broken() or s.def() == null or s.def().tool_class != &"pick":
 			continue
 		if best == null:
 			best = s
@@ -290,17 +315,10 @@ static func best_pick(inv: Inventory) -> ItemStack:
 			best = s
 	return best
 
-## The tool this node would work with from `inv`: the best pick on rock, else the class tool.
-func work_tool(inv: Inventory) -> ItemStack:
-	if _is_rock():
-		return best_pick(inv)
-	return inv.find_gather_tool(required_tool_class)
-
 ## Seconds per unit with the bag's tool (what the survivor waits; the server reuses it).
+## One rule with PlayerActions: the role's tool helps, bare hands are slower (W2-GATHER).
 func seconds_for(inv: Inventory, skill_level: int = 1) -> float:
-	var tool := work_tool(inv)
-	var zone_level := int(yield_attributes.get("level", 1))
-	return ProgressionScaling.gather_seconds(_base_seconds, zone_level, tool.level if tool else 1, tool.material_tier() if tool else &"stone", maxi(1, skill_level))
+	return GatherService.unit_seconds_for(inv, self, skill_level)
 
 func can_gather(inv: Inventory) -> String:
 	if pool_units_left() <= 0:
@@ -321,22 +339,34 @@ func can_gather(inv: Inventory) -> String:
 			inv.set_equipped_tool_index(idx)
 	elif not inv.has_tool_class(required_tool_class):
 		return "need tool %s" % required_tool_class
+	# A gathering technique the survivor has not learned refuses its material: "Needs Mining 1 (Gathering
+	# Lv. 10, 8 SP)". Only the tap/walk paths that reach this are local and offline; the online gather
+	# intent never asks can_gather and needs the same check server-side (W3).
+	var local := PlayerRegistry.local()
+	if local and local.skills:
+		var locked := SkillRules.gather_block(local.skills, str(yield_def_id))
+		if locked != "":
+			return locked
 	gather_seconds = _base_seconds
 	if _is_rock() and (required_tool_class == &"none" or required_tool_class == &""):
 		# Loose stone stays bare-handed, but a held pick still works it faster.
 		# shortcut: primes gather_seconds because player.gd (protected) reads the field; move to PlayerActions (W2-PLAYER).
 		var pick := best_pick(inv)
 		if pick:
-			gather_seconds = _base_seconds / ProgressionScaling.tool_power(pick.level, pick.material_tier())
+			gather_seconds = _base_seconds / pick.gather_power()  # level, tier and TRAITGEAR elasticity
 	return ""
 
-func roll_yield(rng: RandomNumberGenerator = null) -> ItemStack:
-	var n := rng.randi_range(yield_min, yield_max) if rng else randi_range(yield_min, yield_max)
-	var material_level := int(yield_attributes.get("level", 1))
+## ONEGATHER (owner 2026-10-28, "cap it to 1 per harvest"): a pass is always ONE instance. yield_min/max
+## (the manifest's old [min, max] per pass) no longer count; tools and skill change speed and quality.
+## HARVESTROLL: each pass is its own lot (LootRoller.roll_lot): level inside the node's band and signed
+## traits, skewed by `tool_tier` (&"" bare hands) and Gathering `skill`. `rng` defaults to GatherService.rng.
+func roll_yield(rng: RandomNumberGenerator = null, tool_tier: StringName = &"", skill: int = 1) -> ItemStack:
+	var n := 1
 	var attrs := yield_attributes.duplicate(true)
 	for k in ItemStack.MERGE_IGNORED_ATTRS:
 		attrs.erase(k)
-	var stack := ItemStack.make(yield_def_id, n, attrs, material_level)
+	attrs.merge(LootRoller.roll_lot(yield_def_id, int(yield_attributes.get("level", 1)), tool_tier, skill, rng if rng else GatherService.rng), true)
+	var stack := ItemStack.make(yield_def_id, n, attrs, int(attrs["level"]))
 	if World and World.is_unstable():
 		stack.set_flag(&"unstable", true)
 	return stack
@@ -348,12 +378,23 @@ func consume_unit() -> bool:
 	var key := str(yield_def_id)
 	if pools.has(key):
 		pools[key] = maxf(0.0, float(pools[key]) - 1.0)
-		if int(floor(float(pools[key]) + 0.0001)) <= 0 and regen_seconds > 0.0:
+		if trickle_seconds > 0.0:
+			# Partial regrowth: units left trickle back; a stripped pool stays empty until the reset.
+			if int(floor(float(pools[key]) + 0.0001)) <= 0:
+				_pool_regen.erase(key)
+			elif not _pool_regen.has(key):
+				_pool_regen[key] = trickle_seconds
+				set_process(true)
+			_regen_left = _min_regen()
+		elif int(floor(float(pools[key]) + 0.0001)) <= 0 and regen_seconds > 0.0:
 			_pool_regen[key] = regen_seconds  # the family's own regrowth time, not a flat hour
+			set_process(true)
 			_regen_left = _min_regen()
 	else:
 		pool = maxf(0.0, pool - 1.0)
 	session_gathered += 1
+	if _card:
+		_card.rustle()
 	if _all_empty():
 		_on_pool_empty()
 	elif _empty_batch:
@@ -397,6 +438,12 @@ func _spawn_log() -> void:
 		parent.add_child(log_n)
 	var attrs := yield_attributes.duplicate(true)
 	log_n.setup(StringName("%s_log" % node_id), &"wood_log", 1, 2, attrs, &"none", Color(0.42, 0.28, 0.16), 1.0, 0.0, "WoodLog_Moss", false, 6)
+	# SWITCH2D: under resource_render "card" the felled log is a card too, never a 3D model.
+	if IslandScatter.cards_enabled() and parent is IslandRuntime:
+		var vis: Dictionary = CardProp.visual_for("WoodLog_Moss", global_position)
+		if str(vis.get("kind", "")) != "":
+			IslandScatter._attach_card_visual(parent as IslandRuntime, log_n, vis, "prop", "WoodLog_Moss", global_position)
+			return
 	var path := "res://assets/nature/WoodLog_Moss.glb"
 	if ResourceLoader.exists(path):
 		log_n.set_visual(path)
@@ -423,21 +470,57 @@ func berries_available() -> bool:
 			return true
 	return false
 
+## CARD2D: this node draws as a card (island_scatter when resource_render is "card"). An empty card
+## is shown while the node is depleted, the way the batched path swaps to the family's depleted GLB.
+func set_card_visual(card: CardProp, empty_card: CardProp = null) -> void:
+	_card = card
+	_card_empty = empty_card
+	if _mesh:
+		_mesh.visible = false
+	_apply_card_state()
+	_apply_batch()
+
+## True when this node draws an "-empty" card while depleted (CARD2D).
+func has_empty_card() -> bool:
+	return _card_empty != null and is_instance_valid(_card_empty)
+
+## The full card while the node has something left, the empty one while it is regrowing.
+func _apply_card_state() -> void:
+	if _card == null or not is_instance_valid(_card):
+		return
+	var full := visible and not depleted
+	_card.visible = full
+	if _card_empty and is_instance_valid(_card_empty):
+		_card_empty.visible = visible and depleted
+
 func refresh_batched_visual() -> void:
 	_apply_batch()
+	_apply_card_state()
 
 func _apply_batch() -> void:
 	if _empty_batch:
-		var full := berries_available()
+		# An empty visual represents an exhausted node, not merely an exhausted berry choice. A
+		# multi-yield tree or bush must stay in its full state while any other resource remains.
+		var full := has_harvests_left()
 		_batch.set_shown(_batch_idx, visible and full)
 		_empty_batch.set_shown(_empty_batch_idx, visible and not full)
 	elif _batch:
 		_batch.set_shown(_batch_idx, visible and not depleted)
 	_set_tap_zone(visible and not depleted)
 
+## The cards are children of the island runtime, not of this node (they keep their own transforms),
+## so freeing this node must free them too or they stay standing with nothing to harvest.
+func _exit_tree() -> void:
+	for c in [_card, _card_empty]:
+		if c != null and is_instance_valid(c):
+			c.queue_free()
+	_card = null
+	_card_empty = null
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		_apply_batch()
+		_apply_card_state()
 
 func set_visual(path: String) -> void:
 	if not ResourceLoader.exists(path):
@@ -481,7 +564,7 @@ func _on_pool_empty() -> void:
 		visible = false
 		queue_free()
 		return
-	if _empty_batch:
+	if _empty_batch or _card_empty:
 		_sync_visual_state()
 		return
 	visible = false
@@ -490,16 +573,20 @@ func _on_pool_empty() -> void:
 func _sync_visual_state() -> void:
 	depleted = _all_empty()
 	if depleted:
-		visible = _empty_batch != null
+		# A depleted berry bush keeps showing its empty model (or, in the card path, its -empty card);
+		# only a node with neither disappears.
+		visible = _empty_batch != null or has_empty_card()
 		collision_layer = 0
 		_apply_batch()
+		_apply_card_state()
 		return
 	if falls_to_log:
 		rotation = Vector3.ZERO
 		_falling = false
 	visible = true
-	collision_layer = 1
+	collision_layer = 1 if blocks_movement() else 0
 	_apply_batch()
+	_apply_card_state()
 
 func regen_left() -> float:
 	return _regen_left
@@ -513,6 +600,30 @@ func _collision_size() -> Vector3:
 	if span is Array and (span as Array).size() >= 2:
 		h = clampf(float(span[1]), 0.4, 1.6)
 	return Vector3(w, h, w)
+
+## TRIBE M1: half the ground footprint of what the player SEES (the batched or own mesh), at least the
+## collision box: a worker stands at this edge instead of inside a big boulder's mesh.
+func visual_radius() -> float:
+	var box := _collision_size()
+	var r := maxf(box.x, box.z) * 0.5
+	var aabb := AABB()
+	var sc := Vector3.ONE
+	if _card and is_instance_valid(_card) and _card.visible:
+		# ASSUMPTION: the painted subject fills about 80 % of its card's width.
+		return maxf(r, _card._quad_size.x * _card.global_basis.get_scale().x * 0.5 * 0.8)
+	if _batch and _batch_idx >= 0 and _batch_idx < _batch._xforms.size() and _batch._mesh:
+		aabb = _batch._mesh.get_aabb()
+		sc = _batch._xforms[_batch_idx].basis.get_scale()
+	elif get_node_or_null("VisualGlb"):
+		var inv := global_transform.affine_inverse()
+		for mi: MeshInstance3D in get_node("VisualGlb").find_children("*", "MeshInstance3D", true, false):
+			var box_i := (inv * mi.global_transform) * mi.get_aabb()
+			aabb = box_i if aabb.size == Vector3.ZERO else aabb.merge(box_i)
+		sc = global_basis.get_scale()
+	elif _mesh and _mesh.mesh and _mesh.visible:
+		aabb = _mesh.mesh.get_aabb()
+		sc = _mesh.global_basis.get_scale()
+	return maxf(r, maxf(aabb.size.x * sc.x, aabb.size.z * sc.z) * 0.5)
 
 ## Physics box: rocks as wide as they are tall (capped), trunks slim so paths never jam.
 func _trunk_width() -> float:
@@ -539,8 +650,27 @@ func gather_kind() -> StringName:
 		return &"mine"
 	return &"gather"
 
+## Owner 2026-10-21: animals got stuck on grass. Small resources (grass, fibre, herbs, bushes, low rocks,
+## stumps) are stepped over; trees and anything taller than BLOCK_HEIGHT keep a solid trunk and block paths
+## (tile_path skips nodes on layer 0). The tap zone (layer 2) is unchanged, so every node stays tappable.
+const BLOCK_HEIGHT := 1.25  # ASSUMPTION: m; ore nodes and boulders (1.3-1.4 m) block, flax (1.2 m) does not
+func blocks_movement() -> bool:
+	var fam: Dictionary = Data.nature_families.get(family, {})
+	var role := str(fam.get("role", ""))
+	if role.begins_with("tree"):
+		return true
+	var span: Variant = fam.get("height", null)
+	var top := 1.3 if role == "rock" else 0.0  # a rock without a height span is a full boulder (1.3 m)
+	if span is Array and (span as Array).size() >= 2:
+		top = float(span[1])
+	return top > BLOCK_HEIGHT
+
 func _is_rock() -> bool:
 	return str(Data.nature_families.get(family, {}).get("role", "")) == "rock"
+
+## A tree of any kind (cover for ambush predators: TacticalBrain).
+func is_tree() -> bool:
+	return str(Data.nature_families.get(family, {}).get("role", "")).begins_with("tree")
 
 func _is_tree_or_rock() -> bool:
 	var role := str(Data.nature_families.get(family, {}).get("role", ""))

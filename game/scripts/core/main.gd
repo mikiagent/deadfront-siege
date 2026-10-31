@@ -41,6 +41,19 @@ func _ready() -> void:
 			hud.name = "HuntHud"
 			hud.bind(player)
 			$UI.add_child(hud)
+			# TUTORIAL ISLAND: draws over the HUD and every menu (layer 97, above the modals' 96), only while a tutorial order runs
+			var tut_layer := CanvasLayer.new()
+			tut_layer.name = "TutorialLayer"
+			tut_layer.layer = 97
+			add_child(tut_layer)
+			var pointer := TutorialPointer.new()
+			pointer.player = player
+			tut_layer.add_child(pointer)
+			if "--tutorial-bot" in OS.get_cmdline_user_args():
+				var tbot = (load("res://scripts/dev/tutorial_bot.gd") as GDScript).new()
+				tbot.name = "TutorialBot"
+				add_child(tbot)
+				tbot.call_deferred("run_windowed", self)
 			if "--gather-test" in OS.get_cmdline_user_args():
 				_gather_test(player)
 			if "--combat-test" in OS.get_cmdline_user_args():
@@ -89,6 +102,18 @@ func _ready() -> void:
 				var probe = load("res://scripts/dev/progression_probe.gd").new()
 				add_child(probe)
 				probe.call_deferred("run", self)
+			if Array(OS.get_cmdline_user_args()).any(func (a: String) -> bool: return a.begins_with("--northup-shot=")):
+				var north_shot = load("res://scripts/dev/northup_shot.gd").new()
+				add_child(north_shot)
+				north_shot.call_deferred("run", self)
+			if "--tutperf-probe" in OS.get_cmdline_user_args():
+				var perf_probe = load("res://scripts/dev/tutperf_probe.gd").new()
+				add_child(perf_probe)
+				perf_probe.call_deferred("run", self)
+			if Array(OS.get_cmdline_user_args()).any(func (x: String) -> bool: return x.begins_with("--faction-shots=")):
+				var fshots = load("res://scripts/dev/faction_shots_probe.gd").new()
+				add_child(fshots)
+				fshots.call_deferred("run", self)
 			if "--bot" in OS.get_cmdline_user_args():
 				var bot = (load("res://scripts/dev/bot_survivor.gd") as GDScript).new()
 				bot.name = "BotSurvivor"

@@ -1,0 +1,83 @@
+class_name DomainRules
+extends RefCounted
+## Spec 29 domain configuration (game/data/world/domains.json): cell size, the Tamed Island cap and
+## its documented Pioneer-rank milestones. Every number the PRD gives is data here; nothing in this
+## file tunes gameplay balance. A domain record itself lives on the island runtime (IslandClaims).
+
+const PATH := "res://data/world/domains.json"
+## Fallbacks when the json is missing so a broken data file never removes the cap.
+const DEFAULTS := {
+	"cell_tiles": 4,
+	"tamed_island": {"start_cap": 13, "rank_caps": {"1": 13, "2": 17, "6": 23, "7": 30}},
+}
+
+static var _config: Dictionary = {}
+
+static func config() -> Dictionary:
+	if _config.is_empty():
+		var parsed: Variant = null
+		if FileAccess.file_exists(PATH):
+			var f := FileAccess.open(PATH, FileAccess.READ)
+			if f:
+				parsed = JSON.parse_string(f.get_as_text())
+		_config = (parsed as Dictionary).duplicate(true) if parsed is Dictionary else {}
+		for key in DEFAULTS:
+			var want: Variant = DEFAULTS[key]
+			if not _config.has(key):
+				_config[key] = (want as Dictionary).duplicate(true) if want is Dictionary else want
+	return _config
+
+## World tiles along one side of a claim cell (spec 29 section 3: 4 by default).
+static func cell_tiles() -> int:
+	var n := int(config().get("cell_tiles", 4))
+	return n if n > 0 else 4
+
+static func tamed_island() -> Dictionary:
+	var row: Variant = config().get("tamed_island", {})
+	return row as Dictionary if row is Dictionary else {}
+
+## The Tamed Island's documented starting cap (spec 29 section 4: 13).
+static func start_cap() -> int:
+	return maxi(1, int(tamed_island().get("start_cap", 13)))
+
+static func rank_caps() -> Dictionary:
+	var row: Variant = tamed_island().get("rank_caps", {})
+	return row as Dictionary if row is Dictionary else {}
+
+## The Tamed Island's Pioneer rank for cap purposes. It comes from one place only: the Personal
+## Communications Center's contribution track (CommCenter.rank(), DOMAIN-D, spec 29 section 4). The
+## survivor's character level (World.pioneer_level) is the player level, NOT the island's Pioneer
+## rank, and is deliberately not read here: a level-60 survivor starts at rank 1 with 13 plots until
+## the center's steps are contributed. Nothing here claims land. The documented level-60 association
+## of the historical track is data (CommCenter.level_association()), never a rank.
+static func pioneer_rank() -> int:
+	return CommCenter.rank()
+
+## Claim cap at a Pioneer rank: the highest documented milestone at or below it (a rank between two
+## milestones keeps the previous cap, spec 29 section 4), never below the starting cap.
+static func cap_for_rank(rank: int) -> int:
+	var caps := rank_caps()
+	var best_rank := 0
+	var best_cap := 0
+	for key in caps:
+		var r := int(str(key))
+		var c := int(caps[key])
+		if c <= 0 or r > rank:
+			continue
+		if r > best_rank or (r == best_rank and c > best_cap):
+			best_rank = r
+			best_cap = c
+	return maxi(start_cap() if best_cap <= 0 else best_cap, start_cap())
+
+## Cap for this survivor now.
+static func cap() -> int:
+	return cap_for_rank(pioneer_rank())
+
+## Every documented milestone, for the Domain screen's "next at rank N" line.
+static func next_milestone(rank: int) -> Array:
+	var best := Vector2i(-1, 0)
+	for key in rank_caps():
+		var r := int(str(key))
+		if r > rank and (best.x < 0 or r < best.x):
+			best = Vector2i(r, int(rank_caps()[key]))
+	return [best.x, best.y]

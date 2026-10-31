@@ -1,0 +1,130 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Body",
+  "view_size": 2.8,
+  "view_centre": [
+    0.1,
+    1.0
+  ],
+  "legs": {
+    "LH": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind",
+      "pole": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "RH": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind",
+      "pole": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "LF": {
+      "up": "FrontUpLeg.L",
+      "low": "FrontLowLeg.L",
+      "foot": "FrontFoot.L",
+      "root": "FrontLeg.L",
+      "end": "front",
+      "pole": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "RF": {
+      "up": "FrontUpLeg.R",
+      "low": "FrontLowLeg.R",
+      "foot": "FrontFoot.R",
+      "root": "FrontLeg.R",
+      "end": "front",
+      "pole": [
+        0,
+        -1,
+        0
+      ]
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Tail1": {
+      "key": "tail",
+      "axis": "pitch",
+      "phase": 0.25
+    }
+  },
+  "clips": {
+    "walk": {
+      "cycle_s": 1.17,
+      "duty": 0.65,
+      "stride": 1.3,
+      "phases": {
+        "LH": 0.0,
+        "LF": 0.75,
+        "RH": 0.5,
+        "RF": 0.25
+      },
+      "lift_hind": 0.09,
+      "lift_front": 0.1,
+      "swing_curl_hind": 30,
+      "swing_curl_front": 35,
+      "toe_roll": 20,
+      "legroot_front": 0.3,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.1,
+      "bob": 0.012,
+      "bob_harmonic": 2,
+      "roll_deg": 1.0,
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 4.0,
+      "foot_offset_front": 0.05
+    },
+    "run": {
+      "cycle_s": 0.58,
+      "duty": 0.3,
+      "stride": 3.0,
+      "phases": {
+        "LH": 0.0,
+        "RH": 0.9,
+        "LF": 0.6,
+        "RF": 0.5
+      },
+      "lift_hind": 0.22,
+      "lift_front": 0.3,
+      "swing_curl_hind": 60,
+      "swing_curl_front": 55,
+      "toe_roll": 30,
+      "legroot_front": 0.15,
+      "legroot_hind": 0.05,
+      "crouch": 0.03,
+      "bob": 0.0,
+      "rock_front": 0.01,
+      "rock_phase_front": 0.0,
+      "rock_hind": 0.01,
+      "rock_phase_hind": 0.5,
+      "wiggle_head": 6.0,
+      "wiggle_harmonic_head": 1,
+      "wiggle_tail": 8.0,
+      "pitch_gain": 0.3
+    }
+  }
+}

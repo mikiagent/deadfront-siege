@@ -1,0 +1,1 @@
+s1 A=new; s2 A=old; s3 A=old; s4 A=new

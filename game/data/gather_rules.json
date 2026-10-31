@@ -1,0 +1,17 @@
+{
+  "_about": "W2-GATHER: which tool helps on which node role even when the node needs none, and how much slower bare hands are. Read by game/scripts/gather/gather_service.gd. No gather XP here: rare results pay no bonus XP (spec 03 awards XP per completed activity, scaled by difficulty; a lucky roll is not difficulty), so XP pacing stays with W2-SKILLS.",
+  "_assumption": "ASSUMPTION: bare-handed work is 1.35x slower than with the role's tool; the PRDs only say better tools reduce work time (spec 12 s1).",
+  "tool_affinity": {
+    "tree": "axe",
+    "tree_dead": "axe",
+    "prop": "axe",
+    "rock": "pick",
+    "node": "pick",
+    "bush": "knife",
+    "plant": "knife",
+    "ground": "knife",
+    "crop": "knife",
+    "water": "knife"
+  },
+  "bare_hands_seconds_mult": 1.35
+}

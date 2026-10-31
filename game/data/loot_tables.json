@@ -1,0 +1,152 @@
+{
+  "_about": "W2-GATHER rare results and butcher yield scaling. Owned by game/scripts/gather/. Every item id must exist in items.json and every tier name in ProgressionScaling.TOOL_TIERS (t_gather checks). Every gather pass gives exactly one item (ONEGATHER). Chances are per gathered item (rare_trait), per gathered pass (gather_rare finds) or per carcass (butcher).",
+  "_assumption": "The docs set one gather rarity: world-design.md:55 'Every material stamped with attributes: always climate and level; ... 5% chance of a rare extra (green pip)' and PRD:541 'Rare extra attributes = green pip, low chance' (rare_trait, the green traits of spec 04:11). Finds are a node's secondary materials (spec 12:38 'material drop tables'; 12:39 'a tree may yield leaf, branch, log, fruit, sap, or specialized material'). ASSUMPTION: the find odds are illustrative, about one per 20-30 passes.",
+  "rare_trait": {
+    "_doc": "world-design.md:55, PRD:541: each gathered item has this chance of one green rare trait; spec 04:11 names the six. Spec 12:42: Gathering level never raises it. Keys are INVUI's inv_ui.json attribute_classes of class rare, value true.",
+    "_assumption": "ASSUMPTION: the docs do not say which trait a material gets, so each of the six is equally likely on any gathered material (tool tier scales the 5% since ONEGATHER, see _tool_tier_bonus). RAREATTR narrows that: a material rolls only from by_material[item], its own list, and traits stays the shared fallback for an item with no list (an id added to a node's harvest before its row here).",
+    "chance": 0.05,
+    "_tool_tier_bonus": "ONEGATHER (owner 2026-10-28: 'cap it to 1 per harvest and upgrades can change the speed and quality of the materials you harvest, not the amount'). ASSUMPTION: a gathering tool's material tier is the quality lever: each tier above stone raises a unit's rare-trait odds by 15% of the base (the old count multiplier's tier step, gather_rare's tool_tier_bonus), so a steel tool rolls 5% x 2.05 = 10.25%, capped at max_chance. Bare hands and stone keep the documented 5%. Gathering level still never raises it (spec 12:42); level speeds the pass instead.",
+    "tool_tier_bonus": 0.15,
+    "max_chance": 0.15,
+    "_tier": "BAGUI (owner 2026-10-28: 'Perks have tiers now (Beautiful Pattern IV)'). A rolled rare trait's value is its tier, 1-5 (I-V); an old save's true reads as I. ASSUMPTION: from tier I each further step succeeds with tier_step (35%: II 35%, III 12%, IV 4%, V 1.5% of rolls); each tool tier above stone adds tier_step_tool_bonus and each level of the gathering skill tier_step_skill_bonus, capped at tier_step_max. A craft keeps the primary material's tier; a craft's own rare roll uses the same table without tool or skill.",
+    "tier_step": 0.35,
+    "tier_step_tool_bonus": 0.03,
+    "tier_step_skill_bonus": 0.002,
+    "tier_step_max": 0.6,
+    "traits": ["black_sheen", "low_vibration", "wide_serration", "narrow_hook", "split_easily", "vivid_inspiration"],
+    "_by_material": "RAREATTR: each gatherable material's own rare-attribute list (spec 04:33 'rare attributes may pass from a single eligible primary material'). ASSUMPTION, since spec 04:25 names conversions for five of the six: a combat material (stone, ore, metal, crystal, ice, pearl) rolls black_sheen or low_vibration (Vital Strike / Throw Dirt, Sadism / Pain Averse); a tool-shaping material (timber, fibre, cordage) rolls wide_serration or narrow_hook (gathering effects); a workpiece (timber, earth, clay, resin) also rolls split_easily (workstation effects); vivid_inspiration has no documented conversion, so every material can roll it. The 5% chance and its key names are unchanged; a recipe's own rare roll (world/rules.json rare_attribute_chance) still draws from the full six.",
+    "by_material": {
+      "stone": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "flint": ["black_sheen", "wide_serration", "vivid_inspiration"],
+      "obsidian": ["black_sheen", "wide_serration", "vivid_inspiration"],
+      "sandstone": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "lava": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "ice": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "coral": ["black_sheen", "narrow_hook", "vivid_inspiration"],
+      "pearl": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "driftglass": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "cactus_spine": ["narrow_hook", "wide_serration", "vivid_inspiration"],
+      "ore": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "copper_ore": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "tin_ore": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "silver_ore": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "black_iron": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "iron_ore": ["black_sheen", "low_vibration", "vivid_inspiration"],
+      "salt": ["split_easily", "vivid_inspiration"],
+      "sulphur": ["split_easily", "vivid_inspiration"],
+      "ash": ["split_easily", "vivid_inspiration"],
+      "wood_log": ["wide_serration", "split_easily", "vivid_inspiration"],
+      "pine_log": ["wide_serration", "split_easily", "vivid_inspiration"],
+      "snow_pine": ["wide_serration", "split_easily", "vivid_inspiration"],
+      "acacia_wood": ["wide_serration", "split_easily", "vivid_inspiration"],
+      "willow_wood": ["wide_serration", "split_easily", "vivid_inspiration"],
+      "bamboo": ["wide_serration", "split_easily", "vivid_inspiration"],
+      "branch": ["narrow_hook", "wide_serration", "split_easily", "vivid_inspiration"],
+      "bark_strip": ["narrow_hook", "split_easily", "vivid_inspiration"],
+      "root": ["narrow_hook", "split_easily", "vivid_inspiration"],
+      "resin": ["split_easily", "vivid_inspiration"],
+      "peat": ["split_easily", "vivid_inspiration"],
+      "fibre_stalk": ["narrow_hook", "wide_serration", "vivid_inspiration"],
+      "dry_grass": ["narrow_hook", "split_easily", "vivid_inspiration"],
+      "palm_frond": ["narrow_hook", "wide_serration", "vivid_inspiration"],
+      "reed": ["narrow_hook", "split_easily", "vivid_inspiration"],
+      "vine": ["narrow_hook", "wide_serration", "vivid_inspiration"],
+      "moss": ["narrow_hook", "vivid_inspiration"],
+      "flax": ["narrow_hook", "wide_serration", "vivid_inspiration"],
+      "wheat": ["narrow_hook", "wide_serration", "vivid_inspiration"],
+      "clay": ["split_easily", "vivid_inspiration"],
+      "mud": ["split_easily", "vivid_inspiration"],
+      "ochre": ["split_easily", "vivid_inspiration"],
+      "berries": ["narrow_hook", "vivid_inspiration"],
+      "berry": ["narrow_hook", "vivid_inspiration"],
+      "narcoberry": ["narrow_hook", "vivid_inspiration"],
+      "mushroom": ["split_easily", "vivid_inspiration"],
+      "herb_leaf": ["narrow_hook", "vivid_inspiration"],
+      "marsh_herb": ["narrow_hook", "vivid_inspiration"],
+      "spice_herb": ["narrow_hook", "vivid_inspiration"],
+      "petals": ["narrow_hook", "vivid_inspiration"],
+      "cactus_flower": ["narrow_hook", "vivid_inspiration"],
+      "cactus_flesh": ["split_easily", "vivid_inspiration"],
+      "coconut": ["split_easily", "vivid_inspiration"],
+      "mango": ["split_easily", "vivid_inspiration"],
+      "corn": ["wide_serration", "split_easily", "vivid_inspiration"],
+      "leech": ["split_easily", "vivid_inspiration"]
+    }
+  },
+  "lot": {
+    "_doc": "HARVESTROLL: every gather pass is its own lot (spec 04 'rolled positive/negative/rare attributes' per instance; Traits_Gathering_Processing_Math 'lots differ in level, quality, defects and rare virtues'). Level: L = max(1, S - width) + min(width, floor((width + 1) * U^gamma)) for node level S (that doc's site roll; a level-50 node yields 45-50, never above). gamma runs from gamma_novice (Gathering 1, bare hands) down by gamma_skill_drop at Gathering 60 and gamma_tool_drop at the top tool tier, so skill and tools favour the top of the band. Signed traits: by the item's first listed category in by_category; one grey trait at negative_chance, one gold trait at positive_chance (never the grey one's opposite) (scaled by tool tier and Gathering, capped), each of magnitude 1..max_magnitude. Items with no category row (food, herbs, treasure) roll only the level.",
+    "_assumption": "ASSUMPTION (HARVESTROLL, logged in docs/vision/WildLandsMMO_Open_Questions.md): width 5 and gammas 1.5/1.0/0.75 are the math doc's illustrative values; 7% is its unapproved candidate gold odds (grey 35%, owner: 96% 'too harsh'); skill bonus 20% relative at Gathering 60 (doc: worker 0-20%), tool bonus 15% per tier above stone (rare_trait's), cap 12%; magnitudes 1-3; which gold/grey traits each category can roll is read off spec 04's trait meanings.",
+    "width": 5,
+    "gamma_novice": 1.5,
+    "gamma_skill_drop": 0.5,
+    "gamma_tool_drop": 0.25,
+    "negative_chance": 0.35,
+    "positive_chance": 0.07,
+    "tool_tier_bonus": 0.15,
+    "skill_bonus_per_level": 0.0034,
+    "max_positive_chance": 0.12,
+    "max_magnitude": 3,
+    "_max_perks": "PERKCAP (owner 2026-10-28: 'it should really be 1-2 perks on each gathered item max'): green rare + gold + grey together never exceed max_perks on one gathered item; a green trait that lands on a full item replaces its grey one, else it is skipped. Never a trait and its opposite (opposites) on one lot. ASSUMPTION (owner 'too harsh' to 96%): negative_chance 0.35.",
+    "max_perks": 2,
+    "opposites": {"soft": "firm", "low_density": "high_density", "heavy": "lightweight", "weak_structure": "compact_structure", "soft_fiber": "tough_fiber"},
+    "by_category": {
+      "wood": {"positive": ["firm", "high_density", "lightweight"], "negative": ["soft", "low_density", "heavy"]},
+      "stone": {"positive": ["firm", "high_density", "sharp_section", "pointy"], "negative": ["heavy", "weak_structure", "low_density"]},
+      "ore": {"positive": ["high_density", "compact_structure"], "negative": ["heavy", "weak_structure"]},
+      "fibre": {"positive": ["tough_fiber", "high_elasticity", "thin"], "negative": ["soft_fiber", "weak_structure"]},
+      "lashing": {"positive": ["tough_fiber", "high_elasticity"], "negative": ["soft_fiber", "weak_structure"]},
+      "earth": {"positive": ["compact_structure", "high_density"], "negative": ["soft", "weak_structure"]}
+    }
+  },
+  "gather_rare": {
+    "_skill_bonus": "0 by spec 12 s1: 'never silently grant rare material traits purely for reaching a high level'. Better tools raise the odds (ASSUMPTION); skill level does not.",
+    "tool_tier_bonus": 0.15,
+    "skill_bonus_per_level": 0.0,
+    "max_chance": 0.5,
+    "_climates": "A find rolls only on a node whose island climate lists it, and every listed climate's materials (data/world/climates.json, docs/design/world-design.md:66-75) contain the item (t_gather checks). A row never rolls on a node whose own harvest (nature_manifest.json) has that item: a find is a different material, never more of the node's yield. A find's min_tool_tier is never below the pick tier a nature node needs for the same item (nature_manifest min_pick_tier, W2-DATA's ladder; t_gather checks), so a find never skips a rung. Home grassland has no find: each of its materials is some home node's own yield, so its rare results are rare_trait only.",
+    "by_role": {
+      "tree": [{"item": "resin", "chance": 0.04, "climates": ["tundra"]}],
+      "prop": [{"item": "resin", "chance": 0.02, "climates": ["tundra"]}],
+      "rock": [
+        {"item": "flint", "chance": 0.05, "min_tool_tier": "bone", "climates": ["temperate"]},
+        {"item": "copper_ore", "chance": 0.015, "min_tool_tier": "obsidian", "climates": ["desert"]},
+        {"item": "silver_ore", "chance": 0.02, "min_tool_tier": "copper", "climates": ["snowfield"]}
+      ]
+    },
+    "_dormant": "No island in islands.json is snowfield or blue_tropical yet, so the silver_ore and pearl rows cannot roll in the shipped world until those islands exist (t_gather checks each row has a family that grows in one of its climates).",
+    "by_family": {
+      "CoralNode": [{"item": "pearl", "chance": 0.03, "climates": ["blue_tropical"]}]
+    }
+  },
+  "alpha": {
+    "_about": "ALPHATAG (owner 2026-10-29: alphas 'drop better loot (and special loot pools specific to alpha animals)'): the ALPHA-ONLY pool. ButcherLoot.alpha_extras rolls it for an alpha carcass only, on top of the guaranteed rare rows and the trophy; a normal animal never rolls a row from here. `pool` is the default for every species, `by_species` overrides it per creature id. Rows are {id, min, max} like butchering.json; every unit is one instance. Every id here must be an items.json item and no normal butchering table may name it.",
+    "pool": [
+      {"id": "alpha_hide", "min": 1, "max": 2},
+      {"id": "alpha_fang", "min": 1, "max": 1}
+    ],
+    "by_species": {
+      "tyrannosaurus": [
+        {"id": "alpha_hide", "min": 2, "max": 3},
+        {"id": "alpha_fang", "min": 2, "max": 2}
+      ],
+      "tarbosaurus": [
+        {"id": "alpha_hide", "min": 2, "max": 2},
+        {"id": "alpha_fang", "min": 1, "max": 2}
+      ],
+      "allosaurus": [
+        {"id": "alpha_hide", "min": 1, "max": 2},
+        {"id": "alpha_fang", "min": 1, "max": 2}
+      ]
+    }
+  },
+  "butcher": {
+    "_rare_chance": "ASSUMPTION: spec 12 s2 ('Carcass Part Selection, Not Generic Random Loot') unlocks each part by Butchering nodes, tool and Slaughter Ability. Until W2-BUTCHER adds the Slaughter Ability roll, an unlocked rare part still rolls this chance (or the row's own) as its stand-in.",
+    "default_rare_chance": 0.12,
+    "rare_skill_bonus_per_level": 0.0,
+    "rare_tool_tier_bonus": 0.15,
+    "max_rare_chance": 0.6,
+    "_cut_speed": "ASSUMPTION (owner 2026-10-28: one per harvest, upgrades change speed and quality, not the amount): every cut gives exactly one part. Each knife tier above stone makes a cut 15% faster and each Butchering level 1% (the old part-count bonuses, now on speed); a better knife's quality shows as its rare-part odds (rare_tool_tier_bonus).",
+    "cut_speed_bonus_per_tier": 0.15,
+    "cut_speed_bonus_per_skill_level": 0.01
+  }
+}

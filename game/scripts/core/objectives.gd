@@ -28,8 +28,9 @@ static func current(player: Player) -> Dictionary:
 		"last": i == steps.size() - 1,
 	}
 
-## Advance while the current objective is satisfied, paying out each one. Returns the number
-## completed this tick so the caller can decide whether to announce anything.
+## Advance while the current objective is satisfied. TASKSCREEN: nothing pays here any more; a finished
+## order waits as a claimable Main Task (Tasks.claim pays its xp / t_stones from the Task screen).
+## Returns the number completed this tick so the caller can decide whether to announce anything.
 static func settle(player: Player) -> int:
 	var steps := _steps()
 	var done := 0
@@ -38,23 +39,21 @@ static func settle(player: Player) -> int:
 		var state := _with_best(_progress(player, step))
 		if not bool(state["done"]):
 			break
-		var xp := int(step.get("xp", 0))
-		var stones := int(step.get("t_stones", 0))
-		if xp > 0:
-			World.add_xp(xp)
-		if stones > 0:
-			World.t_stones += stones
-		print("[objective] done %s (+%d xp%s)" % [
-			step.get("id", "?"), xp, ", +%d T" % stones if stones > 0 else ""])
+		print("[objective] done %s (reward waits in Tasks)" % step.get("id", "?"))
+		Tasks.mark_done(str(step.get("id", World.objective)))
 		World.objective += 1
 		World.objective_best = 0
 		done += 1
 		if player and player.has_method("notice"):
 			var next := current(player)
-			if next.is_empty():
-				player.notice("Standing orders complete")
+			if bool(step.get("grant_home", false)):
+				player.notice("Choose your own island")
 			else:
-				player.notice("Next: %s" % next["title"])
+				player.notice("Order complete: receive the reward in Tasks" if next.is_empty() else "Order complete · Next: %s" % next["title"])
+		# TUTORIAL ISLAND: the last tutorial order grants the Tamed Island (the pick, then the ferry).
+		if bool(step.get("grant_home", false)) and Tutorial.active():
+			Tutorial.grant_home(World.runtime.get_parent() if World.runtime else player.get_tree().current_scene)
+			break
 	return done
 
 ## Materials are spent as fast as they are gathered, so an order tracks the most the survivor
@@ -72,7 +71,7 @@ static func _with_best(state: Dictionary) -> Dictionary:
 	}
 
 static func _steps() -> Array:
-	var raw: Variant = Data.world_objectives
+	var raw: Variant = Data.world_tutorial if Tutorial.active() else Data.world_objectives
 	return raw if raw is Array else []
 
 ## {"done", "frac", "label"} for one step.
@@ -104,6 +103,26 @@ static func _progress(player: Player, step: Dictionary) -> Dictionary:
 		return _row(player.bonded.size(), int(step["pets"]))
 	if step.has("away"):
 		return _row(0 if World.is_home() else 1, 1)
+	# TUTORIAL ISLAND conditions (objectives.json "_tutorial_about").
+	# TASKSCREEN: any order's reward received in Tasks (the tutorial's "Claim your reward" order).
+	if step.has("received_any"):
+		return _row(1 if Tasks.claimed.keys().any(func (k: Variant) -> bool: return str(k).begins_with("main.")) else 0, 1)
+	if step.has("near"):
+		return _row(1 if Tutorial.near(player, str(step["near"]), float(step.get("radius", 6.0))) else 0, 1)
+	if step.has("status"):
+		return _row(1 if player.statuses and player.statuses.has(StringName(str(step["status"]))) else 0, 1)
+	if step.has("resting"):
+		return _row(1 if player.sim.rest.resting or player._sleep_left > 0.0 else 0, 1)
+	if step.has("fire_lit"):
+		return _row(1 if Tutorial.fire_lit() else 0, 1)
+	if step.has("did"):
+		var did: Dictionary = step["did"]
+		var got_d := 0
+		var want_d := 0
+		for key in did:
+			want_d += int(did[key])
+			got_d += mini(int(did[key]), Tutorial.did(str(key)))
+		return _row(got_d, want_d)
 	return _row(0, 1)
 
 static func _row(got: int, want: int) -> Dictionary:

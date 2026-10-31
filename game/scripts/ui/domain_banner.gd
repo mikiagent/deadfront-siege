@@ -1,0 +1,131 @@
+class_name DomainBanner
+extends RefCounted
+## Spec 18, owner: "When entering player's claimed regions, it says 'Player's Domain' with their
+## profile picture." Crossing into claimed land shows "<owner>'s Domain" for a few seconds as the
+## label spec 15's map draws (durango-island-map.webp): a dark pill, the owner's portrait in a round
+## frame on its left end, the name gold and "'s Domain" white. Staying inside shows it once; leaving
+## and coming back, or crossing into another owner's land, shows it again. HuntHud ticks it every
+## frame and draws it before the toasts and notices, which then keep off it.
+
+const SHOW_S := 3.5  ## on screen, fades included
+const FADE_S := 0.35
+## Off a domain this long before it counts as left (or the next owner's as entered), so walking along
+## its edge, or along the border two owners share, does not flash it.
+const LEAVE_S := 0.5
+## A move this long in one frame is a respawn or a teleport, not a walk across the edge.
+const JUMP_M := 6.0
+const NAME_COLOR := Color(0.96, 0.71, 0.27)
+const PILL_COLOR := Color(0.05, 0.05, 0.05, 0.9)
+const FRAME_COLOR := Color(0.93, 0.89, 0.80)
+
+var owner: Dictionary = {}  ## whose land the survivor stands on ({} outside)
+var shown: Dictionary = {}  ## the owner on the banner
+var age: float = -1.0  ## seconds the banner has been up; < 0 hidden
+var _island_id: int = 0  ## the runtime the last tick saw
+var _last_at := Vector3.INF
+var _away_s: float = 0.0  ## seconds off the current owner's land
+var _pill := StyleBoxFlat.new()
+
+func showing() -> bool:
+	return age >= 0.0
+
+func text() -> String:
+	return "%s's Domain" % str(shown.get("name", "")) if showing() else ""
+
+## `rt` is World.runtime (its owner_at is the claim data), `at` where the survivor stands.
+func tick(delta: float, rt: Node, at: Vector3) -> void:
+	if age >= 0.0:
+		age += minf(delta, 0.1)  # one long frame (the first portrait render, a busy phone) must not eat it
+		if age >= SHOW_S:
+			age = -1.0
+	# The tutorial island is never claimed by a survivor; its town is the town's own domain
+	# (TOWNPOLISH2: TownDress registers it as a claim row with a name and an emblem).
+	var here: Dictionary = {}
+	if rt and rt.has_method("owner_at"):
+		here = rt.call("owner_at", BuildGrid.tile_of(at)) if not World.is_tutorial() else _town_at(rt, BuildGrid.tile_of(at))
+	var id := rt.get_instance_id() if rt else 0
+	var jumped := _last_at.distance_to(at) > JUMP_M
+	_last_at = at
+	if id != _island_id or jumped:
+		# ASSUMPTION: arriving (boot, load, a voyage, a respawn, a teleport) is not entering a
+		# domain: the banner waits for the survivor to walk or ride across a claim edge.
+		if id != _island_id:
+			age = -1.0  # a banner does not follow the survivor to the next island
+		_island_id = id
+		owner = here
+		_away_s = 0.0
+		return
+	if str(here.get("id", "")) == str(owner.get("id", "")):
+		_away_s = 0.0
+		return
+	# From open ground a domain shows at once; out of one (to open ground or the next owner's) only
+	# after LEAVE_S away from it.
+	_away_s += delta
+	if owner.is_empty() or _away_s >= LEAVE_S:
+		owner = here
+		_away_s = 0.0
+		if not here.is_empty():
+			shown = here
+			age = 0.0
+
+static func _town_at(rt: Node, tile: Vector2i) -> Dictionary:
+	var rows: Variant = rt.get("other_claims")
+	for row in (rows if rows is Array else []):
+		if (row["rect"] as Rect2i).has_point(tile):
+			return row["owner"]
+	return {}
+
+## Desktop: top centre, else the nearest free spot straight down (under the target plate), off the
+## vitals, minimap, quest card, hexes and the survivor, inside the safe area. Landscape phone: a slim
+## toast in its own slot at the top of the band between the vitals and the map, above the quest card;
+## while the target plate or level-up holds that slot it is not drawn, never down in the play area
+## (the survivor, a mount).
+func draw(hud: HuntHud) -> void:
+	if age < 0.0:
+		return
+	var r := hud.get_viewport_rect().size
+	var band := HudLayout.centre_band(hud, r) if HudLayout.landscape_phone(r) else Rect2()
+	var slim := band.has_area()
+	var compact := UiTokens.is_compact(r)
+	var font := hud._font
+	var inset := hud._safe_insets()
+	var px := 15 if slim else (17 if compact else 22)
+	var h := 26.0 if slim else (34.0 if compact else 46.0)
+	var d := h if slim else h + (6.0 if compact else 8.0)  # off a phone the portrait stands out of the pill
+	var tail := "'s Domain"
+	var tail_w := font.get_string_size(tail, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var room := (band.size.x if slim else r.x - 32.0 - inset.x - inset.w) - d - tail_w - 30.0
+	var who := UiTokens.ellipsis(font, str(shown.get("name", "")), room, px)
+	var who_w := font.get_string_size(who, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	var w := d + 10.0 + who_w + tail_w + 20.0
+	var box := Rect2(band.get_center().x - w * 0.5, band.position.y, w, d)
+	if slim:
+		for t in hud.taken_rects():
+			if box.intersects(t):
+				return
+	else:
+		box = UiTokens.free_spot(Rect2(inset.w + (r.x - inset.w - inset.x - w) * 0.5, 14.0 + inset.z, w, d), hud.taken_rects(), r)
+	if not box.has_area():
+		return
+	hud.drawn_blocks["domain"] = box
+	var a := clampf(minf(age, SHOW_S - age) / FADE_S, 0.0, 1.0)
+	var pill := Rect2(box.position + Vector2(d * 0.5, (d - h) * 0.5), Vector2(w - d * 0.5, h))
+	_pill.bg_color = Color(PILL_COLOR, PILL_COLOR.a * a)
+	_pill.set_corner_radius_all(int(h * 0.5))
+	hud.draw_style_box(_pill, pill)
+	var c := box.position + Vector2(d, d) * 0.5
+	hud.draw_circle(c, d * 0.5, Color(PILL_COLOR, a))
+	_draw_round(hud, PlayerPortrait.texture_for(shown, hud), c, d * 0.5 - 3.0, a)
+	hud.draw_arc(c, d * 0.5 - 1.5, 0.0, TAU, 48, Color(FRAME_COLOR, a), 2.0, true)
+	var base := Vector2(box.position.x + d + 10.0, pill.position.y + (h + font.get_ascent(px) - font.get_descent(px)) * 0.5)
+	hud.draw_string(font, base, who, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(NAME_COLOR, a))
+	hud.draw_string(font, base + Vector2(who_w, 0.0), tail, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(1, 1, 1, a))
+
+static func _draw_round(ci: CanvasItem, tex: Texture2D, c: Vector2, radius: float, a: float) -> void:
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	for i in 40:
+		var v := Vector2.from_angle(TAU * float(i) / 40.0)
+		pts.append(c + v * radius)
+		uvs.append(Vector2(0.5, 0.5) + v * 0.5)
+	ci.draw_colored_polygon(pts, Color(1, 1, 1, a), uvs, tex)

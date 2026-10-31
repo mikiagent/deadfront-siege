@@ -1,8 +1,10 @@
 class_name CraftCard
 extends PanelContainer
-## Compact unprojected craft panel above a station: name, ingredient slots with rings.
+## Compact unprojected craft panel above a station: name, ingredient slots as flat-top hexes whose
+## interior fills like a pie while the craft runs (UICRAFT, docs/design/ui-redesign-spec.md §3-4, D1).
 
-const SLOT_R := 28.0
+## 64 px phone tap/reading target: the ring is drawn inside a 2R+4 box (DESIGN mobile rule).
+const SLOT_R := 32.0
 const RING_W := 4.0
 
 var recipe_name: String = ""
@@ -13,6 +15,7 @@ var station: Node3D
 var follow_station: bool = true
 
 var _title: Label
+var _odds: Label
 var _slots_row: HBoxContainer
 var _slot_draws: Array[Control] = []
 var _icons: Dictionary = {}
@@ -24,8 +27,8 @@ func _ready() -> void:
 	visible = false
 	z_index = 40
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.09, 0.1, 0.92)
-	style.set_corner_radius_all(8)
+	style.bg_color = UiTokens.HUD_FILL
+	style.set_corner_radius_all(0)
 	style.content_margin_left = 14
 	style.content_margin_right = 14
 	style.content_margin_top = 10
@@ -36,16 +39,28 @@ func _ready() -> void:
 	add_child(box)
 	_title = Label.new()
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title.add_theme_font_size_override("font_size", 14)
+	_title.add_theme_font_size_override("font_size", 15)
+	_title.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
 	_title.add_theme_color_override("font_color", Color(0.95, 0.95, 0.92))
 	box.add_child(_title)
+	# CRAFTFEEL: the stakes on the card itself, so they are visible while the survivor works.
+	_odds = Label.new()
+	_odds.name = "CraftOdds"
+	_odds.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_odds.add_theme_font_size_override("font_size", 12)
+	_odds.add_theme_color_override("font_color", UiTokens.GOLD)
+	_odds.add_theme_font_override("font", UiTokens.ui_face())
+	_odds.visible = false
+	box.add_child(_odds)
 	_slots_row = HBoxContainer.new()
 	_slots_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_slots_row.add_theme_constant_override("separation", 10)
 	box.add_child(_slots_row)
 	_load_icons()
 
-func show_recipe(st: Node3D, name: String, slot_rows: Array[Dictionary], p_progress: float = 0.0, queue: int = 1) -> void:
+## `odds` is CraftUI.craftfeel_text's line set (CRAFTFEEL): "Success 100%   Flawless 5%" and the
+## "materials are lost" warning. Empty (or the old 4-argument call) draws no line at all.
+func show_recipe(st: Node3D, name: String, slot_rows: Array[Dictionary], p_progress: float = 0.0, queue: int = 1, odds: String = "") -> void:
 	station = st
 	recipe_name = name
 	slots = slot_rows
@@ -54,6 +69,9 @@ func show_recipe(st: Node3D, name: String, slot_rows: Array[Dictionary], p_progr
 	follow_station = true
 	_rebuild_slots()
 	_title.text = recipe_name if queue_count <= 1 else "%s  ×%d" % [recipe_name, queue_count]
+	if _odds:
+		_odds.text = odds
+		_odds.visible = odds != ""
 	visible = true
 	modulate = Color.WHITE
 	_update_screen_pos()
@@ -162,9 +180,15 @@ class _SlotRing extends Control:
 
 	func _draw() -> void:
 		var c := size * 0.5
-		draw_circle(c, SLOT_R, Color(0.16, 0.17, 0.19, 0.95))
-		draw_arc(c, SLOT_R - 1.0, 0.0, TAU, 48, Color(0.35, 0.38, 0.4, 0.9), RING_W, true)
-		draw_arc(c, SLOT_R - 1.0, -PI * 0.5, -PI * 0.5 + TAU * progress, 48, Color(0.95, 0.95, 0.92, 0.98), RING_W, true)
+		var r := SLOT_R - RING_W * 0.5
+		draw_colored_polygon(UiTokens.hex_points(c, r, UiTokens.HEX_FLAT_TOP), Color(0.16, 0.17, 0.19, 0.95))
+		if progress > 0.0:
+			var pie := UiTokens.pie_points(c, r, progress, UiTokens.HEX_FLAT_TOP)
+			if pie.size() >= 3:
+				draw_colored_polygon(pie, Color(UiTokens.HUD_RIM, 0.45))
+		var rim := UiTokens.hex_points(c, r, UiTokens.HEX_FLAT_TOP)
+		rim.append(rim[0])
+		draw_polyline(rim, UiTokens.HUD_RIM, RING_W, true)
 		if icon:
 			draw_texture_rect(icon, Rect2(c - Vector2(16, 16), Vector2(32, 32)), false)
 		else:

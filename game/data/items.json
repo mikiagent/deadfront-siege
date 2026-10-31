@@ -39,7 +39,8 @@
       "display_name": "Bark Strip",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -53,7 +54,8 @@
       "categories": [
         "wood",
         "split",
-        "burnable"
+        "burnable",
+        "thick_pillar"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -110,7 +112,8 @@
       "display_name": "Metal Shard",
       "categories": [
         "metal",
-        "blade_mat"
+        "blade_mat",
+        "chunk"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -152,6 +155,22 @@
       "default_attributes": {
         "tint": "#c0c4cc",
         "hardness": 4
+      },
+      "market_category": "ingot",
+      "rarity": "uncommon"
+    },
+    {
+      "id": "metal_nails",
+      "display_name": "Metal Nails",
+      "categories": [
+        "metal",
+        "nails"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#9aa0a8"
       },
       "market_category": "ingot",
       "rarity": "uncommon"
@@ -237,7 +256,8 @@
       "display_name": "Fibre Stalk",
       "categories": [
         "fibre",
-        "stalk"
+        "stalk",
+        "strap_material"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -250,7 +270,8 @@
       "display_name": "Reed",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 30,
       "tool_class": "none",
@@ -265,7 +286,8 @@
       "id": "root",
       "display_name": "Root",
       "categories": [
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -414,11 +436,10 @@
     },
     {
       "id": "stone_knife_work",
-      "display_name": "Stone Work Knife",
+      "display_name": "Work Knife",
       "categories": [
         "tool",
-        "blade",
-        "weapon"
+        "blade"
       ],
       "stack_max": 1,
       "tool_class": "knife",
@@ -427,7 +448,7 @@
       "damage": 18,
       "damage_type": "slashing",
       "is_work_tool": true,
-      "max_durability": 40,
+      "max_durability": 120,
       "stats_per_level": {
         "damage": 0.02,
         "max_durability": 0.02
@@ -437,7 +458,7 @@
     },
     {
       "id": "stone_knife",
-      "display_name": "Stone Knife",
+      "display_name": "Stone Dagger",
       "categories": [
         "weapon",
         "blade",
@@ -531,12 +552,15 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 12,
+      "food_energy": 11.308,
       "raw": true,
       "poison_chance": 0.25,
       "tastes_bad_chance": 0.2,
       "market_category": "meat",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "dried_meat",
@@ -607,7 +631,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 22,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -626,13 +650,16 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 10,
+      "food_energy": 8.773,
       "raw": true,
       "poison_chance": 0.25,
       "tastes_bad_chance": 0.2,
       "market_category": "meat",
       "rarity": "common",
-      "source_pending": "fishing: no catch system yet (missions.json catch_fish waits on M7)"
+      "source_pending": "fishing: no catch system yet (missions.json catch_fish waits on M7)",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "raptor_meat",
@@ -646,7 +673,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 16,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -658,12 +685,33 @@
     },
     {
       "id": "raptor_bone",
-      "display_name": "Raptor Bone",
+      "display_name": "Raptor Leg Bone",
       "categories": [
         "bone",
         "blade_mat",
         "handle",
         "tier_bone"
+      ],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "hardness": 2,
+        "tint": "#d4c4a8",
+        "material_tier": "bone"
+      },
+      "market_category": "bone",
+      "rarity": "uncommon"
+    },
+    {
+      "id": "stout_leg_bone",
+      "display_name": "Stout Leg Bone",
+      "categories": [
+        "bone",
+        "blade_mat",
+        "handle",
+        "tier_bone",
+        "thick_pillar"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -696,7 +744,7 @@
     },
     {
       "id": "raptor_talon",
-      "display_name": "Raptor Talon",
+      "display_name": "Sickle Claw",
       "categories": [
         "bone",
         "blade_mat",
@@ -711,6 +759,20 @@
       },
       "market_category": "bone",
       "rarity": "uncommon"
+    },
+    {
+      "id": "alpha_trophy",
+      "display_name": "Alpha Trophy",
+      "_assumption": "ALPHAS (owner 2026-10-28: alphas drop special loot): an alpha-only trophy, one per alpha corpse (ai.json alpha.loot). ASSUMPTION: the docs name no alpha item, so it is a single generic trophy with no recipe yet.",
+      "categories": [
+        "trophy"
+      ],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {},
+      "market_category": "bone",
+      "rarity": "epic"
     },
     {
       "id": "raw_hide",
@@ -822,6 +884,57 @@
       ],
       "market_category": "building_kit",
       "rarity": "common"
+    },
+    {
+      "id": "taming_pen_medium",
+      "display_name": "Medium Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_medium",
+      "footprint": [
+        5,
+        5
+      ],
+      "market_category": "building_kit",
+      "rarity": "uncommon"
+    },
+    {
+      "id": "taming_pen_large",
+      "display_name": "Large Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_large",
+      "footprint": [
+        6,
+        6
+      ],
+      "market_category": "building_kit",
+      "rarity": "rare"
+    },
+    {
+      "id": "taming_pen_apex",
+      "display_name": "Apex Taming Pen",
+      "categories": [
+        "building"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "place_as": "taming_pen_apex",
+      "footprint": [
+        8,
+        8
+      ],
+      "market_category": "building_kit",
+      "rarity": "epic"
     },
     {
       "id": "campfire_kit",
@@ -1119,10 +1232,13 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 8,
+      "food_energy": 3.428,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "berry",
@@ -1136,10 +1252,13 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 6,
+      "food_energy": 3.428,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "clay",
@@ -1236,7 +1355,8 @@
       "id": "palm_frond",
       "display_name": "Palm Frond",
       "categories": [
-        "fibre"
+        "fibre",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1254,10 +1374,13 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 12,
+      "food_energy": 4.66,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "bamboo",
@@ -1281,17 +1404,21 @@
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 10,
+      "food_energy": 4.66,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "vine",
       "display_name": "Vine",
       "categories": [
         "fibre",
-        "lashing"
+        "lashing",
+        "strap_material"
       ],
       "stack_max": 20,
       "tool_class": "none",
@@ -1344,7 +1471,8 @@
       "id": "ice",
       "display_name": "Ice",
       "categories": [
-        "water"
+        "water",
+        "ice"
       ],
       "stack_max": 10,
       "tool_class": "none",
@@ -1354,7 +1482,7 @@
     },
     {
       "id": "bone",
-      "display_name": "Bone",
+      "display_name": "Leg Bone",
       "categories": [
         "bone",
         "blade_mat",
@@ -1370,17 +1498,56 @@
       "rarity": "common"
     },
     {
+      "id": "hollow_bone",
+      "display_name": "Hollow Bone",
+      "categories": [
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "bone"
+      },
+      "market_category": "bone",
+      "rarity": "common"
+    },
+    {
+      "id": "large_leg_bone",
+      "display_name": "Large Leg Bone",
+      "categories": [
+        "bone",
+        "blade_mat",
+        "tier_bone",
+        "thick_pillar"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "bone"
+      },
+      "market_category": "bone",
+      "rarity": "common"
+    },
+    {
       "id": "cactus_flesh",
       "display_name": "Cactus Flesh",
       "categories": [
-        "food"
+        "food",
+        "cactus"
       ],
       "stack_max": 10,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 6,
+      "food_energy": 2.617,
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "cactus_spine",
@@ -1498,6 +1665,19 @@
       "source_pending": "island: only SilverOreNode (snowfield) yields it, and islands.json has no snowfield island yet"
     },
     {
+      "id": "driftglass",
+      "display_name": "Driftglass",
+      "categories": [
+        "treasure"
+      ],
+      "stack_max": 10,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "gem",
+      "rarity": "rare",
+      "source_pending": "island: only DriftglassNode at a Rift Pool, which grows on generated unstable isles (World.roll_drift); a fresh walk over the roster never meets one"
+    },
+    {
       "id": "pearl",
       "display_name": "Pearl",
       "categories": [
@@ -1613,13 +1793,16 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 8,
+      "food_energy": 1.994,
       "raw": true,
       "poison_chance": 0.35,
       "tastes_bad_chance": 0.25,
       "diet": "omnivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "spice_herb",
@@ -1690,12 +1873,15 @@
       "stack_max": 20,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 10,
+      "food_energy": 11.308,
       "raw": true,
       "diet": "carnivore",
       "poison_chance": 0.2,
       "market_category": "meat",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "meatball",
@@ -1709,7 +1895,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 18,
+      "food_energy": 14.153,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1728,7 +1914,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 14,
+      "food_energy": 13.745,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1766,7 +1952,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 24,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1785,7 +1971,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 20,
+      "food_energy": 12.727,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1804,7 +1990,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 28,
+      "food_energy": 6.163,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1824,7 +2010,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 30,
+      "food_energy": 6.163,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1859,7 +2045,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 22,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1880,7 +2066,7 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "omnivore",
-      "food_energy": 24,
+      "food_energy": 11.308,
       "stats_per_level": {
         "food_energy": 0.01
       },
@@ -1968,10 +2154,13 @@
       "stack_max": 30,
       "tool_class": "none",
       "base_level": 1,
-      "food_energy": 8,
+      "food_energy": 6.163,
       "diet": "herbivore",
       "market_category": "food_raw",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "wheat",
@@ -2011,9 +2200,12 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "carnivore",
-      "food_energy": 15,
+      "food_energy": 13.053,
       "market_category": "food_cooked",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "herbivore_feed",
@@ -2026,9 +2218,12 @@
       "tool_class": "none",
       "base_level": 1,
       "diet": "herbivore",
-      "food_energy": 12,
+      "food_energy": 13.053,
       "market_category": "food_cooked",
-      "rarity": "common"
+      "rarity": "common",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
     },
     {
       "id": "field_small_kit",
@@ -2222,17 +2417,82 @@
       "display_name": "Predator Tendon",
       "categories": [
         "tendon",
-        "lashing"
+        "lashing",
+        "strap",
+        "meat",
+        "food",
+        "edible"
       ],
+      "_tags": "BAGUI (owner 2026-10-28: 'Tendons can be turned into bowstring and you can eat them (meat)'): categories are the item's classification tags (ItemTags). ASSUMPTION food values: a chewy raw cut, about half a raw meat's energy, the same raw-meat risks.",
       "stack_max": 999,
       "base_level": 1,
       "tool_class": "none",
+      "diet": "carnivore",
+      "food_energy": 6.0,
+      "raw": true,
+      "poison_chance": 0.25,
+      "tastes_bad_chance": 0.4,
       "market_category": "cordage",
       "rarity": "rare"
     },
     {
+      "id": "bowstring",
+      "display_name": "Bowstring",
+      "categories": [
+        "bowstring",
+        "component",
+        "lashing"
+      ],
+      "_about": "BAGUI (owner 2026-10-28): twisted from any item tagged strap (a tendon, a strap). ASSUMPTION: a plain component; no bow recipe takes it yet.",
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "cordage",
+      "rarity": "uncommon"
+    },
+    {
       "id": "armor_scute",
-      "display_name": "Armor Scute",
+      "display_name": "Osteoderm",
+      "categories": [
+        "scute",
+        "bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare",
+      "source_pending": "alpha carcass only: ButcherLoot.alpha_extras rolls loot_tables.json alpha.pool; no recipe yet"
+    },
+    {
+      "id": "dorsal_plate",
+      "display_name": "Dorsal Plate",
+      "categories": [
+        "scute",
+        "bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "frill_plate",
+      "display_name": "Frill Plate",
+      "categories": [
+        "scute",
+        "bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "skull_plate",
+      "display_name": "Skull Plate",
       "categories": [
         "scute",
         "bone"
@@ -2246,6 +2506,51 @@
     {
       "id": "dense_bone",
       "display_name": "Dense Bone",
+      "categories": [
+        "dense_bone",
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "brow_horn",
+      "display_name": "Brow Horn",
+      "categories": [
+        "dense_bone",
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "tail_spike",
+      "display_name": "Tail Spike",
+      "categories": [
+        "dense_bone",
+        "bone",
+        "blade_mat",
+        "tier_bone"
+      ],
+      "stack_max": 999,
+      "base_level": 1,
+      "tool_class": "none",
+      "market_category": "bone",
+      "rarity": "rare"
+    },
+    {
+      "id": "tail_club",
+      "display_name": "Tail Club",
       "categories": [
         "dense_bone",
         "bone",
@@ -2660,6 +2965,21 @@
       ],
       "tool_class": "none",
       "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "metal_ore"
+    },
+    {
+      "id": "iron_ore",
+      "display_name": "Iron Ore",
+      "categories": [
+        "ore",
+        "iron_ore"
+      ],
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "material_tier": "iron"
+      },
       "rarity": "uncommon",
       "market_category": "metal_ore"
     },
@@ -3802,6 +4122,635 @@
       "base_level": 1,
       "rarity": "uncommon",
       "market_category": "medicine"
+    },
+    {
+      "id": "woven_bag",
+      "display_name": "Woven Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 20,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "bag_def": "basic_bag",
+      "_about": "Spec 31 \u00a72 migration: the old stand-in bag. Saves that hold it load as a Basic Bag of the same level (ItemStack.from_dict). New bags are the five defined in data/bags.json.",
+      "source_pending": true
+    },
+    {
+      "id": "basic_bag",
+      "display_name": "Basic Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "common",
+      "bag_def": "basic_bag"
+    },
+    {
+      "id": "small_pouch",
+      "display_name": "Small Pouch",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "common",
+      "bag_def": "small_pouch"
+    },
+    {
+      "id": "large_pouch",
+      "display_name": "Large Pouch",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "bag_def": "large_pouch"
+    },
+    {
+      "id": "advanced_backpack",
+      "display_name": "Advanced Backpack",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "rare",
+      "bag_def": "advanced_backpack"
+    },
+    {
+      "id": "specialized_storage_bag",
+      "display_name": "Specialized Storage Bag",
+      "categories": [
+        "accessory",
+        "bag"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "bag_slots": 0,
+      "tool_class": "none",
+      "max_durability": 0,
+      "market_category": "clothing",
+      "rarity": "epic",
+      "bag_def": "specialized_storage_bag"
+    },
+    {
+      "id": "plank_shape",
+      "display_name": "Plank Shape",
+      "categories": [
+        "component",
+        "plank_shape",
+        "wood"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "building_kit",
+      "rarity": "common"
+    },
+    {
+      "id": "pillar_shape",
+      "display_name": "Pillar Shape",
+      "categories": [
+        "component",
+        "pillar_shape",
+        "wood"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "building_kit",
+      "rarity": "common"
+    },
+    {
+      "id": "strap",
+      "display_name": "Strap",
+      "categories": [
+        "component",
+        "strap",
+        "lashing"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "cordage",
+      "rarity": "common"
+    },
+    {
+      "id": "trimmed_plank",
+      "display_name": "Trimmed Plank",
+      "categories": [
+        "wood",
+        "trimmed_plank"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "building_kit",
+      "rarity": "common"
+    },
+    {
+      "id": "fine_plank",
+      "display_name": "Fine Plank",
+      "categories": [
+        "wood",
+        "fine_plank"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "building_kit",
+      "rarity": "common"
+    },
+    {
+      "id": "spring_water",
+      "display_name": "Spring Water",
+      "categories": [
+        "water",
+        "drink",
+        "food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 4,
+      "market_category": "food_raw",
+      "rarity": "common",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station."
+    },
+    {
+      "id": "tea",
+      "display_name": "Tea",
+      "categories": [
+        "drink",
+        "food",
+        "brew"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 3.102,
+      "market_category": "food_cooked",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "drip_coffee",
+      "display_name": "Drip Coffee",
+      "categories": [
+        "drink",
+        "food",
+        "brew"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 3.898,
+      "market_category": "food_cooked",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "dutch_coffee",
+      "display_name": "Dutch Coffee",
+      "categories": [
+        "drink",
+        "food",
+        "brew",
+        "buff_food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 3.898,
+      "market_category": "food_cooked",
+      "rarity": "rare",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "crafters_meal",
+      "display_name": "Crafter's Meal",
+      "categories": [
+        "food",
+        "cooked",
+        "meal",
+        "buff_food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 9.59,
+      "market_category": "food_cooked",
+      "rarity": "rare",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station.",
+      "stats_per_level": {
+        "food_energy": 0.01
+      }
+    },
+    {
+      "id": "fatigue_tonic",
+      "display_name": "Fatigue Restorative",
+      "categories": [
+        "drink",
+        "medicine",
+        "food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "food_energy": 0,
+      "market_category": "medicine",
+      "rarity": "uncommon",
+      "source_pending": "FOODFX slice (spec 32 s16.4): the consumption system ships before the brewing/cooking recipes for it; the item is reachable in the lab and tests, not yet from a station."
+    },
+    {
+      "id": "fruit_juice",
+      "display_name": "Fruit Juice",
+      "categories": [
+        "drink",
+        "food",
+        "juice"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 9.59,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "cactus_juice",
+      "display_name": "Cactus Juice",
+      "categories": [
+        "drink",
+        "food",
+        "juice"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 8.898,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "meat_broth",
+      "display_name": "Meat Broth",
+      "categories": [
+        "drink",
+        "food",
+        "broth"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 3.289,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "salad",
+      "display_name": "Salad",
+      "categories": [
+        "food",
+        "cooked",
+        "meal"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 12.235,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "herbal_tea",
+      "display_name": "Herbal Tea",
+      "categories": [
+        "drink",
+        "food",
+        "medicine"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "medicine",
+      "food_energy": 0.692,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "shaved_ice",
+      "display_name": "Shaved Ice",
+      "categories": [
+        "food",
+        "cold_food"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "rarity": "uncommon",
+      "market_category": "food_cooked",
+      "food_energy": 3.428,
+      "stats_per_level": {
+        "food_energy": 0.01
+      },
+      "diet": "omnivore"
+    },
+    {
+      "id": "saddle_small",
+      "display_name": "Small Saddle",
+      "categories": [
+        "saddle",
+        "saddle_small"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SADDLES: fits a small tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
+    },
+    {
+      "id": "saddle_medium",
+      "display_name": "Medium Saddle",
+      "categories": [
+        "saddle",
+        "saddle_medium"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SADDLES: fits a medium tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
+    },
+    {
+      "id": "saddle_large",
+      "display_name": "Large Saddle",
+      "categories": [
+        "saddle",
+        "saddle_large"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SADDLES: fits a large tame (PetRecord.saddle_size); equip it from the tame's Gear screen to ride."
+    },
+    {
+      "id": "spiky_armor",
+      "display_name": "Spiky Armor",
+      "categories": [
+        "armor_body"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 250,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "skill_bonus": {
+        "butchering": 5
+      },
+      "visual": "hide_and_bone/chest",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SLOWLEVELS worked example (owner 2026-10-28: 'Spikey armor, increases Butchering ability -> helps you grind for better gear'): Tailoring's Spiky Armor node unlocks it; while worn its skill_bonus raises the effective Butchering level (SkillRules.effective_level). ASSUMPTION: armour, durability, +5 Butchering per piece; the hide-and-bone art stands in."
+    },
+    {
+      "id": "spiky_armor_helmet",
+      "display_name": "Spiky Armor Helmet",
+      "categories": [
+        "armor_head"
+      ],
+      "stack_max": 1,
+      "base_level": 1,
+      "armor_value": 110,
+      "max_durability": 300,
+      "stats_per_level": {
+        "armor_value": 0.02
+      },
+      "skill_bonus": {
+        "butchering": 5
+      },
+      "visual": "hide_and_bone/helmet",
+      "tool_class": "none",
+      "insulation": {
+        "cold": 1,
+        "heat": 0
+      },
+      "market_category": "clothing",
+      "rarity": "uncommon",
+      "_about": "SLOWLEVELS worked example (owner 2026-10-28: 'Spikey armor, increases Butchering ability -> helps you grind for better gear'): Tailoring's Spiky Armor node unlocks it; while worn its skill_bonus raises the effective Butchering level (SkillRules.effective_level). ASSUMPTION: armour, durability, +5 Butchering per piece; the hide-and-bone art stands in."
+    },
+    {
+      "id": "silver_chunk",
+      "display_name": "Silver Chunk",
+      "categories": [
+        "metal",
+        "chunk",
+        "smelted_metal",
+        "precious_metal",
+        "tier_silver"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#d8dde3"
+      },
+      "market_category": "ingot",
+      "rarity": "rare"
+    },
+    {
+      "id": "metal_stick",
+      "display_name": "Metal Stick",
+      "categories": [
+        "metal",
+        "stick",
+        "handle"
+      ],
+      "stack_max": 1,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#b0b8c0"
+      },
+      "market_category": "ingot",
+      "rarity": "uncommon"
+    },
+    {
+      "id": "alpha_hide",
+      "display_name": "Alpha Hide",
+      "_assumption": "ALPHATAG (owner 2026-10-29: alphas drop 'better loot (and special loot pools specific to alpha animals)'): a thicker, richer hide that only an alpha carcass yields (butchering.json species alpha_pool). ASSUMPTION: the docs name no alpha item, so it is a hide-tier material with no recipe yet.",
+      "categories": [
+        "hide",
+        "uncut_hide",
+        "green_hide"
+      ],
+      "stack_max": 5,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "tint": "#7a6448"
+      },
+      "market_category": "hide",
+      "rarity": "rare",
+      "source_pending": "alpha carcass only: ButcherLoot.alpha_extras rolls loot_tables.json alpha.pool; no recipe yet"
+    },
+    {
+      "id": "alpha_fang",
+      "display_name": "Alpha Fang",
+      "_assumption": "ALPHATAG (owner 2026-10-29: 'special loot pools specific to alpha animals'): an oversized fang cut only from an alpha carcass (butchering.json species alpha_pool). ASSUMPTION: catalogue name, no recipe yet.",
+      "categories": [
+        "bone",
+        "blade_mat",
+        "talon"
+      ],
+      "stack_max": 3,
+      "tool_class": "none",
+      "base_level": 1,
+      "default_attributes": {
+        "hardness": 4,
+        "material_tier": "bone",
+        "tint": "#e8dcbd"
+      },
+      "market_category": "bone",
+      "rarity": "rare",
+      "source_pending": "alpha carcass only: ButcherLoot.alpha_extras rolls loot_tables.json alpha.pool; no recipe yet"
+    },
+    {
+      "id": "spoiled_meat",
+      "display_name": "Spoiled Meat",
+      "categories": [
+        "spoiled",
+        "spoiled_meat"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "meat",
+      "rarity": "common",
+      "_about": "FOODTORPOR: what raw or cooked meat becomes when it spoils (Spoilage). Not edible; mixed with Narcoberry into Sedative."
+    },
+    {
+      "id": "rot",
+      "display_name": "Rot",
+      "categories": [
+        "spoiled",
+        "rot"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "common",
+      "_about": "FOODTORPOR: what spoiled plant food becomes (Spoilage). Not edible; composted into fertilizer at the mortar."
+    },
+    {
+      "id": "narcoberry",
+      "display_name": "Narcoberry",
+      "categories": [
+        "herb",
+        "narcoberry"
+      ],
+      "stack_max": 20,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "herb",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: a sleep-inducing berry from narcoberry bushes; a Sedative ingredient, not a food."
+    },
+    {
+      "id": "sedative",
+      "display_name": "Sedative",
+      "categories": [
+        "counter_supply",
+        "sedative"
+      ],
+      "stack_max": 999,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "medicine",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: coats the equipped weapon for 3 landed hits, each adding sedative torpor; also the dose in a Tranquilizer Dart."
+    },
+    {
+      "id": "tranquilizer_dart",
+      "display_name": "Tranquilizer Dart",
+      "categories": [
+        "ammunition",
+        "tranquilizer_dart"
+      ],
+      "stack_max": 999,
+      "tool_class": "none",
+      "base_level": 1,
+      "market_category": "weapon",
+      "rarity": "uncommon",
+      "_about": "FOODTORPOR: slingshot ammo fired from the Dart hex; light damage, a large torpor dose."
     }
   ]
 }

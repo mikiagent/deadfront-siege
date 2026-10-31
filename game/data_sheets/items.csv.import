@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cl6t54mei2t25"
+
+[deps]
+
+files=["res://data_sheets/items.display.translation", "res://data_sheets/items.categories.translation", "res://data_sheets/items.stack.translation", "res://data_sheets/items.tool.translation", "res://data_sheets/items.base.translation", "res://data_sheets/items.rarity.translation", "res://data_sheets/items.market.translation", "res://data_sheets/items.attributes.translation"]
+
+source_file="res://data_sheets/items.csv"
+dest_files=["res://data_sheets/items.display.translation", "res://data_sheets/items.categories.translation", "res://data_sheets/items.stack.translation", "res://data_sheets/items.tool.translation", "res://data_sheets/items.base.translation", "res://data_sheets/items.rarity.translation", "res://data_sheets/items.market.translation", "res://data_sheets/items.attributes.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

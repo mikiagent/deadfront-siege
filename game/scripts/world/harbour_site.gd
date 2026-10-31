@@ -74,34 +74,60 @@ static func check(rt: IslandRuntime, cell: Vector2i, rot: int) -> String:
 		return "dock_needs_water"
 	return ""
 
-## The legal coast pose nearest the hint: walk in from the open sea along 360 bearings to the
-## first land, point the dock at the nearer grid axis, and nudge the base inland up to 3 m. The
-## approach strip must reach dry walkable land, so camp-to-harbour pathing reaches the dock.
+## The legal coast pose on the island's SOUTHERN-MOST mainland coast (ISLANDSHAPES, owner: "start at
+## the southern-most port of any island"): walk in from the open sea along 360 bearings to each coast,
+## point the dock at the nearer grid axis, and nudge the base inland up to 3 m. The approach strip must
+## reach dry walkable land, so camp-to-harbour pathing reaches the dock, and the base must be on the
+## mainland (an offshore islet is skipped and the walk goes on to the coast behind it). Of every legal
+## pose the one whose footprint centre lies farthest south (+z) wins; a tie goes to the one nearer the
+## island's north-south midline, never to `hint` (the stored hint is rewritten after every build).
+## `hint` is kept for the islands that opt out (def "dock_rule": "hint").
 ## Returns {"cell": Vector2i, "rot": int} or {} when no coast fits (then check() refuses all).
-static func find(rt: IslandRuntime, hint: Vector2) -> Dictionary:
+static func find(rt: IslandRuntime, hint: Vector2, southern: bool = true) -> Dictionary:
 	var best := {}
-	var best_d := INF
+	var best_key := -INF
 	var half := rt._size * 0.5 - 1.0
+	var sh = rt._shape
+	var classic: bool = sh == null or str(sh.family) == "classic"
 	for i in 360:
 		var ang := TAU * float(i) / 360.0
 		var dir := Vector2(cos(ang), sin(ang))
 		var r := half
-		while r > 0.0 and _h(rt, dir * r) <= WATER_Y:
-			r -= 0.5
-		if r <= 0.0:
-			continue
-		var rot := rot_toward(dir)
-		for back in 4:
-			var cell := cell_for_base(dir * r - seaward(rot) * float(back), rot)
-			if check(rt, cell, rot) == "":
-				if not _reaches_dry(rt, cell, rot):
-					break
-				var d := hint.distance_to(centre(cell, rot))
-				if d < best_d:
-					best_d = d
-					best = {"cell": cell, "rot": rot}
+		while r > 0.0:
+			while r > 0.0 and _h(rt, dir * r) <= WATER_Y:
+				r -= 0.5
+			if r <= 0.0:
 				break
+			var on_main: bool = sh == null or sh.on_mainland(dir.x * r, dir.y * r)
+			var pose := _pose_at(rt, dir, r) if on_main else {}
+			if not pose.is_empty():
+				var c := centre(pose["cell"], pose["rot"])
+				var key := c.y - absf(c.x) * 0.001 if southern else -hint.distance_to(c)
+				if key > best_key:
+					best_key = key
+					best = pose
+				break
+			# A classic island keeps the old rule (only its outer coast); a shaped one looks past an
+			# islet or a reef to the next coast in.
+			if classic and on_main:
+				break
+			while r > 0.0 and _h(rt, dir * r) > WATER_Y:
+				r -= 0.5
 	return best
+
+## The first legal pose backing in from the waterline at `r` along `dir` ({} when none).
+static func _pose_at(rt: IslandRuntime, dir: Vector2, r: float) -> Dictionary:
+	var rot := rot_toward(dir)
+	# Try every half metre back from the waterline: the dock's base row window is about 1.5 m
+	# wide on the shaped coast, and 4 one-metre steps used to miss it (only 1-2 bearings legal).
+	for bi in 10:
+		var back := 0.5 * float(bi)
+		var cell := cell_for_base(dir * r - seaward(rot) * back, rot)
+		if check(rt, cell, rot) == "":
+			if not _reaches_dry(rt, cell, rot):
+				return {}
+			return {"cell": cell, "rot": rot}
+	return {}
 
 static func rot_toward(dir: Vector2) -> int:
 	if absf(dir.x) > absf(dir.y):

@@ -4,16 +4,9 @@ var failures: Array[String] = []
 var _capture_done := false
 
 func _init() -> void:
-	_test_save_migrations()
-	_test_food_buffs()
-	_test_exhaustion()
-	_test_fatigue_level_gap()
-	_test_climate_palette()
-	_test_creature_genetics()
-	_test_progression_scaling()
-	_test_starter_island_levels_and_resource_stacks()
-	_test_hud_event_state()
-	_test_ui_tokens()
+	# Autoload-dependent tests wait for the first frame (`_process` below): `--script` compiles and
+	# instantiates this file before the engine creates the autoloads. Only the frame check runs here.
+	pass
 
 ## FieldTame references the Data autoload. `godot --script` compiles this file before
 ## singletons exist, so the capture checks load that class on the first frame.
@@ -23,6 +16,18 @@ func _process(_delta: float) -> bool:
 	if get_root() == null or get_root().get_node_or_null("Data") == null:
 		return false
 	_capture_done = true
+	_test_save_migrations()
+	_test_food_buffs()
+	_test_exhaustion()
+	_test_exhaust_treadmill()
+	_test_bag_multiselect()
+	_test_fatigue_level_gap()
+	_test_climate_palette()
+	_test_creature_genetics()
+	_test_progression_scaling()
+	_test_starter_island_levels_and_resource_stacks()
+	_test_hud_event_state()
+	_test_ui_tokens()
 	_test_hide_strap_no_self_input()
 	_test_json_attribute_merging()
 	_test_storage_transfer()
@@ -50,6 +55,10 @@ func _process(_delta: float) -> bool:
 	_test_mortar_well_kit_routes()
 	_test_empty_bucket_recipe()
 	_test_multistack_crafting()
+	_test_process_stations()
+	_test_comm_center_registration()
+	var econ := load("res://tests/economy_tests.gd") as GDScript # needs Data, so after the first frame
+	failures.append_array(econ.new().run() if econ != null and econ.can_instantiate() else ["econ: economy_tests.gd does not compile"])
 	_finish()
 	return true
 
@@ -310,6 +319,7 @@ func _test_temporary_campfire() -> void:
 	_expect(is_equal_approx(float(fire.get("seconds_left")), 120.0), "campfire starts with two active minutes")
 	get_root().add_child(fire)
 	fire.set_process(false) # Keep a fixed lifetime for the save round-trip assertion.
+	fire.set("fuel_seconds", 53.0)  # FIREPITS: fuel_seconds is the saved burn time; seconds_left mirrors it
 	fire.set("seconds_left", 53.0)
 	var saved: Dictionary = fire.to_dict()
 	var restored: Node = fire_script.from_dict(saved)
@@ -344,11 +354,71 @@ func _test_exhaustion() -> void:
 	_expect(is_equal_approx(v.fatigue, 10.0), "positive exertion fatigue is halved")
 	v.rest(5.0)
 	_expect(is_equal_approx(v.fatigue, 5.0), "rest reduction is not halved")
-	for row in [[24.0, 1.0, 1.0], [25.0, 0.85, 0.5], [50.0, 0.65, 0.35], [75.0, 0.5, 0.2]]:
+	# Refill per strain tier is data since the owner's 2026-10-28 rule (combat_tuning movement.stamina_regen_by_strain).
+	var regen: Array = CombatTuning.section("movement").get("stamina_regen_by_strain", [1.0, 0.5, 0.35, 0.2])
+	for row in [[24.0, 1.0, float(regen[0])], [25.0, 0.85, float(regen[1])], [50.0, 0.65, float(regen[2])], [75.0, 0.5, float(regen[3])]]:
 		v.fatigue = row[0]
 		_expect(is_equal_approx(v.stamina_cap_mult(), row[1]) and is_equal_approx(v.stamina_regen_mult(), row[2]), "fatigue stage penalties at %s" % row[0])
 	v.free()
 	restored.free()
+
+func _test_exhaust_treadmill() -> void:
+	# Owner 2026-10-27 "treadmill style UI": direction from the net drift's sign, belt speed from
+	# how fast exhaustion changes, a one-off rest (sleep/meal) sweeps then eases under its fast
+	# forget clock, a stalled sink freezes the belt.
+	_expect(ExhaustTreadmill.direction(0.02) == 1 and ExhaustTreadmill.direction(-0.02) == -1 and ExhaustTreadmill.direction(0.0) == 0, "treadmill direction carries the drift's sign")
+	_expect(ExhaustTreadmill.direction(0.003) == 0, "sub-deadband jitter holds the belt still")
+	_expect(ExhaustTreadmill.direction(Vitals.EXHAUSTION_PER_SEC * Vitals.FATIGUE_ACCUMULATION_MULT) == 1, "the idle baseline creeps right while awake")
+	_expect(ExhaustTreadmill.speed_px(0.05) < ExhaustTreadmill.speed_px(0.5) and ExhaustTreadmill.speed_px(0.5) <= ExhaustTreadmill.MAX_PX, "belt speed grows with the drift and clamps")
+	_expect(ExhaustTreadmill.speed_px(Vitals.EXHAUSTION_PER_SEC * Vitals.FATIGUE_ACCUMULATION_MULT) >= ExhaustTreadmill.MIN_PX, "the idle baseline is visible, not a stall")
+	var r := 0.0
+	for i in 300:
+		r = ExhaustTreadmill.sample_rate(r, 0.2, 1.0 / 60.0, 0.0)
+	_expect(r > 0.16 and r < 0.23, "the drift EMA settles toward the true rate")
+	var slow := ExhaustTreadmill.sample_rate(0.0, 30.0, 1.0 / 60.0, 0.0)
+	var fast := ExhaustTreadmill.sample_rate(0.0, 30.0, 1.0 / 60.0, ExhaustTreadmill.FORGET_HOLD_S)
+	for i in 180:
+		slow = ExhaustTreadmill.sample_rate(slow, 0.0, 1.0 / 60.0, 0.0)
+		fast = ExhaustTreadmill.sample_rate(fast, 0.0, 1.0 / 60.0, ExhaustTreadmill.FORGET_HOLD_S)
+	_expect(fast < slow * 0.4, "a one-off rest fades under the fast-forget clock")
+	_expect(ExhaustTreadmill.phase(100.0, 0.1, 1.0) > 110.0 and ExhaustTreadmill.phase(100.0, -0.1, 1.0) < 100.0 and is_equal_approx(ExhaustTreadmill.phase(100.0, 0.0, 1.0), 100.0), "the belt scrolls with the drift and freezes when it stalls")
+
+func _test_bag_multiselect() -> void:
+	# Feature A (owner 2026-10-27): mark several bag items at once for Lock/Drop/Destroy.
+	# batch_check mirrors the single-item gates: empty slots and locked items skip with a reason,
+	# destroy is offline-only like the single action, a drop also needs the live world (loot bag).
+	var inv = load("res://scripts/items/inventory.gd") as GDScript
+	var stack = load("res://scripts/items/item_stack.gd") as GDScript
+	var ui = (load("res://scripts/ui/inventory_ui.gd") as GDScript).new()
+	var src = inv.new(4)
+	src.add(stack.make(&"stone", 1))
+	src.add(stack.make(&"stone_knife", 1))
+	src.slots[1].set_flag(&"locked", true)
+	var all: Array[int] = [0, 1, 2, 3]
+	var res: Dictionary = ui.batch_check(src, all, "lock", true, true)
+	_expect((res["ok"] as Array) == [0], "batch lock passes only the unlocked, real item")
+	var skip := res["skip"] as Dictionary
+	_expect(str(skip[1]) == "locked" and str(skip[2]) == "empty" and str(skip[3]) == "empty", "locked and empty slots skip with reasons")
+	res = ui.batch_check(src, all, "destroy", false, true)
+	_expect((res["ok"] as Array).is_empty() and str((res["skip"] as Dictionary)[0]) == "online", "destroy refuses while online, like the single action")
+	var pair: Array[int] = [0, 2]
+	res = ui.batch_check(src, pair, "drop", true, false)
+	_expect((res["ok"] as Array).is_empty() and str((res["skip"] as Dictionary)[0]) == "world", "drop without a world skips (no loot bag to land in)")
+	_expect(ui._skip_text({0: "locked", 1: "empty", 2: "empty", 3: "online"}) == "1 locked, 2 empty, 1 while online", "the skip summary reads like a sentence")
+	# The grid layer: membership toggles, ascending order, empty slots refuse.
+	var grid = (load("res://scripts/ui/bag_grid.gd") as GDScript).new()
+	grid.multi_mode = true
+	grid.bind(src)
+	_expect(grid.toggle_multi(0), "a real item joins the batch")
+	_expect(grid.toggle_multi(1), "a locked item still joins (its actions skip it)")
+	_expect(not grid.toggle_multi(3), "an empty slot refuses the batch")
+	_expect(grid.multi_list() == [0, 1], "the batch keeps ascending order")
+	_expect(not grid.toggle_multi(1), "a marked slot toggles back off")
+	_expect(grid.multi_list() == [0], "toggling off removes it from the batch")
+	grid.clear_multi()
+	_expect(grid.multi.is_empty(), "clear releases every mark")
+	grid.free()
+	ui.free()
 
 func _test_climate_palette() -> void:
 	var palette := ClimatePalette.resolve({"palette": {"grass": "#ffffff", "sand": "#123456"}})
@@ -406,7 +476,9 @@ func _test_starter_island_levels_and_resource_stacks() -> void:
 
 
 func _test_hud_event_state() -> void:
-	var events := HudEventState.new()
+	# Loaded dynamically: HudEventState depends on SkillState/LevelDisplay, which reference the Data
+	# and World autoloads. A static reference would compile this chain before the first frame.
+	var events = (load("res://scripts/ui/hud_event_state.gd") as GDScript).new()
 	events.add_toast(&"wood", 2)
 	events.add_toast(&"wood", 3)
 	_expect(events.toasts.size() == 1 and int(events.toasts[0]["n"]) == 5, "nearby item toasts coalesce")
@@ -479,7 +551,8 @@ func _test_capture_threshold() -> void:
 	if script == null:
 		return
 	_expect(bool(script.call("health_allows_capture", 0.299)), "capture opens below 30 percent health")
-	_expect(not bool(script.call("health_allows_capture", 0.30)), "capture stays closed at 30 percent health")
+	_expect(bool(script.call("health_allows_capture", 0.30)), "capture opens at 30 percent health (spec 09: <=)")
+	_expect(not bool(script.call("health_allows_capture", 0.31)), "capture stays closed just above 30 percent health")
 	_expect(not bool(script.call("health_allows_capture", 0.50)), "capture stays closed above threshold")
 
 ## Bleed may wear a tameable animal down to the capture window but must not finish it there.
@@ -509,7 +582,7 @@ func _test_dot_respects_capture_window() -> void:
 
 ## The pad layout and fullscreen key exist, and keyboard play is unchanged.
 func _test_gamepad_bindings() -> void:
-	for action in ["interact", "attack", "roll", "craft", "inventory", "pause", "map", "sprint", "tactic_1", "tactic_2", "place_confirm", "place_cancel"]:
+	for action in ["interact", "gather_nearest", "attack", "roll", "craft", "inventory", "pause", "map", "sprint", "tactic_1", "tactic_2", "place_confirm", "place_cancel"]:
 		_expect(InputMap.has_action(action), "action exists: " + action)
 	var a := InputEventJoypadButton.new()
 	a.button_index = JOY_BUTTON_A
@@ -533,6 +606,13 @@ func _test_gamepad_bindings() -> void:
 	var w := InputEventKey.new()
 	w.physical_keycode = KEY_W
 	_expect(InputMap.event_is_action(w, "move_up"), "keyboard W still moves up")
+	var space := InputEventKey.new()
+	space.physical_keycode = KEY_SPACE
+	_expect(InputMap.event_is_action(space, "gather_nearest"), "Space gathers the nearest resource")
+	_expect(not InputMap.event_is_action(space, "roll"), "Space no longer rolls instead of gathering")
+	var q := InputEventKey.new()
+	q.physical_keycode = KEY_Q
+	_expect(InputMap.event_is_action(q, "roll"), "keyboard Q rolls after Space becomes gather")
 	var f11 := InputEventKey.new()
 	f11.physical_keycode = KEY_F11
 	_expect(InputMap.has_action("fullscreen") and InputMap.event_is_action(f11, "fullscreen"), "F11 toggles fullscreen")
@@ -576,6 +656,15 @@ func _test_multistack_crafting() -> void:
 	for label in results:
 		_expect(bool(results[label]), str(label))
 
+## W2-PROCESS: a wall-clock rack job and hand-edited process rows on the load and refund paths.
+func _test_process_stations() -> void:
+	var script: GDScript = load("res://tests/process_checks.gd") as GDScript
+	_expect(script != null, "process checks load")
+	if script == null: return
+	var results: Dictionary = script.new().call("run", get_root())
+	for label in results:
+		_expect(bool(results[label]), str(label))
+
 func _test_combat_counters() -> void:
 	var model := load("res://scripts/combat/combat_counters.gd") as GDScript
 	var creature_count := 0
@@ -586,7 +675,7 @@ func _test_combat_counters() -> void:
 		if not row is Dictionary or not row.has("stats"): continue
 		creature_count += 1
 		_expect(model.family(StringName(row["archetype"])) != "neutral", "counter family for " + filename)
-	_expect(creature_count == 19, "counter chart covers19 catalogue species")
+	_expect(creature_count == 20, "counter chart covers 20 catalogue species")
 	_expect(is_equal_approx(model.multiplier(&"tyrant", &"blunt"), 1.5), "tyrant blunt counter")
 	_expect(is_equal_approx(model.multiplier(&"tyrant", &"slashing"), 0.5), "slashing aliases cut")
 	_expect(is_equal_approx(model.multiplier(&"unknown", &"blunt"), 1.0), "unknown archetype neutral")
@@ -662,7 +751,8 @@ func _test_counter_supplies() -> void:
 	_expect(not pl.coat_weapon(), "cannot overwrite active coating")
 	var restored = (load("res://scripts/items/inventory.gd") as GDScript).new(20)
 	restored.load_array(inv.to_array())
-	_expect(int(restored.slots[restored.find_first(&"barbed_knife")].attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
+	restored.extras_from_dict(JSON.parse_string(JSON.stringify(inv.extras_to_dict()))) # W2-INV: the worn knife saves with the extras
+	_expect(int(restored.equipped_weapon().attributes.get("toxin_hits", 0)) == 3, "toxin charges survive item reload")
 	var cr = (load("res://scripts/creatures/creature.gd") as GDScript).new()
 	cr.def = (load("res://scripts/creatures/creature_def.gd") as GDScript).new()
 	cr.def.archetype = &"pack_raptor"
@@ -849,14 +939,52 @@ func _test_declared_craft_xp() -> void:
 		if rec.has("skill") and not rec.has("tree"):
 			_expect(craft.tree_for_recipe(rec) == str(rec["skill"]),"craft XP matches skill gate %s" % rec.get("id","?"))
 
+
+## DOMAIN-D / spec 29 section 4. Two properties the review asked for, both of which a fresh session
+## (no Domain screen, no lab) must satisfy on its own:
+##   1. the center's blueprint is in the Build menu's data as soon as blueprints load, with no query
+##      side effect: `Blueprints.of("comm_center")` is non-empty before anything calls CommCenter;
+##   2. the island's Pioneer rank comes only from the contribution track. A level-60 survivor is
+##      still rank 1 with the 13-plot starting cap, and a forged rank clamps to the documented track.
+func _test_comm_center_registration() -> void:
+	# Read data/blueprints.json directly: no CommCenter call has happened in this run.
+	var bp: Dictionary = (load("res://scripts/items/blueprints.gd") as GDScript).of(&"comm_center")
+	_expect(not bp.is_empty(), "comm_center ships in data/blueprints.json (a fresh Build menu lists it)")
+	_expect(str((bp.get("station", {}) as Dictionary).get("kind", "")) == "workbench", "the center's station kind is the kit-backed workbench")
+	_expect("comm_center" in ((bp.get("station", {}) as Dictionary).get("tags", []) as Array), "the finished station carries the comm_center tag")
+	var world: Node = get_root().get_node("World")
+	var dr := load("res://scripts/world/domain_rules.gd") as GDScript
+	var cc := load("res://scripts/world/comm_center.gd") as GDScript
+	var level_was: int = int(world.get("pioneer_level"))
+	var rec_was: Variant = (world.get("home_comm_center") as Dictionary).duplicate(true)
+	world.set("home_comm_center", {})
+	world.set("pioneer_level", 60)  # a max-level survivor
+	_expect(int(dr.pioneer_rank()) == 1, "character level 60 does not grant an island Pioneer rank (rank %d)" % int(dr.pioneer_rank()))
+	_expect(int(dr.cap()) == 13, "character level 60 keeps the 13-plot starting cap (cap %d)" % int(dr.cap()))
+	_expect(int(cc.rank()) == 1, "the center's own rank is 1 too (rank %d)" % int(cc.rank()))
+	_expect(int(cc.level_association()) == 60, "the documented level-60 association is data (%d)" % int(cc.level_association()))
+	# A forged record cannot invent a rank or held items.
+	var san := load("res://scripts/core/save_sanitizer.gd") as GDScript
+	var forged: Dictionary = san.clean({"home": {"comm_center": {"rank": 99, "steps": {
+		"2": [[{"id": "not_an_item", "count": 1}], [{"id": "stone", "count": 1}]]}}}})
+	var row: Dictionary = (forged.get("home", {}) as Dictionary).get("comm_center", {})
+	_expect(int(row.get("rank", 0)) == int(san.MAX_RANK), "a forged rank clamps to the last documented one (got %s)" % str(row.get("rank")))
+	var steps: Dictionary = row.get("steps", {})
+	_expect((steps.get("2", []) as Array).size() >= 1 and ((steps["2"] as Array)[0] as Array).is_empty(), "an unknown item id is dropped from the held contributions")
+	world.set("home_comm_center", {"rank": 99, "steps": {}})
+	_expect(int(dr.pioneer_rank()) == int(cc.MAX_RANK) and int(dr.cap()) == 30, "a forged in-memory rank is clamped to the track (rank %d, cap %d)" % [int(dr.pioneer_rank()), int(dr.cap())])
+	world.set("pioneer_level", level_was)
+	world.set("home_comm_center", rec_was)
+	print("[tests] comm_center: blueprint listed=%s level60 rank=%d cap=%d forged rank=%d" % [str(not bp.is_empty()), int(cc.rank()), int(dr.cap()), int(row.get("rank", 0))])
+
 func _test_storage_transfer() -> void:
 	var inv = load("res://scripts/items/inventory.gd") as GDScript
 	var stack = load("res://scripts/items/item_stack.gd") as GDScript
 	var src = inv.new(3)
 	var dst = inv.new(1)
-	src.add(stack.make(&"branch",8,{},55))
+	src.add(stack.make(&"stone_shot",8,{},55)) # W2-INV: ammunition still stacks; materials are one per slot
 	var original = src.slots[0].to_dict()
-	dst.add(stack.make(&"stone",1))
+	dst.add(stack.make(&"stone_shot",1))
 	_expect(src.transfer_to(dst,0) == 0 and src.slots[0].to_dict() == original,"full storage leaves original unchanged")
 	dst.remove_at(0,1)
 	src.slots[0].set_flag(&"locked",true)
@@ -864,7 +992,7 @@ func _test_storage_transfer() -> void:
 	src.slots[0].set_flag(&"locked",false)
 	_expect(src.transfer_to(src,0) == 0,"self storage refuses")
 	_expect(src.transfer_to(dst,0) == 8 and src.slots[0] == null and dst.slots[0].level == 55,"whole stack preserves quality")
-	src.add(stack.make(&"branch",5,{},55))
+	src.add(stack.make(&"stone_shot",5,{},55))
 	var cap = dst.slots[0].def().stack_max
 	dst.slots[0].count = cap-2
 	_expect(src.transfer_to(dst,0) == 2 and src.slots[0].count == 3 and dst.slots[0].count == cap,"partial storage leaves remainder in original slot")
@@ -875,8 +1003,9 @@ func _test_storage_transfer() -> void:
 	_expect(not ui._can_store_selected(),"corpse/default storage stays take-only")
 	ui._storage_opts = {"allow_deposit":true}
 	_expect(ui._can_store_selected(),"basket permits deposit")
-	src.equip(&"weapon",&"branch")
-	_expect(not ui._can_store_selected(),"equipped item cannot be accidentally stored")
+	src.add(stack.make(&"stone_knife",1))
+	var knife: int = src.find_first(&"stone_knife")
+	_expect(src.equip_at(knife) and src.slots[knife] == null and src.equipped_in(&"weapon") != null,"equipped item leaves the bag, so it cannot be stored")
 	src.unequip(&"weapon")
 	ui._storage_opts["readonly_reason"] = "need knife"
 	_expect(not ui._can_store_selected(),"read-only storage cannot accept deposits")

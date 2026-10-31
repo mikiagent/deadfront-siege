@@ -1,0 +1,65 @@
+{
+ "pass": false,
+ "summary": "ECON fourth pass (VaultBridge, contracts v2) review r3 on claude/mmo-econ HEAD d50324df: FAIL, with 1 blocker, 3 majors and 5 minors. Every gate I ran passes. merge-tree against claude/mmo-overhaul is clean (tree 034ef30d, no conflicts). run_all prints '[tests] PASS' with the econ fuzz line; t_econ prints '[t_econ] PASS' with the bridge fuzz line; all 20 t_*.gd exit 0 with a PASS line; smoke prints 'SMOKE PASS'. Probes (scratchpad, loaded by absolute path) found no duplication within the econ engine: double withdraw, a replayed rid before and after restart, crashes at 7 step boundaries (begin; export; vault; receive; refused-and-back; half settle; pet receive) all consistent; self-buy, self-bid and self-fill refused; cancel after a partial buy returns the rest; tie bids refused; a snipe extends; a bid at the end is expired; order overfill refused; huge and fractional prices and qty refused. The blocker is act.deposit, which is still relayable by clients: a direct call silently loses the asset, misroutes it into another account's vault on recovery, or blocks boot. The majors: split stacks can never be withdrawn (purchases a buyer cannot receive); objective.claim, the tradable starting wallet and the missing trade lock (contract 0.6/0.7); and the bridge's recovery gaps outside boot.",
+ "findings": [
+  {
+   "severity": "blocker",
+   "where": "game/scripts/server/intent_handlers.gd CLIENT_OPS (act.deposit); game/scripts/economy/vault_bridge.gd recover()",
+   "problem": "act.deposit is still in IntentHandlers.CLIENT_OPS, and srvdom's documented relay sends that list from clients. A client that sends act.deposit directly takes an asset out of its character into no vault. Probe p_direct_act_deposit: account 1's stone total went 24 -> 11, recover() returned '' and the cross-store check reported 'export i7.0 is in no vault', so the loss is silent. It gets worse when it meets a real crash. (a) If any account's deposit is cut after bridge.begin and before its own act.deposit, recover() treats the stray export as that deposit and puts it in that account's vault (probe p_stray_into_other_vault: account 1's i7.0 landed in account 2's vault). That is an ownership transfer. (b) If a legit deposit is cut after act.deposit, recover() finds two orphans and returns '2 exports are in no vault', and hook 1 then refuses to boot the server. The report knows act.deposit must move to SYSTEM_OPS but ships without the move, so any client can trigger all three as soon as the transport is wired.",
+   "fix": "In this branch, coordinated with srvdom: move act.deposit from CLIENT_OPS to SYSTEM_OPS in intent_handlers.gd, and move its rows in srvdom_checks' hostile table to the server-only set. In vault_bridge recover(), only treat an orphan as the cut deposit when it came from the marked account. Record the account, and the bag_slot/pet_uid or expected uid, in bridge.begin, or have _export record the exporting account in exported_assets. Report orphans even when inflight is empty, and never move one into another account's vault. Add t_econ cases for a direct act.deposit, with and without a cut deposit."
+  },
+  {
+   "severity": "major",
+   "where": "vault_bridge.gd _withdraw (not_withdrawable); market_book.gd _release / ledger.gd take_item / order_book.gd sell",
+   "problem": "Any asset the books split can never leave the vault: a partial buy, a part listing, an order fill smaller than the stack, and the seller's own remainder. Probes: p_split_strands deposited 13 stone, listed 1 and cancelled; both resulting stacks answer not_withdrawable and the bag holds 0 of 13. In p_order_overfill the buyer paid for 3 stone through a buy order and cannot withdraw them. A buyer pays real T-stones for goods that can never reach a character, and a seller who lists part of a stack strands all of it. That breaks the owner rule 'nothing fake: every transaction moves real items' and Durango pack 06 (docs/design/durango-prompts/06): 'transfers specific item to safe buyer delivery', 'Handle full bags through secure claim/delivery rather than deleting purchases', and 'Unclaimed expired/canceled items go to safe return storage'. The report files this as an owner decision, but no doc supports it, and the docs say the opposite.",
+   "fix": "Land the char.grant path from integrator hook 2 before the market goes live: a server-only grant op in intent_handlers.gd (srvdom), the non-src branch in VaultBridge._withdraw under bridge.begin plus the KEEP_BODY rid, and re-grant in recover(). Test it end to end: partial buy -> withdraw -> character holds it, crash after the vault lets go -> boot grants once. Until then, refuse part listings, partial buys and partial order fills of exported stacks, so nobody can buy what they cannot receive."
+  },
+  {
+   "severity": "major",
+   "where": "market_engine.gd _claim (objective.claim in WRITE); _ensure (starting wallet); no trade lock",
+   "problem": "Contract 0.6 and 0.7 (v2) are binding, not open questions. They require objective rewards to fire on server-observed state, the starting wallet to be bound (non-tradable), and new accounts to be trade-locked for 30 min. STATUS 2026-10-18 also adopts the 30-min lock as the market default. Today objective.claim is a client op that mints 72 T-stones on request with no proof, the 20-T-stone start is fully tradable, and nothing locks new accounts. Free accounts can therefore mint about 92 T-stones each and funnel them to one buyer through the market. That is currency from nothing, reachable by any client, and it contradicts 'nothing fake'. The report defers this to W1-INT.",
+   "fix": "Before any hosted or shared server: remove objective.claim from MarketEngine.WRITE (server-observed claims via SYSTEM only, or gate on the character store's server-observed objective state), track a non-tradable starting balance (spendable on wallet.spend, not on bids, buys or orders), and enforce trade_lock_s from account creation on list, buy, bid, order and sell_to_order. Name the owner of each item in the plan if W1-INT keeps them."
+  },
+  {
+   "severity": "major",
+   "where": "vault_bridge.gd recover() / _into_vault / _deposit; market_engine.gd _begin",
+   "problem": "Bridge robustness in econ-owned code, separate from act.deposit being relayable. (1) recover() checks orphans only when inflight is set, so an export left in no vault by any path (the double-refusal branch of _into_vault, which only push_errors) is never reported again after the first boot. (2) bridge.begin overwrites an existing inflight mark without refusing. After _into_vault's double refusal (vault refused and char.receive refused), the next deposit's begin erases the mark of the stranded one, and the next boot sees 2 orphans and refuses to start. (3) A failure in vault.withdraw_* after char.receive (engine fault -> reload, store keeps serving) leaves the asset in both the character and the vault until the next boot. Meanwhile the vault copy can be listed and sold, which is a duplicate. recover() only runs at boot.",
+   "fix": "bridge.begin refuses with conflict while inflight is set. _into_vault's double refusal and _out_of_vault's failure stop serving that account, or run the recover() step for that uid at once, instead of waiting for a reboot. recover() always scans exports in no vault and returns them through char.receive or reports them, inflight or not. Test with a forced vault.withdraw_item failure after char.receive."
+  },
+  {
+   "severity": "minor",
+   "where": "intent_handlers.gd _receive (pet branch); report hook 3",
+   "problem": "A bought pet keeps the seller's owner string (probe p_pet_owner: owner_field='1' on account 2's pet, and account 2 re-deposits it fine). No code reads PetRecord.owner for authorization today: the container (the character's pets) is the authority, and world bonds take the op's account. So this is stale metadata, not an ownership exploit, and I rate it minor. It does leak the original owner's account id in listing views, which the market otherwise anonymises (has_bid/my_bid), and it becomes major the moment summon or command code trusts owner.",
+   "fix": "In srvdom _receive, after the canonical match, set pet.owner = str(account). Keep `tamer` as lineage. Since the exported record is erased on receive, a re-deposit exports the new body. Add a t_econ assert that owner == the buyer after withdraw."
+  },
+  {
+   "severity": "minor",
+   "where": "market_engine.gd vault.deposit_pet / VaultBridge pet path vs contracts.md 6.1 and STATUS 2026-10-19 (pets as items)",
+   "problem": "Contract 6.1 (owner rule 2026-10-19) and STATUS 2026-10-19 say a traded pet is a unique caged_animal item carrying the full PetDict, and 'the Exchange lists pets as caged items'. Here a bonded pet enters as kind 'pet' and comes back as a bonded pet in char.pets. The report calls it 'the cage asset in the books (kind pet)'. It behaves the same today (uid, lineage and genetics preserved, no re-taming). But it diverges from the contract shape W2-CAGE will build. Also, unpacking skips any bond check, so when pack 09's bonded cap of 3 to 7 lands, the market bypasses it. Pack 09 says caged animals never count and the cap is checked when a bond forms.",
+   "fix": "Ask the orchestrator to either amend 6.1 to 'pets trade as kind pet in the books, shown as cages' or plan the switch with W2-CAGE. In both cases char.receive of a pet must check the bonded cap once pack 09 is implemented, or deliver a cage item instead."
+  },
+  {
+   "severity": "minor",
+   "where": "vault_bridge.gd _deposit argument checks",
+   "problem": "Malformed vault.deposit args get not_found, not bad_request. Probe p_huge_and_nonint: count 2.5, -1, 0, '3', 1e300, INF, bag_slot 0.5 and pet_uid ['x'] all answered not_found. Nothing changed (hash unchanged), so this is safe. But contract 2 says a request that fails validation is bad_request, and srvdom answers bad_request for the same inputs.",
+   "fix": "Validate bag_slot, count and pet_uid types and ranges in _deposit first (EconArgs.integer / text) and return bad_request. Keep not_found for empty slots and unknown pets."
+  },
+  {
+   "severity": "minor",
+   "where": "vault_bridge.gd _withdraw",
+   "problem": "vault.withdraw ignores a `count` argument and withdraws the whole stack (probe: {uid, count:1} -> ok, whole stack out). Contract 4 lists vault.withdraw_item {uid, count}. A client that asks for 1 and gets all of it is surprised, though nothing is lost.",
+   "fix": "Refuse unknown keys like _deposit does, or refuse count != the stack count with bad_request ('withdrawals are whole stacks'). Document the deviation from contract 4."
+  },
+  {
+   "severity": "minor",
+   "where": "market_engine.gd _remember (rid_cache 64) / VaultBridge._repeat",
+   "problem": "Once 64 newer writes evict a vault.deposit rid, a replayed frame with that rid applies again and moves a second real item from the same bag slot. Nothing is duplicated or lost, but the client did not ask for it. The report documents the eviction for other ops, but not this effect on deposits.",
+   "fix": "Accept it and document it for vault.deposit, or keep deposit rids in the persisted cache for rid_keep_s regardless of count."
+  }
+ ],
+ "unmet": [
+  "contract 0.6/0.7: bound starting wallet, 30-min trade lock, server-observed objective rewards",
+  "Durango 06 / owner rule: buyer delivery of split purchases (char.grant)",
+  "act.deposit server-only (SYSTEM_OPS)"
+ ]
+}

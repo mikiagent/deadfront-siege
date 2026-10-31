@@ -113,7 +113,7 @@ func _run() -> void:
 	var sheet := _hud.get_node_or_null("SkillsSheet") as SkillsSheet
 	_expect(sheet != null and sheet.visible, "skills sheet opens from the HUD")
 	if sheet:
-		var panel := sheet.get_child(1) as Control
+		var panel: Control = sheet  # C3 rebuild: the whole sheet (header + body) is the panel
 		var scroll := panel.find_child("SkillsScroll", true, false) as ScrollContainer
 		var close_btn := panel.find_child("SkillsClose", true, false) as Control
 		_expect(close_btn != null and close_btn.is_visible_in_tree() and Rect2(Vector2.ZERO, logical).encloses(close_btn.get_global_rect()), "skills Close is pinned inside the view (%s)" % [close_btn.get_global_rect() if close_btn else "missing"])
@@ -126,7 +126,7 @@ func _run() -> void:
 			print("[uireal] skills: rightmost text %.0f, scrollbar starts %.0f" % [right, vbar.get_global_rect().position.x])
 			_expect(right <= vbar.get_global_rect().position.x + 0.5, "skills text stays left of the scrollbar (%.0f > %.0f)" % [right, vbar.get_global_rect().position.x])
 		# No text over the vitals: the panel clears them, or (landscape phone) hides them under an opaque sheet.
-		var opaque := (panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color.a >= 0.99
+		var opaque := (sheet.get_node("Dim") as ColorRect).color.a >= 0.9  # the full-screen wash hides the HUD
 		for zone in UiTokens.hud_reserved(logical).slice(0, 1):
 			var pr := panel.get_global_rect()
 			_expect(not pr.intersects(zone) or (opaque and pr.encloses(zone)), "skills panel %s clears the vitals block %s or covers it opaquely" % [pr, zone])
@@ -227,7 +227,7 @@ func _run() -> void:
 	if logical.x > logical.y:  # by shape, not by the predicates under test
 		for col in ["profile_col", "bag_col", "equip_col"]:
 			var top: float = (bag[col] as Rect2).position.y if bag.has(col) else INF
-			_expect(top < logical.y * 0.5 and absf(top - (bag["profile_col"] as Rect2).position.y) < 8.0, "bag: %s starts beside the others in the top half (y %.0f)" % [col, top])
+			_expect(top < logical.y * 0.5 and absf(top - (bag.get("profile_col", Rect2()) as Rect2).position.y) < 8.0, "bag: %s starts beside the others in the top half (y %.0f)" % [col, top])
 	# One player level: the bag printed pioneer level + 1 ("Lv. 1") beside the HUD's and atlas's "Lv. 0".
 	var profile := _player.ui.get("_profile") as Label
 	_expect(profile != null and profile.text.ends_with(LevelDisplay.player_label()), "bag: profile shows the player level %s like the HUD and atlas (got \"%s\")" % [LevelDisplay.player_label(), profile.text.replace("\n", " / ") if profile else "missing"])
@@ -237,7 +237,7 @@ func _run() -> void:
 	await _capture("bag", [], logical)
 	_player.ui.visible = false
 	# animal screen (protected): shot only, for the eye check of the token theme on it
-	_hud.call("_open_animals")
+	_hud.open_animals()
 	await _frames(3)
 	await _capture("animals", [], logical, false)
 	var animals := _hud.get_node_or_null("AnimalLayer/AnimalScreen") as Control
@@ -249,47 +249,24 @@ func _run() -> void:
 	var cc := CharacterCreation.new()
 	root.add_child(cc)
 	await _frames(3)
-	# HANDS (layer 64) drew on the creation cards (layer 60) on a fresh save.
-	var hands: Control = _player.station_craft.held_slot if _player.station_craft else null
-	_expect(hands == null or not hands.is_visible_in_tree(), "charcreate: HANDS hides while character creation is up")
-	var cc_rects := {}
-	for c in _controls_in(cc):
-		if c is Button or c is LineEdit:
-			cc_rects[str(c.name)] = c.get_global_rect()
-	_expect(cc_rects.has("EnterRift") and cc_rects.has("NameField"), "character creation has the name field and ENTER THE RIFT")
-	_check_blocks("charcreate", cc_rects, logical)
-	# Cards in one row line up: titles at one y, head-start lines at one y, every line inside its card.
-	var rows := {}
-	var symbols := 0
-	for c in _controls_in(cc):
-		if c is Button and str(c.name).begins_with("Card_"):
-			# Desktop cards: the head-start symbol fills the band that sat empty (~130 px).
-			var band := c.find_child("CardSymbol", true, false) as Control
-			var sym := band.get_child(0) as TextureRect if band and band.get_child_count() > 0 else null
-			if sym and sym.texture and sym.is_visible_in_tree() and c.get_global_rect().encloses(sym.get_global_rect()):
-				symbols += 1
-			elif not phone:
-				_fail("charcreate: %s shows its head-start symbol inside the card" % c.name)
-			var lines := _labels_in(c)
-			for l in lines:
-				_expect(c.get_global_rect().grow(0.5).encloses(l.get_global_rect()), "charcreate: %s line \"%s\" inside its card" % [c.name, l.text.left(20)])
-			if not lines.is_empty():
-				(rows.get_or_add(roundi(c.get_global_rect().position.y), []) as Array).append(Vector2(lines[0].get_global_rect().position.y, lines[-1].get_global_rect().position.y))
-	var spread := Vector2.ZERO
-	for y in rows:
-		var lo := Vector2(INF, INF)
-		var hi := -lo
-		for v: Vector2 in rows[y]:
-			lo = lo.min(v)
-			hi = hi.max(v)
-		spread = spread.max(hi - lo)
-	print("[uireal] charcreate cards: rows=%d title_y_spread=%.1f start_y_spread=%.1f symbols=%d" % [rows.size(), spread.x, spread.y, symbols])
-	_expect(spread.x <= 1.0 and spread.y <= 1.0, "charcreate: card titles and head starts line up across each row (spread %s)" % spread)
-	for key in ["Body_f", "Body_m", "NameField", "EnterRift"]:
-		_expect(not cc_rects.has(key) or (cc_rects[key] as Rect2).size.y >= UiTokens.TARGET_PRIMARY - 0.5, "charcreate: %s is at least %d px tall (%s)" % [key, UiTokens.TARGET_PRIMARY, cc_rects.get(key)])
-	await _capture("charcreate", [cc.get_child(0) as Control], logical)
-	if symbols > 0:  # phone cards have no room for one
-		_check_white("charcreate", cc)
+	# Spec 19's three steps (CHARCREATE): Gender/Profession, Create Character and Name. Buttons outside the
+	# scrolling lists must sit inside the view without overlapping; the primary controls are full size.
+	for cstep: Array in [[0, "charcreate", ["Next"]], [1, "charcreate_look", ["Next", "Randomize"]], [2, "charcreate_name", ["NameField", "OK"]]]:
+		cc.call("_go", cstep[0])
+		await _frames(3)
+		var cc_rects := {}
+		for c in _controls_in(cc):
+			if (c is Button or c is LineEdit) and not _in_scroll(c, cc):
+				cc_rects["%s/%s" % [c.get_parent().name, c.name]] = c.get_global_rect()
+		for key in cstep[2]:
+			var hit := ""
+			for k in cc_rects:
+				if str(k).ends_with("/" + key):
+					hit = k
+			_expect(hit != "", "%s: has %s" % [cstep[1], key])
+			_expect(hit == "" or (cc_rects[hit] as Rect2).size.y >= UiTokens.TARGET_PRIMARY - 0.5, "%s: %s is at least %d px tall (%s)" % [cstep[1], key, UiTokens.TARGET_PRIMARY, cc_rects.get(hit)])
+		_check_blocks(cstep[1], cc_rects, logical)
+		await _capture(cstep[1], [cc.get_child(0) as Control], logical)
 	cc.queue_free()
 	await _resize(logical)
 	_finish(phone, logical)
@@ -311,8 +288,8 @@ func _resize(logical: Vector2) -> void:
 		var now := get_tree().root.get_visible_rect().size
 		var sheet := _hud.get_node_or_null("SkillsSheet") as SkillsSheet
 		var grid := sheet.find_child("SkillsGrid", true, false) as GridContainer if sheet else null
-		var panel := sheet.get_child(1) as Control if sheet else null
-		var want := 2 if SkillsSheet.is_sheet(now) else 1
+		var panel: Control = sheet
+		var want := SkillsSheet.COLUMNS
 		print("[uireal] %s: window %s canvas %s, skills columns %d (want %d), panel %s" % [tag, win.size, now, grid.columns if grid else -1, want, panel.get_global_rect() if panel else "missing"])
 		_expect(grid != null and grid.columns == want, "%s: the open skills sheet lays out for the %s canvas (%d columns, want %d)" % [tag, now, grid.columns if grid else -1, want])
 		_expect(panel != null and Rect2(Vector2.ZERO, now).grow(1.0).encloses(panel.get_global_rect()), "%s: the skills panel sits inside the %s canvas (%s)" % [tag, now, panel.get_global_rect() if panel else "missing"])
@@ -341,7 +318,7 @@ func _finish(phone: bool, logical: Vector2) -> void:
 	print("[uireal] phone=%s min_font_px=%d min_font_pt=%.2f logical_width=%d window_pt=%dx%d floor_pt=%.2f (smallest: %s)" % [phone, min_px, min_pt, int(logical.x), int(pts.x), int(pts.y), type_floor_pt(pts), _min_font_where])
 	_fails.append_array(gate_failures(pts, phone, min_pt, int(logical.x)))
 	if _fails.is_empty():
-		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
+		print("[uireal] PASS screens=hud,hud_daynight,craft,%sskills,atlas,radial,sheet_menu,sheet_build,levelup,skill_levelup,pet_out,plate,plate_front,combat,camp_bonfire,station_bonfire,camp_workbench,station_workbench,busy,busy_levelup,bag,charcreate,resize_other,resize_back shot_only=animals shots=%s" % ["craft_detail," if narrow else "", _out])
 		get_tree().quit(0)
 	else:
 		for f in _fails:
@@ -420,9 +397,6 @@ static func hud_blocks(hud: HuntHud, player: Player, _r: Vector2) -> Dictionary:
 				out[key + ".caption"] = (ctl as HexButton).caption_rect()
 		else:
 			out[key] = ctl.get_global_rect()
-	var held: Control = player.station_craft.held_slot if player and player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out["HeldItemSlot"] = Rect2(held.get_global_rect().position, held.size + Vector2(0, 18))
 	for k in hud.drawn_blocks:
 		out[k] = hud.drawn_blocks[k]
 	return out
@@ -435,6 +409,12 @@ func _hud_sheets_and_level_up(logical: Vector2) -> void:
 		_hud.call("_toggle_sheet", StringName(kind))
 		await _frames(3)
 		var sheet := _hud.get("_sheet") as Control
+		if kind == "menu":
+			_check_nav(sheet as NavMenu, logical)
+			await _capture("sheet_menu", [], logical)
+			_hud.call("_close_sheet")
+			await _frames(2)
+			continue
 		_check_sheet(kind, sheet, logical)
 		await _capture("sheet_" + kind, [sheet] if sheet else [], logical)
 		_hud.call("_close_sheet")
@@ -445,9 +425,34 @@ func _hud_sheets_and_level_up(logical: Vector2) -> void:
 	var blocks := hud_blocks(_hud, _player, logical)
 	_expect(blocks.has("levelup"), "levelup: the banner is drawn")
 	_check_blocks("levelup", blocks, logical)
+	await get_tree().create_timer(0.9).timeout  # LEVELFX: checked as it pops and once it has settled
+	_check_blocks("levelup_settled", hud_blocks(_hud, _player, logical), logical)
 	await _capture("levelup", [], logical)
-	_hud.set("_levelup_t", -1.0)
+	_hud._levelups.clear()
+	# A skill category level-up (LEVELFX): its hex icon and banner, right of the vitals or in the phone's band.
+	_hud._levelups.push_skill(&"processing", 4)
+	await get_tree().create_timer(0.6).timeout
+	blocks = hud_blocks(_hud, _player, logical)
+	_expect(blocks.has("levelup"), "skill_levelup: the skill category banner is drawn")
+	_check_blocks("skill_levelup", blocks, logical)
+	await _capture("skill_levelup", [], logical)
+	_hud._levelups.clear()
 	await _frames(2)
+
+## The B3 nav menu (nav_menu.gd): every entry, the close hex and the gear inside the view, 64 px or
+## more, clear of each other.
+func _check_nav(nav: NavMenu, logical: Vector2) -> void:
+	_expect(nav != null, "MENU opens the nav menu")
+	if nav == null:
+		return
+	var view := Rect2(Vector2.ZERO, logical).grow(0.5)
+	var rects := nav.tap_rects()
+	var keys := rects.keys()
+	for i in keys.size():
+		var a: Rect2 = rects[keys[i]]
+		_expect(view.encloses(a) and a.size.y >= 55.0 and a.size.x >= 63.5, "nav %s %s inside the view and a big enough target" % [keys[i], a])
+		for j in range(i + 1, keys.size()):
+			_expect(not a.grow(-0.5).intersects((rects[keys[j]] as Rect2).grow(-0.5)), "nav %s clears %s" % [keys[i], keys[j]])
 
 ## A sheet sits inside the view with its title and Close pinned above the rows; every row button is
 ## fully inside the rows' window or the rows scroll; nothing drawn after it (HANDS, a HUD hex added
@@ -485,8 +490,6 @@ func _check_sheet(kind: String, sheet: Control, logical: Vector2) -> void:
 	_expect(total > 0 and (shown == total or scrolls), "sheet %s: rows past its window scroll (%d/%d shown)" % [kind, shown, total])
 	if kind == "menu":  # Bag, Craft, Map, Save, Debug: one look, no scroll
 		_expect(shown == total, "sheet menu shows all %d rows without scrolling (got %d)" % [total, shown])
-	var held: Control = _player.station_craft.held_slot if _player.station_craft else null
-	_expect(held == null or not held.is_visible_in_tree() or not held.get_global_rect().intersects(rect), "sheet %s: HANDS is hidden or off the sheet (%s)" % [kind, held.get_global_rect() if held else ""])
 	var plates := Game.creature_ui as CreaturePlates
 	_expect(plates == null or not (plates.get("_root") as Control).visible, "sheet %s: creature plates hide while it is open" % kind)
 	var above := false
@@ -549,6 +552,15 @@ static func bag_blocks(bag: Node) -> Dictionary:
 		if c and c.is_visible_in_tree():
 			out[key.trim_prefix("_")] = c.get_global_rect()
 	return out
+
+## Inside a ScrollContainer below `top` (a scrolled list's rows may sit past the view on purpose).
+func _in_scroll(c: Node, top: Node) -> bool:
+	var n := c.get_parent()
+	while n != null and n != top:
+		if n is ScrollContainer:
+			return true
+		n = n.get_parent()
+	return false
 
 func _controls_in(node: Node) -> Array[Control]:
 	var out: Array[Control] = []
@@ -707,7 +719,7 @@ func _busy(logical: Vector2) -> void:
 		_check_blocks(tag, blocks, logical)
 		_check_figure(tag, blocks)
 		await _capture(tag, [], logical)
-	_hud.set("_levelup_t", -1.0)
+	_hud._levelups.clear()
 
 ## `blocks` plus every hex outside the HUD (station menu, gather radial) with its caption, as xhex<n>.
 static func with_world_hexes(blocks: Dictionary, hud: HuntHud) -> Dictionary:

@@ -26,7 +26,20 @@
     "wake_m": 3.0,
     "woken_awake_s": 30.0,
     "_chase": "chase_speed_mult is today's 0.7 per carnivore archetype until the owner decides (gap dino-ai-06: a walking survivor outruns it).",
-    "_sleep": "ASSUMPTION: grazers asleep at night wake at dawn or when a survivor/pet comes within wake_m of the body; a woken grazer stays up woken_awake_s."
+    "_sleep": "ASSUMPTION: grazers asleep at night wake at dawn or when a survivor/pet comes within wake_m of the body; a woken grazer stays up woken_awake_s.",
+    "enraged_cd_mult": 0.6,
+    "_enraged": "ASSUMPTION (owner 2026-10-28): brains without a tactics profile attack with cooldowns x enraged_cd_mult and throw their heavy one primary sooner while enraged; nature enrage_mult scales it, enrage_flee (Timid) runs instead."
+  },
+  "follow": {
+    "_about": "ASSUMPTION (owner 2026-10-28: 'tames should follow within a certain radius of the player, not directly on top of the player'): every summoned pet holds a follow SLOT beside/behind the survivor, fanned by summon order. slot_m + slot_size_mult x pet body radius is how far the slot sits from the survivor (a big tame hangs back further); inner_m and outer_m are the hysteresis radii around that slot, scaled by the same body factor and by the pet's follow_dist_mult nature knob (Loyal closer). A pet walks only when farther than outer from its slot and stops once inside inner, so it does not shuffle while the survivor stands still. clearance_margin_m is the gap on top of survivor radius + pet radius that it never stands inside; step_aside_m is how far past that it moves when the survivor walks into it; heel_mult pulls the slot in on a HEEL order.",
+    "slot_m": 3.0,
+    "slot_size_mult": 1.0,
+    "slot_arc_deg": 50.0,
+    "inner_m": 2.0,
+    "outer_m": 4.5,
+    "heel_mult": 0.7,
+    "clearance_margin_m": 0.3,
+    "step_aside_m": 0.8
   },
   "temperaments": {
     "_about": "ASSUMPTION (gap dino-ai-12): grazer temperaments. skittish flees on sight and fights back after provoke_hits hits; defensive ignores you until hit, then fights (its herd joins); territorial also charges anyone inside territory_m. flee_min_mps 6.5: a worst-IV (85 %) zebraceratops flees at 5.44 m/s on the multiplier alone, under the 5.5 m/s survivor walk; 6.2 still ended 7.5 m ahead (path wiggle), 6.5 matches an average-IV flight.",
@@ -65,7 +78,172 @@
         "slashing"
       ],
       "resists": [],
-      "chase_speed_mult": 0.7
+      "chase_speed_mult": 0.7,
+      "tactics": {
+        "_about": "TACTICS (owner 2026-10-28): circle at a stand-off ring, feint, lunge into a bite, telegraphed pounce, chomp combo where the species has the clip, back off below retreat_frac. Every number is an ASSUMPTION (first pass, not balanced). Cooldowns in seconds; distances centre to centre in metres (the prey's extra size is added).",
+        "_sequences": "SEQUENCES (owner 2026-10-28): offence is built from movement. When a finisher (the last step) is off cooldown and affordable it picks one sequence by weight x the nature's tactic_w_<finisher>: backstep (short hop_back, at most one per sequence), strafe_left/right (the powerful strafe: an explosive dodge_left/right of strafe_m in the clip, ~0.42 s), then pounce, charge (run into a bite) or combo (leap-in into bite_combo). A pounce step out of range turns into a charge. The basic bite is a last resort: point blank (point_blank, after contact_after_s) or while chasing prey that walks away. While no finisher is ready it fills with hold / strafe / feint / hop back.",
+        "sequences": [
+          {
+            "name": "backstep_strafe_right_pounce",
+            "steps": [
+              "backstep",
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "backstep_strafe_left_pounce",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "pounce"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "backstep_strafe_left_charge",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "charge"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_right_charge",
+            "steps": [
+              "strafe_right",
+              "charge"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_left_combo",
+            "steps": [
+              "strafe_left",
+              "combo"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_right_combo",
+            "steps": [
+              "strafe_right",
+              "combo"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "pounce",
+            "steps": [
+              "pounce"
+            ],
+            "weight": 1.0
+          }
+        ],
+        "point_blank": [
+          "combo",
+          "bite"
+        ],
+        "ring_m": 8.0,
+        "circle_speed_frac": 1.0,
+        "contact_after_s": 1.0,
+        "circle_step_deg": 35.0,
+        "circle_min_s": 0.5,
+        "circle_max_s": 1.0,
+        "flip_chance": 0.3,
+        "bite_cd": 7.0,
+        "lunge_speed_mult": 1.0,
+        "lunge_max_s": 1.2,
+        "feint_s": 0.7,
+        "pounce_cd": 12.0,
+        "pounce_min_m": 4.0,
+        "pounce_max_m": 14.0,
+        "pounce_telegraph_s": 0.8,
+        "pounce_leap_s": 0.4,
+        "pounce_radius_m": 1.6,
+        "pounce_recover_s": 0.7,
+        "pounce_mult": 2.5,
+        "combo_cd": 10.0,
+        "combo_mults": [
+          1.0,
+          1.3,
+          1.8
+        ],
+        "retreat_frac": 0.4,
+        "retreat_s": 2.5,
+        "retreat_cd": 10.0,
+        "retreat_speed_frac": 1.2,
+        "wide_ring_mult": 1.6,
+        "wide_circle_s": 4.0,
+        "pack_gap_s": 0.6,
+        "hop_m": 5.6,
+        "hop_s": 0.4,
+        "hop_land_s": 0.15,
+        "retreat_hop_mult": 1.2,
+        "_hop": "Every back-off is a LEAP (owner 2026-10-28: jump back, never walk back), facing the prey: hop_back over hop_m when it is inside the ring with nothing ready, leap_back over leap_back_m after a strike or when hurt (retreat_hop_mult). Leap-ins (leap_in_max_m) and the pounce use the pounce clip. The body moves inside each clip's anim_events airborne fracs; the arc rises leap_height_per_m x distance. Without the clip a timed arc (hop_s/leap_in_s/pounce_leap_s) stands in. Distances are the profile's, not the body's.",
+        "leap_in_max_m": 8.0,
+        "ambush": true,
+        "cover_m": 14.0,
+        "ambush_radius_m": 6.0,
+        "back_radius_m": 10.0,
+        "ambush_pounce_max_m": 10.0,
+        "_ambush": "AMBUSH (owner 2026-10-28, deinonychus redesign): lurks beside the tree nearest home (cover_m), shows 'lurk', and does not spot prey at range: it strikes only inside ambush_radius_m, or inside back_radius_m while the survivor's back is turned. It OPENS with the pounce out of cover (up to ambush_pounce_max_m). In the fight it leaps in (leap_in_*, ~5-7 m) instead of running and leaps back hop_m; circling is short. Losing the prey it walks home and lurks again.",
+        "leap_back_m": 8.0,
+        "leap_in_s": 0.45,
+        "leap_height_per_m": 0.2,
+        "hop_cd": 3.5,
+        "max_retreat_m": 16.0,
+        "w_hold": 0.8,
+        "w_strafe": 0.3,
+        "w_feint": 0.1,
+        "w_hop": 0.1,
+        "hold_min_s": 0.8,
+        "hold_max_s": 1.6,
+        "_cooling": "While every attack cools down it picks by weight: hold its ground (w_hold, the alert threat pose; x2 when the prey is not advancing), strafe (w_strafe), feint (w_feint), hop back (w_hop). Back-leaps have their own cooldown (hop_cd), never come twice without an attack or a hold between, and never go past max_retreat_m from the prey. ONE back-off after an attack, else it holds. Natures: tactic_hold_mult (Brave/Aggressive 1.5), tactic_backoff_mult (Timid 2).",
+        "pounce_overshoot_chance": 0.25,
+        "pounce_overshoot_m": 3.0,
+        "pounce_miss_recover_s": 1.5,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.15,
+        "_pounce": "The pounce is the big hit (pounce_mult x bite, ASSUMPTION 2.5) and stuns through the player's hurt stun (stun immunity still applies). It aims at the prey's predicted landing-time position (velocity lead) and overshoots by pounce_overshoot_m with pounce_overshoot_chance (Aggressive x tactic_overshoot_mult); a miss leaves pounce_miss_recover_s of punishable recovery.",
+        "_antispam": "Basic-attack anti-spam (owner): at least one non-attack beat (hold, hop, feint, strafe) between two basics, at most max_basic_streak basics before a beat or a special; t_tactical checks basics <= max_basic_share of all actions.",
+        "_chase": "Prey moving away (> 1 m/s outward) is chased at full run (can_sprint permitting) or pounced when ready; hold/strafe/hop apply only while it stays engaged.",
+        "strafe_m": 3.75,
+        "strafe_s": 0.42,
+        "dodge_height_per_m": 0.12,
+        "charge_cd": 5.0,
+        "charge_max_s": 1.6,
+        "charge_speed_mult": 1.5,
+        "w_dodge": 0.3,
+        "wait_max_s": 3.0,
+        "opening_swing_cd_s": 0.2,
+        "_reposition": "Owner 2026-10-28: back-jumps +60% (hop_m 5.6, leap_back_m 8), power strafe strafe_m 3.75, bite_cd 7. While the bite cools down or the survivor presses it, the filler is repositioning only (strafe-walk w_strafe, power strafe w_dodge, one backstep w_hop). Pressed, it waits up to wait_max_s for an opening (her swing recovering: hunt swing cooldown > opening_swing_cd_s or a swing playing; her back turned) before it commits.",
+        "chase_pounce_max_m": 8.0,
+        "enraged": {
+          "_about": "ASSUMPTION (owner 2026-10-28): while enraged, multipliers on the profile (pulled toward 1 by the nature's enrage_mult): shorter cooldowns, more movement attacks and combo sequences, more power strafes and back-jumps, shorter beats and waits, fewer plain strafes. The bite rules and energy costs are unchanged.",
+          "cooldown_mult": 0.55,
+          "w_pounce": 1.6,
+          "w_combo": 1.8,
+          "w_charge": 1.4,
+          "combo_seq_mult": 1.5,
+          "w_dodge": 2.0,
+          "w_hop": 1.5,
+          "w_strafe": 0.6,
+          "beat_mult": 0.6,
+          "wait_mult": 0.4
+        },
+        "alpha": {
+          "_about": "ALPHAS (owner 2026-10-28: 'on steroids and really hard to kill'): a wild alpha's tactic knobs are multiplied by these on top of its nature (Creature.nature_knob). Shorter cooldowns, fewer feints and holds, heavier weight on the pounce, charge and leap-in combo. Every number an ASSUMPTION.",
+          "tactic_cooldown_mult": 0.6,
+          "tactic_feint_mult": 0.5,
+          "tactic_hold_mult": 0.5,
+          "tactic_w_pounce": 1.6,
+          "tactic_w_charge": 1.6,
+          "tactic_w_combo": 1.6
+        }
+      }
     },
     "apex_raptor": {
       "attack_range": 2.2,
@@ -86,7 +264,174 @@
       "perception_base": 3.5,
       "leash_mult": 1.2,
       "chase_speed_mult": 0.5,
-      "_note": "Compys: short sight, short leash, slower chase so a survivor can walk away from a swarm."
+      "_note": "Compys: short sight, short leash, slower chase so a survivor can walk away from a swarm.",
+      "tactics": {
+        "_about": "SWARM (compsognathus, owner 2026-10-28): a tiny pack harasser. Surrounds the prey (each packmate its own slot on a slowly turning ring), pounces in from range or darts in for a bite and JUMPS back out (leap_back, never a scurry), mixes far sideways strafe jumps (dodge_left/right) into the strafe walk, chains short combos (dodge -> pounce, backstep -> dodge -> pounce), flees when hurt or when a packmate dies, is bolder in numbers and timid alone, and presses a weakened survivor. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
+        "sequences": [
+          {
+            "name": "dart",
+            "steps": [
+              "charge"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "pounce",
+            "steps": [
+              "pounce"
+            ],
+            "weight": 2.0
+          },
+          {
+            "name": "strafe_left_dart",
+            "steps": [
+              "strafe_left",
+              "charge"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_right_dart",
+            "steps": [
+              "strafe_right",
+              "charge"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_left_pounce",
+            "steps": [
+              "strafe_left",
+              "pounce"
+            ],
+            "weight": 1.5
+          },
+          {
+            "name": "strafe_right_pounce",
+            "steps": [
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 1.5
+          },
+          {
+            "name": "backstep_strafe_right_pounce",
+            "steps": [
+              "backstep",
+              "strafe_right",
+              "pounce"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "backstep_strafe_left_pounce",
+            "steps": [
+              "backstep",
+              "strafe_left",
+              "pounce"
+            ],
+            "weight": 1.0
+          }
+        ],
+        "point_blank": [
+          "bite"
+        ],
+        "surround": true,
+        "surround_turn_deg": 20.0,
+        "ring_m": 3.5,
+        "circle_speed_frac": 1.0,
+        "circle_step_deg": 35.0,
+        "circle_min_s": 0.4,
+        "circle_max_s": 0.8,
+        "contact_after_s": 0.8,
+        "flip_chance": 0.4,
+        "bite_cd": 4.0,
+        "charge_cd": 2.5,
+        "charge_speed_mult": 1.3,
+        "charge_max_s": 1.0,
+        "strafe_m": 2.5,
+        "strafe_s": 0.42,
+        "dodge_height_per_m": 0.1,
+        "hop_m": 3.0,
+        "hop_cd": 1.0,
+        "leap_back_m": 4.0,
+        "max_retreat_m": 5.5,
+        "w_hold": 0.2,
+        "w_strafe": 0.5,
+        "w_dodge": 0.4,
+        "w_feint": 0.3,
+        "w_hop": 0.15,
+        "hold_min_s": 0.5,
+        "hold_max_s": 1.0,
+        "feint_s": 0.6,
+        "wait_max_s": 1.5,
+        "opening_swing_cd_s": 0.2,
+        "retreat_mode": "flee",
+        "retreat_frac": 0.5,
+        "retreat_cd": 6.0,
+        "flee_s": 3.0,
+        "mate_death_flee_s": 3.0,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.15,
+        "pack_gap_s": 0.3,
+        "_jumps": "COMPYJUMPS (owner 2026-10-28: 'should jump back similar to the deinonychus (far jumps, far pounces, far strafe jumps, combo moves, it can jump and miss the player)'): every back-off is a leap facing the prey (hop_back hop_m, leap_back leap_back_m after a bite, both inside max_retreat_m), the power strafe is a dodge_left/right jump of strafe_m, and approach_pounce lets it open with a pounce from range on the way in. The pounce locks its landing point at take-off (aimed at the prey's position plus its velocity over the flight); a prey that sidesteps after take-off is missed and the compy lands past her for pounce_miss_recover_s. Clips: tools/gait/make_leap.py. ASSUMPTION numbers, smaller than the deinonychus's for a small harasser.",
+        "leap_height_per_m": 0.15,
+        "hop_s": 0.35,
+        "hop_land_s": 0.1,
+        "pounce_cd": 5.0,
+        "pounce_min_m": 2.0,
+        "pounce_max_m": 6.0,
+        "chase_pounce_max_m": 5.0,
+        "approach_pounce": true,
+        "pounce_telegraph_s": 0.45,
+        "pounce_leap_s": 0.35,
+        "pounce_radius_m": 0.9,
+        "pounce_recover_s": 0.4,
+        "pounce_miss_recover_s": 1.0,
+        "pounce_mult": 1.6,
+        "pounce_overshoot_chance": 0.2,
+        "pounce_overshoot_m": 1.5,
+        "bite_track": true,
+        "bite_track_frac": 0.6,
+        "chase_hop": true,
+        "_landing": "COMPYJUMPS (owner 2026-10-28: 'compsagnathus attacks aren't landing very often, it should land some attacks'): bite_track keeps the bite lunging after prey that walks out of its jaws until the contact frame (past bite_track_frac x reach, at charge_speed_mult x run). t_swarm measures the landed share on a standing and on a walking survivor with real accuracy rolls. chase_hop: chasing a survivor who walks on, a compy at her heels whose bite is not allowed yet (cooldown, or no beat since its last bite) hops back and chases again, instead of trotting glued to her without biting.",
+        "pack_bold": {
+          "n": 4,
+          "cooldown_mult": 0.5,
+          "w_charge": 1.5,
+          "beat_mult": 0.6,
+          "wait_mult": 0.5,
+          "retreat_frac_mult": 0.6,
+          "w_pounce": 1.3
+        },
+        "alone": {
+          "cooldown_mult": 2.2,
+          "w_feint": 1.5,
+          "retreat_frac_mult": 1.6,
+          "w_hop": 2.0,
+          "w_pounce": 0.4
+        },
+        "weak_prey": {
+          "hp_frac": 0.4,
+          "cooldown_mult": 0.6,
+          "w_charge": 1.5,
+          "wait_mult": 0.3,
+          "w_pounce": 1.3
+        },
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_charge": 1.5,
+          "combo_seq_mult": 1.3,
+          "w_dodge": 1.5,
+          "beat_mult": 0.7,
+          "wait_mult": 0.5,
+          "w_pounce": 1.4
+        },
+        "feint_repositions": true,
+        "_leash": "max_retreat_m 5.5 keeps every back-leap inside the compy's own short leash (perception ~5.75 m x leash_mult 1.2): backing off must never drop the hunt.",
+        "slot_tolerance_m": 2.0,
+        "slot_catchup_mult": 2.0
+      }
     },
     "flock_harass": {
       "attack_range": 1.6,
@@ -123,13 +468,125 @@
     "pack_mule": {
       "is_herbivore": true,
       "attack_range": 1.8,
+      "_flee": "ASSUMPTION (owner 2026-10-29: 'way too fast, it should gallop away slowly'): a heavy, lumbering gallop. 3 m/s base x1.2 x run_speed_mult 1.25 = 4.5 m/s, under the 5.5 m/s survivor walk, so a first tame is catchable. Overrides skittish's 1.6 / 6.5 m/s floor for this archetype only.",
+      "flee_speed_mult": 1.2,
+      "flee_min_mps": 0.0,
       "weak_to": [
         "blunt"
       ],
       "resists": [
         "slashing"
       ],
-      "temperament": "skittish"
+      "temperament": "skittish",
+      "tactics": {
+        "_about": "HERD GRAZER (zebraceratops, protoceratops; owner 2026-10-28: zebraceratops is an early tame, 'we want to get this right'). PRD verb: head shove, herd solidarity. Runs only while provoked (skittish: 3 hits; stand_ground natures: 1 hit; Aggressive: always). Threat display (alert pose, head lowered) then a straight head-low ram on a locked line that shoves the survivor back; a sidestep makes it miss and stand staggered. Hind kick at point blank when the prey is behind it (after a charge through her). Bluff charges (feint), scurries back facing the prey (walk_back). Flees when badly hurt. A hit herdmate rallies the rest onto its attacker for defend_s, as far as guard_m from home. Timid never fights back; Brave stands its ground and displays instead of fleeing on sight. Every number is an ASSUMPTION; template: docs/current/enemy-ai-template.md.",
+        "sequences": [
+          {
+            "name": "display_charge",
+            "steps": [
+              "display",
+              "charge"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "charge",
+            "steps": [
+              "charge"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_left_charge",
+            "steps": [
+              "strafe_left",
+              "charge"
+            ],
+            "weight": 0.5
+          },
+          {
+            "name": "strafe_right_charge",
+            "steps": [
+              "strafe_right",
+              "charge"
+            ],
+            "weight": 0.5
+          }
+        ],
+        "point_blank": [
+          "kick",
+          "bite"
+        ],
+        "ring_m": 7.0,
+        "circle_speed_frac": 0.7,
+        "circle_step_deg": 30.0,
+        "circle_min_s": 0.8,
+        "circle_max_s": 1.6,
+        "contact_after_s": 1.0,
+        "flip_chance": 0.3,
+        "bite_cd": 3.5,
+        "kick_cd": 5.0,
+        "kick_mult": 1.4,
+        "charge_cd": 6.0,
+        "charge_straight": true,
+        "charge_speed_mult": 1.5,
+        "charge_max_s": 2.2,
+        "charge_through_m": 2.5,
+        "charge_mult": 1.8,
+        "_charge_shove": "ASSUMPTION (owner 2026-10-29: 'tackling/ramming'): the charge is a head-low body-slam; a landed one shoves the survivor charge_shove_m along the charge line over charge_shove_stagger_s, in which she cannot act.",
+        "charge_shove_m": 2.5,
+        "charge_shove_stagger_s": 0.6,
+        "charge_miss_recover_s": 1.5,
+        "display_s": 1.2,
+        "display_charge_m": 5.0,
+        "strafe_m": 2.0,
+        "strafe_s": 0.5,
+        "dodge_height_per_m": 0.0,
+        "backoff": "scurry",
+        "scurry_s": 0.8,
+        "hop_m": 3.0,
+        "hop_cd": 3.0,
+        "leap_back_m": 3.0,
+        "max_retreat_m": 10.0,
+        "w_hold": 0.6,
+        "w_strafe": 0.4,
+        "w_dodge": 0.0,
+        "w_feint": 0.3,
+        "w_hop": 0.2,
+        "hold_min_s": 0.8,
+        "hold_max_s": 1.6,
+        "feint_s": 0.9,
+        "wait_max_s": 2.0,
+        "opening_swing_cd_s": 0.2,
+        "retreat_mode": "flee",
+        "retreat_frac": 0.25,
+        "retreat_cd": 12.0,
+        "flee_s": 4.0,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.25,
+        "pack_gap_s": 0.8,
+        "herd_defend": true,
+        "defend_s": 8.0,
+        "guard_m": 16.0,
+        "stand_ground_natures": [
+          "brave"
+        ],
+        "flee_natures": [
+          "timid"
+        ],
+        "alone": {
+          "w_feint": 1.5,
+          "retreat_frac_mult": 1.4,
+          "cooldown_mult": 1.3
+        },
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_charge": 1.5,
+          "combo_seq_mult": 1.3,
+          "beat_mult": 0.7,
+          "wait_mult": 0.5
+        }
+      }
     },
     "spiked_tail": {
       "is_herbivore": true,
@@ -180,7 +637,119 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "territorial"
+      "temperament": "territorial",
+      "tactics": {
+        "_about": "BIG CERATOPSIAN (styracosaurus, triceratops). Template: pack_mule (herd grazer), heavier and braver: it holds its ground (territorial), a longer display and charge wind-up, a harder ram with a bigger shove, a sweeping horn swipe (attack_heavy) point blank as attack_heavy move, slower turning, does not flee until 25% HP. Runs only while provoked (a territorial grazer: 3 hits; stand_ground natures: 1 hit; Aggressive: always). Every number is an ASSUMPTION; docs/current/enemy-ai-template.md.",
+        "sequences": [
+          {
+            "name": "display_charge",
+            "steps": [
+              "display",
+              "charge"
+            ],
+            "weight": 3.0
+          },
+          {
+            "name": "charge",
+            "steps": [
+              "charge"
+            ],
+            "weight": 1.0
+          },
+          {
+            "name": "strafe_left_charge",
+            "steps": [
+              "strafe_left",
+              "charge"
+            ],
+            "weight": 0.5
+          },
+          {
+            "name": "strafe_right_charge",
+            "steps": [
+              "strafe_right",
+              "charge"
+            ],
+            "weight": 0.5
+          }
+        ],
+        "point_blank": [
+          "heavy",
+          "kick",
+          "bite"
+        ],
+        "ring_m": 9.0,
+        "circle_speed_frac": 0.55,
+        "circle_step_deg": 22.0,
+        "circle_min_s": 1.0,
+        "circle_max_s": 2.0,
+        "contact_after_s": 1.2,
+        "flip_chance": 0.15,
+        "bite_cd": 4.0,
+        "heavy_cd": 7.0,
+        "heavy_mult": 2.2,
+        "heavy_s": 1.1,
+        "kick_cd": 5.0,
+        "kick_mult": 1.4,
+        "charge_cd": 8.0,
+        "charge_straight": true,
+        "charge_speed_mult": 1.5,
+        "charge_max_s": 2.6,
+        "charge_through_m": 3.0,
+        "charge_mult": 2.0,
+        "_charge_shove": "ASSUMPTION (same ram rule as pack_mule, owner 2026-10-29): a landed charge shoves the survivor charge_shove_m along the charge line over charge_shove_stagger_s, in which she cannot act. The big ceratopsian shoves harder and the stagger lasts longer.",
+        "charge_shove_m": 4.0,
+        "charge_shove_stagger_s": 0.9,
+        "charge_miss_recover_s": 2.0,
+        "display_s": 2.0,
+        "display_charge_m": 5.0,
+        "strafe_m": 1.5,
+        "strafe_s": 0.6,
+        "dodge_height_per_m": 0.0,
+        "backoff": "scurry",
+        "scurry_s": 0.8,
+        "hop_m": 2.0,
+        "hop_cd": 3.0,
+        "leap_back_m": 2.0,
+        "max_retreat_m": 12.0,
+        "w_hold": 1.2,
+        "w_strafe": 0.2,
+        "w_dodge": 0.0,
+        "w_feint": 0.0,
+        "w_hop": 0.1,
+        "hold_min_s": 1.2,
+        "hold_max_s": 2.2,
+        "wait_max_s": 1.2,
+        "opening_swing_cd_s": 0.2,
+        "retreat_mode": "flee",
+        "retreat_frac": 0.25,
+        "retreat_cd": 14.0,
+        "flee_s": 5.0,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.25,
+        "pack_gap_s": 1.0,
+        "herd_defend": true,
+        "defend_s": 10.0,
+        "guard_m": 20.0,
+        "stand_ground_natures": [
+          "brave"
+        ],
+        "flee_natures": [
+          "timid"
+        ],
+        "alone": {
+          "w_feint": 1.5,
+          "retreat_frac_mult": 1.4,
+          "cooldown_mult": 1.3
+        },
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_charge": 1.5,
+          "combo_seq_mult": 1.3,
+          "beat_mult": 0.7,
+          "wait_mult": 0.5
+        }
+      }
     },
     "titan": {
       "is_herbivore": true,
@@ -191,6 +760,87 @@
         "slashing"
       ],
       "temperament": "defensive"
+    }
+  },
+  "energy": {
+    "_about": "Creature energy (owner 2026-10-28): every animal has a pool that running and special moves spend and that refills at rest or a walk. No exhaustion. Size from real_length_m. Every number is an ASSUMPTION (first pass, measurable, not balanced). A species JSON may override with an \"energy\" block {max, regen_per_s, run_drain_per_s, costs{clip: n}}, or give a clip entry as an object with \"energy_cost\".",
+    "pool_base": 80.0,
+    "pool_per_m": 6.0,
+    "refill_s_base": 10.0,
+    "refill_s_per_m": 0.5,
+    "run_drain_per_s": 13.0,
+    "stop_frac": 0.05,
+    "resume_frac": 0.4,
+    "walk_frac": 0.5,
+    "sprint_states": [
+      "approach",
+      "attack",
+      "flee",
+      "retreat",
+      "chase",
+      "lunge",
+      "feint",
+      "charge"
+    ],
+    "special_cost_frac": {
+      "attack_heavy": 0.3,
+      "bite_combo": 0.35,
+      "pounce": 0.3
+    },
+    "run_speed_mult": 1.25,
+    "regen_mult_fresh": 1.5,
+    "regen_mult_winded": 0.6,
+    "_run": "ASSUMPTION (owner 2026-10-28): every creature runs x run_speed_mult in sprint_states and drains run_drain_per_s (13, was 10, +30 %); the pool refills x regen_mult_fresh, or x regen_mult_winded while winded (exhausted refills slower)."
+  },
+  "genetics": {
+    "_about": "GENETICS (owner 2026-10-28: 'dinosaur size and color variation (heritable stats)'). Every animal rolls a body size at spawn inside its species' size_range (a species JSON may carry its own \"genetics\": {\"size_range\": [lo, hi]}). Size scales the model, the collision capsule, the plate and, through size_stat_per, the stats: stat x (1 + k x (size - 1)), so a 1.10x animal has +10 % HP, +5 % attack and -3 % speed. inherit() blends two parents and adds at most `mutation` per gene. Every number an ASSUMPTION (CreatureGenetics).",
+    "size_range": [
+      0.85,
+      1.15
+    ],
+    "size_stat_per": {
+      "health": 1.0,
+      "melee_attack": 0.5,
+      "ranged_attack": 0.5,
+      "speed": -0.3
+    },
+    "mutation": {
+      "iv": 2,
+      "size": 0.03,
+      "hue_deg": 2.0,
+      "sat": 0.03,
+      "val": 0.03
+    }
+  },
+  "alpha": {
+    "_about": "ALPHAS (owner 2026-10-28: 'alpha dinosaurs with special loot but are on steroids and really hard to kill'). A spawn group (a pack, or a lone animal) rolls chance_per_group once; on a hit its first member is the alpha. An alpha is bigger (size_range, beyond the normal top), darker and richer (val_mult / sat_mult / pattern_mult on its natural colours, clamped to the natural limits), its eyes glow eye_glow_mult brighter, and while wild its stats are multiplied by `stats` on top of the size factor. Its corpse guarantees every rare part, stamps one rare trait on every part and adds `trophy`; the kill pays xp_mult x the XP. Its living packmates within aura.radius_m get aura.* on attack, defense and speed. A tamed alpha keeps its size and colours but not `stats` (PetStats has no alpha term). Every number an ASSUMPTION.",
+    "chance_per_group": 0.08,
+    "size_range": [
+      1.24,
+      1.32
+    ],
+    "stats": {
+      "health": 3.0,
+      "melee_defense": 1.5,
+      "ranged_defense": 1.5,
+      "melee_attack": 1.6,
+      "ranged_attack": 1.6,
+      "speed": 1.15
+    },
+    "val_mult": 0.6,
+    "sat_mult": 1.3,
+    "pattern_mult": 1.3,
+    "eye_glow_mult": 2.5,
+    "aura": {
+      "radius_m": 12.0,
+      "attack": 1.15,
+      "defense": 1.1,
+      "speed": 1.1
+    },
+    "xp_mult": 4.0,
+    "loot": {
+      "trophy": "alpha_trophy",
+      "trophy_count": 1
     }
   }
 }

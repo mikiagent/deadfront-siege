@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://ds38q0ck4q6x0"
+
+[deps]
+
+files=["res://data_sheets/repairs.station.translation", "res://data_sheets/repairs.input.translation", "res://data_sheets/repairs.count.translation", "res://data_sheets/repairs.restore.translation"]
+
+source_file="res://data_sheets/repairs.csv"
+dest_files=["res://data_sheets/repairs.station.translation", "res://data_sheets/repairs.input.translation", "res://data_sheets/repairs.count.translation", "res://data_sheets/repairs.restore.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

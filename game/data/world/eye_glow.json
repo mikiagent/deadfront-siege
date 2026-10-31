@@ -1,0 +1,15 @@
+{
+  "_about": "Glowing eyes over the day (scripts/creatures/creature_eyes.gd glow_at, eye_trail.gd). night is WorldLighting.night (0 in full sun, 1 at night, it ramps through dawn and dusk). Dot glow = day + (1 - day) * night^ramp_pow, and the core and bloom drawn over it the same with day_halo (a sunlit skull swallows a faint additive glow, so the halo starts higher), so it is faint but readable at noon and the full night glow after dusk. The flame trail and its sparks are night-only: trail_from..trail_to is the night range over which they fade in (0 below trail_from). ASSUMPTION: every number here; the owner asked for 'the eyes glow a little bit in the daytime too but no trail'.",
+  "day": 0.16,
+  "ramp_pow": 1.5,
+  "trail_from": 0.2,
+  "trail_to": 0.5,
+  "day_halo": 0.3,
+  "_threat": "THREAT (owner 2026-10-28: 'compsognathus looks very intimidating with the eye trails but it's not that powerful'). threat = clamp((tier - threat_tier_low) / (threat_tier_high - threat_tier_low), 0, 1) from the species tier (its level: compsognathus 15, deinonychus 35, T. rex 60), or the species eyes block 'threat' (0..1) when set. At threat t the flame trail's length is lerp(weak_length, 1, t) of its full length, the trail energy lerp(weak_energy, 1, t), the bloom/halo size lerp(weak_size, 1, t) and the dot + rim glow lerp(weak_glow, 1, t). An alpha's eye_glow_mult multiplies on top. ASSUMPTION: every number here.",
+  "threat_tier_low": 10,
+  "threat_tier_high": 60,
+  "weak_length": 0.05,
+  "weak_energy": 0.25,
+  "weak_size": 0.6,
+  "weak_glow": 0.45
+}

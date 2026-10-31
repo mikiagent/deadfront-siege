@@ -4,29 +4,38 @@ extends RefCounted
 ## survivor's figure and name, the open sheet's fit. Static functions over the HUD's nodes, split out
 ## of hunt_hud.gd (review: no god-file growth).
 
-## A landscape phone's 390-452 px canvas: the desktop places ran the whistles off the top over the
-## map and stacked End Combat on ROLL. Whistles go in a row under the vitals, End Combat under the
-## map text (the claim and context hexes hide in a fight), the four skills in one row along the
-## bottom right with Auto and Feed above it, the stance text to their left.
+const TITLE_PX := 13  # the worn title: smaller than the name (HuntHud.NAME_PX 15)
+const TITLE_LINE := 15.0
+const TITLE_INK := Color(0.86, 0.84, 0.78, 0.82)  # dimmer than the name's 0.95 white
+
+## A landscape phone's 390-452 px canvas: whistles in a row under the vitals; End Combat in the map
+## column under the map text (CLAIM and the context row hide in a fight), right above INTERACT; the
+## four skills in one row along the bottom between the rail and SPRINT / ATTACK NEAREST (HudField), Auto
+## and Feed above the NET / TACKLE seam, the stance text right of Auto.
 # ASSUMPTION: these phone placements are ours; the combat reference only fixes End Combat right, skills bottom right.
 static func place_landscape_phone(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
 	var under_vitals := vitals_rect(hud, r).end.y + 8.0
+	var left := 16.0 + inset.w + HudLevelBadge.COLUMN  # HUDTWEAK: under the bars, right of the stomach ring under the badge
 	for i in hud._whistle_hexes.size():
-		hud._whistle_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HuntHud.HEX + 10.0), under_vitals)
-	hud._end_btn.custom_minimum_size = Vector2(HuntHud.MAP_PX, UiTokens.TARGET_PRIMARY)
+		HudField.fit(hud._whistle_hexes[i], HudField.px(&"whistle", r))
+		hud._whistle_hexes[i].position = Vector2(left + float(i) * (HuntHud.HEX + 10.0), under_vitals)
+	var ih := hud.field.interact_hex
+	hud._end_btn.add_theme_font_size_override("font_size", 14)
+	hud._end_btn.custom_minimum_size = Vector2(r.x - 16.0 - inset.x - ih.position.x, 64.0)
 	hud._end_btn.size = hud._end_btn.custom_minimum_size
-	hud._end_btn.position = hud._minimap.position + Vector2(0.0, HuntHud.MAP_PX + 42.0)
-	var row_y := r.y - 8.0 - HuntHud.CAPTION_H - HuntHud.SKILL_HEX - inset.y
-	var x := r.x - 16.0 - inset.x - HuntHud.SKILL_HEX
-	for i in range(hud._skill_hexes.size() - 1, -1, -1):  # ROLL at the right edge, NET leftmost
+	hud._end_btn.position = Vector2(ih.position.x, hud.map_floor() - 4.0)  # under the "X n  Y n" line, over INTERACT's hex
+	var row_y := r.y - UiTokens.xp_line_zone(r).size.y - HuntHud.CAPTION_H - HuntHud.SKILL_HEX - inset.y  # captions clear the XP line
+	var x := minf(hud.field.sprint_hex.position.x, hud.field.attack_hex.position.x) - 8.0 - HuntHud.SKILL_HEX
+	for i in range(hud._skill_hexes.size() - 1, -1, -1):  # ROLL at the right, NET leftmost
 		hud._skill_hexes[i].position = Vector2(x, row_y)
 		x -= HuntHud.SKILL_HEX + 8.0
 	var net := hud._skill_hexes[0].position
 	var up := row_y - 8.0 - HuntHud.CAPTION_H - HuntHud.HEX
 	hud._auto_hex.position = Vector2(net.x + HuntHud.SKILL_HEX + 4.0 - HuntHud.HEX * 0.5, up)  # over the NET/TACKLE seam
-	hud._feed_hex.position = hud._auto_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
+	hud._auto_ability_hex.position = hud._auto_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
+	hud._feed_hex.position = hud._auto_ability_hex.position - Vector2(HuntHud.HEX + 8.0, 0.0)
 	var sw := hud._stance_label.get_combined_minimum_size()
-	hud._stance_label.position = Vector2(net.x - 8.0 - sw.x, row_y + HuntHud.SKILL_HEX * 0.5 - sw.y * 0.5)
+	hud._stance_label.position = Vector2(hud._auto_hex.position.x + HuntHud.HEX + 8.0, up + HuntHud.HEX * 0.5 - sw.y * 0.5)
 
 ## A portrait phone's 390 px wide canvas: the desktop cluster ran off the left edge, onto the rail and
 ## onto CHASE, and the whistle column onto HANDS. From the quick-food row up: the whistle row with End
@@ -43,7 +52,8 @@ static func place_portrait(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: flo
 		x -= HuntHud.SKILL_HEX + 8.0
 	var up := row_y - 8.0 - HuntHud.CAPTION_H - HuntHud.HEX
 	hud._feed_hex.position = Vector2(16.0 + inset.w, up)
-	hud._auto_hex.position = Vector2(16.0 + inset.w + HuntHud.HEX + 10.0, up)
+	hud._auto_ability_hex.position = Vector2(16.0 + inset.w + HuntHud.HEX + 10.0, up)
+	hud._auto_hex.position = Vector2(16.0 + inset.w + 2.0 * (HuntHud.HEX + 10.0), up)
 	var end_x := 16.0 + inset.w + 3.0 * (HuntHud.HEX + 10.0) + 4.0
 	hud._end_btn.custom_minimum_size = Vector2(r.x - 16.0 - inset.x - end_x, UiTokens.TARGET_PRIMARY)
 	hud._end_btn.size = hud._end_btn.custom_minimum_size
@@ -54,20 +64,28 @@ static func place_portrait(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: flo
 ## The desktop canvas: End Combat, the honeycomb skill cluster, Auto, Feed, the whistle column, the
 ## stance label.
 static func place_desktop(hud: HuntHud, r: Vector2, inset: Vector4) -> void:
+	hud._end_btn.add_theme_font_size_override("font_size", 16)
 	hud._end_btn.custom_minimum_size = Vector2(184, 64)
 	hud._end_btn.size = hud._end_btn.custom_minimum_size
-	hud._end_btn.position = Vector2(r.x - 200.0 - inset.x, r.y * 0.42)
+	hud._end_btn.position = Vector2(r.x - 270.0 - inset.x, r.y * 0.42)  # left of the whistle column (at -200 it sat on GUARD)
 	# Honeycomb cluster bottom-right: net / tackle / kick / roll, Auto below-right, stance text.
-	var cx := r.x - 250.0 - inset.x
-	var cy := r.y - 170.0 - inset.y  # 20 px higher than before so the stance line fits under Auto's caption
+	var cx := r.x - 480.0 - inset.x  # left of SPRINT / ATTACK NEAREST / INTERACT (HudField)
+	var cy := r.y - 250.0 - inset.y
 	var slots := [Vector2(-90, -60), Vector2(-10, -20), Vector2(-90, 40), Vector2(70, -50)]
 	for i in hud._skill_hexes.size():
 		hud._skill_hexes[i].position = Vector2(cx, cy) + slots[i]
 	hud._auto_hex.position = Vector2(cx + 84.0, cy + 40.0)  # under ROLL's caption (at +60/+30 it sat on it)
+	# Under TACKLE's caption, between KICK and Auto (left of Auto it sat on TACKLE's caption).
+	var tackle := hud._skill_hexes[1].position
+	hud._auto_ability_hex.position = tackle + Vector2((HuntHud.SKILL_HEX - HuntHud.HEX) * 0.5, HuntHud.SKILL_HEX + HuntHud.CAPTION_H + 4.0)
 	hud._feed_hex.position = Vector2(cx - 170.0, cy - 20.0)
-	# The whistle column stands on HANDS (bottom-right, held_item_slot.gd) with its caption clear of it.
+	# The whistle row stands beside the rail (spec §6), bottom-aligned with it.
+	var rail := HudField.px(&"rail", r)
+	var wp := HudField.px(&"whistle", r)
+	var rail_y := r.y - rail - HuntHud.CAPTION_H - 14.0 - inset.y
 	for i in hud._whistle_hexes.size():
-		hud._whistle_hexes[i].position = Vector2(r.x - 16.0 - inset.x - 62.0, r.y - 262.0 - inset.y - float(i) * (66.0 + HuntHud.CAPTION_H))
+		HudField.fit(hud._whistle_hexes[i], wp)
+		hud._whistle_hexes[i].position = Vector2(16.0 + inset.w + 3.0 * (rail + 10.0) + 10.0 + float(i) * (wp + 10.0), rail_y + rail - wp)
 	# Centred under Auto's caption on the bottom edge, as Durango anchors it to the stance dial.
 	var sw := hud._stance_label.get_combined_minimum_size()
 	hud._stance_label.position = Vector2(hud._auto_hex.position.x + HuntHud.HEX * 0.5 - sw.x * 0.5, r.y - 8.0 - inset.y - sw.y)
@@ -81,9 +99,40 @@ static func vitals_rect(hud: HuntHud, r: Vector2) -> Rect2:
 	var phone := UiTokens.is_phone(r)
 	var x := 16.0 + inset.w
 	var big := 16.0 if not phone else 12.0
-	var small := 10.0 if not phone else 8.0
-	var panel_w := 300.0 if not phone else maxf(148.0, hud._minimap.position.x - x - 8.0)
-	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + small + 6.0 * 2.0 + 36.0)
+	# LEVELBADGE: the badge column widens the block on a desktop; a compact canvas keeps 300 px (the centre
+	# band between the vitals and the map holds the top feed and the quest card) and the bars give way.
+	var panel_w := 300.0 + (0.0 if UiTokens.is_compact(r) else HudLevelBadge.COLUMN)
+	if phone:
+		panel_w = maxf(148.0, hud._minimap.position.x - x - 8.0)
+	# HUDTWEAK (owner 2026-10-28): the tier word is gone and the belt sits right under the energy bar.
+	return Rect2(x - 8.0, 6.0 + inset.z, panel_w, big * 2.0 + ExhaustTreadmill.BELT_H + 6.0 * 2.0 + 12.0)
+
+## The level badge's centre: left of the bars, level with the bars-and-belt stack.
+static func badge_centre(hud: HuntHud, r: Vector2) -> Vector2:
+	var v := vitals_rect(hud, r)
+	var big := 16.0 if not UiTokens.is_phone(r) else 12.0
+	return Vector2(v.position.x + 8.0 + HudLevelBadge.R + 6.0, v.position.y + 10.0 + (big * 2.0 + 6.0 * 2.0 + ExhaustTreadmill.BELT_H) * 0.5)
+
+## The stomach ring (owner 2026-10-28: "bigger and centered underneath level"): the badge's radius,
+## centred under it. Returns (centre, radius) as a Rect2-free Vector3.
+static func stomach_circle(hud: HuntHud, r: Vector2) -> Vector3:
+	var c := badge_centre(hud, r)
+	var rad := HudLevelBadge.R
+	return Vector3(c.x, c.y + HudLevelBadge.R + 12.0 + rad, rad)
+
+## LAYOUT (owner 2026-10-30: "move the level up UI higher (below hunger)"): the left column's top
+## edge, just under the stomach ring (or the vitals while no ring is drawn). Both level-up pieces
+## hang from here: the character stack, and the skill category row (TopFeed).
+static func levelup_top(hud: HuntHud, r: Vector2) -> Vector2:
+	var v := vitals_rect(hud, r)
+	var ring := hud.stomach_rect
+	var top := (ring.end.y if ring.has_area() else v.end.y) + 8.0
+	return Vector2(v.position.x + 16.0, roundf(top))
+
+## LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): the bottom-left anchor
+## above the quick-food row, where the XP lines and the player XP readout stack upwards from.
+static func xp_feed_top(hud: HuntHud) -> float:
+	return hud.quick_row_y() - 8.0
 
 ## Landscape phone: the strip between the vitals and the minimap; portrait: the strip under the map
 ## text. The quest card lives in it; the target plate and the level-up banner take it over while
@@ -117,9 +166,75 @@ static func fit_sheet(hud: HuntHud, r: Vector2, inset: Vector4, rail_y: float) -
 	hud._sheet.size = Vector2.ZERO  # shrink to the new minimum
 	hud._sheet.position = v.position if land else Vector2(16.0 + inset.w, bottom - hud._sheet.size.y)
 
+## Where the placer's ROTATE / PLACE / CANCEL row sits: the anchor nearest `near` (the ghost on
+## screen) whose three hex rects and their captions are all inside the view's safe area and clear of
+## every other HUD rect. The row used to be hung 40 px under the ghost whatever was there, so with the
+## ghost under the bottom-left rail (the pointer still on MENU) it lay on MENU / ANIMALS / BUILD and ran
+## off the canvas at both 1600x900 and 844x390. Falls back to the nearest clearing spot in a sweep,
+## and to `near` itself when the whole canvas is packed (it never is: the centre is empty).
+## `rel` is what each of the three hexes draws, relative to its own top-left corner: its hexagon and its
+## caption box (HexButton.hex_rect / caption_rect, taken from the hexes themselves so the check matches
+## what is drawn). One score per candidate: off-screen rects count 100 each, HUD overlaps 1; zero wins.
+static func placer_anchor(near: Vector2, offsets: Array, rel: Array, taken: Array, view: Vector2, inset: Vector4) -> Vector2:
+	var cands: Array[Vector2] = [near]
+	for dy in [-150.0, 110.0, -250.0]:
+		for dx in [-130.0, 130.0, -260.0, 260.0]:
+			cands.append(near + Vector2(dx, dy))
+	cands.append(Vector2(view.x * 0.5, view.y - 150.0 - inset.y))
+	cands.append(Vector2(view.x * 0.5, 250.0 + inset.z))
+	cands.append(Vector2(view.x - 250.0 - inset.x, view.y * 0.5))
+	cands.append(Vector2(250.0 + inset.w, view.y * 0.5))
+	var step := 56.0
+	# The grid's columns start where the row sits flush with the left room edge and end flush right
+	# (a fixed 90 px start put the left hex off-screen in the first column at every hex size, and the
+	# step then jumped past the one free spot left of HANDS at 844x390).
+	var left := 0.0
+	var right := 0.0
+	for i in offsets.size():
+		for k in 2:
+			var r: Rect2 = (rel[i] as Array)[k]
+			left = minf(left, (offsets[i] as Vector2).x + r.position.x)
+			right = maxf(right, (offsets[i] as Vector2).x + r.end.x)
+	var y := 140.0 + inset.z
+	while y < view.y - 110.0 - inset.y:
+		var x := 6.0 + inset.w - left
+		while x <= view.x - 6.0 - inset.x - right:
+			cands.append(Vector2(x, y))
+			x += step
+		y += step
+	# The first spot that is off nothing wins; when a corner of a small canvas is packed (the ghost
+	# below the rail, the vitals over the top-left), the spot off the least HUD wins rather than the
+	# row staying on the rail. Off-screen counts worst: a hex there cannot be tapped at all.
+	var best := near
+	var best_score := 1 << 30
+	for c in cands:
+		var score := _placer_row_score(c, offsets, rel, taken, view, inset)
+		if score < best_score:
+			best_score = score
+			best = c
+			if score == 0:
+				break
+	return best
+
+static func _placer_row_score(at: Vector2, offsets: Array, rel: Array, taken: Array, view: Vector2, inset: Vector4) -> int:
+	var room := Rect2(Vector2(6.0 + inset.w, 6.0 + inset.z), view - Vector2(12.0 + inset.w + inset.x, 12.0 + inset.z + inset.y))
+	var score := 0
+	for i in offsets.size():
+		var o: Vector2 = at + (offsets[i] as Vector2)
+		for k in 2:
+			var r: Rect2 = (rel[i] as Array)[k]
+			var box := Rect2(o + r.position, r.size)
+			if not room.encloses(box):
+				score += 100
+				continue
+			for t in taken:
+				if (t as Rect2).grow(-1.0).intersects(box.grow(-1.0)):
+					score += 1
+	return score
+
 ## Screen rects the HUD holds this frame: the blocks _draw has painted so far (drawn_blocks, minus
 ## keys starting with one of `skip`), every visible hex on screen (HUD, station and gather radials)
-## with its caption, the HUD's other controls and HANDS. Moving text (world pills, toasts, notices)
+## with its caption, the HUD's other controls and the open pet radial. Moving text (world pills, toasts, notices)
 ## and the creature plates keep off them: at 844x390 they drew over the quest card and the COOK hex.
 static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rect2]:
 	var out: Array[Rect2] = []
@@ -142,12 +257,14 @@ static func taken_rects(hud: HuntHud, skip: PackedStringArray = []) -> Array[Rec
 		if ctl is Label and (ctl as Label).text.strip_edges() == "":
 			continue
 		out.append(ctl.get_global_rect())
-	var held: Control = hud.player.station_craft.held_slot if hud.player and hud.player.station_craft else null
-	if held and held.is_visible_in_tree():
-		out.append(Rect2(held.get_global_rect().position, held.size + Vector2(0, 18)))
 	var fig := figure_rect(hud)
 	if fig.has_area():
 		out.append(fig)
+	# The open pet radial: a creature plate drew over its Animals label, a "Bush Berries" pill in its centre.
+	var pet_radial: PetRadial = hud.player.pets.menu if hud.player and hud.player.pets else null
+	if pet_radial and pet_radial.visible:
+		out.append(pet_radial.ring_rect())
+		out.append_array(pet_radial.label_rects)
 	return out
 
 ## The survivor on screen, head to name. Moving text keeps off it (a notice and a creature plate sat
@@ -164,23 +281,38 @@ static func figure_rect(hud: HuntHud) -> Rect2:
 
 ## The survivor's name under its feet, in screen space. Radial labels keep off it (the gather
 ## radial's option label covered it on a landscape phone).
+## A worn title adds its own line above the name (owner: "Titles should display italicized over the
+## player's name"), so the rect grows upward by TITLE_LINE.
 static func nameplate_rect(cam: Camera3D, who: Player, font: Font) -> Rect2:
-	var p := cam.unproject_position(who.get_global_transform_interpolated().origin - Vector3(0, 0.05, 0))
+	var p := cam.unproject_position(nameplate_anchor(who))
 	var nw := font.get_string_size(who.display_name(), HORIZONTAL_ALIGNMENT_CENTER, -1, HuntHud.NAME_PX).x
-	return Rect2(p.x - nw * 0.5, p.y + 20.0 - HuntHud.NAME_PX, nw + 1.0, HuntHud.NAME_PX + 6.0)
+	var title := who.display_title()
+	var lift := 0.0
+	if title != "":
+		nw = maxf(nw, UiTokens.ui_italic().get_string_size(title, HORIZONTAL_ALIGNMENT_CENTER, -1, TITLE_PX).x + 3.0)
+		lift = TITLE_LINE
+	return Rect2(p.x - nw * 0.5, p.y + 20.0 - HuntHud.NAME_PX - lift, nw + 1.0, HuntHud.NAME_PX + 6.0 + lift)
 
-## Landscape phone level-up: the level, the title it brings and one stat line, in an ink box.
-static func draw_levelup_banner(hud: HuntHud, box: Rect2, a: float) -> void:
-	hud.draw_rect(box, Color(UiTokens.INK, UiTokens.INK.a * a))
-	hud.draw_rect(Rect2(box.position, Vector2(3.0, box.size.y)), Color(1.0, 0.85, 0.35, a))
-	var w := box.size.x - 24.0
-	var lv := str(hud._levelup_lines[0][0]) if not hud._levelup_lines.is_empty() else LevelDisplay.player_label()
-	var lw := hud._font.get_string_size(lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-	hud.draw_string(hud._font, box.position + Vector2(12, 34), lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1.0, 0.85, 0.35, a))
-	hud.draw_string(hud._font, box.position + Vector2(24 + lw, 32), "LEVEL UP", HORIZONTAL_ALIGNMENT_LEFT, maxf(1.0, w - lw - 12.0), UiTokens.meta(hud.get_viewport_rect().size), Color(UiTokens.META, a))
-	var ly := 58.0
-	if hud._levelup_title != "":
-		hud.draw_string(hud._font, box.position + Vector2(12, ly), UiTokens.ellipsis(hud._font, hud._levelup_title, w, 14), HORIZONTAL_ALIGNMENT_LEFT, -1, 14, Color(1.0, 0.85, 0.35, a))
-		ly += 22.0
-	hud.draw_string(hud._font, box.position + Vector2(12, ly), UiTokens.ellipsis(hud._font, hud._levelup_summary, w, 13), HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(1, 1, 1, a))
-	hud.drawn_blocks["levelup"] = box
+## Draws a nameplate in `rect` (nameplate_rect): the worn title, italic and dimmer, on its own line
+## over the name; no title, no line. Shared so every plate (tribe, other players) reads the same.
+static func draw_nameplate(ci: CanvasItem, font: Font, rect: Rect2, who: Player) -> void:
+	var nm := who.display_name()
+	var cx := rect.get_center().x
+	var title := who.display_title()
+	if title != "":
+		var tf := UiTokens.ui_italic()
+		var tw := tf.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_PX).x
+		var tp := Vector2(cx - tw * 0.5, rect.position.y + TITLE_PX)
+		ci.draw_string(tf, tp + Vector2.ONE, title, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_PX, Color(0, 0, 0, 0.6))
+		ci.draw_string(tf, tp, title, HORIZONTAL_ALIGNMENT_LEFT, -1, TITLE_PX, TITLE_INK)
+	var nw := font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, HuntHud.NAME_PX).x
+	var at := Vector2(cx - nw * 0.5, rect.end.y - 6.0)
+	ci.draw_string(font, at + Vector2.ONE, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, HuntHud.NAME_PX, Color(0, 0, 0, 0.7))
+	ci.draw_string(font, at, nm, HORIZONTAL_ALIGNMENT_LEFT, -1, HuntHud.NAME_PX, Color(0.95, 0.95, 0.95))
+
+## The world point the name hangs from. Seated or lying, the visual is lowered to the ground
+## (PlayerAnim._ground_sleep_visual) and the anchor follows it down, so the name stays under her and off
+## the torso (REST pre-merge fix). It rides the visual's tween, so it glides rather than snaps.
+static func nameplate_anchor(who: Player) -> Vector3:
+	var sink := minf(0.0, who.visual.position.y - who.anim._visual_rest_y) if who.visual and who.anim else 0.0
+	return who.get_global_transform_interpolated().origin + Vector3(0, sink - 0.05, 0)

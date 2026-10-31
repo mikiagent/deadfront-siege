@@ -11,8 +11,8 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"hit_react", &"alert"]
-const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff"]
+const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"run"]
 const XFADE := 0.08
 const GAIT_XFADE := 0.2  # walk <-> run: long enough that a gait change never pops
@@ -43,6 +43,10 @@ var _os_state: StringName = &""
 var _os_t := 0.0
 var _os_last := -1.0
 var _os_hit_done := true
+var _os_fracs: Array[float] = []
+var _os_windup_frac := -1.0
+## Index of the hit attack_hit just fired for (0, 1, 2 for bite_combo's three bites; 0 otherwise).
+var hit_index := 0
 
 func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 	player = ap
@@ -63,11 +67,13 @@ func setup(ap: AnimationPlayer, at: AnimationTree) -> void:
 	_playback = tree.get("parameters/playback")
 	play_idle()
 
-func play_idle() -> void:
+## aware: the brain knows of prey but is not attacking; a rig with an investigate loop plays it instead of idle.
+func play_idle(aware: bool = false) -> void:
 	if _dead or _hold_knockdown:
 		return
-	_scale[&"idle"] = CreatureClips.clip_speed(&"idle", _def)
-	_travel(&"idle")
+	var state := &"investigate" if aware and _param.has(&"investigate") else &"idle"
+	_scale[state] = CreatureClips.clip_speed(state, _def)
+	_travel(state)
 
 ## Legacy gait pick from creature.gd's speed / 8. Run now really plays at its anim_events cadence.
 func play_locomotion(speed_frac: float) -> void:
@@ -91,6 +97,59 @@ func set_move_speed(mps: float) -> void:
 	var gait := _pick_gait(mps)
 	_scale[gait] = clampf(mps / float(_natural[gait]), CADENCE_MIN, CADENCE_MAX)
 	_travel(gait)
+
+## Direction-aware locomotion (owner 2026-10-28, every species and ridden mounts): the clip follows
+## the velocity against the body's facing. Forward: walk/run (set_move_speed). Against facing
+## (dot < -0.5): walk_back. Mostly sideways (|dot with right| > 0.7): strafe_left / strafe_right.
+## Each is stride-matched; a rig without the clip falls back to the forward gait.
+const BACK_DOT := -0.5
+const SIDE_DOT := 0.7
+## While a brain sidesteps facing its prey (strafe_face: circling the ring, a scurry), a diagonal past 60 deg
+## off the facing is still a sidestep (owner 2026-10-28: "strafe left and strafe right animations are needed on
+## compsagnathus"); at the default 0.7 a surround slot reached on a diagonal glided on the forward walk.
+const FACING_SIDE_DOT := 0.5
+
+static func pick_direction(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -> StringName:
+	var v := Vector3(vel.x, 0.0, vel.z)
+	if v.length_squared() < 0.0001:
+		return &""
+	v = v.normalized()
+	var side := v.dot(basis.x)  # the body faces -Z, so +X is its right
+	if absf(side) > side_dot:
+		return &"strafe_right" if side > 0.0 else &"strafe_left"
+	if v.dot(-basis.z) < BACK_DOT:
+		return &"walk_back"
+	return &""
+
+func set_move_velocity(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -> void:
+	var mps := Vector2(vel.x, vel.z).length()
+	var clip := pick_direction(vel, basis, side_dot)
+	if clip == &"" or not _param.has(clip) or mps <= 0.05:
+		set_move_speed(mps)
+		return
+	if not _can_move():
+		return
+	# Sidesteps and walk_back (the walk reversed) stride like the walk: natural_speeds.<id>.<clip> when
+	# baked, else the walk's natural speed (ASSUMPTION for the strafes).
+	var nat := CreatureClips.natural_speed(_def, clip)
+	if nat <= 0.0:
+		nat = float(_natural.get(&"walk", 0.0))
+	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_travel(clip)
+
+## A named loop (the charge) stride-matched at mps: natural_speeds.<id>.<clip>, else the run's. Falls
+## back to the direction-aware gait when the rig lacks it.
+func set_gait_clip(clip: StringName, mps: float, vel: Vector3, basis: Basis) -> void:
+	if not _param.has(clip):
+		set_move_velocity(vel, basis)
+		return
+	if not is_finite(mps) or not _can_move():
+		return
+	var nat := CreatureClips.natural_speed(_def, clip)
+	if nat <= 0.0:
+		nat = float(_natural.get(&"run", 0.0))
+	_scale[clip] = clampf(mps / nat, CADENCE_MIN, CADENCE_MAX) if nat > 0.0 else 1.0
+	_travel(clip)
 
 ## Global retime on top of every state's own cadence. Each caller owns a named factor (the limp is
 ## &"fracture", a hit-stop its own key) and the tree plays at their product, so one never erases another.
@@ -126,6 +185,19 @@ func play_clip(clip: StringName, forced: bool = false) -> void:
 		_os_t = 0.0
 		_os_last = -1.0
 		_os_hit_done = state not in ATTACKS
+		_os_fracs = CreatureClips.hit_fracs(state)
+		var tell: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get(str(state), {}) as Dictionary).get("tell_fracs")
+		_os_windup_frac = float((tell as Array)[0]) if state in ATTACKS and tell is Array and not (tell as Array).is_empty() else -1.0
+		hit_index = 0
+
+## End a non-attack one-shot now (a brain that timed the move itself, e.g. a leap that has landed).
+func release_oneshot() -> void:
+	if not _busy or timed_attack or current_clip in ATTACKS:
+		return
+	_os_state = &""
+	_busy = false
+	_forced = false
+	play_idle()
 
 func release_knockdown() -> void:
 	_hold_knockdown = false
@@ -186,9 +258,17 @@ func _poll_oneshot() -> void:
 	var pos := _playback.get_current_play_position()
 	_os_t = pos if _os_last < 0.0 else _os_t + (fposmod(pos - _os_last, length) if length > 0.0 else 0.0)
 	_os_last = pos
-	if not _os_hit_done and _os_t >= length * CreatureClips._hit_frac(_os_state):
-		_os_hit_done = true
-		attack_hit.emit(_os_state)
+	# tell_fracs [start, end] (anim_events): the tell before a combo's last bite raises its ring at start.
+	if _os_windup_frac >= 0.0 and _os_t >= length * _os_windup_frac:
+		_os_windup_frac = -1.0
+		attack_windup.emit(_os_state)
+	while not _os_hit_done and hit_index < _os_fracs.size() and _os_t >= length * _os_fracs[hit_index]:
+		var clip := _os_state
+		attack_hit.emit(clip)
+		hit_index += 1
+		_os_hit_done = hit_index >= _os_fracs.size()
+	if _os_state == &"":
+		return
 	if _os_t >= length - 0.001 or pos >= length - 0.001:
 		var done := _os_state
 		_os_state = &""
@@ -246,10 +326,12 @@ func _build_tree() -> void:
 	for clip in _param:
 		if clip in HUBS:
 			continue
+		# The investigate loop holds a deep crouch: a longer blend in and out so the body does not drop in one frame.
+		var xf := GAIT_XFADE if clip == &"investigate" else XFADE
 		for hub in HUBS:
 			if _param.has(hub):
-				_trans(sm, hub, clip, XFADE)
-		_trans(sm, clip, &"idle", XFADE)
+				_trans(sm, hub, clip, xf)
+		_trans(sm, clip, &"idle", xf)
 		# A self-transition (attack -> attack) would fade a back-to-back replay, but Godot's state
 		# machine made the node report a zero length and broke hit/done timing, so the one-frame
 		# replay pop stays (accepted polish in the report; attacks are gated by _busy anyway).

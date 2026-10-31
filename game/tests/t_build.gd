@@ -101,7 +101,7 @@ func _test_kit_routes() -> void:
 		else:
 			print("[build] route %s FAIL kit=%s spawn=%s restore=%s" % [def.id, kit, spawned, restored_kind])
 		_expect(ok, "route %s" % def.id)
-	_expect(n_ok == 26 and defs.size() == 26, "26 kits route (ok=%d of %d)" % [n_ok, defs.size()])
+	_expect(n_ok == 29 and defs.size() == 29, "29 kits route (ok=%d of %d)" % [n_ok, defs.size()])
 	holder.free()
 	placer.free()
 
@@ -218,7 +218,7 @@ func _test_field_full_bag() -> void:
 		return
 	field.crop_id = &"wheat"
 	field.mature = true
-	_give(&"water_bucket", 2)  # a stack of 2: pouring one frees no slot
+	_give(&"water_bucket", 2)  # W2-INV: two instances; pouring one frees its slot for the empty bucket
 	var filler := _filler_id()
 	var empties: Array[int] = []
 	for i in _player.inventory.slot_count:
@@ -229,13 +229,13 @@ func _test_field_full_bag() -> void:
 	field.apply_action(_player, {"action": "harvest"})
 	field.apply_action(_player, {"action": "water"})
 	var units_after := _units(_player.inventory)
-	var kept: bool = field.mature and field.crop_id == &"wheat" and field.watered == 0.0
+	var kept: bool = field.mature and field.crop_id == &"wheat"
 	for i in empties:
 		_player.inventory.slots[i] = null
 	field.apply_action(_player, {"action": "harvest"})
 	var got: int = _player.inventory.count_of(&"wheat")
 	print("[build] field full bag: units %d->%d crop_kept=%s buckets=%d | with room: wheat=%d" % [units_before, units_after, kept, _player.inventory.count_of(&"water_bucket"), got])
-	_expect(units_before == units_after and kept and _player.inventory.count_of(&"water_bucket") == 2, "full bag: harvest and water refuse without losing units")
+	_expect(units_before == units_after and kept and _player.inventory.count_of(&"water_bucket") + _player.inventory.count_of(&"empty_bucket") == 2, "full bag: harvest refuses, water swaps a bucket for an empty one, no unit lost")
 	_expect(got > 0 and field.crop_id == &"", "harvest lands once the bag has room")
 	_player.inventory.consume(&"wheat", got)
 	_player.inventory.consume(&"water_bucket", 2)

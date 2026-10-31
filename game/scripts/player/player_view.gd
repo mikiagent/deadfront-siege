@@ -70,6 +70,11 @@ func _setup_survivor() -> void:
 		print("[player] survivor GLB missing %s" % SURVIVOR_BASE_GLB)
 		return
 	_make_web_safe()
+	# Her clips key different bones (swim, the state idles, rummage and some work loops key Spine and the
+	# feet; idle, walk and run do not). Non-deterministic, an unkeyed bone kept the last clip's pose: out of
+	# the water she stood and walked bent ~23 deg sideways at the waist for good (POSEFIX). Deterministic,
+	# a bone the playing clip leaves out returns to its rest pose.
+	rig.anim_player.deterministic = true
 	# A small silhouette lift keeps the survivor legible at the phone-landscape camera size.
 	rig.scale *= 1.18
 	# The model's feet are at its root; the body's origin is the capsule centre. Lower the rig by
@@ -93,7 +98,7 @@ func _setup_survivor() -> void:
 func _keep_grounded() -> void:
 	if p.rig == null or p._saddle_view != null:
 		return
-	p.rig.position.y = ground_y + (_visual_rest_y - p.visual.position.y)
+	p.rig.position.y = ground_y + (_visual_rest_y - p.visual.position.y) + (p.anim.swim_lift if p.anim else 0.0)
 
 func _make_web_safe() -> void:
 	if p.rig == null or p.rig.mesh_root == null:

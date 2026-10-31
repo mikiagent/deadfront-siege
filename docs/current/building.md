@@ -1,0 +1,175 @@
+# Building & construction quality
+
+Present-tense facts only. Owner spec: `docs/design/durango-prompts/10_construction_building_quality.md`
+(§§2-3, 6) and `30_building_construction_and_crafting_stations.md` (§§4-10).
+
+## Two building paths
+
+| Path | Code | Cost |
+|---|---|---|
+| Modular piece (foundation, wall, doorway, door, window, ceiling, roof, pillar, stairs, ramp, chest, large box, sign) | `game/scripts/world/structure_placer.gd` → `StructurePiece` | exact item instances from the bag, least valuable first (`Inventory.spend_key`) |
+| Blueprint → construction site → station (workbench, comm center, …) | `game/scripts/items/build_flow.gd` + `ConstructionSite` → `CraftStation` | exact instances deposited into the site's escrow |
+
+Both compute quality with `game/scripts/world/building_quality.gd` (`BuildingQuality`). Definitions
+live in `game/data/structures.json` (`piece_tiers`, `placed_kinds`, `quality`) and
+`game/data/blueprints.json`.
+
+## Level (spec 10 §2)
+
+```
+avg   = floor(mean of the levels of every level-contributing unit)
+level = min( clamp(avg, blueprint minimum_level, blueprint maximum_level), Construction category level )
+```
+
+- A unit counts when its slot row says `counts_for_level` / `level_contributing`, else when the row's
+  role is `primary`/`main` (structures.json `material_slots`, blueprints.json `slots`).
+- `ConstructionSite.contributing_levels()` collects one entry per deposited unit;
+  `Blueprints.result_level()` does the arithmetic (blueprint rows) and
+  `BuildingQuality.level()` the same for piece rows.
+- No level-contributing units: level **1** (`# ASSUMPTION`).
+- Pieces: `StructurePlacer.material_levels()` reads the exact bag units the payment will spend, so
+  the level a piece gets matches what it took (`StructurePlacer.apply_quality`).
+- A piece keeps its level through a tier upgrade (`StructurePiece.set_tier`); `# ASSUMPTION`, the
+  spec gives no re-levelling rule.
+
+## Traits (spec 10 §3)
+
+- Only the **first unit of the first primary/main slot** passes traits
+  (`BuildingQuality.primary_traits`). Binding/support materials never pass.
+- Traits are `Inventory.traits()` (attributes that are not the def's defaults and not bookkeeping).
+  Only positive levels carry; everything is stored as `[{id, level}]`.
+- A trait does something only when the blueprint lists its effect in `supported_building_effects`
+  (a piece with `storage_slots` counts as supporting `storage_space`). Unsupported traits are still
+  carried and shown as "(no effect here)".
+
+Effect table (`structures.json` → `quality.attributes`, amounts `# ASSUMPTION` from the spec's
+reconstruction references):
+
+| Trait | Effect | Per level |
+|---|---|---|
+| High Density / Compact Structure | durability | +2 / +1 |
+| Low Density / Weak Structure | durability | −2 / −1 |
+| Lightweight / Heavy | storage spaces | +3 / −3 |
+| Beautiful Pattern / Messy Pattern | comfort | +1 / −1 |
+| Strong / Weak Disinfectant | antibiotic | +1 / −1 |
+| Firm / Soft | building attack | +1 / −1 |
+
+Rare station traits (`quality.station_rare`, `# ASSUMPTION` which rare id carries which effect):
+
+| Rare trait | Effect | Per level |
+|---|---|---|
+| Split Easily | job duration × (1 − 0.05·level) | `ProcessStation.effective_seconds` |
+| Vivid Inspiration | +1 concurrent job slot | `ProcessStation.slots()` |
+
+Durability effects raise `max_hp` (`StructurePiece.apply_quality`, `CraftStation._apply_quality_health`).
+Storage effects resize the piece's container by `grow_to`, and shrink only into empty slots
+(`StructurePiece.apply_storage_bonus`) so stored items are never deleted.
+
+## Fires: the permanent firepit and the temporary fires
+
+Three kit-placed fires share `game/scripts/world/bonfire.gd` (`Bonfire`); their numbers live in
+`structures.json` → `placed_kinds.<kind>` and are `# ASSUMPTION` (docs 10, 30 and 08 give none).
+
+| Kind | Kit | Permanent | Wood | Fuel |
+|---|---|---|---|---|
+| `stone_fire_pit` | `stone_fire_pit_kit` | yes, never decays | one log drawn per minute of fuel (0-10) | 1 branch = 60 s, 1 log = 300 s, up to 600 s |
+| `bonfire` | `bonfire_kit` | no | shown from placement | lit with 600 s, burns out |
+| `campfire` | `campfire_kit` | no | shown from placement | lit with 120 s, burns out |
+
+- **The permanent pit.** Its Blender model bakes wood and a spit into the mesh, so `Bonfire` hides
+  that model and draws its own two-course stone ring. `WoodPile` and `Flame` are separate nodes shown
+  only while `fuel_seconds > 0`; an ash bed stays inside the rocks. `add_fuel(player, item)` spends one
+  `branch` (`wood_seconds_per_branch`, 60 s) or one `wood_log` (`wood_seconds_per_log`, 300 s), capped at
+  `fuel_max_seconds` (600 s; fuel past the cap is lost, `# ASSUMPTION`). When the fuel runs out the wood
+  and flame go and the rocks stay.
+- **Wood you can see (FIREFUEL, owner 2026-10-28).** The pit draws `logs_shown() = ceil(minutes left)`
+  logs, 0..10: two crossed on the coals first, then a six-log teepee, then two against its foot. The fire
+  reads `fuel_state()`: `roaring` (7-10 min), `burning` (3-6), `low` (1-2: small flame, the coal bed glows
+  hotter), `out` (0 logs, no flame). Every fire (pit, bonfire, campfire) has a particle flame: CPU
+  particles (all renderers, web included) — flame body (~1.2 m at full), a hot core, rising embers and
+  smoke wisps, about 66 particles per fire; the flame node scales 1.0 / 0.72 / 0.42 by state, rain
+  shrinks it further, and the night fire light scales with it.
+- **Temporary fires** burn down every frame, wear `durability_per_minute` (1/min), wear twice as fast
+  when the fire stands outside a Domain (the same claim check `BuildGrid.can_place` uses), and are
+  removed at burn-out or at 0 durability — the game has no ash state.
+- **Cooking** works only while a fire burns: `Bonfire.can_cook()` / `cook_block_reason()`,
+  `StationMenu.filter_actions` drops the COOK hex and `StationMenu._on_pressed` refuses the press.
+- **FUEL** is a hex on every fire (`StationMenu.actions_for`). With the HUD up it opens the fire's fuel
+  sheet (`FireFuelSheet`, `HuntHud.open_fire_fuel`): ten wood slots (one per minute left), the fuel bar,
+  the state and time left, and two 64 px buttons, Branch +1 min and Log +5 min, with the bag counts;
+  a button greys out when the fire is full, too wet to light, or the bag has none. Without a HUD (labs)
+  the hex loads one branch (or a log) in place. The menu also prints the fire's state line (`info_lines`: `Fuel m:ss · Burning/Out` and
+  `Durability cur/max` for temporary fires).
+- **Save.** The fuel sheet is not a separate container: `fuel_seconds` is the whole fuel inventory, so
+  no save field was added. Rows carry `fuel_seconds` and `durability` (the campfire still mirrors `seconds_left`);
+  `SaveSanitizer` keeps both fields, and a row without them loads a lit, whole fire.
+
+## Where it is visible
+
+- Piece card: `StructureSheet.fill_card` shows `Lv N · High Density 3` plus one line per trait
+  ("High Density Lv 3: +6 durability", "(no effect here)").
+- Site: `ConstructionSite.contributing_traits()` / `preview_effects()` / `preview_level()` (the site
+  sheet prints the deposited instances' levels per slot).
+- Station: HUD chip falls back to `CraftStation.quality_chip_text()` when idle, which reads
+  `ProcessStation.label_text()`.
+
+## Station state is visible (owner 2026-10-28)
+"The state of the stations shows what is happening at the station." Code: `StationState`
+(`game/scripts/world/station_state.gd`, data `game/data/station_state.json`), `ProcessFx`, `FieldPlot`.
+
+| Station | Idle | Working |
+|---|---|---|
+| Stone grill (the cooking station) | bare grill | spit posts, rod and roasting meat, embers, warm light |
+| Forge (data-built hearth: no GLB yet) | cold dark coals | hot emissive coals, glowing billet, orange light, sparks |
+| Drying rack | empty rack model | raw → drying → dried strip models, smoke |
+| Smoker / crock pot / steamer | empty | strips / bowls per job, smoke or steam, glow |
+| Farm plot | bare soil | plant rows through sprout / young / growing / mature (failed wilts brown), floating "1m 30s" / "Ready" |
+| Taming pen | empty fence | the animal at full size, "Taming 24m 10s" |
+| Worksite (`ConstructionSite`) | dirt patch of its footprint, faint grey round symbol of the station's kit icon, "Building 40%" | completion swaps it for the station |
+
+Busy = a ProcessStation job runs, or a survivor's stand-and-craft (`StationCraft.crafting`) is at that
+station. While the survivor works she plays the station's loop (`work_anim` in station_state.json:
+hammer, stir, hang, forge, tan → `PlayerAnim.play_work(kind)` once claude/mmo-rummage lands; the old
+craft loop until then) and the craft card floats over the station. Fires belong to claude/mmo-firefuel.
+No tanning frame or oven kind is buildable yet (`# ASSUMPTION`, Open Questions P5).
+
+## Metal nails gate tier-2 stations (owner 2026-10-28)
+`metal_nails` (Metal Nails ×4 from 1 ingot + 1 fuel at the forge, skill node `nails_pillars`) are
+required by the medium (2), large (4) and apex (8) taming pens. `# ASSUMPTION` amounts and stations
+(Open Questions P4).
+
+## Releasing land under a building (UNCLAIM, 2026-10-28)
+
+A Domain plot can be given up from the Domain screen or the CLAIM panel, one plot at a time, through
+`IslandClaims.release_cell()`. A plot with anything built on it is **refused** until the building is
+packed up (`IslandClaims.building_on`: a kit's node in `BuildGrid._occupied`, a construction site, or
+any modular `StructurePiece` whose module covers the plot). Nothing is moved, destroyed or orphaned by
+a release, and storage contents stay with their owner — the land leaves, the building does not.
+`game/tests/t_unclaim.gd` covers both a kit and a foundation.
+
+## Persistence
+
+- Piece rows carry `level`, `inherited_attributes`, `quality_durability`, `quality_storage`
+  (`StructurePiece.to_dict`); loading clamps them, drops malformed trait rows, and a row from before
+  quality loads as level 1, no traits (`StructurePiece.from_dict`).
+- Station rows carry `station_level`, `inherited_attributes`, `quality_durability`,
+  `quality_duration_mult`, `quality_slots` (`CraftStation.to_dict` / `from_dict`); an old row keeps
+  its `station_level` and gets no traits.
+- Site escrow is saved as the exact instances (`ConstructionSite.to_dict`), so a reload finishes at
+  the same level.
+
+## Tests
+
+- `game/tests/t_buildquality.gd` — level formula and caps, contributing units, primary-only traits,
+  lv-10 vs lv-1 wall, durability/storage effects, unsupported effects, save/load, old rows, a mixed
+  material site (20,20,12,12 → 16) finishing into a station with a shorter job and a repackaged one.
+- `game/tests/t_buildsys.gd`, `t_buildflow.gd`, `t_build.gd` — placement, costs, support/collapse,
+  repair/upgrade, rows, site escrow and completion.
+- `game/tests/t_unclaim.gd` — releasing a plot: the last plot, the camp's own landing plot, a plot
+  with a building on it and a release that would split the Domain are all refused with a reason; an
+  edge plot releases, persists through a reload and can be claimed again.
+- `game/tests/t_firepits.gd` — the fires: empty vs loaded pit, temporary burn-out and wear (2× outside a
+  Domain), the cooking gate and hex menu, the info line, and the save round trip through the sanitizer;
+  FIREFUEL: branch/log fuel, the 10 min cap, logs = ceil(minutes) every minute 10→1, the states, 0 logs and
+  no particles when out, the shrinking flame, 4:30 saving as 5 logs, and the fuel sheet's slots and
+  64 px buttons. Windowed PNGs: `docs/orchestration/reports/firefuel/`.

@@ -1,0 +1,509 @@
+{
+  "_about": "Biome props built by tools/blender/biome_props (headless Blender). One row per GLB under res://assets/nature/biome/. size_m is width x height x depth in Godot axes (x, y up, z), origin at the ground centre, metres. collide is the suggested collider: none (walk through), box (AABB), cylinder (round blocker). destroyable is false only for the big landforms (mesas, cliffs, spires) the owner ruled indestructible; everything else can be broken. biomes lists the plan zone ids (docs/design/islands-and-loop-plan.md 1.4) and spec-26 landmarks. props_manifest.json is NOT touched: this file is consent for the island scatter to place visual props that are not resources; only the crystal clusters are meant as ore-node visuals.",
+  "assets": [
+    {
+      "id": "reed_clump_a",
+      "path": "res://assets/nature/biome/reed_clump_a.glb",
+      "kind": "reed_clump",
+      "size_m": [
+        1.86,
+        1.86,
+        1.68
+      ],
+      "collide": "none",
+      "destroyable": true,
+      "biomes": [
+        "riverbank",
+        "delta",
+        "oasis"
+      ],
+      "tris": 680,
+      "budget_tris": 800,
+      "origin": "ground_center",
+      "notes": "river and delta banks"
+    },
+    {
+      "id": "reed_clump_b",
+      "path": "res://assets/nature/biome/reed_clump_b.glb",
+      "kind": "reed_clump",
+      "size_m": [
+        1.33,
+        1.34,
+        1.4
+      ],
+      "collide": "none",
+      "destroyable": true,
+      "biomes": [
+        "riverbank",
+        "delta"
+      ],
+      "tris": 440,
+      "budget_tris": 800,
+      "origin": "ground_center",
+      "notes": "smaller bank clump"
+    },
+    {
+      "id": "plume_grass",
+      "path": "res://assets/nature/biome/plume_grass.glb",
+      "kind": "plume_grass",
+      "size_m": [
+        1.63,
+        1.63,
+        1.27
+      ],
+      "collide": "none",
+      "destroyable": true,
+      "biomes": [
+        "riverbank",
+        "delta",
+        "dry_upland"
+      ],
+      "tris": 744,
+      "budget_tris": 800,
+      "origin": "ground_center",
+      "notes": "white plumes on river mouths"
+    },
+    {
+      "id": "fern_clump_a",
+      "path": "res://assets/nature/biome/fern_clump_a.glb",
+      "kind": "fern",
+      "size_m": [
+        1.41,
+        0.9,
+        1.35
+      ],
+      "collide": "none",
+      "destroyable": true,
+      "biomes": [
+        "forest",
+        "riverbank"
+      ],
+      "tris": 768,
+      "budget_tris": 800,
+      "origin": "ground_center",
+      "notes": "damp understorey"
+    },
+    {
+      "id": "fern_clump_b",
+      "path": "res://assets/nature/biome/fern_clump_b.glb",
+      "kind": "fern",
+      "size_m": [
+        1.7,
+        1.33,
+        1.92
+      ],
+      "collide": "none",
+      "destroyable": true,
+      "biomes": [
+        "forest",
+        "riverbank",
+        "volcanic"
+      ],
+      "tris": 768,
+      "budget_tris": 800,
+      "origin": "ground_center",
+      "notes": "tree-fern scale understorey"
+    },
+    {
+      "id": "lily_pad_cluster",
+      "path": "res://assets/nature/biome/lily_pad_cluster.glb",
+      "kind": "lily_pads",
+      "size_m": [
+        1.65,
+        0.19,
+        1.54
+      ],
+      "collide": "none",
+      "destroyable": true,
+      "biomes": [
+        "riverbank",
+        "delta",
+        "oasis",
+        "hot_spring"
+      ],
+      "tris": 236,
+      "budget_tris": 800,
+      "origin": "ground_center",
+      "notes": "flat; sits on the water plane, no collider"
+    },
+    {
+      "id": "aloe_flower",
+      "path": "res://assets/nature/biome/aloe_flower.glb",
+      "kind": "aloe",
+      "size_m": [
+        1.29,
+        1.6,
+        1.27
+      ],
+      "collide": "none",
+      "destroyable": true,
+      "biomes": [
+        "dry_upland",
+        "savanna"
+      ],
+      "tris": 500,
+      "budget_tris": 800,
+      "origin": "ground_center",
+      "notes": "red-flowered aloe"
+    },
+    {
+      "id": "termite_mound_a",
+      "path": "res://assets/nature/biome/termite_mound_a.glb",
+      "kind": "termite_mound",
+      "size_m": [
+        2.44,
+        3.07,
+        2.11
+      ],
+      "collide": "cylinder",
+      "destroyable": true,
+      "biomes": [
+        "dry_upland",
+        "savanna"
+      ],
+      "tris": 1638,
+      "budget_tris": 2500,
+      "origin": "ground_center",
+      "notes": "prop, not a resource"
+    },
+    {
+      "id": "termite_mound_b",
+      "path": "res://assets/nature/biome/termite_mound_b.glb",
+      "kind": "termite_mound",
+      "size_m": [
+        2.78,
+        3.44,
+        2.78
+      ],
+      "collide": "cylinder",
+      "destroyable": true,
+      "biomes": [
+        "dry_upland",
+        "savanna"
+      ],
+      "tris": 2144,
+      "budget_tris": 2500,
+      "origin": "ground_center",
+      "notes": "prop, not a resource"
+    },
+    {
+      "id": "fallen_log_moss",
+      "path": "res://assets/nature/biome/fallen_log_moss.glb",
+      "kind": "fallen_log",
+      "size_m": [
+        4.75,
+        0.73,
+        0.96
+      ],
+      "collide": "box",
+      "destroyable": true,
+      "biomes": [
+        "forest",
+        "riverbank"
+      ],
+      "tris": 341,
+      "budget_tris": 2500,
+      "origin": "ground_center",
+      "notes": "mossy; can be a log-bridge prop"
+    },
+    {
+      "id": "fallen_log_dry",
+      "path": "res://assets/nature/biome/fallen_log_dry.glb",
+      "kind": "fallen_log",
+      "size_m": [
+        6.08,
+        0.86,
+        1.15
+      ],
+      "collide": "box",
+      "destroyable": true,
+      "biomes": [
+        "savanna",
+        "delta",
+        "dry_upland"
+      ],
+      "tris": 261,
+      "budget_tris": 2500,
+      "origin": "ground_center",
+      "notes": "dry driftwood along rivers"
+    },
+    {
+      "id": "rock_spire_a",
+      "path": "res://assets/nature/biome/rock_spire_a.glb",
+      "kind": "rock_spire",
+      "size_m": [
+        4.03,
+        5.87,
+        3.77
+      ],
+      "collide": "box",
+      "destroyable": false,
+      "biomes": [
+        "rocky_hills",
+        "canyon"
+      ],
+      "tris": 818,
+      "budget_tris": 6000,
+      "origin": "ground_center",
+      "notes": "indestructible landmark"
+    },
+    {
+      "id": "rock_spire_b",
+      "path": "res://assets/nature/biome/rock_spire_b.glb",
+      "kind": "rock_spire",
+      "size_m": [
+        4.89,
+        9.05,
+        4.89
+      ],
+      "collide": "box",
+      "destroyable": false,
+      "biomes": [
+        "rocky_hills",
+        "canyon"
+      ],
+      "tris": 818,
+      "budget_tris": 6000,
+      "origin": "ground_center",
+      "notes": "indestructible landmark"
+    },
+    {
+      "id": "mesa_sandstone",
+      "path": "res://assets/nature/biome/mesa_sandstone.glb",
+      "kind": "mesa",
+      "size_m": [
+        13.13,
+        9.45,
+        11.1
+      ],
+      "collide": "box",
+      "destroyable": false,
+      "biomes": [
+        "canyon",
+        "dry_upland"
+      ],
+      "tris": 2057,
+      "budget_tris": 6000,
+      "origin": "ground_center",
+      "notes": "indestructible cliff chunk"
+    },
+    {
+      "id": "cliff_chunk_red",
+      "path": "res://assets/nature/biome/cliff_chunk_red.glb",
+      "kind": "cliff",
+      "size_m": [
+        13.72,
+        8.32,
+        8.46
+      ],
+      "collide": "box",
+      "destroyable": false,
+      "biomes": [
+        "canyon"
+      ],
+      "tris": 2080,
+      "budget_tris": 6000,
+      "origin": "ground_center",
+      "notes": "indestructible cliff chunk"
+    },
+    {
+      "id": "mesa_basalt",
+      "path": "res://assets/nature/biome/mesa_basalt.glb",
+      "kind": "mesa",
+      "size_m": [
+        11.97,
+        9.18,
+        4.64
+      ],
+      "collide": "box",
+      "destroyable": false,
+      "biomes": [
+        "volcanic",
+        "rocky_hills"
+      ],
+      "tris": 2183,
+      "budget_tris": 6000,
+      "origin": "ground_center",
+      "notes": "indestructible cliff chunk"
+    },
+    {
+      "id": "basalt_columns",
+      "path": "res://assets/nature/biome/basalt_columns.glb",
+      "kind": "basalt_columns",
+      "size_m": [
+        2.45,
+        1.7,
+        3.17
+      ],
+      "collide": "box",
+      "destroyable": true,
+      "biomes": [
+        "volcanic",
+        "rocky_hills"
+      ],
+      "tris": 224,
+      "budget_tris": 2500,
+      "origin": "ground_center",
+      "notes": "cooling-joint basalt outcrop"
+    },
+    {
+      "id": "boulder_pile_a",
+      "path": "res://assets/nature/biome/boulder_pile_a.glb",
+      "kind": "boulder_pile",
+      "size_m": [
+        1.87,
+        0.74,
+        1.46
+      ],
+      "collide": "box",
+      "destroyable": true,
+      "biomes": [
+        "rocky_hills",
+        "dry_upland",
+        "savanna"
+      ],
+      "tris": 300,
+      "budget_tris": 2500,
+      "origin": "ground_center",
+      "notes": "granite boulders"
+    },
+    {
+      "id": "boulder_pile_b",
+      "path": "res://assets/nature/biome/boulder_pile_b.glb",
+      "kind": "boulder_pile",
+      "size_m": [
+        2.74,
+        0.97,
+        2.04
+      ],
+      "collide": "box",
+      "destroyable": true,
+      "biomes": [
+        "rocky_hills",
+        "dry_upland"
+      ],
+      "tris": 340,
+      "budget_tris": 2500,
+      "origin": "ground_center",
+      "notes": "larger granite boulders"
+    },
+    {
+      "id": "crystal_blue",
+      "path": "res://assets/nature/biome/crystal_blue.glb",
+      "kind": "crystal_cluster",
+      "size_m": [
+        1.3,
+        1.09,
+        1.28
+      ],
+      "collide": "cylinder",
+      "destroyable": true,
+      "biomes": [
+        "rocky_hills",
+        "canyon"
+      ],
+      "tris": 1426,
+      "budget_tris": 1500,
+      "origin": "ground_center",
+      "notes": "ore-node visual: pale blue"
+    },
+    {
+      "id": "crystal_obsidian",
+      "path": "res://assets/nature/biome/crystal_obsidian.glb",
+      "kind": "crystal_cluster",
+      "size_m": [
+        0.99,
+        0.88,
+        1.02
+      ],
+      "collide": "cylinder",
+      "destroyable": true,
+      "biomes": [
+        "volcanic"
+      ],
+      "tris": 1426,
+      "budget_tris": 1500,
+      "origin": "ground_center",
+      "notes": "ore-node visual: black obsidian"
+    },
+    {
+      "id": "crystal_sulphur",
+      "path": "res://assets/nature/biome/crystal_sulphur.glb",
+      "kind": "crystal_cluster",
+      "size_m": [
+        1.51,
+        0.84,
+        1.56
+      ],
+      "collide": "cylinder",
+      "destroyable": true,
+      "biomes": [
+        "volcanic"
+      ],
+      "tris": 568,
+      "budget_tris": 1500,
+      "origin": "ground_center",
+      "notes": "ore-node visual: yellow sulphur"
+    },
+    {
+      "id": "steam_vent",
+      "path": "res://assets/nature/biome/steam_vent.glb",
+      "kind": "steam_vent",
+      "size_m": [
+        1.86,
+        0.37,
+        1.73
+      ],
+      "collide": "cylinder",
+      "destroyable": true,
+      "biomes": [
+        "volcanic"
+      ],
+      "tris": 240,
+      "budget_tris": 1500,
+      "origin": "ground_center",
+      "notes": "rim only; the steam is a vfx job"
+    },
+    {
+      "id": "hot_spring_rim",
+      "path": "res://assets/nature/biome/hot_spring_rim.glb",
+      "kind": "hot_spring_rim",
+      "size_m": [
+        4.16,
+        0.59,
+        3.45
+      ],
+      "collide": "box",
+      "destroyable": true,
+      "biomes": [
+        "volcanic",
+        "hot_spring"
+      ],
+      "tris": 782,
+      "budget_tris": 1500,
+      "origin": "ground_center",
+      "notes": "cream travertine terraces"
+    },
+    {
+      "id": "pebble_patch",
+      "path": "res://assets/nature/biome/pebble_patch.glb",
+      "kind": "pebbles",
+      "size_m": [
+        1.93,
+        0.1,
+        2.08
+      ],
+      "collide": "none",
+      "destroyable": true,
+      "biomes": [
+        "riverbank",
+        "beach",
+        "dry_upland"
+      ],
+      "tris": 1280,
+      "budget_tris": 1500,
+      "origin": "ground_center",
+      "notes": "flat scatter, no collider"
+    }
+  ]
+}

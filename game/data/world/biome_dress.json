@@ -1,0 +1,1323 @@
+{
+  "_about": "BIOMEDRESS: per-zone scenery dressing painted from the owner's 2D concept art (docs/reference/biome-concept-*.webp, specs 26-28). One entry per BIOMEZONES zone id. Each zone lists the kinds it grows, with a density per m2 of that zone on the island. A kind names sprites from data/world/sprites2d.json (never a hard-coded path), the zones it may grow in (a kind placed outside its list is a wrong-biome bug), how it is placed (where: ground = soil, edge = water margin, water = channel/shallow, rock = rock/ash/cliff or steep, coast = sand or a couple of metres from it, any = any dry ground), a per-kind clump (how many cards per spot) and spread (metres), and a tint that pushes the shared sheet art to the biome's palette. The concept art is the target: reed beds and lily pads along water, plume grass, termite mounds and aloes on savanna, red sandstone and blue crystals on canyon, black basalt/obsidian and sulphur on volcanic, palms/ferns/bromeliads on tropical.",
+  "min_zone_tiles": 40,
+  "min_instances_per_kind": 3,
+  "zones": {
+    "meadow": {
+      "kinds": [
+        {
+          "id": "grass_clump",
+          "density": 0.055
+        },
+        {
+          "id": "grass_tuft",
+          "density": 0.07
+        },
+        {
+          "id": "white_flower_herb",
+          "density": 0.014
+        },
+        {
+          "id": "red_flower_plant",
+          "density": 0.009
+        },
+        {
+          "id": "fern_tuft",
+          "density": 0.014
+        },
+        {
+          "id": "pebble",
+          "density": 0.02
+        }
+      ]
+    },
+    "forest": {
+      "kinds": [
+        {
+          "id": "fern_cluster",
+          "density": 0.04
+        },
+        {
+          "id": "broadleaf_shrub",
+          "density": 0.02
+        },
+        {
+          "id": "cycad",
+          "density": 0.007
+        },
+        {
+          "id": "ivy_mound",
+          "density": 0.014
+        },
+        {
+          "id": "mossy_rock",
+          "density": 0.012
+        },
+        {
+          "id": "bromeliad_clump",
+          "density": 0.012
+        },
+        {
+          "id": "mossy_log",
+          "density": 0.004
+        }
+      ]
+    },
+    "savanna": {
+      "kinds": [
+        {
+          "id": "straw_clump",
+          "density": 0.05
+        },
+        {
+          "id": "straw_grass_clump",
+          "density": 0.022
+        },
+        {
+          "id": "red_flower_plant",
+          "density": 0.007
+        },
+        {
+          "id": "aloe_rosette",
+          "density": 0.009
+        },
+        {
+          "id": "termite_mound",
+          "density": 0.0016
+        },
+        {
+          "id": "boulder_small",
+          "density": 0.007
+        },
+        {
+          "id": "rock_chip",
+          "density": 0.012
+        },
+        {
+          "id": "reed_bed",
+          "density": 0.03
+        },
+        {
+          "id": "reed_clump",
+          "density": 0.03
+        },
+        {
+          "id": "cattail_clump",
+          "density": 0.02
+        }
+      ]
+    },
+    "canyon": {
+      "kinds": [
+        {
+          "id": "rock_chunk_cliff",
+          "density": 0.022
+        },
+        {
+          "id": "crystal_cluster",
+          "density": 0.004
+        },
+        {
+          "id": "aloe_rosette",
+          "density": 0.007
+        },
+        {
+          "id": "rock_chip",
+          "density": 0.02
+        },
+        {
+          "id": "boulder_small",
+          "density": 0.009
+        },
+        {
+          "id": "termite_mound",
+          "density": 0.001
+        }
+      ]
+    },
+    "basalt": {
+      "kinds": [
+        {
+          "id": "basalt_chunk",
+          "density": 0.06
+        },
+        {
+          "id": "obsidian_crystal",
+          "density": 0.008
+        },
+        {
+          "id": "tree_fern",
+          "density": 0.004
+        },
+        {
+          "id": "berry_palm",
+          "density": 0.003
+        },
+        {
+          "id": "sulphur_mound",
+          "density": 0.003
+        },
+        {
+          "id": "fern_red_bromeliad",
+          "density": 0.02
+        },
+        {
+          "id": "basalt_pebble",
+          "density": 0.03
+        }
+      ]
+    },
+    "wetland": {
+      "kinds": [
+        {
+          "id": "reed_bed",
+          "density": 0.13
+        },
+        {
+          "id": "reed_clump",
+          "density": 0.08
+        },
+        {
+          "id": "cattail_clump",
+          "density": 0.06
+        },
+        {
+          "id": "white_lily",
+          "density": 0.022
+        },
+        {
+          "id": "fern_cluster",
+          "density": 0.016
+        },
+        {
+          "id": "ivy_mound",
+          "density": 0.008
+        }
+      ]
+    },
+    "beach": {
+      "kinds": [
+        {
+          "id": "shell_scatter",
+          "density": 0.022,
+          "climates": [
+            "tropical",
+            "blue_tropical",
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp",
+            "desert"
+          ]
+        },
+        {
+          "id": "coral_rock",
+          "density": 0.006,
+          "climates": [
+            "tropical",
+            "blue_tropical"
+          ]
+        },
+        {
+          "id": "driftwood_log",
+          "density": 0.006
+        },
+        {
+          "id": "young_palm",
+          "density": 0.012,
+          "climates": [
+            "tropical",
+            "blue_tropical"
+          ]
+        },
+        {
+          "id": "boulder_small",
+          "density": 0.006,
+          "climates": [
+            "tropical",
+            "blue_tropical",
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp",
+            "desert"
+          ]
+        },
+        {
+          "id": "reed_clump",
+          "density": 0.02,
+          "climates": [
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp",
+            "tropical"
+          ]
+        },
+        {
+          "id": "straw_grass_clump",
+          "density": 0.018,
+          "climates": [
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp",
+            "desert"
+          ]
+        },
+        {
+          "id": "pebble",
+          "density": 0.01,
+          "climates": [
+            "grassland",
+            "temperate",
+            "savannah",
+            "swamp"
+          ]
+        },
+        {
+          "id": "aloe_rosette",
+          "density": 0.008,
+          "climates": [
+            "desert"
+          ]
+        },
+        {
+          "id": "basalt_chunk",
+          "density": 0.012,
+          "climates": [
+            "volcanic"
+          ]
+        },
+        {
+          "id": "basalt_pebble",
+          "density": 0.02,
+          "climates": [
+            "volcanic"
+          ]
+        }
+      ],
+      "_about": "Beach dressing per climate (TERRAINSMOOTH beaches; ASSUMPTION mapping): an entry's optional 'climates' list limits it to those climates (missing = every climate). Palms, coral and shells on tropical beaches; dune grass, reeds, driftwood, shells and pebbles on temperate ones; dry grass and aloe scrub on desert; driftwood only on tundra and snowfield; basalt chunks and pebbles (ash rocks) on volcanic."
+    },
+    "rocky": {
+      "kinds": [
+        {
+          "id": "rock_chunk_cliff",
+          "density": 0.022
+        },
+        {
+          "id": "boulder_small",
+          "density": 0.012
+        },
+        {
+          "id": "mossy_rock",
+          "density": 0.01
+        },
+        {
+          "id": "crystal_cluster",
+          "density": 0.003
+        },
+        {
+          "id": "fern_tuft",
+          "density": 0.011
+        },
+        {
+          "id": "rock_chip",
+          "density": 0.016
+        }
+      ]
+    }
+  },
+  "kinds": {
+    "grass_clump": {
+      "sprites": [
+        "tall-grasses_12_grass_clump_a",
+        "tall-grasses_13_grass_clump_b",
+        "tall-grasses_14_grass_clump_c",
+        "tall-grasses_19_grass_clump_d"
+      ],
+      "zones": [
+        "meadow",
+        "forest",
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.35
+      ],
+      "clump": [
+        2,
+        5
+      ],
+      "spread": 1.2,
+      "sway": 0.09,
+      "where": "ground",
+      "tint": [
+        0.95,
+        1.03,
+        0.84
+      ]
+    },
+    "grass_tuft": {
+      "sprites": [
+        "tall-grasses_23_grass_tuft_a",
+        "tall-grasses_28_grass_tuft_c",
+        "tall-grasses_32_grass_tuft_d"
+      ],
+      "zones": [
+        "meadow",
+        "forest",
+        "savanna",
+        "rocky",
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.65,
+        1.25
+      ],
+      "clump": [
+        2,
+        4
+      ],
+      "spread": 0.9,
+      "sway": 0.07,
+      "where": "ground",
+      "tint": [
+        0.98,
+        1.04,
+        0.9
+      ]
+    },
+    "straw_clump": {
+      "sprites": [
+        "tall-grasses_15_straw_clump",
+        "tall-grasses_29_straw_grass_clump"
+      ],
+      "zones": [
+        "savanna"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.5
+      ],
+      "clump": [
+        3,
+        6
+      ],
+      "spread": 1.4,
+      "sway": 0.1,
+      "where": "ground",
+      "tint": [
+        1.0,
+        0.94,
+        0.72
+      ]
+    },
+    "straw_grass_clump": {
+      "sprites": [
+        "tall-grasses_29_straw_grass_clump",
+        "tall-grasses_15_straw_clump",
+        "tall-grasses_20_reed_tuft_tall"
+      ],
+      "zones": [
+        "savanna",
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.3
+      ],
+      "clump": [
+        2,
+        5
+      ],
+      "spread": 1.1,
+      "sway": 0.1,
+      "where": "ground",
+      "tint": [
+        1.02,
+        0.97,
+        0.8
+      ]
+    },
+    "white_flower_herb": {
+      "sprites": [
+        "resources_10_white_flower_herb"
+      ],
+      "zones": [
+        "meadow",
+        "forest"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.3
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 0.7,
+      "sway": 0.06,
+      "where": "ground",
+      "tint": [
+        1.0,
+        1.02,
+        0.95
+      ]
+    },
+    "red_flower_plant": {
+      "sprites": [
+        "jungle-plants_08_red_flower_plant",
+        "jungle-plants_25_broadleaf_red_flower"
+      ],
+      "zones": [
+        "meadow",
+        "savanna",
+        "forest"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.15
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 0.8,
+      "sway": 0.06,
+      "where": "ground",
+      "tint": [
+        1.0,
+        0.98,
+        0.92
+      ]
+    },
+    "fern_tuft": {
+      "sprites": [
+        "jungle-cliffs_42_fern_tuft",
+        "jungle-cliffs_47_fern_tuft_b",
+        "jungle-cliffs_48_ground_fern_b"
+      ],
+      "zones": [
+        "meadow",
+        "rocky",
+        "forest"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.3
+      ],
+      "clump": [
+        2,
+        4
+      ],
+      "spread": 0.9,
+      "sway": 0.05,
+      "where": "ground",
+      "tint": [
+        0.9,
+        1.02,
+        0.86
+      ]
+    },
+    "pebble": {
+      "sprites": [
+        "resources_23_rock_chip",
+        "jungle-cliffs_69_rock_chip"
+      ],
+      "zones": [
+        "meadow",
+        "savanna",
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.6,
+        1.4
+      ],
+      "clump": [
+        1,
+        4
+      ],
+      "spread": 0.8,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        1.0,
+        1.0,
+        0.98
+      ]
+    },
+    "rock_chip": {
+      "sprites": [
+        "resources_23_rock_chip",
+        "jungle-cliffs_69_rock_chip",
+        "jungle-cliffs_53_rock_chip_small"
+      ],
+      "zones": [
+        "savanna",
+        "canyon",
+        "rocky",
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.5,
+        1.3
+      ],
+      "clump": [
+        2,
+        5
+      ],
+      "spread": 0.9,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        1.0,
+        0.96,
+        0.9
+      ]
+    },
+    "fern_cluster": {
+      "sprites": [
+        "jungle-plants_01_fern_cluster",
+        "jungle-plants_02_fern_cluster_b",
+        "jungle-cliffs_39_fern_spread"
+      ],
+      "zones": [
+        "forest",
+        "wetland",
+        "meadow"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.3
+      ],
+      "clump": [
+        2,
+        4
+      ],
+      "spread": 1.1,
+      "sway": 0.05,
+      "where": "ground",
+      "tint": [
+        0.88,
+        1.02,
+        0.84
+      ]
+    },
+    "broadleaf_shrub": {
+      "sprites": [
+        "jungle-plants_15_broadleaf_shrub",
+        "jungle-plants_11_big_leaf_shrub",
+        "jungle-plants_14_broadleaf_shrub_c"
+      ],
+      "zones": [
+        "forest",
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.25
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 1.2,
+      "sway": 0.04,
+      "where": "ground",
+      "tint": [
+        0.86,
+        1.0,
+        0.82
+      ]
+    },
+    "cycad": {
+      "sprites": [
+        "jungle-plants_03_cycad",
+        "jungle-plants_09_cycad_cluster"
+      ],
+      "zones": [
+        "forest"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.75,
+        1.2
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 1.0,
+      "sway": 0.03,
+      "where": "ground",
+      "tint": [
+        0.9,
+        1.02,
+        0.86
+      ]
+    },
+    "ivy_mound": {
+      "sprites": [
+        "jungle-plants_19_ivy_mound"
+      ],
+      "zones": [
+        "forest",
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.3
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 0.8,
+      "sway": 0.02,
+      "where": "ground",
+      "tint": [
+        0.84,
+        0.98,
+        0.8
+      ]
+    },
+    "mossy_rock": {
+      "sprites": [
+        "jungle-cliffs_64_mossy_rock",
+        "jungle-plants_26_mossy_rock_plant"
+      ],
+      "zones": [
+        "forest",
+        "rocky",
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.5
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 0.8,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        0.85,
+        1.0,
+        0.8
+      ]
+    },
+    "bromeliad_clump": {
+      "sprites": [
+        "jungle-cliffs_55_fern_bromeliad_clump",
+        "jungle-cliffs_57_fern_red_bromeliad"
+      ],
+      "zones": [
+        "forest",
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.2
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 0.9,
+      "sway": 0.04,
+      "where": "ground",
+      "tint": [
+        0.95,
+        0.98,
+        0.9
+      ]
+    },
+    "mossy_log": {
+      "sprites": [
+        "resources_05_mossy_fallen_log",
+        "jungle-plants_22_log_tangle_roots"
+      ],
+      "zones": [
+        "forest",
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.2
+      ],
+      "clump": [
+        1,
+        1
+      ],
+      "spread": 0.0,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        0.82,
+        0.78,
+        0.66
+      ]
+    },
+    "aloe_rosette": {
+      "sprites": [
+        "jungle-plants_20_aloe_rosette"
+      ],
+      "zones": [
+        "savanna",
+        "canyon",
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.2
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 0.9,
+      "sway": 0.03,
+      "where": "ground",
+      "tint": [
+        1.0,
+        0.95,
+        0.9
+      ]
+    },
+    "termite_mound": {
+      "sprites": [
+        "resources_03_clay_mound"
+      ],
+      "zones": [
+        "savanna",
+        "canyon"
+      ],
+      "height": 1.8,
+      "scale": [
+        0.6,
+        1.15
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 1.0,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        1.05,
+        0.74,
+        0.56
+      ]
+    },
+    "boulder_small": {
+      "sprites": [
+        "jungle-cliffs_20_boulder_small",
+        "jungle-cliffs_31_rock_chunk_cliff",
+        "jungle-cliffs_41_rock_chunk_cliff_d"
+      ],
+      "zones": [
+        "savanna",
+        "canyon",
+        "rocky",
+        "beach",
+        "meadow"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.6
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 1.0,
+      "sway": 0.0,
+      "where": "any",
+      "tint": [
+        1.0,
+        0.96,
+        0.92
+      ]
+    },
+    "rock_chunk_cliff": {
+      "sprites": [
+        "jungle-cliffs_31_rock_chunk_cliff",
+        "jungle-cliffs_32_rock_chunk_cliff_b",
+        "jungle-cliffs_38_rock_chunk_cliff_c",
+        "jungle-cliffs_43_rock_chunk_cliff_f"
+      ],
+      "zones": [
+        "canyon",
+        "rocky",
+        "basalt"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.8
+      ],
+      "clump": [
+        2,
+        4
+      ],
+      "spread": 1.3,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        1.0,
+        0.9,
+        0.84
+      ]
+    },
+    "basalt_chunk": {
+      "sprites": [
+        "jungle-cliffs_31_rock_chunk_cliff",
+        "jungle-cliffs_44_rock_chunk_cliff_g",
+        "jungle-cliffs_45_rock_chunk_cliff_h"
+      ],
+      "zones": [
+        "basalt",
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.9,
+        1.9
+      ],
+      "clump": [
+        2,
+        5
+      ],
+      "spread": 1.5,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        0.44,
+        0.44,
+        0.48
+      ]
+    },
+    "crystal_cluster": {
+      "sprites": [
+        "resources_01_crystal_cluster"
+      ],
+      "zones": [
+        "canyon",
+        "rocky"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.3
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 0.9,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        0.78,
+        0.88,
+        1.08
+      ]
+    },
+    "obsidian_crystal": {
+      "sprites": [
+        "resources_01_crystal_cluster"
+      ],
+      "zones": [
+        "basalt"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.3
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 0.8,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        0.42,
+        0.44,
+        0.52
+      ]
+    },
+    "sulphur_mound": {
+      "sprites": [
+        "resources_03_clay_mound"
+      ],
+      "zones": [
+        "basalt"
+      ],
+      "height": 0.8,
+      "scale": [
+        0.6,
+        1.1
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 1.1,
+      "sway": 0.0,
+      "where": "ground",
+      "tint": [
+        1.06,
+        0.98,
+        0.44
+      ]
+    },
+    "tree_fern": {
+      "sprites": [
+        "jungle-trees_12_tree_fern",
+        "jungle-plants_03_cycad"
+      ],
+      "zones": [
+        "basalt",
+        "forest"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.3
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 1.6,
+      "sway": 0.03,
+      "where": "ground",
+      "tint": [
+        0.7,
+        0.8,
+        0.66
+      ]
+    },
+    "berry_palm": {
+      "sprites": [
+        "resources_08_berry_palm"
+      ],
+      "zones": [
+        "basalt",
+        "forest"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.75,
+        1.25
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 1.4,
+      "sway": 0.03,
+      "where": "ground",
+      "tint": [
+        0.74,
+        0.7,
+        0.62
+      ]
+    },
+    "fern_red_bromeliad": {
+      "sprites": [
+        "jungle-cliffs_57_fern_red_bromeliad",
+        "jungle-cliffs_55_fern_bromeliad_clump"
+      ],
+      "zones": [
+        "basalt"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.2
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 0.9,
+      "sway": 0.04,
+      "where": "ground",
+      "tint": [
+        0.82,
+        0.8,
+        0.76
+      ]
+    },
+    "reed_bed": {
+      "sprites": [
+        "tall-grasses_18_reed_bed",
+        "tall-grasses_24_reed_bed_pond"
+      ],
+      "zones": [
+        "wetland",
+        "savanna",
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.4
+      ],
+      "clump": [
+        2,
+        4
+      ],
+      "spread": 1.3,
+      "sway": 0.1,
+      "where": "edge",
+      "tint": [
+        0.94,
+        1.02,
+        0.8
+      ]
+    },
+    "reed_clump": {
+      "sprites": [
+        "tall-grasses_16_reed_clump",
+        "tall-grasses_17_reed_clump_b",
+        "tall-grasses_31_reed_tuft"
+      ],
+      "zones": [
+        "wetland",
+        "savanna",
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.35
+      ],
+      "clump": [
+        2,
+        4
+      ],
+      "spread": 1.1,
+      "sway": 0.1,
+      "where": "edge",
+      "tint": [
+        0.95,
+        1.0,
+        0.82
+      ]
+    },
+    "cattail_clump": {
+      "sprites": [
+        "tall-grasses_21_cattail_clump",
+        "tall-grasses_37_cattail_patch",
+        "tall-grasses_20_reed_tuft_tall"
+      ],
+      "zones": [
+        "wetland",
+        "savanna"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.75,
+        1.25
+      ],
+      "clump": [
+        2,
+        4
+      ],
+      "spread": 1.0,
+      "sway": 0.09,
+      "where": "edge",
+      "tint": [
+        1.0,
+        1.0,
+        0.86
+      ]
+    },
+    "white_lily": {
+      "sprites": [
+        "jungle-plants_24_white_lily_plant"
+      ],
+      "zones": [
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.4
+      ],
+      "clump": [
+        2,
+        5
+      ],
+      "spread": 1.5,
+      "sway": 0.02,
+      "where": "water",
+      "tint": [
+        1.0,
+        1.04,
+        0.94
+      ]
+    },
+    "shell_scatter": {
+      "sprites": [
+        "beach-shells_09_shell_scatter",
+        "beach-shells_12_shell_scatter_d",
+        "beach-shells_17_shell_pile_c",
+        "beach-shells_26_shell_cluster"
+      ],
+      "zones": [
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.4
+      ],
+      "clump": [
+        1,
+        4
+      ],
+      "spread": 0.7,
+      "sway": 0.0,
+      "where": "coast",
+      "tint": [
+        1.04,
+        1.0,
+        0.94
+      ]
+    },
+    "coral_rock": {
+      "sprites": [
+        "beach-shells_28_coral_rock",
+        "beach-shells_16_shell_pile_b"
+      ],
+      "zones": [
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.7,
+        1.3
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 0.9,
+      "sway": 0.0,
+      "where": "coast",
+      "tint": [
+        0.98,
+        0.94,
+        0.9
+      ]
+    },
+    "driftwood_log": {
+      "sprites": [
+        "jungle-cliffs_54_driftwood_log",
+        "jungle-cliffs_52_driftwood_bundle"
+      ],
+      "zones": [
+        "beach",
+        "wetland"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.8,
+        1.4
+      ],
+      "clump": [
+        1,
+        2
+      ],
+      "spread": 1.0,
+      "sway": 0.0,
+      "where": "coast",
+      "tint": [
+        0.92,
+        0.86,
+        0.74
+      ]
+    },
+    "young_palm": {
+      "sprites": [
+        "palms_08_young_palm_rooted",
+        "palms_05_palm_crown_short_palm"
+      ],
+      "zones": [
+        "beach",
+        "forest"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.6,
+        1.1
+      ],
+      "clump": [
+        1,
+        3
+      ],
+      "spread": 1.6,
+      "sway": 0.03,
+      "where": "coast",
+      "tint": [
+        0.92,
+        1.0,
+        0.84
+      ]
+    },
+    "basalt_pebble": {
+      "sprites": [
+        "jungle-cliffs_69_rock_chip",
+        "resources_23_rock_chip",
+        "jungle-cliffs_53_rock_chip_small"
+      ],
+      "zones": [
+        "basalt",
+        "beach"
+      ],
+      "height": 1.0,
+      "scale": [
+        0.54,
+        1.4
+      ],
+      "clump": [
+        2,
+        6
+      ],
+      "spread": 1.1,
+      "sway": 0.0,
+      "where": "any",
+      "tint": [
+        0.34,
+        0.34,
+        0.38
+      ]
+    }
+  }
+}

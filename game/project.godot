@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Durango-like (working title)"
+config/name="WildLands MMO"
 run/main_scene="res://shell/boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
@@ -52,9 +52,69 @@ pointing/emulate_touch_from_mouse=false
 renderer/rendering_method.web="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 lights_and_shadows/directional_shadow/size.mobile=1024
+environment/ssao/fadeout_from=600.0
+environment/ssao/fadeout_to=900.0
+environment/ssil/fadeout_from=600.0
+environment/ssil/fadeout_to=900.0
+environment/ssil/quality=0
 anti_aliasing/quality/msaa_3d=2
 anti_aliasing/quality/msaa_3d.mobile=0
 anti_aliasing/quality/msaa_3d.web=0
+
+[shader_globals]
+
+camera_focus={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+camera_pitch_deg={
+"type": "float",
+"value": -38.7
+}
+camera_yaw_deg={
+"type": "float",
+"value": 0.0
+}
+camera_distance={
+"type": "float",
+"value": 186.5
+}
+parallax_strength={
+"type": "float",
+"value": 0.0
+}
+tall_fade_height={
+"type": "float",
+"value": 0.0
+}
+weather_wet={
+"type": "float",
+"value": 0.0
+}
+sky_cloud_tex={
+"type": "sampler2D",
+"value": ""
+}
+sky_cloud={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+sky_flyer_0={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+sky_flyer_1={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+sky_flyer_2={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+sky_flyer_wing={
+"type": "vec4",
+"value": Vector4(1, 1, 1, 0)
+}
 
 [physics]
 

@@ -1,0 +1,129 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Body",
+  "view_size": 1.2,
+  "view_centre": [
+    0.0,
+    0.32
+  ],
+  "legs": {
+    "LH": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind",
+      "pole": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "RH": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind",
+      "pole": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "LF": {
+      "up": "FrontUpLeg.L",
+      "low": "FrontLowLeg.L",
+      "foot": "FrontFoot.L",
+      "root": "FrontLeg.L",
+      "end": "front",
+      "pole": [
+        0,
+        1,
+        0
+      ]
+    },
+    "RF": {
+      "up": "FrontUpLeg.R",
+      "low": "FrontLowLeg.R",
+      "foot": "FrontFoot.R",
+      "root": "FrontLeg.R",
+      "end": "front",
+      "pole": [
+        0,
+        1,
+        0
+      ]
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Tail1": {
+      "key": "tail",
+      "axis": "pitch",
+      "phase": 0.25
+    }
+  },
+  "clips": {
+    "walk": {
+      "cycle_s": 0.85,
+      "duty": 0.55,
+      "stride": 0.45,
+      "phases": {
+        "LH": 0.0,
+        "RF": 0.0,
+        "RH": 0.5,
+        "LF": 0.5
+      },
+      "lift_hind": 0.03,
+      "lift_front": 0.025,
+      "swing_curl_hind": 25,
+      "swing_curl_front": 8,
+      "toe_roll": 15,
+      "legroot_front": 0.2,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0265,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 1.0,
+      "wiggle_head": 2.5,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 4.0
+    },
+    "run": {
+      "cycle_s": 0.64,
+      "duty": 0.3,
+      "stride": 0.9,
+      "phases": {
+        "LH": 0.0,
+        "RH": 0.9,
+        "LF": 0.6,
+        "RF": 0.5
+      },
+      "lift_hind": 0.05,
+      "lift_front": 0.035,
+      "swing_curl_hind": 30,
+      "swing_curl_front": 18,
+      "toe_roll": 20,
+      "legroot_front": 0.2,
+      "legroot_hind": 0.05,
+      "foot_offset_hind": 0.0265,
+      "crouch": 0.015,
+      "bob": 0.02,
+      "bob_harmonic": 1,
+      "roll_deg": 0.8,
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 6.0,
+      "pitch_gain": 0.4
+    }
+  },
+  "note": "2026-10-28: scaled x0.53 for the Tripo mesh (1.0 m long in source units; the Meshy one was 1.9); walk is a trot (diagonal pairs), run a rotary gallop (LH 0, RH .1, LF .4, RF .5), owner 2026-10-28; 2026-10-29 v2 mesh (bulky livestock redo): heavy gallop, run cycle 0.56 -> 0.64 s with a longer 0.9 stride (natural ~4 m/s, so the 4.5 m/s flee plays it near cadence 1), duty 0.3, bigger body bob (owner: 'gallop away slowly'); walk cycle 0.7 -> 0.85 s with stride 0.45 (natural speed kept at ~1.5 m/s)"
+}

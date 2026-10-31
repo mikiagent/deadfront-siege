@@ -3,7 +3,7 @@
   "display_name": "Survivor",
   "height_meters": 1.78,
   "rig": "humanoid",
-  "description": "Player character v2: adult woman warped off the train in torn modern travel clothes with a rope coil. Occupation-neutral; the eight PRD occupations become outfit and starting-skill variants later.",
+  "description": "Player character v2: an adult man (short dark hair, stubble) in a charcoal T-shirt and shorts, barefoot, A-pose base. Occupation-neutral; the three armour kits dress him, and character creation tints skin, garments, iris and lips through baked masks (assets/characters/survivor/look). The woman was survivor v1 (Meshy, 24 joints), which cannot use v2 clips or kits; a female v2 base waits for an owner-approved concept sheet.",
   "clips_present": [
     "idle",
     "walk",
@@ -33,7 +33,22 @@
     "fish_wait",
     "sleep",
     "sleep_down",
-    "sleep_up"
+    "sleep_up",
+    "idle_cold",
+    "idle_heat",
+    "idle_tired",
+    "idle_exhausted",
+    "rummage_in",
+    "rummage",
+    "rummage_out",
+    "work_hammer",
+    "work_stir",
+    "work_hang",
+    "work_forge",
+    "work_tan",
+    "kick_dirt",
+    "kick",
+    "tackle"
   ],
   "clips_missing": [],
   "pipeline": {
@@ -50,7 +65,8 @@
       "farm": "weak fit: watering motion while the game holds a hoe",
       "drink_eat": "share one Consume clip (eat plays it at 1.25x)",
       "sleep": "held frame, no breathing",
-      "mount_idle": "seated pose for the T. rex howdah (assets/creatures/tyrannosaurus/mount)"
+      "mount_idle": "seated pose for the T. rex howdah (assets/creatures/tyrannosaurus/mount)",
+      "state_idles": "idle_cold/heat/tired/exhausted: the idle with layered offsets and IK hands, tools/make_state_idles.py"
     },
     "tools": "assets/characters/survivor/tools/tools.json: 5 held tools on RightHand with grip_offset (column-major) and the clips that use each",
     "armor": "assets/characters/survivor/armor/<kit>/kit.json (replace mode); body regions in assets/characters/survivor/body/",

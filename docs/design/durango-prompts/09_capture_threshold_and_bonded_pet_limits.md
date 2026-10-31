@@ -59,6 +59,15 @@ The Animal Handling nodes must be real purchases in the Survival skill tree, sub
 - On skill reset, define predictable behavior if already-bonded animals exceed the new limit. The historical community mastersheet reported that players could temporarily learn all four upgrades, bond the maximum number, then unlearn the skills while retaining those pets. That may be a historical quirk or exploit; for a new robust game, prefer keeping existing pets without deleting them but block *additional* bonding until `count < capacity`. Explicitly document the choice.
 - Bonded pets can have distinct species roles, ranks, level progression, cargo inventory and persistent identity; these must survive capacity changes and save/load.
 
+## Reference screenshots — capture technique nodes (owner, 2026-10-27)
+
+Pasted screenshots of the original Survival → Animal Taming tree and its node rail (not on disk). Reading is the orchestrator's; it complements 02 (mechanics) and this file's Animal Handling ladder above:
+
+- **The capture line is its own node family**, separate from the Animal Handling slot ladder (§3): Capturing Quadrupedal Dinos I (Survival Lv. 15, 2 SP), Capturing Bipedal Dinos I (next column, 3 SP), Capturing Combative Bipedal Dinos I (3 SP, locked behind it). "Combative" tiers gate aggressive species.
+- **The node rail spells out what a node teaches:** "Learn Capture", "Capture Ability +7", and "Learn to capture" with explicit species — Zebraceratops, Light Pink Protoceratops, Protoceratops for Quadrupedal Dinos I. Species eligibility should be data on the node, not a bare level gate.
+- 02's "initial quadruped capture near level 15" is pinned by the screenshot: the node itself sits at Survival Lv. 15.
+- The detail rail carries an **Unlearn** button on learned nodes — unlearning a capture node keeps bonded animals (this file's rule and `skills.md`) while the species becomes uncapturable until re-learned; test that combination.
+
 ## 5. Test scenarios
 
 1. Stunned dinosaur at 50% HP has a capture action and success is probabilistic.

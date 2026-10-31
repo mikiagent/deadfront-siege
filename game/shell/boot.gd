@@ -25,6 +25,7 @@ var _code_edit: LineEdit
 var _update_btn: Button
 var _play_btn: Button
 var _bar: ProgressBar
+var _quiet := false ## smoke/lab/shot runs: no loading overlay (nothing would lift it)
 
 func _ready() -> void:
 	add_to_group("shell")
@@ -40,6 +41,7 @@ func _ready() -> void:
 			code = a.substr(7)
 		elif a == "--shell-auto":
 			auto = true
+	_quiet = skip
 	if skip or (not forced and not OS.has_feature("mobile")):
 		print("[shell] skipped (%s)" % ("smoke/lab" if skip else "desktop"))
 		call_deferred("_enter_game")
@@ -72,7 +74,7 @@ func _build_ui() -> void:
 	box.add_theme_constant_override("separation", 18)
 	centre.add_child(box)
 	_title = Label.new()
-	_title.text = "Durango-like"
+	_title.text = "WildLands MMO"
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_title.add_theme_font_size_override("font_size", 44)
 	box.add_child(_title)
@@ -368,6 +370,14 @@ func _set_touch_layer(shown: bool) -> void:
 		(tc as CanvasLayer).visible = shown
 
 func _enter_game() -> void:
+	# LOADING: the overlay covers the game scene's load; World._boot keeps it up for a save's island
+	# build or lifts it off character creation. Loaded by path: a pack update may have replaced it.
+	if not _quiet and DisplayServer.get_name() != "headless":
+		var ls := load("res://scripts/ui/loading_screen.gd") as GDScript
+		if ls:
+			ls.call("open", "Loading the world")
+			await get_tree().process_frame
+			await get_tree().process_frame
 	_set_touch_layer(true)
 	var packed := ResourceLoader.load("res://scenes/main.tscn", "", ResourceLoader.CACHE_MODE_REPLACE) as PackedScene
 	if packed == null:

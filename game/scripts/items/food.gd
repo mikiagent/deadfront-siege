@@ -1,6 +1,7 @@
 class_name Food
 extends RefCounted
-## Eating restores Energy only (PRD §6.1). Energy = base × (1 + 0.35 × process_count) × level factor.
+## Eating restores Energy (PRD §6.1): base × (1 + 0.35 × process_count) × level factor. Cooking
+## properties left by in-place steps (drying, smoking; processing.json) add their own effects.
 ## Moving while eating cancels remaining restore and still applies Full (PRD §6.2).
 
 const EAT_SECONDS := 3.0
@@ -21,6 +22,10 @@ static func is_raw(stack: ItemStack) -> bool:
 	if stack == null:
 		return false
 	if &"raw" in stack.flags:
+		return true
+	# Spec 32 §9: the bundle can name a food raw even when the item def predates the risk (a berry).
+	var bundle := FoodEffects.entry_for(stack.def_id)
+	if bool(bundle.get("raw", false)):
 		return true
 	var d := stack.def()
 	return d != null and d.raw
@@ -44,7 +49,32 @@ static func buff_ids(stack: ItemStack) -> Array[StringName]:
 	var attr := str(stack.attributes.get("food_buff", ""))
 	if attr != "" and StringName(attr) not in out:
 		out.append(StringName(attr))
+	for row in cooking_properties(stack):
+		var b := StringName(str(row.get("buff", "")))
+		if b != &"" and b not in out:
+			out.append(b)
 	return out
+
+## The cooking properties this instance carries: one processing.json in_place.properties row per
+## in-place step in its processing history (spec 08 §2/§4: effects come from the stored item, so a
+## new food such as a stew starts plain).
+static func cooking_properties(stack: ItemStack) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var hist: Variant = stack.attributes.get("processed", []) if is_food(stack) else []  # a dried hide is not a meal
+	var rows: Variant = (ProcessStation.rules().get("in_place", {}) as Dictionary).get("properties", {})
+	if hist is Array and rows is Dictionary:
+		for step in hist:
+			var row: Variant = (rows as Dictionary).get(str(step))
+			if row is Dictionary:
+				out.append(row as Dictionary)
+	return out
+
+## Fatigue the meal's cooking properties take off when it is eaten, on top of the energy break.
+static func fatigue_relief(stack: ItemStack) -> float:
+	var total := 0.0
+	for row in cooking_properties(stack):
+		total += float(row.get("fatigue_relief", 0.0))
+	return total
 
 static func inspector_text(stack: ItemStack) -> String:
 	if stack == null:
@@ -60,6 +90,32 @@ static func inspector_text(stack: ItemStack) -> String:
 		lines.append("RAW")
 	if is_poisoned(stack):
 		lines.append("POISONED")
+	# CRAFTFEEL (spec 04): a flawless craft's stat bump, visible where the survivor inspects the food.
+	if bool(stack.flags.has(&"flawless")):
+		lines.append("FLAWLESS +%d%% durability/quality" % int(round(float(stack.attributes.get("flawless_bonus", 0.0)) * 100.0)))
+	var named := Inventory.traits(stack)
+	if not named.is_empty():
+		var bits: PackedStringArray = []
+		for k: Variant in named:
+			var key := str(k)
+			if key == "quality" or key == "flawless_bonus":
+				continue  # bookkeeping printed on the FLAWLESS line above, not a material trait
+			bits.append("%s %s" % [key.replace("_", " ").capitalize(), str(named[k])])
+		if not bits.is_empty():
+			lines.append("traits: %s" % ", ".join(bits))
+	for row in cooking_properties(stack):
+		var bits: PackedStringArray = []
+		if float(row.get("fatigue_relief", 0.0)) > 0.0:
+			bits.append("eases fatigue %.0f" % float(row["fatigue_relief"]))
+		var b := str(row.get("buff", ""))
+		if b != "":
+			_ensure_buffs()
+			bits.append(str((_buffs.get(b, {}) as Dictionary).get("display_name", b)))
+		lines.append("%s: %s" % [str(row.get("name", "")), ", ".join(bits)])
+	# COOKROLES (spec 08 §3/§8): what the dish inherited from its slots, and what the recipe kept out.
+	var roles := CookRoles.summary(stack)
+	if not roles.is_empty():
+		lines.append("cooked in: %s" % "; ".join(roles))
 	var buffs := buff_ids(stack)
 	if not buffs.is_empty():
 		var names: PackedStringArray = []
@@ -71,19 +127,27 @@ static func inspector_text(stack: ItemStack) -> String:
 static func can_eat(player: Player, stack: ItemStack) -> String:
 	if player == null or stack == null or not is_food(stack):
 		return "not_food"
-	if player.statuses and player.statuses.has(&"full"):
+	# Owner 2026-10-28 bug ("I can't select eat again the second time"): every finished meal applies
+	# the Full status for its full_seconds, and this gate refused any eat while it lasted, so a second
+	# berry silently failed for 10 s. The stomach itself decides now: only an overfull stomach
+	# (HUNGER: fullness above rules.json hunger.well_fed_below, i.e. past 100 points) refuses. Full
+	# stays a status for its other effects.
+	var dig := Digestion.of(player)
+	if dig != null and Digestion.state_for(dig.fullness()) == &"overfull":
 		return "full"
 	return ""
 
-## The raw-food roll alone: &"stomachache", &"tastes_bad" or &"". Seed `rng` to reproduce it.
+## The raw-food roll alone: the bundle's risk status (&"stomachache" unless it names another, e.g.
+## &"poisoned"), &"tastes_bad" or &"". Seed `rng` to reproduce it.
 static func raw_risk_roll(stack: ItemStack, rng: RandomNumberGenerator = null) -> StringName:
 	if stack == null or not is_raw(stack):
 		return &""
 	var d := stack.def()
-	var poison_p := d.poison_chance if d else 0.0
-	var bad_p := d.tastes_bad_chance if d else 0.0
+	var bundle := FoodEffects.entry_for(stack.def_id)
+	var poison_p := float(bundle.get("poison_chance", d.poison_chance if d else 0.0))
+	var bad_p := float(bundle.get("tastes_bad_chance", d.tastes_bad_chance if d else 0.0))
 	if is_poisoned(stack) or (poison_p > 0.0 and _roll(rng) < poison_p):
-		return &"stomachache"
+		return FoodEffects.risk_status(bundle)
 	if bad_p > 0.0 and _roll(rng) < bad_p:
 		return &"tastes_bad"
 	return &""
@@ -91,7 +155,9 @@ static func raw_risk_roll(stack: ItemStack, rng: RandomNumberGenerator = null) -
 static func apply_raw_risks(player: Player, stack: ItemStack, rng: RandomNumberGenerator = null) -> StringName:
 	var hit := raw_risk_roll(stack, rng)
 	if hit != &"" and player and player.statuses:
-		player.statuses.apply(hit, player)
+		# The catalog level ("Lv4") is the status's stacks; tastes_bad has no level.
+		var level := int(FoodEffects.entry_for(stack.def_id).get("risk_level", 1)) if hit != &"tastes_bad" else 1
+		player.statuses.apply(hit, player, maxi(1, level))
 		print("[food] %s from %s" % [hit, stack.def_id])
 	return hit
 

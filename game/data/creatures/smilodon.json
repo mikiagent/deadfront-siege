@@ -20,6 +20,7 @@
     "defense": 140,
     "speed": 720
   },
+  "turn_rate": 5.0,
   "tamed_role": [
     "combat",
     "mount"
@@ -43,5 +44,39 @@
     "feeds_needed": 3,
     "window_seconds": 45,
     "requires_pen": false
+  },
+  "coloration": {
+    "hue_deg": 12,
+    "sat": 0.14,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 0.85,
+        "strength": 0.26
+      },
+      {
+        "id": "spots",
+        "weight": 1.0,
+        "scale": 0.9,
+        "strength": 0.48
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.50
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
   }
 }

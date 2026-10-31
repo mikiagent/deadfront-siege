@@ -63,8 +63,13 @@ func _refresh_label() -> void:
 		var text := "Catapult %.0f/%.0f%s" % [hp, max_hp, " Reload%d" % ceili(reload_left) if reload_left > 0 else ""]
 		if label.text != text: label.text = text
 
+## Kept for callers that hit the platform directly; damage goes through its StructureHealth.
 func receive_siege_hit(amount: float) -> void:
-	hp = maxf(0,hp-amount)
+	var h := StructureHealth.of(self, true)
+	if h:
+		h.take_damage(amount)
+		return
+	hp = maxf(0, hp - amount)  # off the island (tests build platforms outside the tree): no health node
 	if hp <= 0:
 		queue_free()
 

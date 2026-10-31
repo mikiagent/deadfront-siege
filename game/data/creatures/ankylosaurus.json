@@ -3,7 +3,7 @@
   "clade": "Ankylosauridae",
   "period": "Late Cretaceous",
   "real_length_m": 16.0,
-  "height_meters": 3.4,
+  "height_meters": 2.25,
   "rig": "quadruped",
   "tier": 50,
   "climate": "desert",
@@ -21,17 +21,19 @@
     "speed": 380,
     "bag_slots": 120
   },
+  "turn_rate": 1.3,
   "tamed_role": [
     "bag",
     "combat"
   ],
-  "look": "8 meter armored dinosaur, wide flat body covered in bony plates and short spikes, small horned head with a beak, four short legs, heavy tail ending in a large bony club, sandy brown armor with a darker back,",
-  "texture_prompt": "sandy brown bony armor plates, darker dorsal plates, pale belly, matte surface",
+  "look": "7 meter armored dinosaur in a low, wide, aggressive crouch, long flat shell of hexagonal bony plates with a jagged serrated snapping-turtle rim, long pale spikes jutting sideways from the flanks and neck, big mean snapping-turtle head with a heavy hooked beak and scowling brow, four short thick splayed legs, thick spiked tail ending in a huge battered spiked bony club, dark slate-grey hide with bone-pale spikes and a sandy club,",
+  "texture_prompt": "dark slate-grey armor plates with bronze-brown edges, bone-pale spikes and claws, pale cream belly scales, sandy brown tail club, matte surface",
   "clips": {
-    "attack_primary": "Armored dinosaur swings its tail club sideways",
-    "attack_heavy": "Armored dinosaur braces, holds, then whips its tail club in a full swing",
+    "attack_primary": "Armored dinosaur cocks its tail club to one side, then whips it round to the other side; the club is the hit",
+    "attack_heavy": "Armored dinosaur braces low, holds its club cocked high and trembling, then whips it in a full swing to the side",
     "knockdown": "Armored dinosaur is tipped onto its side",
-    "alert": "Armored dinosaur lifts its head and lowers its body"
+    "alert": "Armored dinosaur lifts its head and lowers its body, the club raised and rattling",
+    "sleep": "Armored dinosaur settles belly-down with its legs folded out and its tail curled round"
   },
   "taming": {
     "preferred_food": [
@@ -44,5 +46,72 @@
     "feeds_needed": 6,
     "window_seconds": 45,
     "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 12,
+    "sat": 0.16,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "pale",
+      "dark"
+    ],
+    "patterns": [
+      {
+        "id": "saddle",
+        "weight": 2.0,
+        "scale": 1.0,
+        "strength": 0.5
+      },
+      {
+        "id": "stripes",
+        "weight": 2.0,
+        "scale": 0.8,
+        "strength": 0.24
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.5
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 0.3145,
+    "source_length_m": 0.998,
+    "route": "skeleton_transplant_v3",
+    "mesh": "Tripo P1 multiview (front, left, back, right), task b55b511f-3cb5-43cf-8d04-ddb3a0d51ea2, 50 Tripo credits",
+    "mesh_source": "res://assets/creatures/ankylosaurus/work/ankylosaurus_tripo_v1.glb",
+    "reference_sheet": "game/assets/creatures/ankylosaurus/ref/ankylosaurus_sheet.png (owner-approved v3 sheet 2026-10-30); left = the v3 side view padded, right = its mirror, front and back drawn by Codex from it",
+    "donor_rig": "tools/standins/quaternius/Triceratops.fbx (CC0, quadruped)",
+    "transplant_tool": "tools/transplant_rig.py --hip-z 0.10 --shoulder-z 0.105 (the side spikes fooled the lateral-surface hip measure)",
+    "legs": "tools/gait/rejoint_legs.py: front shoulder/elbow/wrist and hind hip/knee/ankle moved onto the mesh's leg columns (the warp left them 7 cm inside the body), leg skin re-split paw/lower/upper",
+    "jaw": "tools/jaw/add_jaw.py --open --reach 0.6 --pivot -0.02 0.118 --split -13 --close 26 --blend 0.03; key_jaw --bite 14 --lunge 0 --roar 24 --heavy 26 --chew 12",
+    "gaits": "tools/gait/make_gait.py tools/gait/ankylosaurus.json: walk (lateral, 1.08 s), run (lumbering trot, 0.625 s, duty 0.55: always a foot down), strafe_left/right and walk_back (stride 0.12) from the walk plan",
+    "clips_from": {
+      "attack_primary,attack_heavy,alert,sleep": "tools/gait/make_tail_club.py (tail-club swing to the right side, braced heavy swing, alert, belly-down sleep)",
+      "feed": "tools/gait/transfer_clips.py from styracosaurus (same donor skeleton)",
+      "idle,hit_react,knockdown,death": "transplant donor clips moved onto the re-jointed legs with transfer_clips.py"
+    },
+    "build": "tools/gait/build_ankylosaurus.sh; gate tools/gait/check_ankylo.py --height 2.25",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "attack_primary",
+      "attack_heavy",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert",
+      "feed",
+      "sleep"
+    ]
   }
 }

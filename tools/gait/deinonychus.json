@@ -1,0 +1,138 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Body",
+  "view_size": 1.0,
+  "view_centre": [
+    0.0,
+    0.3
+  ],
+  "legs": {
+    "L": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind"
+    },
+    "R": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind"
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Tail2": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.25
+    },
+    "Tail4": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.4
+    }
+  },
+  "clips": {
+    "walk": {
+      "cycle_s": 1.0,
+      "duty": 0.6,
+      "stride": 0.28,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.035,
+      "swing_curl_hind": 30,
+      "toe_roll": 25,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "bob": 0.005,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5,
+      "sway": 0.004,
+      "wiggle_head": 4.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 3.0
+    },
+    "run": {
+      "cycle_s": 0.5,
+      "duty": 0.34,
+      "stride": 0.66,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.07,
+      "swing_curl_hind": 45,
+      "toe_roll": 35,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.06,
+      "bob": 0.01,
+      "bob_harmonic": 2,
+      "bob_phase": 0.0,
+      "roll_deg": 1.5,
+      "sway": 0.005,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 2.0,
+      "lean_deg": 12
+    },
+    "charge": {
+      "cycle_s": 0.4,
+      "duty": 0.3,
+      "stride": 0.82,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.08,
+      "swing_curl_hind": 45,
+      "toe_roll": 35,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.13,
+      "bob": 0.012,
+      "bob_harmonic": 2,
+      "bob_phase": 0.0,
+      "roll_deg": 1.5,
+      "sway": 0.005,
+      "wiggle_head": 1.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 1.5,
+      "lean_deg": 24,
+      "hold": {
+        "Neck": [
+          "pitch",
+          20
+        ],
+        "Head": [
+          "pitch",
+          8
+        ],
+        "Tail1": [
+          "pitch",
+          16
+        ],
+        "FrontUpLeg.L": [
+          "pitch",
+          -60
+        ],
+        "FrontUpLeg.R": [
+          "pitch",
+          -60
+        ]
+      }
+    }
+  }
+}

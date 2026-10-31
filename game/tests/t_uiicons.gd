@@ -63,6 +63,8 @@ var _icons: Dictionary = {}
 var _m: Dictionary = {}
 
 func _init() -> void:
+	# Autoloads (Data) exist only after the first frame; HudStatusChip.draw_named calls Data.status.
+	await process_frame
 	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(MANIFEST))
 	_expect(parsed is Dictionary, "ui_icons.json parses")
 	if parsed is Dictionary:
@@ -431,7 +433,10 @@ func _test_hud_chips() -> void:
 	_expect(n > 5, "statuses.json lists the statuses (%d)" % n)
 	var src := FileAccess.get_file_as_string("res://scripts/ui/hunt_hud.gd")
 	_expect(not src.contains(".left(2).to_upper()"), "hunt_hud.gd draws no two-letter status codes")
-	_expect(src.count("HudStatusChip.draw(") == 2, "both HUD chip rows draw through HudStatusChip")
+	# LEVELBADGE (a821b9c2): both chip rows moved to HudBuffRow's B/W chips (player row _buff_row.draw,
+	# target frame HudBuffRow.draw_chip), and HudBuffRow.draw_chip draws HudStatusChip.icon_for.
+	_expect(src.contains("_buff_row.draw(") and src.contains("HudBuffRow.draw_chip("), "both HUD chip rows draw through HudBuffRow")
+	_expect(FileAccess.get_file_as_string("res://scripts/ui/hud_buff_row.gd").contains("HudStatusChip.icon_for("), "HudBuffRow chips draw the HudStatusChip icon")
 	var lines := src.split("\n")
 	for i in lines.size():
 		var code := _strip_comment(lines[i])

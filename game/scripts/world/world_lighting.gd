@@ -11,26 +11,34 @@ const DUSK := 0.72
 const NIGHT := 0.80
 ## The key light never drops below this, so it never points up from under the horizon.
 const MIN_ELEVATION_DEG := 6.0
-## drive() skips steps smaller than this (half a second of a 720 s day): every write to the
-## sky colours forces a sky radiance update.
+## The sky and fog colours update only on steps at least this large (half a second of a 720 s
+## day): every write to the sky colours forces a sky radiance update. The lights update every frame.
 const TOD_STEP := 1.0 / 1440.0
+## Golden hour (ported from claude/mmo-lightport 374d7970): the sun, fog and sky horizon warm toward
+## amber on the way down, before night turns them blue. The profile can move the ramp.
+## ASSUMPTION: the exact ramp is visual tuning the owner judges.
+const GOLDEN_START := 0.56
+const GOLDEN_FULL := 0.64
 
 ## Used when lighting.json is missing or malformed, so a bad edit dims nothing to black.
 ## It carries the colour keys too: without them _c() returns WHITE, which washed the night fog
 ## and the whole sky out instead of only losing the tuned values.
 const FALLBACK := {"sun_energy": 2.2, "sun_warm_energy_scale": 0.8, "sun_max_elevation_deg": 58.0,
-	"moon_energy": 1.1, "moon_energy_compat": 2.0, "moon_elevation_deg": 55.0, "moon_yaw_deg": -70.0, "ambient_energy": 0.3,
+	"moon_energy": 1.1, "moon_energy_compat": 2.0, "moon_elevation_deg": 55.0, "moon_yaw_deg": -80.0, "ambient_energy": 0.3,
 	"ambient_night_energy": 0.4, "exposure": 1.0, "exposure_compat": 1.0, "exposure_scale": 1.0,
 	"saturation": 1.1, "saturation_compat": 1.1, "glow_intensity": 0.3, "fog_density": 0.0022, "fog_night_density": 0.004,
+	"contrast": 1.0, "golden_start": GOLDEN_START, "golden_full": GOLDEN_FULL,
 	"sun_color": [1.0, 0.95, 0.86], "sun_warm_color": [1.0, 0.68, 0.42], "moon_color": [0.52, 0.64, 1.0],
 	"fog_color": [0.62, 0.72, 0.82], "fog_dusk_color": [0.74, 0.6, 0.52], "fog_night_color": [0.04, 0.06, 0.11],
 	"sky_top": [0.2, 0.42, 0.66], "sky_horizon": [0.66, 0.78, 0.92],
 	"sky_dusk_top": [0.22, 0.3, 0.52], "sky_dusk_horizon": [0.88, 0.66, 0.5],
 	"sky_night_top": [0.03, 0.05, 0.12], "sky_night_horizon": [0.08, 0.11, 0.2],
 	"ground_horizon": [0.24, 0.29, 0.34], "ground_bottom": [0.06, 0.08, 0.1],
-	"sun_yaw_deg": [-35.0, -85.0], "fog_sun_scatter": 0.15}
+	"sun_yaw_deg": [-55.0, -105.0], "fog_sun_scatter": 0.15}
 
 static var _profiles: Dictionary = {}
+## 0 by day, 1 at full night (drive() writes it every call). Creature eyeshine scales by it.
+static var night: float = 0.0
 
 var sun: DirectionalLight3D
 var moon: DirectionalLight3D
@@ -41,7 +49,10 @@ var _compat := false
 ## gl_compatibility only (the web build); _compat also covers the mobile renderer.
 var _gl := false
 var _last_tod := -1.0
-var _fit_key := Vector3.ZERO
+var _fit_key := Vector4.ZERO
+## Fog density from the profile and time of day, and the camera's scale on it (fit_shadows).
+var _fog_density := 0.0
+var _fog_scale := 1.0
 
 ## Takes over the scene's lighting under host for climate; the node then drives day/night.
 static func install(host: Node, climate: String = "temperate") -> WorldLighting:
@@ -66,8 +77,9 @@ static func profile_for(climate: String) -> Dictionary:
 	return out
 
 func _process(_delta: float) -> void:
-	if absf(Game.time_of_day - _last_tod) >= TOD_STEP:
-		drive(Game.time_of_day)
+	# The lights move every frame so the sun and its shadows glide; the sky and fog colours, whose
+	# writes force a sky radiance update, still change only once per TOD_STEP.
+	drive(Game.time_of_day, absf(Game.time_of_day - _last_tod) >= TOD_STEP)
 	fit_shadows(get_viewport().get_camera_3d())
 
 ## Godot ignores directional_shadow_max_distance for orthographic cameras and spreads the
@@ -75,12 +87,23 @@ func _process(_delta: float) -> void:
 ## sat in a 400 m first split: 80 cm texels on the 1024 mobile atlas, shadows of a survivor
 ## or a pole gone. Splits are fractions of far, so we place them in metres around the
 ## depth band the camera actually sees (audit: box ratio 0.98 -> 0.48 at atlas 1024).
+## A perspective IsoCamera (CAMERA package) stands 90-430 m back with a 4.3 deg lens: Godot honours
+## directional_shadow_max_distance there and starts the shadow at the camera's near plane, which
+## IsoCamera._apply_zoom keeps close to the focus (_fit_perspective).
+## Fog is depth-based, so it thins by the same factor the camera stands further back than the old
+## 40 m: the ground at the focus keeps the fog it had.
 func fit_shadows(cam: Camera3D) -> void:
-	if cam == null or sun == null or cam.projection != Camera3D.PROJECTION_ORTHOGONAL:
+	if cam == null or sun == null:
+		return
+	if cam.projection == Camera3D.PROJECTION_PERSPECTIVE and cam is IsoCamera:
+		_fit_perspective(cam as IsoCamera)
+		return
+	_set_fog_scale(1.0)
+	if cam.projection != Camera3D.PROJECTION_ORTHOGONAL:
 		return
 	# ASSUMPTION: a non-iso orthographic camera looks at ground about 40 m away, as IsoCamera does.
 	var depth: float = (cam as IsoCamera).distance if cam is IsoCamera else 40.0
-	var key := Vector3(cam.far, cam.size, depth)
+	var key := Vector4(cam.far, cam.size, depth, 0.0)
 	if key == _fit_key:
 		return
 	_fit_key = key
@@ -90,9 +113,43 @@ func fit_shadows(cam: Camera3D) -> void:
 	var far := maxf(cam.far, depth + half + 10.0)
 	for l in [sun, moon]:
 		var light := l as DirectionalLight3D
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 		light.directional_shadow_split_1 = maxf(depth - half * 0.4, 1.0) / far
 		light.directional_shadow_split_2 = (depth + half * 0.3) / far
 		light.directional_shadow_split_3 = (depth + half + 5.0) / far
+		light.directional_shadow_fade_start = 0.8
+
+## One shadow map over near..end (DirectionalLight3D SHADOW_ORTHOGONAL), end just past the ground at the
+## screen's top edge and near (IsoCamera._apply_zoom) just before the crowns at its bottom edge. Measured in
+## camera_lab: with near ~105-145 m, gl_compatibility drew no shadows at all from PSSM2/PSSM4 splits at the
+## default zoom (Forward+ did, with the splits as fractions of the max distance), and the single map drew
+## in both. The 4.3 deg lens keeps the slice's cross-section about the view's size, so one map of a ~60 m
+## slice gives 1.6 cm texels on the 4096 desktop atlas and 6.4 cm on the 1024 mobile one, in one pass
+## instead of four.
+func _fit_perspective(cam: IsoCamera) -> void:
+	_set_fog_scale(IsoCamera.ORTHO_DISTANCE / maxf(cam.distance, 1.0))
+	var d := cam.distance
+	var g := cam.ground_half_depth()
+	var key := Vector4(cam.near, cam.far, d, g)
+	if key == _fit_key:
+		return
+	_fit_key = key
+	var end := minf(d + g + 6.0, cam.far)
+	for l in [sun, moon]:
+		var light := l as DirectionalLight3D
+		light.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+		light.directional_shadow_max_distance = end
+		# The fade runs from fade_start * end (metres from the camera) to end: keep it past the
+		# screen's top edge (the default 0.8 would fade every shadow on screen at this distance).
+		light.directional_shadow_fade_start = clampf((end - 3.0) / end, 0.8, 0.999)
+
+func _set_fog_scale(s: float) -> void:
+	if is_equal_approx(s, _fog_scale):
+		return
+	_fog_scale = s
+	var e := world_env.environment if world_env else null
+	if e:
+		e.fog_density = _fog_density * _fog_scale
 
 func _take_over() -> void:
 	# One driver at a time: a lab kit's lighting yields to the island's when one loads.
@@ -152,6 +209,8 @@ func _make_env(reuse: Environment = null) -> Environment:
 	e.glow_intensity = _f("glow_intensity")
 	e.glow_hdr_threshold = 1.0
 	e.adjustment_enabled = true
+	e.adjustment_contrast = _f("contrast", 1.0)
+	e.adjustment_brightness = _f("brightness", 1.0)
 	e.adjustment_saturation = _f("saturation_compat" if _gl else "saturation")  # web renderer only, like moon_energy_compat
 	e.fog_enabled = true
 	e.fog_sun_scatter = _f("fog_sun_scatter")
@@ -163,8 +222,27 @@ func _make_env(reuse: Environment = null) -> Environment:
 		_sky_mat = ProceduralSkyMaterial.new()
 		e.sky.sky_material = _sky_mat
 	_sky_mat.ground_bottom_color = _c("ground_bottom")
+	_screen_space(e)
 	_sky_mat.ground_horizon_color = _c("ground_horizon")
 	return e
+
+## LOOKPASS: contact shadows (SSAO) and a little bounce (SSIL), Forward+ only: gl_compatibility (web,
+## phone) and the mobile renderer have neither, so there the profile's flat ambient carries the look.
+## Radii are metres in view space (the 4.3 deg lens shows ~15 m of height). The camera stands 186-430 m
+## back, past Godot's default SSAO/SSIL fade-out (50-300 m), so project.godot moves the fade to 600-900 m.
+## Only ssao_light_affect lets AO darken sunlit creases: the ambient alone is too weak to show it.
+## ASSUMPTION: strengths are visual tuning (lighting.json).
+func _screen_space(e: Environment) -> void:
+	var fp := not _compat
+	e.ssao_enabled = fp and _f("ssao_intensity") > 0.0
+	e.ssao_radius = _f("ssao_radius", 1.2)
+	e.ssao_intensity = _f("ssao_intensity")
+	e.ssao_power = _f("ssao_power", 1.5)
+	e.ssao_light_affect = _f("ssao_light_affect", 0.1)
+	e.ssil_enabled = fp and _f("ssil_intensity") > 0.0
+	e.ssil_radius = _f("ssil_radius", 3.0)
+	e.ssil_intensity = _f("ssil_intensity")
+	e.sdfgi_enabled = false  # LOOKPASS brief: no SDFGI
 
 func _make_light(light_name: String) -> DirectionalLight3D:
 	var l := DirectionalLight3D.new()
@@ -183,23 +261,30 @@ func _make_light(light_name: String) -> DirectionalLight3D:
 	return l
 
 ## Sun path, colour and energy, the moon, ambient, fog and sky for tod (0 = midnight).
-func drive(tod: float) -> void:
+## sky=false moves only the lights (per frame); the environment and sky follow on the next step.
+func drive(tod: float, sky: bool = true) -> void:
 	if sun == null:
 		return
-	_last_tod = tod
+	if sky:
+		_last_tod = tod
 	var day_t := clampf((tod - DAWN) / (NIGHT - DAWN), 0.0, 1.0)
 	var sun_up := smoothstep(DAWN - 0.02, DAWN + 0.03, tod) * (1.0 - smoothstep(NIGHT - 0.03, NIGHT + 0.02, tod))
 	# Warm inside the dawn and dusk phases only: it fades out over the last 0.04 of dawn and in
 	# over the first 0.02 of dusk, so the whole day phase (DAY..DUSK) is neutral.
 	var warm := maxf(1.0 - smoothstep(DAY - 0.04, DAY, tod), smoothstep(DUSK, DUSK + 0.02, tod))
+	var golden := smoothstep(_f("golden_start", GOLDEN_START), _f("golden_full", GOLDEN_FULL), tod) * (1.0 - smoothstep(NIGHT - 0.04, NIGHT - 0.01, tod))
+	var warmth := maxf(warm, golden)
 	var night := 1.0 - sun_up
+	WorldLighting.night = night
 	var elevation := maxf(MIN_ELEVATION_DEG, _f("sun_max_elevation_deg") * sin(PI * day_t))
-	# The iso camera looks down yaw 45; a sun near that axis hides each shadow behind its
-	# caster. The yaw band keeps the sun 80-130 deg off it while it crosses the sky.
-	var yaw_band: Array = profile.get("sun_yaw_deg", [-35.0, -85.0])
+	# The iso camera looks down yaw 0 (north); a sun near that axis hides each shadow behind its
+	# caster. The band keeps the sun 55-105 deg off it while it crosses the sky. NORTHUP (camera yaw
+	# 45 -> 0): the old 80-130 band would light only the back of a rot-0 tent (t_structart: 0.25 lit);
+	# ASSUMPTION: 55-105 keeps shadows to the side and the camera-facing canvas lit (0.37).
+	var yaw_band: Array = profile.get("sun_yaw_deg", [-55.0, -105.0])
 	sun.rotation_degrees = Vector3(-elevation, lerpf(float(yaw_band[0]), float(yaw_band[1]), day_t), 0.0)
-	sun.light_color = _c("sun_color").lerp(_c("sun_warm_color"), warm)
-	sun.light_energy = _f("sun_energy") * lerpf(1.0, _f("sun_warm_energy_scale"), warm) * sun_up
+	sun.light_color = _c("sun_color").lerp(_c("sun_warm_color"), warmth)
+	sun.light_energy = _f("sun_energy") * lerpf(1.0, _f("sun_warm_energy_scale"), warmth) * sun_up
 	sun.visible = sun_up > 0.001
 	# The web renderer's night came out a third as bright (lighting_lab night_lum 0.033 vs 0.10).
 	moon.light_energy = _f("moon_energy_compat" if _gl else "moon_energy") * night
@@ -208,17 +293,18 @@ func drive(tod: float) -> void:
 	# through dawn and dusk; the moon casts once the sun has set.
 	moon.shadow_enabled = not sun.visible
 	var e := world_env.environment if world_env else null
-	if e == null:
+	if e == null or not sky:
 		return
-	var dusk_w := warm * sun_up
+	var dusk_w := maxf(warm * sun_up, golden)
 	e.ambient_light_energy = lerpf(_f("ambient_energy"), _f("ambient_night_energy"), night)
 	e.fog_light_color = _c("fog_color").lerp(_c("fog_dusk_color"), dusk_w).lerp(_c("fog_night_color"), night)
-	e.fog_density = lerpf(_f("fog_density"), _f("fog_night_density"), night)
+	_fog_density = lerpf(_f("fog_density"), _f("fog_night_density"), night)
+	e.fog_density = _fog_density * _fog_scale
 	_sky_mat.sky_top_color = _c("sky_top").lerp(_c("sky_dusk_top"), dusk_w).lerp(_c("sky_night_top"), night)
 	_sky_mat.sky_horizon_color = _c("sky_horizon").lerp(_c("sky_dusk_horizon"), dusk_w).lerp(_c("sky_night_horizon"), night)
 
-func _f(key: String) -> float:
-	return float(profile.get(key, 0.0))
+func _f(key: String, dflt: float = 0.0) -> float:
+	return float(profile.get(key, dflt))
 
 func _c(key: String) -> Color:
 	var a: Variant = profile.get(key, [1.0, 1.0, 1.0])

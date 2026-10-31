@@ -1,6 +1,8 @@
 class_name FieldPlot
 extends StaticBody3D
 ## Farm field on claimed tiles. Plant / water / fertilise / harvest via GatherRadial options.
+## Shows its state: a planted field grows rows of plants through sprout / young / growing / mature
+## (failed wilts brown) and floats its harvest timer ("4m 13s", "Ready"); an empty field is bare soil.
 
 var kind: StringName = &"field_small"
 var persist_building: bool = true
@@ -19,7 +21,16 @@ const DATA_PATH := "res://data/farming.json"
 ## after a harvest (< 1 at fertilizer_yield_bonus 1.0).
 const OVERFLOW_MAX := 20.0
 
+const VIS_S := 0.25 ## crop model / timer refresh
+## Soil top of the Blender field (aabb 0.34 m with its log border).
+const SOIL_Y := 0.26
+
 static var _data: Dictionary = {}
+
+var _vis_left: float = 0.0
+var _shown_stage: String = "?"
+var _crop_root: Node3D
+var _timer_label: Label3D
 
 static func make(p_kind: StringName = &"field_small") -> FieldPlot:
 	var f := FieldPlot.new()
@@ -92,6 +103,10 @@ func _exit_tree() -> void:
 		(grid as BuildGrid).release(self)
 
 func _process(delta: float) -> void:
+	_vis_left -= delta
+	if _vis_left <= 0.0:
+		_vis_left = VIS_S
+		sync_visual()
 	if crop_id == &"" or mature or failed:
 		return
 	var crop := _crop_row(crop_id)
@@ -185,6 +200,7 @@ func apply_action(player: Player, opt: Dictionary) -> void:
 			_harvest(player)
 		"clear":
 			_clear_crop()
+	sync_visual()
 
 func _plant(player: Player, crop: StringName) -> void:
 	if crop_id != &"" or crop == &"":
@@ -276,6 +292,108 @@ func _roll_maturity() -> void:
 		mature = false
 		failed = true
 		print("[farm] failed %s chance=%.2f" % [crop_id, chance])
+
+# --- what the field shows ---
+
+## "" (empty), "sprout", "young", "growing", "mature" or "failed".
+func crop_stage() -> String:
+	if crop_id == &"":
+		return ""
+	if failed:
+		return "failed"
+	if mature:
+		return "mature"
+	return "sprout" if growth < 0.25 else ("young" if growth < 0.6 else "growing")
+
+## Seconds until the crop is grown (0 when grown or empty).
+func seconds_left() -> float:
+	if crop_id == &"" or mature or failed:
+		return 0.0
+	return maxf(0.0, (1.0 - growth) * maxf(1.0, float(_crop_row(crop_id).get("growth_seconds", 120.0))))
+
+## The floating line over the field: "4m 13s", "45s", "Ready", "Failed", "" when empty.
+func timer_text() -> String:
+	match crop_stage():
+		"":
+			return ""
+		"mature":
+			return "Ready"
+		"failed":
+			return "Failed"
+	return duration_text(ceili(seconds_left()))
+
+static func duration_text(secs: int) -> String:
+	return "%dm %02ds" % [secs / 60, secs % 60] if secs >= 60 else "%ds" % secs
+
+func sync_visual() -> void:
+	if not is_inside_tree():
+		return
+	if _timer_label == null:
+		_timer_label = StationState.floating_label("HarvestTimer", 1.1)
+		add_child(_timer_label)
+	var t := timer_text()
+	_timer_label.text = t
+	_timer_label.visible = t != ""
+	var stage := crop_stage()
+	var key := "%s/%s/%d" % [crop_id, stage, int(growth * 10.0)]
+	if key == _shown_stage:
+		return
+	_shown_stage = key
+	_build_crop(stage)
+
+## Rows of plants over the soil, their size following growth; mature ones carry a crop-coloured head.
+func _build_crop(stage: String) -> void:
+	if _crop_root != null:
+		remove_child(_crop_root)
+		_crop_root.queue_free()
+		_crop_root = null
+	if stage == "":
+		return
+	_crop_root = Node3D.new()
+	_crop_root.name = "Crop"
+	add_child(_crop_root)
+	var n := 3 if kind == &"field_small" else 4
+	var span := (1.4 if kind == &"field_small" else 2.4) / float(n)
+	var g := 1.0 if stage == "mature" else (0.45 if stage == "failed" else clampf(growth, 0.08, 1.0))
+	var leaf := Color("#5e8f36") if stage != "failed" else Color("#7a5a32")
+	var head_col := Color(str(_crop_row(crop_id).get("color", "#d9b25a")))
+	var stem_mat := _mat(leaf)
+	var head_mat := _mat(head_col)
+	for ix in n:
+		for iz in n:
+			var plant := Node3D.new()
+			plant.position = Vector3((float(ix) - float(n - 1) * 0.5) * span, SOIL_Y, (float(iz) - float(n - 1) * 0.5) * span)
+			var h := lerpf(0.06, 0.55, g) * (0.85 + 0.3 * float((ix * 7 + iz * 3) % 5) / 4.0)
+			var stem := MeshInstance3D.new()
+			var cone := CylinderMesh.new()
+			cone.top_radius = 0.01
+			cone.bottom_radius = lerpf(0.04, 0.09, g)
+			cone.height = h
+			cone.radial_segments = 6
+			stem.mesh = cone
+			stem.position.y = h * 0.5
+			stem.material_override = stem_mat
+			plant.add_child(stem)
+			if stage == "mature" or (stage == "growing" and g > 0.75):
+				var head := MeshInstance3D.new()
+				var ball := SphereMesh.new()
+				ball.radius = 0.07 if stage == "mature" else 0.04
+				ball.height = ball.radius * 2.4
+				ball.radial_segments = 8
+				ball.rings = 4
+				head.mesh = ball
+				head.position.y = h
+				head.material_override = head_mat
+				plant.add_child(head)
+			if stage == "failed":
+				plant.rotation_degrees = Vector3(55.0, float((ix * 47 + iz * 31) % 360), 0.0)
+			_crop_root.add_child(plant)
+
+static func _mat(c: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.roughness = 0.9
+	return m
 
 func _fallback_size() -> Vector3:
 	return Vector3(2.0, 0.2, 2.0) if kind == &"field_small" else Vector3(3.0, 0.2, 3.0)

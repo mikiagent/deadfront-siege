@@ -1,0 +1,21 @@
+species,tier,climate,clade,period,real_length_m
+Zebraceratops,13,grassland,Ceratopsia,Durango original (fictional),4.3
+Compsognathus,15,savannah,Compsognathidae,Late Jurassic,3.0
+Pachycephalosaurus,16,grassland,Pachycephalosauria,Late Cretaceous,4.5
+Coelophysis,18,savannah,Coelophysoidea,Late Triassic,6.0
+Protoceratops,20,temperate,Ceratopsia,Late Cretaceous,4.0
+Velociraptor,25,temperate,Dromaeosauridae,Late Cretaceous,6.0
+Gallimimus,30,desert,Ornithomimidae,Late Cretaceous,12.0
+Megaloceros,30,tundra,Cervidae,Pleistocene,3.0
+Deinonychus,35,tropical,Dromaeosauridae,Early Cretaceous,10.2
+Dilophosaurus,40,tropical,Neotheropoda,Early Jurassic,12.0
+Smilodon,45,tundra,Machairodontinae,Pleistocene,2.5
+Stegosaurus,45,temperate,Stegosauridae,Late Jurassic,18.0
+Styracosaurus,45,savannah,Ceratopsia,Late Cretaceous,11.0
+Allosaurus,50,desert,Allosauridae,Late Jurassic,18.0
+Ankylosaurus,50,desert,Ankylosauridae,Late Cretaceous,16.0
+Utahraptor,50,desert,Dromaeosauridae,Early Cretaceous,11.0
+Triceratops,55,swamp,Ceratopsia,Late Cretaceous,18.0
+Brachiosaurus,60,any,Brachiosauridae,Late Jurassic,44.0
+Tarbosaurus,60,tundra,Tyrannosauridae,Late Cretaceous,20.0
+Tyrannosaurus rex,60,volcanic,Tyrannosauridae,Late Cretaceous,24.0

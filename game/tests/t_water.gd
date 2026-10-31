@@ -62,16 +62,27 @@ func _run() -> void:
 	rt = world.runtime
 	player = (load("res://scenes/player/player.tscn") as PackedScene).instantiate()
 	host.add_child(player)
+	# FULLFATIGUE: an empty stomach doubles every fatigue gain. Hold her at "normal" (x1.0) with one meal that
+	# never digests, so each status multiplier below is checked alone.
+	var dig = load("res://scripts/items/digestion.gd").of(player)
+	dig.rows().clear()  # the starter meal every survivor gets would drain over the test
+	dig.starter_given = true
+	dig.schedule(&"starter", 1.0, 1.0e9)
 	player.global_position = rt._camp_pos + Vector3(0, 1, 0)
 	await _frames(5)
 	var river: Vector3 = _find_shallow(true)
 	var bank: Vector3 = _bank(river)
 	var sea: Vector3 = _find_shallow(false)
-	print("[t_water] spots river=%s bank=%s (water %.1f m away) sea=%s" % [river, bank, _water_dist(bank), sea])
+	var deep: Vector3 = _find_deep()
+	print("[t_water] spots river=%s bank=%s (water %.1f m away) sea=%s deep=%s" % [river, bank, _water_dist(bank), sea, deep])
 	_expect(river != Vector3.ZERO and sea != Vector3.ZERO, "the home island has wadeable river and sea water")
+	_expect(deep != Vector3.ZERO, "the home island has deep swimmable water")
 	_test_hexes(river, bank, sea)
 	_test_bare_river_tile(river)
 	await _test_in_water_and_thirst(river, sea)
+	await _test_wading_and_swimming(river, deep)
+	await _test_walk_in_swim()
+	await _test_sea_hint(sea)
 	await _test_staggered(river)
 	_test_drink(bank)
 	_test_wash(bank)
@@ -81,6 +92,7 @@ func _run() -> void:
 	_test_dirt()
 	_test_no_meter()
 	_test_cheap(bank)
+	await _test_save_load(river, bank)
 	host.queue_free()
 	await process_frame
 	if failures.is_empty():
@@ -122,6 +134,24 @@ func _find_shallow(river: bool) -> Vector3:
 					best = Vector3(x, h, z)
 			z += 0.5
 		x += 0.5
+	return best
+
+func _find_deep() -> Vector3:
+	var best := Vector3.ZERO
+	var best_d := INF
+	var half: float = rt._size * 0.5 - 1.0
+	var x := -half
+	while x < half:
+		var z := -half
+		while z < half:
+			var h: float = rt.surface_y(x, z)
+			if h < WATER_Y - 1.5:  # past WaterAccess.SWIM_DEPTH_M (1.3 m)
+				var d := Vector2(x, z).length()
+				if d < best_d:
+					best_d = d
+					best = Vector3(x, h, z)
+			z += 1.0
+		x += 1.0
 	return best
 
 ## Dry ground 1 m past the river's edge, walking out of the water the short way along z.
@@ -178,12 +208,12 @@ func _test_hexes(river: Vector3, bank: Vector3, sea: Vector3) -> void:
 	ids = _ids_at(far)
 	_expect(not "drink" in ids and not "wash" in ids, "%.1f m from the river: no hexes %s" % [_water_dist(far), ids])
 	ids = _ids_at(sea)
-	_expect(not "drink" in ids and not "wash" in ids, "standing in the salt sea: no Drink/Wash (PRD :315) %s" % [ids])
+	_expect(not "drink" in ids and "wash" in ids, "standing in the salt sea: Wash but no Drink (owner 2026-10-29 wash in the ocean) %s" % [ids])
 	var shore: Vector3 = sea - Vector3(sea.x, 0.0, sea.z).normalized() * 1.0
 	while _is_water(shore.x, shore.z):
 		shore -= Vector3(sea.x, 0.0, sea.z).normalized() * 0.25
 	ids = _ids_at(shore)
-	_expect(not "drink" in ids and not "wash" in ids, "on the beach by the sea: no Drink/Wash %s" % [ids])
+	_expect(not "drink" in ids and "wash" in ids, "on the beach by the sea: Wash but no Drink %s" % [ids])
 	# The base's straight 10 m "Wet" box on z = 0 offered them on dry grass across the island.
 	var mid := Vector3(-48.0, 0.0, 0.0)
 	ids = _ids_at(mid)
@@ -223,6 +253,103 @@ func _test_in_water_and_thirst(river: Vector3, sea: Vector3) -> void:
 	await _frames(10)
 	_expect(player.statuses.has(&"wet") and not player.statuses.has(&"thirsty"), "5 s in the sea: Wet, not Thirsty (PRD :284; seawater thirst is for drinking it) %s" % [_status_ids()])
 	player.statuses.from_array([])
+
+func _test_wading_and_swimming(shallow: Vector3, deep: Vector3) -> void:
+	_expect(WA != null and WA.has_method("depth") and WA.has_method("movement_speed_multiplier"),
+		"water access distinguishes shallow and deep water")
+	_expect(player.has_method("is_swimming"), "player exposes swimming state")
+	if WA == null or not WA.has_method("depth") or not WA.has_method("movement_speed_multiplier") or not player.has_method("is_swimming"):
+		return
+	var shallow_depth: float = WA.depth(shallow)
+	var deep_depth: float = WA.depth(deep)
+	var wade_mult: float = WA.movement_speed_multiplier(shallow)
+	var swim_mult: float = WA.movement_speed_multiplier(deep)
+	_expect(shallow_depth > 0.0 and deep_depth > shallow_depth, "water depth follows the terrain (%.2f m / %.2f m)" % [shallow_depth, deep_depth])
+	_expect(wade_mult < 1.0 and swim_mult <= wade_mult, "wading and swimming slow movement (x%.2f / x%.2f)" % [wade_mult, swim_mult])
+	await _stand(shallow)
+	_expect(not player.is_swimming(), "shallow water is wading, not swimming")
+	await _stand(deep)
+	_expect(player.is_swimming(), "deep water enters swimming state")
+	var hp0: float = player.vitals.health
+	player.vitals.energy = 0.0
+	player.sim._swim_damage_acc = 0.95
+	await _frames(10)
+	_expect(player.vitals.health < hp0, "swimming while out of energy damages the survivor")
+	player.vitals.energy = player.vitals.max_energy
+
+## Owner 2026-10-28: "i cant swim". Walking off a beach with the move keys must lift her off the
+## seabed and float her (the old position nudge lost to move_and_slide's floor snap every frame,
+## so she walked along the bottom); the swim clips play, and walking back out she walks again.
+func _test_walk_in_swim() -> void:
+	var dirv := Vector3(1, 0, 0)
+	var r := 0.0
+	while r < rt._size * 0.5 and rt.surface_y(r, 0.0) > 0.3:
+		r += 0.5
+	var start := dirv * (r - 4.0)
+	_expect(rt.surface_y(start.x, start.z) > 0.3 and rt.surface_y(r + 20.0, 0.0) < WATER_Y - 1.5, "a beach at +x runs into deep sea")
+	var cam := Camera3D.new()
+	host.add_child(cam)
+	cam.current = true
+	player.velocity = Vector3.ZERO
+	player.global_position = Vector3(start.x, rt.surface_y(start.x, start.z) + player.half_height(), start.z)
+	await _frames(20)
+	cam.global_position = player.global_position + Vector3(-5, 5, 0)
+	cam.look_at(player.global_position)  # camera forward is +x: move_up walks into the sea
+	Input.action_press("move_up")
+	await _frames(360)
+	var p: Vector3 = player.global_position
+	var depth: float = WA.depth(p)
+	var clip: StringName = player.anim.current_clip
+	_expect(depth > 1.5 and player.is_swimming(), "walked off the beach into deep sea (%.2f m deep): swimming" % depth)
+	_expect(player.feet_position().y > rt.surface_y(p.x, p.z) + 0.8 and absf(p.y - (WATER_Y + 0.08)) < 0.15,
+		"she floats at the surface (centre y %.2f), not on the seabed (%.2f)" % [p.y, rt.surface_y(p.x, p.z)])
+	_expect(clip == &"swim", "the swim clip plays while she swims forward (%s)" % clip)
+	_expect(player.anim.swim_lift > 0.0, "the crawl is lifted into the water (%.2f)" % player.anim.swim_lift)
+	Input.action_release("move_up")
+	await _frames(40)
+	_expect(player.anim.current_clip == &"swim_idle", "treading water when she stops (%s)" % player.anim.current_clip)
+	cam.global_position = player.global_position + Vector3(5, 5, 0)
+	cam.look_at(player.global_position)  # camera forward is now -x: back to the beach
+	Input.action_press("move_up")
+	await _frames(600)
+	Input.action_release("move_up")
+	await _frames(10)
+	p = player.global_position
+	_expect(not player.in_water and not player.is_swimming() and player.is_on_floor(), "swam back to the beach and stands on it (ground %.2f)" % rt.surface_y(p.x, p.z))
+	_expect(player.anim.current_clip != &"swim" and player.anim.current_clip != &"swim_idle" and player.anim.swim_lift == 0.0,
+		"on land the swim clips stop (%s, lift %.2f)" % [player.anim.current_clip, player.anim.swim_lift])
+	cam.queue_free()
+	player.vitals.energy = player.vitals.max_energy
+
+## INTERACT in the salt sea offers nothing (PRD :314-315); its press then names the river (hud_field).
+func _test_sea_hint(sea: Vector3) -> void:
+	await _stand(sea)
+	var pick := str(player.controls.interact_choice().get("id", ""))
+	_expect(player.in_water and pick != "drink", "INTERACT never offers Drink in the salt sea (%s)" % pick)
+
+## The water verbs after a save and reload: a Dirty, Thirsty survivor saved at the river loads with
+## both statuses, INTERACT offers Drink and the hexes Wash, and both still work.
+func _test_save_load(river: Vector3, bank: Vector3) -> void:
+	var SG: GDScript = load("res://scripts/core/save_game.gd")
+	await _stand(river)
+	player.statuses.from_array([])
+	player.statuses.apply(&"very_dirty")
+	player.statuses.apply(&"thirsty")
+	_expect(SG.save_now(), "a save at the river writes")
+	player.statuses.from_array([])
+	SG.load_now(host)
+	await _frames(10)
+	rt = get_root().get_node("World").runtime  # the reload rebuilds the island
+	await _stand(bank)
+	_expect(player.statuses.has(&"very_dirty") and player.statuses.has(&"thirsty"), "after the reload she is still Very dirty and Thirsty %s" % [_status_ids()])
+	var ids := _ids_at(bank)
+	_expect(ids.has("drink") and ids.has("wash"), "after the reload Drink and Wash are offered by the river %s" % [ids])
+	var pick := str(player.controls.interact_choice().get("id", ""))
+	_expect(pick == "drink", "INTERACT offers Drink by the river (%s)" % pick)
+	player.context_action("drink")
+	player.context_action("wash")
+	_expect(not player.statuses.has(&"thirsty") and player.statuses.has(&"quenched"), "after the reload Drink clears Thirsty %s" % [_status_ids()])
+	_expect(not player.statuses.has(&"very_dirty") and player.statuses.has(&"clean"), "after the reload Wash clears Very dirty and grants Clean %s" % [_status_ids()])
 
 ## Harvesting a node turns its tile BARE until it regrows; a river tile must stay fresh water.
 func _test_bare_river_tile(river: Vector3) -> void:
@@ -417,7 +544,7 @@ func _test_no_meter() -> void:
 	_expect(meters.is_empty(), "no thirst / hunger / hygiene / dirt meter on the survivor, vitals or statuses %s" % [meters])
 	var keys: Array = player.vitals.to_dict().keys()
 	keys.sort()
-	_expect(keys == ["energy", "fatigue", "health", "max_energy", "max_fatigue", "max_health"], "the saved vitals are Health, Energy and fatigue only %s" % [keys])
+	_expect(keys == ["energy", "fatigue", "health", "level_energy", "level_health", "max_energy", "max_fatigue", "max_health"], "the saved vitals are Health, Energy and fatigue only, plus the pioneer-level part of their maxima %s" % [keys])
 	var hud := FileAccess.get_file_as_string("res://scripts/ui/hunt_hud.gd").to_lower()
 	for bad in ["thirst", "hunger", "hygien"]:
 		_expect(not hud.contains(bad), "the HUD draws no %s bar" % bad)

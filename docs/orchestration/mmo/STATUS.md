@@ -1,3 +1,64 @@
+## 2026-10-30 evening: what landed, what is next
+
+Canon `claude/mmo-overhaul` at `af77ddb8` before this refresh. Roadmap counts: P0 14/16, P1 30/38, P2 35/45,
+P3 13/32 (10 full-3D rows added, 1 done), P4 6/16, P5 1/12, P6 11/23, P7 12/13.
+
+**Landed today, in merge order:** POSEFIX `ddf3e6a3` (survivor no longer stuck bent sideways), STUDIO-DOC
+`432c79c9` (workflow report, package-brief / goldfish-review / merge-gate / repro-bug skills), PENDIET
+`15ea588f` (pens eat the species diet), WEARREPAIR `6afe7d9e` (P1 wear by level gap, P3 station repair),
+KICKTACKLE `c10b6fe3` (survivor kick and tackle clips), CANONRED2 `3156efce` (12 stale tests brought up to
+date), FACTIONS `caa4ba3c` (five factions, reputation, missions, Faction Hall on the grid), LEGSFIX
+`c6ea3ffd` (landing clear of the dock roof that hid her legs), 3D-AB `23c8407c` (full-3D plan and A/B lab),
+RECIPETOOLS `95f0583e` (P2 tool gates, P4 trait gear stats), TOWNPOLISH2 `af77ddb8` (flat town, grid and
+face-south layout, flush windows, tiled streets, Landfall domain).
+
+**Direction (owner 2026-10-30):** full 3D in stages on flat terrain (docs/design/full-3d-plan.md); terrain is
+flat and depth comes from props, structures, buildings and resources; no new painted prop cards.
+
+**In the gate:** HOLDKICK (auto-ability skips Kick under HOLD), 3D-RESOURCES part 1 (resource batches commit
+again, so trees and palms draw under the model path).
+
+**Next:** full-3D packages 2 (flat terrain everywhere) and 4-10, town look pass (light, sky, grass, path
+wear), taming pen bonding / roles / care, level-up flash (port claude/mmo-levelfx), item icons (76 left),
+performance gates (home build 2.6 s against 2.5 s). Opus workers are capped until Nov 3 18:00 CT.
+
+## 2026-10-30: what landed, what is in progress, what is next
+
+Canon `claude/mmo-overhaul` at `4aa0ba62`. The live record is the Roadmap (`tools/docs_wiki/phase-map.json`,
+refreshed today with an `evidence` list per landed row) and `docs/orchestration/reports/`. Summary of this
+refresh: `docs/orchestration/reports/claude-wikirefresh.md`.
+
+**Landed since the 2026-10-29 refresh (d0c649fa), in merge order:**
+- Islands: ISLANDSHAPES `cccf2115` (seven shape families, southern-most dock, volcanoes, mesas, ridges,
+  outcrops); ISLANDMATRIX `4a685bc4` (landmarks M1-M3, island reset M4, iron ore and tundra resin M5);
+  ISLANDFIXES `7259b47a`; UNSTABLEISLES `8b633980` (generated 40-minute isles, kits only, sink returns
+  you home); NORTHUP `49f3318f` (camera faces north, north-up minimap, Y grows northward) and
+  NORTHFOLLOW `4aa0ba62` (prop cards re-baked, auto-ability hex off TACKLE's caption).
+- Tutorial: TUTPERF `5c4b32ff` (walking stutter fixed), TUTTOWN `0ee384b9` (town by the southern dock,
+  menu guidance, Craft/Build order), PERF2 `729dd10e` (faster TilePath, town cards stop ticking, cached
+  replans), LOADING `346b325c` (loading screens with real progress), QUICKSTART `bf0f4765` (dev skip of
+  character creation).
+- Survival and creatures: KNIFEFIX `c7dc0a5b`, FOODTORPOR `0fa4d0bf` (Food Bag, spoilage, Sedative,
+  torpor capture), HUNGER `a1ee7649`, ALPHATAG `2e6b33f0`, CREATURECHIPS `7151a3e3`, CHASESPRINT
+  `5eede6ba`, STYRATACTICS `d243d817`, AUTOABILITY `d989a7a6`.
+- Progression and UI: SLOWLEVELS `5f6d4c10` (2.5x slower levels, skill research), TASKSCREEN `3d5d84b0`
+  (Task screen, manual Receive), TRIBEM2A `76e4a04e` (tribe members on crafts and sites), HUDREDRAW
+  `95ec2b69`.
+- Wiki: WIKI-STEWARD `465b1827` (roadmap `evidence` field, `phase_map.py audit`, templates, skill).
+
+**In progress:** factions (`claude/mmo-factions`), tutorial town polish loop (`claude/mmo-townpolish`).
+
+**Next:** island resources M6 fun pass (Milan's play), taming pen care (feeding, bonding, roles),
+country-like islands (Milan to say whether ISLANDSHAPES closes it), zone content per climate, ground
+painting, light and grade (LIGHTPORT waits for a blind A/B), level-up flash, item icons, tribes beyond
+M2a, performance gates (home build still over 2.5 s). Multiplayer stays deferred until the game is
+finished (owner 2026-10-29).
+
+> **2026-10-29: this file is an archive.** The body below was last edited 2026-10-21 and is kept
+> unchanged for its owner decisions and merge log. The live record is the Roadmap
+> (`tools/docs_wiki/phase-map.json`, shown in the docs wiki) and the per-task reports in
+> `docs/orchestration/reports/`. Check those first for what has landed and what is in flight.
+
 # DEADFRONT AAA survival-MMO program: status
 
 Owner request (2026-10-18): raise every system to an ARK: Survival Ascended bar and turn the game
@@ -66,6 +127,8 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
   stamp verified.
 - 2026-10-20 16:25 GitHub: pushed `claude/mmo-overhaul` (255d0434) to origin; draft PR https://github.com/mikiagent/deadfront-siege/pull/17 to main (owner asked; not merging into main until the owner says). Push again as packages merge.
 - 2026-10-20 16:35 production (owner: "deploy now if its working well enough"): `31c064a08/2284b9bf56` (W1-UI, W1-SRVDOM, W2-PLAYER on top of wave 1), dpl_A5KprWiU5R8LZ1VSyBbigEs8w4cA, alias https://durango-like.vercel.app verified (index.html build stamp + pack.manifest.json). Pack 254.0 MB: over the W1-WEB 220 MB ceiling, exported with PAYLOAD_MAX_MB=260 after dropping survivor_v1 (unused) from the Web preset; trimming survivor (69 MB) and nature/generated (51 MB) is open. Local browser boot: character creation -> island pick -> world -> gather ring, no console errors. Seen defects: Lv. 0 on a new survivor's badge and XP line, HANDS hex over character creation, a grey harbour slab on the meadow home.
+- 2026-10-21 09:27 production (owner: "get the game to a shippable state soon. You're taking forever to push updates to vercel"): `af03937f1/22a5004823` (W2-INV, W2-SKILLS, W2-DATA, WATER, HUD-DAYNIGHT, camp, see-through trees, HUD icons on top of 31c064a08), dpl_3ehdvXvRNnfyCnBJeSVEaJnKAL8H; alias stamp verified by curl and by an independent fresh-profile browser run (create -> island -> world -> gather, 0 console errors). Pack 255 MB (PAYLOAD_MAX_MB=260). Defects found, now in SHIPFIX (wf_b83bd7a7-61a): skill nodes all "not in the game yet"; phone tap targets ~26 CSS px; CLAIM re-press moves the claim; placer ghost under the HUD; autosave during character creation skips creation on reload; max HP drifts; fast energy drain; pack over 220 MB; survivor hidden by the harbour roof and bushes. CONTROLS owns the two-tap gather and trunk-only tree taps; INVUI the duplicate knife display; MAPUI (backlog) the atlas zoom.
+- 2026-10-21 production (owner: "deploy"): `a01e41ed3/5bf3729622` (DOMAIN banner + borders, day/night sun moving every frame, on top of af03937f). Export PAYLOAD_MAX_MB=260 PASS; headless Chrome boot to character creation, 0 console errors; alias stamp verified by curl. Deploys now need the owner's go each time (the production-deploy permission check blocks unattended deploys).
 
 ## Plan amendments for wave 2+ (from plan-critic.md)
 
@@ -453,6 +516,35 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-21 (orchestrator) NET (network core) passed review r1 and is queued for the side integrator with four NET-side pre-merge fixes (auth.hello strike, rate-limited chat no longer a flood strike, MAX_PER_IP >= max_players_area, no journal writes on char.get). Merging into claude/mmo-overhaul only; the server stays local and nothing is deployed. Open prerequisite for W3-SRVWORLD/W3-SRVACT: the first presence.update on an unvisited island is accepted at any position (one free teleport per island).
 - 2026-10-21 (orchestrator) real_length_m drives collision radius, reach, kick mass and plate boxes, not the drawn size. Triceratops 18 -> 9 m (PRD) is on claude/mmo-trike only: it halves the body radius and makes it kickable (t_combat _test_kick_mass fails), so it needs a balance pass with the Tripo mesh before merging. Stegosaurus is 18 m in data vs an 11.9 m model; DEINO sets 8.1 m to match its mesh.
 - 2026-10-21 (orchestrator) The Triceratops concept sheet is generated in ChatGPT web on the owner's Plus plan (text-only prompts, driven in a debug Chrome); told the owner, awaiting any objection.
+- 2026-10-21 (orchestrator) Triceratops concept sheet v01 (claude/mmo-trike ad147d93) passed the paleo-art critic in round 4 and went to the owner for approval; no Tripo spend until the owner says yes. Round 3's front view came from a Codex CLI image edit on gpt-6-astra (the owner prefers a smaller model for Codex) - reported to the owner. Owner question added: approve the sheet?
+- 2026-10-21 (orchestrator) STEGO passed review r1 (Stegosaurus v2 shows in game, stride-matched, feet conform to slopes) and is queued for the side integrator. Asset follow-up STEGO-ART (0 credits, headless Blender): the Tripo thagomizer fans about 7 spikes (the owner's journal art insisted on exactly four) and the hide reads grey-blue against the PRD's green-brown; trim to four spikes and shift the hide, keeping the rig and clips.
+- 2026-10-21 (orchestrator) CHARCREATE passed review r1 (blind A/B 4-0) and is queued for the side integrator. Save change: an optional "look" field (gender, height, colours); old saves load with the default look. Ruled additive and backward compatible like INVUI's optional "new" flag, so not an owner gate; the owner can object. APPEAR-A merges after it (it adds rows to CHARCREATE's appearance.json).
+- 2026-10-21 (orchestrator) TARGET-PET done: TARGETUI passed review r3 (blind A/B 12-0) and PETRADIAL review r1 (blind A/B 7-0); both queued for the side integrator (TARGETUI first). Ruling: a tap on a wild animal only selects it; the red swords (or E/F) start combat; the self-defence auto-hunt stays for animals that attack first; a second tap on a selected animal does nothing extra (the owner's description gives the swords as the way to fight). This replaces the 2026-10-18 "keep tap-target auto-attack".
+- 2026-10-21 (orchestrator) REST passed review r2 (blind A/B 5-0): reproduced the owner's Vercel bug (no Rest action existed; Sleep only by a tent, laid down, healed nothing, any tap cancelled it). Queued for the side integrator with a pre-merge fix: one upright seated pose everywhere (the open-ground pose read as a knockdown), nameplate off the torso, a readable rest pill, visible recovery feedback. Rates in data/rest.json are assumptions (open < fire < shelter per spec 01 and PRD :118/:803).
+- 2026-10-21 (owner) "triceratops looks good": Triceratops concept sheet v01 APPROVED (claude/mmo-trike f9b4e780, INDEX.md anchor). TRIKE mesh started (wf_6985c533-058): Tripo multiview from the sheet, cap 100 credits, headless-Blender quadruped rig and clips; the sheet's scale (9 m, back ~3.8 m) sets height_meters, and the kick-mass outcome is kept with the smallest data change (# ASSUMPTION, listed for the owner).
+- 2026-10-21 (owner) "pause lowest priority": paused APPEAR-A, LEVELFX, COMBATFX, STEGO-ART, CHAT and W2-RAGDOLL (its sweep held all 5 Godot slots) so merges and deploys get the slots; deploy after every landed merge batch from now on; side integrator v2 (parallel pre-merge fixes, batches of 3).
+- 2026-10-21 ~09:50 (owner) "pause everything": every workflow and the loop stopped, leftover Godot/Blender runs cleared; base claude/mmo-overhaul c9ec27c6 clean and pushed. Nothing merges or deploys until the owner says. Resume points (Workflow({scriptPath, resumeFromRunId}); scripts in .claude/worktrees/deadfront-*.js, copies in handoff/workflows/; resume from a /loop tick, never in an off-topic turn):
+  - finish-6 wf_c321f8a4-028 (W2-PROCESS sync, W2-GATHER r3, W2-BUILDSYS, ECON passed r6, ICONS2, FORGEART; W2-RAGDOLL in its PAUSED list).
+  - side integrator v2 wf_d670b08f-f36 (args handoff/workflows/side-int2-args.json: REST, SAILUI, DEINO | NET, STEGO, CHARCREATE | TARGETUI, PETRADIAL; parallel pre-merge fixes were in flight).
+  - SHIPFIX wf_b83bd7a7-61a (skillbuy, phonehud, claimfix, savefix, webpack, occlude2 - builds in flight).
+  - GUIDE wf_987c83ae-267 (extra round 4), INVUI wf_cdb79ed1-deb (fix r2), W3-EXCHANGE wf_4cbd48e0-5b9 (review r2), CONTROLS wf_1178f1fd-3e0 (build B3).
+  - TRIKE mesh wf_6985c533-058: built and committed on claude/mmo-trike 1aeb461f (Tripo task 555e7332, 50 credits; 31-bone rig, nine clips, height_meters 4.645 to the sheet); review not started. Note for the owner: it lowered the global kick threshold giant_mass 60 -> 40 (ASSUMPTION) so the 9 m triceratops stays too heavy to kick - this affects every species near the line; the review must check it.
+  - Paused earlier (lowest priority): APPEAR-A wf_c94a70f4-71e, LEVELFX wf_21781920-37e, COMBATFX wf_1c0f1639-5fc, STEGO-ART wf_340be69a-017, NET+CHAT wf_129d4a7d-7fc (CHAT fix r2), W2-RAGDOLL.
+  - Ready, waiting for the side queue: CAGEICON (after ICONS2).
+
+- 2026-10-21 afternoon (owner):
+  - "game balancing like tuning hp and damage wont make sense until crafting building and skills is done and tuned";
+    "we need to be able to eat, sleep, clean, drink, etc". Order: survival actions, then crafting/building/skills, then
+    balance. LOOP1's bot balance thresholds wait.
+  - "no i want you to use deepseek workers": DeepSeek jobs do the work, scouting included; Claude writes short tasks,
+    reviews, integrates. Idle default: "asset generation and building biomes using our 2D concept art as references".
+  - "the inventory system doesn't match what I asked for in the docs ... a scroll view with slots, 1 item per slot and we
+    can upgrade slots" (INVSLOTS, DeepSeek).
+  - Camera: "yeah merge it" -> merged a7928ce3 (Durango long-lens perspective, pitch 38.7). The phone zoom-out drops from
+    28 m to 18 m (Durango's range); kept as built, the owner may ask for more.
+  - "start switching to the 2D assets. Utilize deepseek workers": SWITCH2D (resources as painted cards, buildings 3D,
+    resource_render "card" by default) and GROUND2D (painted ground cover) started on claude/mmo-switch2d (camera + CARD2D +
+    SPRITES2D merged there); props visuals move to painted cards after the PROPS job.
 
 ## Owner questions (open)
 
@@ -480,3 +572,5 @@ local `main` at 77748a4. Contracts: `docs/orchestration/mmo/contracts.md`.
 - 2026-10-20 merged WATER (229719b0, merge c5f1db63, hooks 3abc6503): Drink/Wash (and Fill with an empty bucket) hexes within 2 m of fresh river water, none at the sea; Dirty/Very dirty/Thirsty/Quenched/Clean statuses; in_water from the heightmap (straight river box removed). Merge fix: t_data STATUS_ACTIONS accepts wash/drink (W2-DATA's check failed "status dirty cleared_by wash is an item or a listed action" x3). import exit 0; all 23 t_*.gd exit 0 incl. "[t_water] PASS", "[t_data] PASS items=223 recipes=155", "[t_w2_skills] PASS", t_uiicons "PASS ids=177 files=116" (t_save 5 deliberate SCRIPT ERRORs); run_all "[tests] PASS"; "SMOKE PASS"; island_lab exit 0, 0 SCRIPT ERROR, "nodes=397 creatures=24" (unchanged); build_lab "[build] PASS"; water_lab headless matches the report's after table (river_bank_1m ctx drink/wash, sea_bank_1m claim only, bank_after quenched+clean, water_bucket=1); creature_anim_lab 0 "couldn't resolve track"; home_lab 1600x900 Forward+/gl_compat and 844x390 match base (first Forward+ run showed the bag sheet open and the first phone run a passing herd; reruns match), water_lab windowed 4 configs looked at; one new Godot .ips (23:26:13) is another agent's charcreate_lab shot (cc2 b2_world_glc.log, same recursive_mutex abort), not this merge; review pass; blind A/B pass; side integrator. Pending: W3-SRVACT handlers for act.drink/act.wash/act.fill
 - 2026-10-21 merged HUD-DAYNIGHT (4e69ed22, merge 951da683): 60 px day/night dial docked left of the minimap (sun/moon on an arc; tap opens "Day  08:28 / Dusk in 4 min"), the map's clock line dropped, radial reserve 190/178 -> 240 px, LabKit --tod=. Hooks applied cleanly, no merge fixes. import exit 0; all 23 t_*.gd exit 0 incl. "[t_daynight] PASS", "[t_data] PASS items=223 recipes=155", "[t_ui] PASS", t_uiicons "PASS ids=177 files=116" (t_save 5 deliberate SCRIPT ERRORs); run_all "[tests] PASS"; "SMOKE PASS"; island_lab exit 0, 0 SCRIPT ERROR, "nodes=397 creatures=24" (unchanged); build_lab "[build] PASS"; creature_anim_lab 0 "couldn't resolve track"; ui_real_capture_lab 1600x900/844x390 x Forward+/gl_compat x --tod 0.4/0.9 "[uireal] PASS screens=hud,hud_daynight,...", 0 SCRIPT ERROR; home_lab 1600 Forward+/gl_compat and 844x390 match base except the dial and the dropped clock line; no new Godot .ips. Motion gate (home_lab, 180 frames walking 9.7 m past bush berries, label open): dial/label rect constant (1250,128 176x60 at 1600; 501,128 169x60 at 844), vitals/quest/map blocks 0 px per frame, nameplate <=1.03 px (1600), player step <=0.117 m/physics tick, yaw <=0.42 rad on the first turn frame then eased; same numbers on base ddaab662. Pre-existing, not this merge (base shows it too, 104-106 px): the harvest-node world pill snaps when it meets the survivor's figure rect (one 105 px jump, then a 2 px/frame drift with 24 px snaps every ~12 frames, UiTokens.layout_labels) - backlog for a pill-layout fix. Review pass; blind A/B 3-0; side integrator.
 - 2026-10-21 merged W2-DATA (c206a97f, hooks 9762c735): re-integration of the sync-1/round-5 report and the regenerated hooks-patch record; no game code or data changed (the package itself merged 2026-10-20 in 9c4226c8/be970c8c). Hooks: git apply --3way rc=0 with no tree change, -R --check (excluding crafting.gd, superseded by W2-SKILLS H1) rc=0. import exit 0, 0 error lines; all 23 t_*.gd exit 0 incl. "[t_data] PASS items=223 recipes=155", "[t_w2_skills] PASS", "[t_daynight] PASS", "[t_water] PASS", t_uiicons "PASS ids=177 files=116" (t_save 5 deliberate SCRIPT ERRORs, all others 0); run_all "[tests] PASS"; "SMOKE PASS"; island_lab exit 0, "nodes=397 creatures=24" (unchanged); build_lab "[build] PASS"; craft_lab "[craft_lab] PASS", equip_mount_lab "[equiplab] PASS"; creature_anim_lab 0 "couldn't resolve track" over 735 s (endless lab, stopped); home_lab 1600x900 Forward+/gl_compat and 844x390 gl_compat match base; no new Godot .ips (25); review round 5 pass; pending: W3-SRVACT server-side node gate on act.craft (intent_handlers.gd _craft)
+- 2026-10-21 merged W2-INV (e42d8219, hooks 0c57276b): gathered materials and food are single instances with uids (grouped bag view with count pills and level ranges, exact-instance equip, default craft picks skip locked and spare valuable units, stacked saves and server characters migrate without loss; owner-approved save change). Hooks: git apply --3way rc=0, 24 files, no fixes. import exit 0, 0 error lines; all 24 t_*.gd exit 0 incl. "[t_inventory] PASS", "[t_items] PASS", "[t_save] PASS" (5 deliberate SCRIPT ERRORs), "[t_player] PASS", "[t_srvdom] PASS", "[t_data] PASS items=223 recipes=155", t_uiicons "PASS ids=177 files=116", all others 0 SCRIPT ERROR; run_all "[tests] PASS"; "SMOKE PASS"; island_lab exit 0, "nodes=397 creatures=24" (unchanged); build_lab "[build] PASS"; "[invlab] PASS empty_cells=100/97 slots=100 groups=20 stone_open=17 equip_l30=true full_unequip_notice=true", "[craft_lab] PASS", "[equiplab] PASS", "[kitchen_lab] PASS"; creature_anim_lab 0 "couldn't resolve track" (300 s); home_lab 1600x900 Forward+/gl_compat and 844x390 gl_compat match base; inventory_lab 1600x900/844x390 gl_compat looked at (group pills 16..2, Lv ranges, x45/x6 stacks, knife and pick worn); no new Godot .ips (25); review round 5 pass; blind A/B pass; pending: W2-BUILDSYS raises container capacities (spec 05:14) and INVUI virtualizes the storage/cargo grid (one button per instance) before players with large old saves update; server operators snapshot on the old build before upgrading; INVUI drops its plan_spends_traits hunk at next sync
+- 2026-10-21 merged DOMAIN (800d19cc, merge 0b7cb607, hooks 857dd668, base W2-INV merged in aa4556b5): walking into a claim shows "<name>'s Domain" with the owner's portrait (slim toast above the quest card on a landscape phone), your claim edge is yellow dashes, other players' salmon dots (4 nearest), claim_at refuses another owner's tiles and the stake is spent only after a claim succeeds. Hooks applied cleanly (4 files). Merge fix after W2-INV: t_domain equipped an id that was not in the bag (W2-INV equip wears a bag instance), "FAIL equipping gear drops your cached portrait"; the test now wears a real raid_helm (800d19cc), rerun "[t_domain] PASS", 0 SCRIPT ERROR. import exit 0 (before and after the W2-INV merge); all 25 t_*.gd exit 0 incl. "[t_domain] PASS" ("crowd: 401 rows, rebuild 2.42 ms"), "[t_inventory] PASS", "[t_data] PASS items=223 recipes=155", t_uiicons "PASS ids=177 files=116" (t_save 5 deliberate SCRIPT ERRORs, all others 0); run_all "[tests] PASS"; "SMOKE PASS" (both rerun after the W2-INV merge); island_lab exit 0, "nodes=397 creatures=24" (unchanged); build_lab "[build] PASS"; domain_lab 1600x900 Forward+ and 844x390 gl_compat, day 0.38 and night 0.95: "[domain] PASS ... steps=outside,entered,staying,reentered,neighbour,crowd", "36 other claims, 4 drawn", 0 SCRIPT ERROR; ui_real_capture_lab 1600x900/844x390 gl_compat "[uireal] PASS"; creature_anim_lab 0 "couldn't resolve track" (endless lab, stopped at 295 s); home_lab 1600 Forward+/gl_compat and 844x390 match base except the dashed claim edge; no new Godot .ips (25). Motion gate (home_lab, 420 frames, 3.8-4.6 s, walking 8.5 m into the camp claim past bush berries, banner up from frame 92/102): banner rect constant (661.5,14 277x54 at 1600; 396.5,6 189x26 at 844), never overlaps another HUD block; vitals/quest/map/level/dial 0 px per frame; player step <=0.117 m per physics tick, no yaw or Y pop; nameplate 40.8/15.1 px and the harvest pill's jump to the top band at the claim edge are on base acc684a6 too (40.5/14.7 px, same pill backlog). Review pass; blind A/B 3-1; side integrator.

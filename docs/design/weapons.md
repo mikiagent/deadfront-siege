@@ -1,6 +1,6 @@
 # Weapons
 
-**Status:** v1, 2026-09-17. Owner asked for the crossbow specifically. Source: systems PRD §9.5 (one-hand vs two-hand, spears, work variants, ranged safer but lower DPS), roster PRD §3.2 (player-inflicted statuses).
+**Status:** v1, 2026-09-17. Owner asked for the crossbow specifically. Source: systems PRD §9.5 (one-hand vs two-hand, spears, work variants, ranged safer but lower DPS), roster PRD §3.2 (player-inflicted statuses). Durango-reference note (2026-10-27): the historical game assembled bows/crossbows/knives/axes from parts (limb + string + tang, blade + handle), with drawn quantities in `durango-prompts/34_crafting_materials_catalog.md`; whether our recipes adopt that layer is open question 01 in `../vision/WildLandsMMO_Open_Questions.md` — design the crossbow below as authored until then.
 
 | Weapon | Hands | Tree | Level | Rate | Damage type | Player status on hit | Notes |
 |---|---|---|---|---|---|---|---|

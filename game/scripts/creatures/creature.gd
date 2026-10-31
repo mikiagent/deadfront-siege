@@ -36,6 +36,8 @@ var hunger: float = 0.0
 var hunger_max: float = 0.0
 var level: int = 1
 var genetics: CreatureGenetics
+## ALPHAS: set by the Spawner before spawn() when this member won its group's alpha roll.
+var alpha_spawn: bool = false
 var spawn_tile: Vector2i = Vector2i.ZERO
 var spawn_home: Vector3 = Vector3.ZERO
 var last_aggro_s: float = -999.0
@@ -45,12 +47,32 @@ var tame_feeds: float = 0.0
 var tame_window_left: float = 0.0
 var tame_cooldown_left: float = 0.0
 var tame_attempting: bool = false
+## FOODTORPOR: 0..torpor_max(). Blunt hits, Sedative-coated hits and Tranquilizer Darts add it; it
+## drains after a quiet spell. Weak + past FieldTame.torpor_ko_frac() = knocked out (capturable).
+## Not saved: wild animals respawn fresh.
+var torpor: float = 0.0
+var _torpor_quiet_s: float = 0.0
+## NATURES: rolled once at spawn from the animal's spawn seed (species + point + pack) and kept
+## when it is tamed (PetRecord.nature). Knobs are read through nature_knob(): one source, default 1.
+var nature: StringName = &""
 
 # Wild creatures recover slowly after a real break from combat. Pool sub-point healing so
 # plates get readable ticks instead of a floating-number event every frame.
 const WILD_REGEN_DELAY_S := 8.0
 const WILD_REGEN_RATE := 0.01
 var _wild_regen_pool: float = 0.0
+
+## ENERGY (owner 2026-10-28): running and special moves spend it, rest and walking refill it. No
+## exhaustion. Below stop_frac the animal is winded: it cannot run or start a special until the pool
+## is back above resume_frac (hysteresis). Numbers: ai.json "energy" (size default) or the species'
+## own "energy" block. Not saved: a reload starts full (the pool refills in 10-30 s anyway).
+var energy: float = 100.0
+var energy_max: float = 100.0
+var energy_regen_per_s: float = 10.0
+var energy_drain_per_s: float = 10.0
+var winded: bool = false
+## Set by whoever moved the animal at a run this frame; ticked (drain or regen) next physics frame.
+var running: bool = false
 
 @onready var agent: NavigationAgent3D = $Agent
 @onready var view: CreatureView = $View
@@ -85,15 +107,26 @@ var _path_active: bool = false
 var _path_replan_left: float = 0.0
 var _path_blocked_left: float = 0.0
 var _path_anchor: Vector3 = Vector3.ZERO
+## Turning: the yaw budget left this physics frame (see face_towards) and the low-passed velocity
+## the locomotion faces. ASSUMPTION: 0.15 s smoothing and no turning below 0.3 m/s (PRDs give none).
+const FACE_VEL_TAU_S := 0.15
+const FACE_MIN_SPEED_MPS := 0.3
+## ASSUMPTION: walking may run up to 3 deg off its smoothed heading before the body turns.
+const FACE_SLACK_RAD := 0.05
+var _turn_frame: int = -1
+var _turn_left: float = 0.0
+var _face_vel: Vector3 = Vector3.ZERO
 
 ## p_runtime: the IslandRuntime placing this spawn (Spawner passes its parent), so ring level
 ## offsets apply even before World.runtime is assigned. p_tier_offset: the island row's tier_offset.
-func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_runtime: Node = null, p_tier_offset: int = 0) -> void:
+func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_runtime: Node = null, p_tier_offset: int = 0, p_nature: StringName = &"") -> void:
 	# A live character is not a moving floor. Giants must not ride a survivor away.
 	platform_floor_layers = 0
 	platform_wall_layers = 0
 	def = p_def
-	variant = p_variant
+	variant = p_variant if p_variant != &"" else CreatureView.pick_variant(p_def, "%s@%v" % [p_def.id, global_position.round()])
+	_slide_counter += 1
+	_slide_phase = _slide_counter
 	pack_id = p_pack
 	add_to_group("creatures")
 	view.setup(def, variant)
@@ -101,13 +134,33 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 	# old 26 m cut-off culled every creature mesh and only the plates showed.
 	_set_vis_range(view, 0.0)
 	if genetics == null:
-		genetics = CreatureGenetics.roll()
+		# The colour roll is seeded off the animal's identity (spawn point), so a wild individual
+		# keeps its colours when the caller reuses a seeded genetics roll for it.
+		# Only the colour roll is seeded from the spawn point (a reload keeps the look); the IVs stay
+		# random, as they always were.
+		# GENETICS: the body size draws from the same seeded stream, after the colours.
+		genetics = CreatureGenetics.for_species(def, null, CreatureColoration.seeded_rng(spawn_colour_key(def.id, global_position)))
+	if alpha_spawn and not genetics.alpha:
+		genetics.make_alpha()
+	# One colour profile per individual, kept on the genetics record so taming carries it over.
+	view.apply_coloration(genetics.coloration if genetics.coloration != null else CreatureColoration.neutral())
+	if pet_record:  # SADDLES: the equipped saddle shows on the back, ridden or not
+		_on_gear_changed()
+		if not pet_record.gear.changed.is_connected(_on_gear_changed):
+			pet_record.gear.changed.connect(_on_gear_changed)
+	# GENETICS: the model (and everything parented to it: eyes, mount socket, saddle) at the body size;
+	# an alpha's eyes glow brighter.
+	view.apply_genome(size_scale(), float(CreatureGenetics.alpha_rules().get("eye_glow_mult", 2.5)) if is_alpha() else 1.0)
 	level = _spawn_level(p_runtime, p_tier_offset)
 	health.setup(stat_value(&"health"))
 	health.healed.connect(_on_healed)
+	setup_energy()
 	# ASSUMPTION: pet hunger budget is 0.4 * wild HP when JSON has no hunger field.
 	hunger_max = def.hp * 0.4
 	hunger = hunger_max
+	# NATURES: one nature per animal, seeded off the same identity the colour roll uses, so a reload
+	# at the same spot rolls the same nature. Hidden callers may pass one in (p_nature) to override.
+	nature = p_nature if p_nature != &"" else CreatureNatures.roll(CreatureNatures.spawn_key(def.id, global_position, pack_id), def.archetype)
 	spawn_tile = BuildGrid.tile_of(global_position)
 	# World.runtime is still null while an island builds, which put every home at y=0.
 	spawn_home = BuildGrid.tile_centre(spawn_tile, p_runtime if p_runtime else (World.runtime if World else null))
@@ -132,6 +185,20 @@ func spawn(p_def: CreatureDef, p_variant: StringName = &"", p_pack: int = 0, p_r
 		Game.ensure_creature_plates()
 	if Game and Game.debug_overlay:
 		print("[creature] %s spawned pack=%s level=%d" % [def.id, pack_id, level])
+
+## Identity key for a fresh wild spawn: species, rounded spawn point and a per-spawn serial.
+## Seeding the colour roll from it keeps one animal's look stable for as long as it lives (taming
+## reuses the genetics record), while a herd at different points and a respawned individual at the
+## same point both come out as new animals instead of clones.
+static var _spawn_serial: int = 0
+
+func _on_gear_changed() -> void:
+	if pet_record and is_instance_valid(view):
+		view.show_saddle(pet_record.saddle())
+
+static func spawn_colour_key(species: StringName, at: Vector3) -> String:
+	_spawn_serial += 1
+	return "%s@%d,%d,%d#%d" % [species, roundi(at.x), roundi(at.y), roundi(at.z), _spawn_serial]
 
 func on_anim_event(kind: String, clip: String) -> void:
 	anim.on_event(kind, clip)
@@ -159,6 +226,9 @@ func stop_move() -> void:
 	_path_index = 0
 	agent.target_position = global_position
 
+## Steps yaw toward world_pos at def.turn_rate (rad/s), never snapping. Every caller in one physics
+## frame shares one budget of turn_rate * physics step, so a brain and the locomotion facing the same
+## frame cannot add up to more than the species can turn. delta is kept for the callers' signature.
 func face_towards(world_pos: Vector3, _delta: float) -> void:
 	var p := world_pos
 	p.y = global_position.y
@@ -166,10 +236,66 @@ func face_towards(world_pos: Vector3, _delta: float) -> void:
 		return
 	var to := (p - global_position).normalized()
 	var target_yaw := atan2(-to.x, -to.z)
-	rotation.y = lerp_angle(rotation.y, target_yaw, minf(1.0, _delta * 10.0))
+	var frame := Engine.get_physics_frames()
+	if frame != _turn_frame:
+		_turn_frame = frame
+		_turn_left = turn_rate() * get_physics_process_delta_time()
+	var before := rotation.y
+	rotation.y = rotate_toward(before, target_yaw, _turn_left)
+	_turn_left = maxf(0.0, _turn_left - absf(angle_difference(before, rotation.y)))
+
+## Turn toward a heading at turn_rate with FACE_SLACK_RAD of slack: reversals inside the slack (the
+## wobble a low-pass leaves, a rider's stick noise) cannot dither the yaw.
+func face_heading(heading: Vector3, delta: float) -> void:
+	var err := angle_difference(rotation.y, atan2(-heading.x, -heading.z))
+	if absf(err) > FACE_SLACK_RAD:
+		var yaw := rotation.y + err - signf(err) * FACE_SLACK_RAD
+		face_towards(global_position + Vector3(-sin(yaw), 0.0, -cos(yaw)), delta)
+
+func turn_rate() -> float:
+	return def.turn_rate if def else 3.0
 
 func apply_species_on_hit(clip: StringName, target: Node) -> void:
 	CreatureAttack.apply_for(self, clip, target)
+
+## The nature this animal has: its own, or (a pet whose brain was rebuilt) its record's.
+func nature_id() -> StringName:
+	if pet_record != null and pet_record.nature != &"":
+		return pet_record.nature
+	return nature
+
+## One nature knob (natures.json, default merged in when the nature has none). The single place a
+## brain, a combat hit or a taming rule reads a nature, so there is no second copy of the rules.
+func nature_knob(knob: String, fallback: float = 1.0) -> float:
+	var base: Variant = CreatureNatures.knobs(&"").get(knob, fallback)
+	if nature_id() == &"":
+		return (float(base) if not base is bool else (1.0 if bool(base) else 0.0)) * _alpha_knob(knob)
+	var raw: Variant = CreatureNatures.knobs(nature_id()).get(knob, fallback)
+	if raw is bool:
+		return 1.0 if bool(raw) else 0.0
+	return float(raw) * _alpha_knob(knob)
+
+## ALPHAS: the class profile's alpha modifier (ai.json archetypes.<a>.tactics.alpha) on a wild alpha's
+## tactic_* knobs: shorter cooldowns, heavier sequence weights. 1.0 for everything else.
+func _alpha_knob(knob: String) -> float:
+	if is_pet or not is_alpha() or not knob.begins_with("tactic_") or def == null:
+		return 1.0
+	var arch: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(def.archetype), {})
+	var tac: Variant = (arch as Dictionary).get("tactics", {}) if arch is Dictionary else {}
+	var mod: Variant = (tac as Dictionary).get("alpha", {}) if tac is Dictionary else {}
+	return float((mod as Dictionary).get(knob, 1.0)) if mod is Dictionary else 1.0
+
+## True when this animal's nature sets a knob to true (auto_engage, protect_owner, fear_immune...).
+func nature_flag(knob: String) -> bool:
+	return nature_knob(knob, 0.0) > 0.0
+
+## Feeds / window / pen wait for THIS animal: the species' number times its nature's multiplier.
+## One place, read by FieldTame, the gather ring and the taming pen.
+func feeds_needed() -> float:
+	return maxf(1.0, def.feeds_needed * nature_knob("feeds_mult", 1.0))
+
+func tame_window_seconds() -> float:
+	return maxf(1.0, def.tame_window_seconds * nature_knob("tame_window_mult", 1.0))
 
 func stat_value(stat: StringName) -> float:
 	if is_pet and pet_record:
@@ -181,7 +307,38 @@ func stat_value(stat: StringName) -> float:
 		&"melee_attack", &"ranged_attack": base = def.attack * _level_factor()
 		&"accuracy": base = 100.0
 		&"speed": base = def.speed
-	return base * (genetics.multiplier(stat) if genetics else 1.0)
+	return base * (genetics.multiplier(stat) if genetics else 1.0) * alpha_stat_mult(stat)
+
+## GENETICS: body size (1.0 = species as authored). Hook for anything sized off the body: the
+## collision capsule, plates, and the ragdoll on its own branch (scale its bones' shapes by this).
+func size_scale() -> float:
+	return genetics.size if genetics != null else 1.0
+
+## ALPHAS: a rare, much bigger and stronger individual (CreatureGenetics.make_alpha).
+func is_alpha() -> bool:
+	return genetics != null and genetics.alpha
+
+## ALPHAS: ai.json alpha.stats for a wild alpha ("on steroids"); 1.0 otherwise. A tame keeps its
+## size and colours but not this (pets read PetStats).
+func alpha_stat_mult(stat: StringName) -> float:
+	if is_pet or not is_alpha():
+		return 1.0
+	var st: Variant = CreatureGenetics.alpha_rules().get("stats", {})
+	return float((st as Dictionary).get(str(stat), 1.0)) if st is Dictionary else 1.0
+
+## ALPHAS: the buff a living wild alpha gives its packmates within alpha.aura.radius_m (key: attack,
+## defense or speed); 1.0 outside the radius, for the alpha itself, for pets and for lone animals.
+func pack_aura_mult(key: String) -> float:
+	if is_pet or pack_id <= 0 or is_alpha() or not is_inside_tree():
+		return 1.0
+	var aura: Variant = CreatureGenetics.alpha_rules().get("aura", {})
+	if not aura is Dictionary:
+		return 1.0
+	var r := float((aura as Dictionary).get("radius_m", 12.0))
+	for m in PackIndex.members(self):
+		if m != self and m.is_alpha() and global_position.distance_squared_to(m.global_position) <= r * r:
+			return float((aura as Dictionary).get(key, 1.0))
+	return 1.0
 
 ## Wild animals above their species tier hit and soak harder (rules.json wild_level_stat_rate).
 ## ASSUMPTION: at or below the tier they keep the listed stats (starter island unchanged).
@@ -193,13 +350,19 @@ func _level_factor() -> float:
 
 ## Collision capsule radius; brains size reach, pack slots and wake distance from it.
 func body_radius() -> float:
-	return maxf(0.18, def.real_length_m * 0.12)
+	return maxf(0.18, def.real_length_m * 0.12 * size_scale())
 
 func defense_for(ranged: bool = false) -> float:
-	return stat_value(&"ranged_defense" if ranged else &"melee_defense")
+	return stat_value(&"ranged_defense" if ranged else &"melee_defense") * pack_aura_mult("defense")
 
+## NATURES: the one place a nature's damage multiplier applies (Docile is less effective in combat).
+## Every hit a creature lands reads this, survivors, pets and structures alike; the stat itself is
+## unchanged, so the PETS sheet keeps showing the species numbers. A pet's multiplier already lives
+## in PetRecord.stat_value (the one source for pet stats), so it is not applied twice here.
 func attack_for(ranged: bool = false) -> float:
-	return stat_value(&"ranged_attack" if ranged else &"melee_attack")
+	if is_pet and pet_record:
+		return pet_record.stat_value(&"ranged_attack" if ranged else &"melee_attack")
+	return stat_value(&"ranged_attack" if ranged else &"melee_attack") * nature_knob("damage_dealt_mult", 1.0) * pack_aura_mult("attack")
 
 func accuracy_chance() -> float:
 	if is_pet and pet_record:
@@ -217,7 +380,83 @@ func dodge_chance() -> float:
 	return clampf(0.04 + (stat_value(&"speed") / maxf(1.0, def.speed) - 0.85) * 0.20, 0.04, 0.10)
 
 func move_speed_mps() -> float:
-	return stat_value(&"speed") / 100.0
+	return stat_value(&"speed") / 100.0 * pack_aura_mult("speed")
+
+# ---------------------------------------------------------------- energy
+
+static func energy_rules() -> Dictionary:
+	return Data.creature_ai.get("energy", {}) if Data else {}
+
+## Pool and rates from the size default (bigger = larger pool, slower refill) or the species block.
+func setup_energy() -> void:
+	var r := energy_rules()
+	var own: Dictionary = def.energy if def else {}
+	var length := def.real_length_m if def else 1.0
+	energy_max = float(own.get("max", float(r.get("pool_base", 80.0)) + float(r.get("pool_per_m", 6.0)) * length))
+	var refill_s := float(r.get("refill_s_base", 10.0)) + float(r.get("refill_s_per_m", 0.5)) * length
+	energy_regen_per_s = float(own.get("regen_per_s", energy_max / maxf(1.0, refill_s)))
+	energy_drain_per_s = float(own.get("run_drain_per_s", r.get("run_drain_per_s", 10.0)))
+	energy = energy_max
+	winded = false
+
+func energy_frac() -> float:
+	return energy / maxf(1.0, energy_max)
+
+## ai.json energy.run_speed_mult: every creature's run (and a ridden mount's) is this much faster.
+static func run_speed_mult() -> float:
+	return float(energy_rules().get("run_speed_mult", 1.0))
+
+func can_sprint() -> bool:
+	return not winded and energy > 0.0
+
+func can_use_special(cost: float) -> bool:
+	return cost <= 0.0 or (not winded and energy >= cost)
+
+func spend_energy(cost: float) -> void:
+	energy = maxf(0.0, energy - cost)
+	if energy <= energy_max * float(energy_rules().get("stop_frac", 0.05)):
+		winded = true
+
+## Energy a special move costs: the species' clip entry {"energy_cost": n} or energy.costs[clip],
+## else ai.json special_cost_frac[clip] x the pool. 0 = not a special (free).
+func special_cost(clip: StringName) -> float:
+	if def:
+		var entry: Variant = def.clips.get(str(clip))
+		if entry is Dictionary and (entry as Dictionary).has("energy_cost"):
+			return float(entry["energy_cost"])
+		var costs: Dictionary = def.energy.get("costs", {})
+		if costs.has(str(clip)):
+			return float(costs[str(clip)])
+	return float((energy_rules().get("special_cost_frac", {}) as Dictionary).get(str(clip), 0.0)) * energy_max
+
+## Spend a special's cost if the animal can afford it. False = refused (play a basic move instead).
+func try_special(clip: StringName) -> bool:
+	var cost := special_cost(clip)
+	if not can_use_special(cost):
+		return false
+	spend_energy(cost)
+	return true
+
+## Walking pace: walk_frac of the run speed (ASSUMPTION 0.5). Winded animals and an unhurried mount move at it.
+func walk_mps(run_mps: float) -> float:
+	return run_mps * float(energy_rules().get("walk_frac", 0.5))
+
+## One step of the pool: drain while running, else refill; winded clears at resume_frac.
+func tick_energy(delta: float, is_running: bool) -> void:
+	var r := energy_rules()
+	if is_running:
+		energy = maxf(0.0, energy - energy_drain_per_s * delta)
+		if energy <= energy_max * float(r.get("stop_frac", 0.05)):
+			winded = true
+	else:
+		# Refill by exhaustion: fresh refills fast, a winded animal slowly (ASSUMPTION multipliers).
+		var regen_mult := float(r.get("regen_mult_winded", 1.0)) if winded else float(r.get("regen_mult_fresh", 1.0))
+		energy = minf(energy_max, energy + energy_regen_per_s * regen_mult * delta)
+		if winded and energy >= energy_max * float(r.get("resume_frac", 0.4)):
+			winded = false
+
+func _is_sprint_state() -> bool:
+	return brain != null and str(brain.state) in (energy_rules().get("sprint_states", []) as Array)
 
 ## Fleeing ground speed from the already-slowed base (`base_mps`) and the slow factor. The floor is
 ## here, not inline in _physics_process, so a test can call the physics code path (t_ai).
@@ -228,8 +467,9 @@ func flee_speed(base_mps: float, slow: float = 1.0) -> float:
 	return maxf(base_mps * float(brain.profile.get("flee_speed_mult", 1.0)),
 		float(brain.profile.get("flee_min_mps", 0.0)) * slow)
 
+## ALPHATAG (owner 2026-10-29): an alpha is never capturable, stunned or not.
 func capturable() -> bool:
-	return is_capturable and health.hp > 0.0 and def.tameable
+	return is_capturable and health.hp > 0.0 and def.tameable and not is_alpha()
 
 func field_tame_open() -> bool:
 	return FieldTame.can_attempt(self)
@@ -258,23 +498,48 @@ func become_pet(rec: PetRecord) -> void:
 ## Pets never body-block the survivor: a mutual collision exception, applied once the
 ## player node is around. Enemies and everything else still collide with pets normally.
 var _pet_passthrough_done: bool = false
+## Bodies this pet already ignores (see _apply_pet_passthrough): the survivor and the other pets.
+var _pet_peers_aware: Dictionary = {}
+## True while the survivor rides this creature (set by PlayerPets.mount / dismount).
+var ridden: bool = false
 
 func _apply_pet_passthrough() -> void:
-	if _pet_passthrough_done or not is_pet:
+	if not is_pet:
 		return
 	var p := PlayerRegistry.owner_of(self)
-	if p == null:
-		return
-	add_collision_exception_with(p)
-	_pet_passthrough_done = true
+	if p != null and not _pet_passthrough_done:
+		add_collision_exception_with(p)
+		_pet_passthrough_done = true
+	# PETFOLLOW: pets also pass through EACH OTHER. Their body capsules would otherwise let one
+	# pet park in another's follow slot and deadlock the pair; they fan out to distinct slots, so
+	# they still read as separate animals, and an enemy or the survivor still collides normally.
+	# (The survivor's own exception above is kept: it is the one that was already there.)
+	if p != null and not _pet_peers_aware.has(p):
+		_pet_peers_aware[p] = true
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var other := n as Creature
+		if other == null or other == self or not other.is_pet:
+			continue
+		if not _pet_peers_aware.has(other):
+			add_collision_exception_with(other)
+			_pet_peers_aware[other] = true
 
 func _physics_process(delta: float) -> void:
 	tick_trap_control(delta)
 	_fall_guard()
 	_apply_pet_passthrough()
 	FieldTame.tick(self, delta)
+	tick_torpor(delta)
 	if not is_on_floor():
 		velocity += get_gravity() * delta
+	if not ridden:  # a ridden mount's pool is ticked by PlayerPets.mounted_move
+		tick_energy(delta, running)
+		running = false
+	if ridden:
+		# PlayerPets.mounted_move drives a ridden mount: its velocity, facing, slide and locomotion clip.
+		current_clip = anim.current_clip
+		_status_fx()
+		return
 	stagger_left = maxf(0.0, stagger_left - delta)
 	if health.dead or statuses.has(&"knockdown") or statuses.has_flag(&"cannot_act") or stagger_left > 0.0:
 		velocity.x = 0.0
@@ -284,13 +549,23 @@ func _physics_process(delta: float) -> void:
 		return
 	var slow := statuses.move_mult() * (trap_move_mult if trap_left > 0.0 else 1.0)
 	var speed := (pet_record.speed / 100.0 if is_pet and pet_record else move_speed_mps()) * slow
+	var base_speed := speed
 	if not is_pet and brain:
 		match brain.state:
 			# ASSUMPTION (owner decision pending, dino-ai-06): chase at chase_speed_mult (0.7) so a survivor can outrun.
 			&"approach", &"attack": speed *= float(brain.profile.get("chase_speed_mult", 0.7))
 			&"flee": speed = flee_speed(speed, slow)
+		if brain.speed_override >= 0.0:
+			speed = brain.speed_override * slow  # TACTICS: circle at a walk, lunge at a run
 	if is_pet and hunger <= 0.0:
 		speed *= 0.85
+	# ENERGY: a chase / flee / retreat runs on the pool; winded, it drops to a walk.
+	var sprint := _is_sprint_state()
+	if sprint and not can_sprint():
+		speed = minf(speed, walk_mps(base_speed))
+		sprint = false
+	elif sprint:
+		speed *= run_speed_mult()  # owner 2026-10-28: running is faster for every creature
 	var locomote := Vector3.ZERO
 	if _path_active:
 		if _use_tile_path():
@@ -309,14 +584,26 @@ func _physics_process(delta: float) -> void:
 		var dir := locomote.normalized()
 		velocity.x = dir.x * speed
 		velocity.z = dir.z * speed
-		face_towards(global_position + dir, delta)
-		var frac := clampf(speed / 8.0, 0.0, 1.0)
-		anim.play_locomotion(frac)
+		# Face a low-passed velocity, not the raw nav step: path jitter must not become yaw jitter.
+		_face_vel = _face_vel.lerp(Vector3(velocity.x, 0.0, velocity.z), 1.0 - exp(-delta / FACE_VEL_TAU_S))
+		if brain and not is_pet and brain.strafe_face and is_instance_valid(brain.strafe_face):
+			face_towards(brain.strafe_face.global_position, delta)  # TACTICS: sidestep facing the prey
+		elif _face_vel.length() > FACE_MIN_SPEED_MPS:
+			face_heading(_face_vel, delta)
+		# Stride-matched gait by direction: forward walk/run, walk_back, strafe_left/right (no glide); a
+		# brain's named gait (the charge) wins when the rig has it.
+		var facing_prey: bool = brain != null and not is_pet and brain.strafe_face != null and is_instance_valid(brain.strafe_face)
+		if brain and not is_pet and brain.gait_clip != &"":
+			anim.set_gait_clip(brain.gait_clip, speed, dir * speed, global_basis)
+		else:
+			anim.set_move_velocity(dir * speed, global_basis, CreatureAnim.FACING_SIDE_DOT if facing_prey else CreatureAnim.SIDE_DOT)
+		running = sprint
 	else:
 		velocity.x = 0.0
 		velocity.z = 0.0
+		_face_vel = _face_vel.lerp(Vector3.ZERO, 1.0 - exp(-delta / FACE_VEL_TAU_S))
 		if not anim._busy and not anim._forced:
-			anim.play_idle()
+			anim.play_idle(brain != null and not is_pet and brain.aware_idle())
 	_slide()
 	current_clip = anim.current_clip
 	_status_fx()
@@ -359,10 +646,14 @@ func _physics_process(delta: float) -> void:
 ## A fading creature has a collapsed scale; sliding it inverts a singular basis and logged an
 ## engine error every physics frame (found by the survivor bot).
 const IDLE_SLIDE_EVERY := 8
+## Which of the IDLE_SLIDE_EVERY frames this animal slides on: spawn order, not the instance id, so a
+## replay (t_tactical) slides on the same frames.
+static var _slide_counter: int = 0
+var _slide_phase: int = 0
 
 func _slide() -> void:
 	if not health.dead and is_on_floor() and velocity.length_squared() < 0.000001 \
-			and (Engine.get_physics_frames() + get_instance_id()) % IDLE_SLIDE_EVERY != 0:
+			and (Engine.get_physics_frames() + _slide_phase) % IDLE_SLIDE_EVERY != 0:
 		return
 	if absf(global_transform.basis.determinant()) > 0.0001:
 		move_and_slide()
@@ -370,7 +661,7 @@ func _slide() -> void:
 func _size_collision() -> void:
 	var cap := CapsuleShape3D.new()
 	cap.radius = body_radius()
-	cap.height = maxf(cap.radius * 2.0 + 0.1, def.height_meters)
+	cap.height = maxf(cap.radius * 2.0 + 0.1, def.height_meters * size_scale())
 	shape.shape = cap
 	shape.position.y = cap.height * 0.5
 	agent.path_desired_distance = 0.45
@@ -382,6 +673,8 @@ func _make_brain() -> void:
 		brain = PetBrain.new()
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
+	elif def and TacticalBrain.has_tactics(def):
+		brain = TacticalBrain.new()
 	elif def and def.mapped_archetype() == &"raptor_pack":
 		brain = RaptorPackBrain.new()
 	else:
@@ -424,19 +717,52 @@ func _status_fx() -> void:
 	else:
 		_fx_drip.emitting = false
 	if statuses.has(&"venom") or statuses.has(&"poisoned_target"):
-		tint = Color(0.35, 0.85, 0.3)
-	if statuses.has(&"enraged"):
-		tint = Color(0.9, 0.25, 0.15)
+		tint = UiTokens.POISON  # owner 2026-10-28: no green debuffs
 	if statuses.has(&"groggy") or statuses.has(&"dizziness"):
 		wobble = 1.0
 	if statuses.has(&"fracture"):
 		ap.speed_scale = 0.65
+	_sync_status_emitters()
 	# set_status_fx rewrites every material; call it on change, or while the hit flash decays.
 	var fx := Vector2(dark, wobble)
 	if fx != _fx_last or tint != _fx_tint_last or view._hit_flash_left > 0.0:
 		_fx_last = fx
 		_fx_tint_last = tint
 		view.set_status_fx(dark, tint, wobble)
+
+## Status particle presets on the body (statuses.json fx.particles, e.g. enraged "blood"): a body
+## emitter that drips and a mouth emitter that flecks, sized to the animal. Cheap CPU particles
+## (Compatibility renderer), at most STATUS_EMITTERS_MAX per creature, freed when the status ends.
+const STATUS_EMITTERS_MAX := 2
+var status_emitters: Dictionary = {}  ## status id -> Array[CPUParticles3D]
+
+func _sync_status_emitters() -> void:
+	var want: Dictionary = {}
+	if not health.dead:
+		for inst in statuses.instances():
+			var sd := Data.status(inst.id)
+			if sd and sd.fx_particles == &"blood" and want.is_empty():  # one blood set (2 emitters) at most
+				want[inst.id] = sd
+	for id in status_emitters.keys():
+		if not want.has(id):
+			for e in status_emitters[id]:
+				if is_instance_valid(e):
+					(e as Node).queue_free()
+			status_emitters.erase(id)
+	for id in want:
+		if status_emitters.has(id):
+			continue
+		var col: Color = (want[id] as StatusDef).fx_color
+		var body := StatusFx.make_emitter(&"drip", col)
+		body.emission_sphere_radius = body_radius() * 0.8
+		body.position = Vector3(0.0, def.height_meters * 0.5, 0.0)
+		var mouth := StatusFx.make_emitter(&"blood", col)
+		mouth.emission_sphere_radius = 0.15
+		mouth.position = Vector3(0.0, def.height_meters * 0.75, -body_radius() - 0.2)  # the head end (the body faces -Z)
+		for e in [body, mouth]:
+			(e as CPUParticles3D).name = "StatusFx_%s" % id
+			add_child(e)
+		status_emitters[id] = [body, mouth]
 
 func _blood_trail() -> void:
 	if not statuses.has(&"bleeding_target"):
@@ -455,7 +781,8 @@ func _blood_trail() -> void:
 ## Step outside it and the chase ends (BrainFlight.track). Vertices follow the
 ## terrain so the ring reads on slopes; rebuilt at 10 Hz while the creature moves.
 func _update_aggro_ring(delta: float) -> void:
-	var show := not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
+	# Debug only (owner 2026-10-28: the ring looks unpolished in normal play).
+	var show := Game.debug_overlay and not is_pet and not health.dead and brain != null and brain.has_method("hunting_player") and brain.hunting_player()
 	if not show:
 		if _aggro_ring and _aggro_ring.visible:
 			_aggro_ring.visible = false
@@ -517,7 +844,7 @@ func _update_label() -> void:
 		return  # the text was formatted every frame for every animal even while hidden
 	var st := brain.state if brain else brain_state
 	label.text = "%s\nLv %d %s / %s" % [def.id, level, st, anim.current_clip]
-	label.position.y = def.height_meters + 0.4
+	label.position.y = def.height_meters * size_scale() + 0.4
 
 func _on_windup(clip: StringName) -> void:
 	Telegraph.show_for(self, clip)
@@ -529,8 +856,11 @@ func _on_hit(clip: StringName) -> void:
 		# A contact attack lands at impact, not anywhere the target ran during windup.
 		var offset := global_position - target.global_position
 		if brain and Vector2(offset.x, offset.z).length() > brain.reach_to(target) + 0.3:
+			if target is Player or target is Creature:
+				CombatAvoid.avoided(target, self, &"miss")  # it snapped at air: the prey was out of reach
 			return
-		apply_species_on_hit(clip, target)
+		if not CreatureAttack.apply_for(self, clip, target, brain.hit_damage_mult(clip, anim.hit_index) if brain else 1.0):
+			return
 		if target is Player:
 			(target as Player).receive_creature_hit(self, clip)
 
@@ -550,8 +880,36 @@ func _on_status_removed(id: StringName) -> void:
 	if anim and anim._hold_knockdown:
 		anim.release_knockdown()
 	is_capturable = false
-	if tame_attempting and def and tame_feeds + 0.001 < def.feeds_needed and not is_pet:
+	if tame_attempting and def and tame_feeds + 0.001 < feeds_needed() and not is_pet:
 		FieldTame.fail(self, null)
+
+func torpor_max() -> float:
+	return CombatTuning.num("torpor", "max", 100.0)
+
+func torpor_frac() -> float:
+	return clampf(torpor / maxf(1.0, torpor_max()), 0.0, 1.0)
+
+## Add torpor from a hit; a weak animal pushed past the threshold collapses (the knockdown status,
+## so the feeding tame window and the collapse clip follow the existing path).
+func add_torpor(amount: float, source: Node = null) -> void:
+	if amount <= 0.0 or is_pet or health == null or health.dead:
+		return
+	torpor = minf(torpor_max(), torpor + amount)
+	_torpor_quiet_s = 0.0
+	if statuses != null and not statuses.has(&"knockdown") and def != null and def.tameable and FieldTame.capture_window(self):
+		statuses.apply(&"knockdown", source)
+		if anim:
+			anim.play_clip(&"knockdown")
+		print("[torpor] %s knocked out torpor=%.0f hp=%.0f%%" % [def.id, torpor, 100.0 * health.fraction()])
+
+## ASSUMPTION: torpor holds while the animal is knocked down and for decay_delay_s after the last
+## dose, then drains at decay_per_s (combat_tuning.json "torpor").
+func tick_torpor(delta: float) -> void:
+	if torpor <= 0.0 or (statuses != null and statuses.has(&"knockdown")):
+		return
+	_torpor_quiet_s += delta
+	if _torpor_quiet_s >= CombatTuning.num("torpor", "decay_delay_s", 6.0):
+		torpor = maxf(0.0, torpor - CombatTuning.num("torpor", "decay_per_s", 3.0) * delta)
 
 func mark_aggro_now() -> void:
 	last_aggro_s = _now_s()
@@ -578,7 +936,11 @@ func _on_damaged(_amount: float, source: Node) -> void:
 	hit_burst(burst_col, 0.16 if kind == &"crit" else 0.1, 22 if kind == &"crit" else 12)
 	if brain:
 		brain.note_damage(_amount)
-	if statuses.has(&"groggy") and not statuses.has(&"knockdown") 			and health.fraction() < FieldTame.CAPTURE_HEALTH_FRAC:
+	# A groggy animal collapses on the next hit once it is already capturable by health.
+	# ASSUMPTION: the collapse itself still needs <= 30 % (spec 09's stun-at-any-HP is the
+	# knockdown status from other sources); moving this above 30 % would collapse every
+	# tackled animal, which is a balance change the spec does not ask for.
+	if statuses.has(&"groggy") and not statuses.has(&"knockdown") 			and FieldTame.health_allows_capture(health.fraction()):
 		statuses.apply(&"knockdown", source)
 		anim.play_clip(&"knockdown")
 		return
@@ -587,7 +949,7 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		stagger_left = 0.45 if kind == &"crit" else 0.3
 		_stagger_immune_until = _now_s() + 1.0
 		staggered = true
-	if not brain is TyrantBrain and not str(anim.current_clip).begins_with("attack"):
+	if not brain is TyrantBrain and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
 		# stagger's once-a-second immunity so a pinned animal can still fight back.
@@ -601,11 +963,14 @@ func _on_damaged(_amount: float, source: Node) -> void:
 			brain.on_aggro(source)
 
 func _on_died(_source: Node) -> void:
+	_sync_status_emitters()  # the dead stop bleeding with rage
 	if not is_pet:
 		var credited := _source
 		if _source is FieldCatapult and is_instance_valid((_source as FieldCatapult).operator):
 			credited = (_source as FieldCatapult).operator
 		World.record_raid_kill(def.id, credited)
+		if PlayerRegistry.credit_for(credited) != null:
+			Tasks.note(&"hunt")  # TASKSCREEN: a kill by the survivor or her pet counts toward the hunt tasks
 	anim.play_clip(&"death")
 	# The dead creature stops physics processing before _update_aggro_ring can hide it. Remove the
 	# top-level world marker here so a dead dinosaur never leaves a red leash circle behind.
@@ -621,7 +986,10 @@ func _on_died(_source: Node) -> void:
 		var owner := PlayerRegistry.credit_for(_source)
 		if owner == null:
 			owner = PlayerRegistry.nearest(global_position)
-		var pets: Array[Creature] = owner.live_pets() if owner else []
+		# Typed fallback: an untyped [] literal raised here when no survivor is around (headless kills).
+		var pets: Array[Creature] = []
+		if owner:
+			pets = owner.live_pets()
 		for pet in pets:
 			if pet == null or pet.pet_record == null or pet.health.dead:
 				continue
@@ -630,6 +998,7 @@ func _on_died(_source: Node) -> void:
 				amount = 10.0 + float(def.tier) / 3.0
 			elif pet.global_position.distance_to(global_position) <= 15.0:
 				amount = 3.0 + float(def.tier) / 6.0  # assist: fighting alongside whoever landed the kill
+			amount *= kill_xp_mult()
 			if amount > 0.0:
 				var gained := pet.pet_record.add_xp(amount)
 				pet.level = pet.pet_record.level
@@ -643,22 +1012,34 @@ func _on_died(_source: Node) -> void:
 				print("[pet] +%.0f xp -> lv %d" % [amount, pet.pet_record.level])
 	if not is_pet and (_source is Player or (_source is Creature and (_source as Creature).is_pet)):
 		var p := PlayerRegistry.credit_for(_source)
+		var xp := kill_xp(def.tier)
 		if p and p.skills:
-			p.skills.add_xp("melee", 4 + def.tier / 5)
+			p.skills.add_xp("melee", xp)
 		else:
-			World.add_xp(4 + def.tier / 5)
-		print("[combat] %s killed: +%d xp" % [def.id, 4 + def.tier / 5])
+			World.add_xp(xp)
+		print("[combat] %s killed: +%d xp" % [def.id, xp])
 	view.set_status_fx(0.35, Color(0.62, 0.62, 0.62), 0.0)
 	collision_layer = 0
 	collision_mask = 1
 	stop_move()
 	# Bonded animals enter their respawn cooldown without creating a harvestable corpse or
 	# loot bag. Wild kills still use the normal corpse/loot flow.
+	var corpse: Corpse = null
 	if not is_pet:
-		var corpse := Corpse.new()
+		corpse = Corpse.new()
 		corpse.setup(self)
 		get_parent().add_child(corpse)
 		corpse.global_position = global_position
+	# Client-side presentation: hit reaction, ragdoll (or death clip) and the corpse's resting place.
+	Ragdoll.on_death(self, _source, corpse)
+
+## ALPHAS: an alpha's kill pays ai.json alpha.xp_mult times the XP (bonus XP); 1.0 otherwise.
+func kill_xp_mult() -> float:
+	return float(CreatureGenetics.alpha_rules().get("xp_mult", 4.0)) if is_alpha() else 1.0
+
+## The survivor's melee XP for this kill: 4 + tier / 5, times kill_xp_mult().
+func kill_xp(tier: int) -> int:
+	return int(round(float(4 + tier / 5) * kill_xp_mult()))
 
 ## Status landed: float its name over the plate and puff a burst in its colour. The lasting
 ## look (blood drip, venom tint, wobble) is _status_fx every frame.

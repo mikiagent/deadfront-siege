@@ -7,6 +7,9 @@ extends Node3D
 @export var radius: float = 4.0
 @export var as_pack: bool = true
 @export var variant: StringName = &""
+## Labs: every member's nature ("" = rolled), and make member 0 an alpha regardless of the roll.
+@export var nature: StringName = &""
+@export var force_alpha: bool = false
 
 var pack_id: int = 0
 static var _next_pack: int = 1
@@ -16,6 +19,9 @@ func spawn_now() -> Array[Creature]:
 	if def == null:
 		push_error("[creature] spawner missing species %s" % species)
 		return []
+	if CreatureDef.eligible(species) != species:
+		print("[creature] spawner: %s has no model; not spawned (NOBOXES)" % species)
+		return []
 	# A lone animal is not a pack: pack 0 keeps it from flanking from the far side as an "alpha".
 	pack_id = 0
 	if as_pack and count > 1:
@@ -24,6 +30,10 @@ func spawn_now() -> Array[Creature]:
 	var rt: Node = get_parent() if get_parent() and get_parent().has_method("ring_name") else null
 	var tier_offset := _row_tier_offset(rt)
 	var out: Array[Creature] = []
+	# ALPHAS: one roll per spawn group (ai.json alpha.chance_per_group); the winner is member 0.
+	var alpha_idx := 0 if force_alpha else CreatureGenetics.alpha_pick(count, null)
+	if not force_alpha and World and bool(World.island_def.get("no_alphas", false)):
+		alpha_idx = -1  # ASSUMPTION: an island def can forbid rolled alphas (the tutorial island does)
 	for i in count:
 		var c: Creature = preload("res://scenes/creatures/creature.tscn").instantiate()
 		var ang := TAU * float(i) / float(maxi(1, count))
@@ -31,7 +41,8 @@ func spawn_now() -> Array[Creature]:
 		c.position = at
 		get_parent().add_child(c)
 		c.global_position = at
-		c.spawn(def, variant, pack_id, rt, tier_offset)
+		c.alpha_spawn = i == alpha_idx
+		c.spawn(def, variant, pack_id, rt, tier_offset, nature)
 		out.append(c)
 	return out
 

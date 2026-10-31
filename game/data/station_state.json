@@ -1,0 +1,47 @@
+{
+  "_about": "What a stand-and-craft station shows in the world (StationState). `busy` parts show only while a craft runs at the station (a survivor's StationCraft on it, or a ProcessStation job); `idle` parts only while it is empty; `body` parts always, and only when the kind has no model of its own (the forge has no GLB yet, so its hearth is built here). Part: mesh box|cyl|sphere|capsule, size [x,y,z] (cyl/capsule: [radius, height, 0]; sphere: [radius, height, 0]), pos, rot (degrees), color, optional emit (emission energy). `light` and `sparks` are busy-only. Process stations (drying rack, smoker, crock pot, steamer) keep processing.json's stages/contents; fires (campfire, bonfire, stone fire pit) are claude/mmo-firefuel's. # ASSUMPTION: no tanning frame or oven kind is buildable yet, so neither has a row; adding the kind later is one row here.",
+  "work_anim": {
+    "_about": "Station kind -> the survivor's work loop while they run a job there: PlayerAnim.play_work(kind) plays clip work_<kind> (claude/mmo-rummage). # ASSUMPTION: mortar, anvil, well and the process stations' loading use the nearest fitting loop.",
+    "workbench": "hammer",
+    "anvil": "hammer",
+    "mortar": "hammer",
+    "stone_grill": "stir",
+    "crock_pot": "stir",
+    "steamer": "stir",
+    "smoker": "hang",
+    "drying_rack": "hang",
+    "forge": "forge",
+    "tanning_frame": "tan"
+  },
+  "stations": {
+    "stone_grill": {
+      "busy": [
+        {"name": "SpitPostL", "mesh": "cyl", "size": [0.035, 0.95, 0], "pos": [-0.62, 0.47, 0.0], "color": "#5a3d22"},
+        {"name": "SpitPostR", "mesh": "cyl", "size": [0.035, 0.95, 0], "pos": [0.62, 0.47, 0.0], "color": "#5a3d22"},
+        {"name": "SpitForkL", "mesh": "box", "size": [0.16, 0.035, 0.035], "pos": [-0.62, 0.92, 0.0], "rot": [0, 0, 30], "color": "#5a3d22"},
+        {"name": "SpitForkR", "mesh": "box", "size": [0.16, 0.035, 0.035], "pos": [0.62, 0.92, 0.0], "rot": [0, 0, -30], "color": "#5a3d22"},
+        {"name": "SpitRod", "mesh": "cyl", "size": [0.02, 1.4, 0], "pos": [0.0, 0.88, 0.0], "rot": [0, 0, 90], "color": "#3b3a38"},
+        {"name": "SpitMeat", "mesh": "capsule", "size": [0.13, 0.6, 0], "pos": [0.0, 0.88, 0.0], "rot": [0, 0, 90], "color": "#8e3b22"}
+      ],
+      "light": {"color": "#ff8a3a", "energy": 1.6, "range": 2.6, "pos": [0.0, 0.7, 0.0]}
+    },
+    "forge": {
+      "body": [
+        {"name": "Base", "mesh": "box", "size": [1.0, 0.72, 0.9], "pos": [0.0, 0.36, 0.0], "color": "#6f6a63"},
+        {"name": "Rim", "mesh": "box", "size": [0.84, 0.08, 0.74], "pos": [0.0, 0.76, 0.0], "color": "#4d4843"},
+        {"name": "Hood", "mesh": "box", "size": [0.62, 0.7, 0.26], "pos": [0.0, 1.15, -0.32], "color": "#5e5953"},
+        {"name": "Flue", "mesh": "cyl", "size": [0.12, 0.6, 0], "pos": [0.0, 1.75, -0.32], "color": "#4d4843"},
+        {"name": "Bellows", "mesh": "box", "size": [0.18, 0.2, 0.46], "pos": [0.62, 0.5, 0.05], "color": "#6e4a2c"}
+      ],
+      "idle": [
+        {"name": "CoalsCold", "mesh": "box", "size": [0.7, 0.06, 0.58], "pos": [0.0, 0.79, 0.04], "color": "#29241f"}
+      ],
+      "busy": [
+        {"name": "CoalsHot", "mesh": "box", "size": [0.7, 0.07, 0.58], "pos": [0.0, 0.8, 0.04], "color": "#ff5a14", "emit": 3.0},
+        {"name": "Billet", "mesh": "box", "size": [0.26, 0.05, 0.1], "pos": [0.05, 0.86, 0.08], "color": "#ffc070", "emit": 2.0}
+      ],
+      "light": {"color": "#ff7a2a", "energy": 2.6, "range": 3.6, "pos": [0.0, 1.05, 0.1]},
+      "sparks": {"pos": [0.0, 0.88, 0.05]}
+    }
+  }
+}

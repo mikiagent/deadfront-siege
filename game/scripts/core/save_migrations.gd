@@ -4,7 +4,7 @@ extends RefCounted
 ## writes with a .bak of the previous good save, reads that migrate and sanitize, quarantine of
 ## unreadable bytes). Knows nothing about what a save holds. Every loader path passes through here.
 
-const CURRENT_SCHEMA := 3
+const CURRENT_SCHEMA := 4
 
 static func migrate(raw: Dictionary) -> Dictionary:
 	var data := raw.duplicate(true)
@@ -23,6 +23,8 @@ static func migrate(raw: Dictionary) -> Dictionary:
 				data = _v1_to_v2(data)
 			2:
 				data = _v2_to_v3(data)
+			3:
+				data = _v3_to_v4(data)
 			_:
 				push_error("No save migration from schema %d" % schema)
 				return {}
@@ -57,6 +59,14 @@ static func _v2_to_v3(data: Dictionary) -> Dictionary:
 	home.get_or_add("camp_layout", {})
 	data["home"] = home
 	data["schema"] = 3
+	return data
+
+## Schema 4 (W2-BUILDSYS): building lists may hold modular piece rows (spec-10 building instances:
+## kind, tier, position [x, z, level, slot], durability...) and kit rows may carry "durability".
+## Older rows are still valid as they are: a kit without "durability" is at full health.
+## Nothing to rewrite, so the step only marks the version (and a schema-3 build refuses the file).
+static func _v3_to_v4(data: Dictionary) -> Dictionary:
+	data["schema"] = 4
 	return data
 
 # ---------------------------------------------------------------- file layer

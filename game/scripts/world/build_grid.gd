@@ -12,6 +12,10 @@ var ignore_distance: bool = false  # layout mode: move buildings anywhere on the
 var _occupied: Dictionary = {} ## Vector2i -> Node
 var _node_cells: Dictionary = {} ## instance id -> Array[Vector2i]
 var _reserved: Dictionary = {} ## Vector2i -> StringName
+## Modular pieces (W2-BUILDSYS): slots, support and sockets. Kits may stand on its foundations.
+var structures: StructureGrid = StructureGrid.new(self)
+var _harvest_cells: Dictionary = {} ## Vector2i -> HarvestNode, built on first use (nodes never move)
+var _harvest_built: bool = false
 
 static func tile_of(pos: Vector3) -> Vector2i:
 	return Vector2i(floori(pos.x / CELL_SIZE), floori(pos.z / CELL_SIZE))
@@ -30,6 +34,9 @@ func setup(owner_runtime: Node3D) -> void:
 	_occupied.clear()
 	_node_cells.clear()
 	_reserved.clear()
+	structures = StructureGrid.new(self)
+	_harvest_cells.clear()
+	_harvest_built = false
 	_mark_pathing_dirty()
 
 func set_actor(actor: Node3D) -> void:
@@ -50,12 +57,12 @@ func reserve_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
 func release_reserved_kind(kind: StringName, cell: Vector2i, rot: int = 0) -> void:
 	for c in cells_for(kind, cell, rot):
 		_reserved.erase(c)
-	_cells_changed(cells_for(kind, cell, rot))
+	cells_changed(cells_for(kind, cell, rot))
 
 func reserve_cells(cells: Array[Vector2i], tag: StringName = &"reserved") -> void:
 	for c in cells:
 		_reserved[c] = tag
-	_cells_changed(cells)
+	cells_changed(cells)
 
 func cells_for(kind: StringName, cell: Vector2i, rot: int) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
@@ -75,12 +82,37 @@ func can_place(kind: StringName, cell: Vector2i, rot: int) -> String:
 	for c in cells:
 		if _occupied.has(c):
 			return "overlap"
+	if kind in [&"bonfire", &"campfire"] and FireWeather.light_blocked(runtime.get_tree() if is_instance_valid(runtime) else null, tile_centre(cell, runtime)):
+		return "too_wet"  # WEATHER: no lighting a fire in pouring rain without a roof
 	if kind == &"harbour":  # on the coast with the dock over water; outside the claim, any slope
 		return HarbourSite.check(runtime as IslandRuntime, cell, rot) if runtime is IslandRuntime else ""
 	if runtime and runtime.has_method("is_claimed"):
 		for c in cells:
 			if not runtime.is_claimed(c):
 				return "unclaimed"
+	# Scenery props: a clearable one is emptied when the build is confirmed (BuildPlacer.confirm), a
+	# cliff or mesa refuses the spot (owner: "most props can be destroyed except for like really big
+	# cliffs"). Without "props" on the cell, the check costs one get() on the runtime.
+	var prop_block := _prop_blocker(cells)
+	if prop_block != "":
+		return prop_block
+	# A kit may stand on a foundation floor (all of it, never half on the ground) or on bare ground.
+	var on_floor := 0
+	for c in cells:
+		var fp := structures.floor_piece_at_cell(c)
+		if fp != null:
+			var n := StructureGrid.cells_per_module()
+			var m := Vector2i(floori(float(c.x) / n), floori(float(c.y) / n))
+			if fp.kind != &"foundation" or structures.piece_at(Vector4i(m.x, m.y, 0, StructurePiece.ON_FLOOR)) != null:
+				return "overlap"  # a ramp, or stairs / a chest / a sign already on that module
+			on_floor += 1
+	if on_floor == cells.size():
+		return ""
+	if on_floor > 0:
+		return "floor_edge"
+	for c in cells:
+		if harvest_at(c):
+			return "resource"
 	for c in cells:
 		var at := tile_centre(c, runtime)
 		if runtime and runtime.has_method("spawn_ok") and not runtime.spawn_ok(at, false):
@@ -89,13 +121,22 @@ func can_place(kind: StringName, cell: Vector2i, rot: int) -> String:
 		return "slope"
 	return ""
 
+## "cliff" when an indestructible prop (cliff, mesa, basalt column) stands on these cells, else "".
+## A clearable prop never refuses a spot: BuildPlacer.confirm clears it after the kit is paid, so the
+## player sees what they are building on disappear rather than a code they cannot act on.
+func _prop_blocker(cells: Array[Vector2i]) -> String:
+	var p: Variant = runtime.get("props") if is_instance_valid(runtime) else null
+	if p == null or not is_instance_valid(p) or not p.has_method("blocking_kind_at_cells"):
+		return ""
+	return "cliff" if str(p.call("blocking_kind_at_cells", cells)) != "" else ""
+
 func occupy(node: Node, cells: Array[Vector2i]) -> void:
 	release(node)
 	var key := node.get_instance_id()
 	_node_cells[key] = cells.duplicate()
 	for c in cells:
 		_occupied[c] = node
-	_cells_changed(cells)
+	cells_changed(cells)
 
 func release(node: Node) -> void:
 	if node == null:
@@ -108,7 +149,7 @@ func release(node: Node) -> void:
 		if c is Vector2i and _occupied.get(c, null) == node:
 			_occupied.erase(c)
 	_node_cells.erase(key)
-	_cells_changed(cells)
+	cells_changed(cells)
 
 ## Cells a node occupies (empty when it is not on the grid).
 func cells_of(node: Node) -> Array:
@@ -118,11 +159,14 @@ func cells_of(node: Node) -> Array:
 
 ## Re-flag a node's cells for pathing after its passability changed (a gate opened or closed).
 func refresh_path(node: Node) -> void:
-	_cells_changed(cells_of(node))
+	cells_changed(cells_of(node))
 
-## Whether a creature or the survivor can path through this cell. An open gate is passable.
-func blocks_path(c: Vector2i) -> bool:
+## Whether a creature (for_owner false) or the owning survivor (true) can path through this cell.
+## An open gate is passable; the owner's own walls and doors never block the owner.
+func blocks_path(c: Vector2i, for_owner: bool = false) -> bool:
 	if _reserved.has(c):
+		return true
+	if not for_owner and structures.blocks_cell(c):
 		return true
 	var occ: Variant = _occupied.get(c, null)
 	if not is_instance_valid(occ):
@@ -130,8 +174,27 @@ func blocks_path(c: Vector2i) -> bool:
 	var open: Variant = (occ as Object).get("gate_open")
 	return not (open is bool and open)
 
+func is_reserved(c: Vector2i) -> bool:
+	return _reserved.has(c)
+
+## The kit-placed building on a cell, or null.
+func occupant(c: Vector2i) -> Node:
+	var occ: Variant = _occupied.get(c, null)
+	return occ as Node if is_instance_valid(occ) else null
+
+## The resource node (tree, rock, bush, depleted or not) standing on a cell: nothing is built on it,
+## or it would regrow inside the structure.
+func harvest_at(c: Vector2i) -> HarvestNode:
+	if not _harvest_built and is_instance_valid(runtime):
+		for n in runtime.get_tree().get_nodes_in_group("harvest"):
+			if n is HarvestNode and runtime.is_ancestor_of(n):
+				_harvest_cells[tile_of((n as HarvestNode).global_position)] = n
+		_harvest_built = not _harvest_cells.is_empty()  # asked before the scatter ran: look again next time
+	var h: Variant = _harvest_cells.get(c)
+	return h as HarvestNode if is_instance_valid(h) else null
+
 ## Tell pathing exactly which cells changed so it re-flags those instead of rebuilding the island.
-func _cells_changed(cells: Array) -> void:
+func cells_changed(cells: Array) -> void:
 	var p: Variant = runtime.get("pathing") if is_instance_valid(runtime) else null
 	if is_instance_valid(p) and p is TilePath:
 		(p as TilePath).update_cells(cells)
@@ -165,6 +228,9 @@ func placement_transform(kind: StringName, cell: Vector2i, rot: int) -> Transfor
 	var x := (float(cell.x) + float(dims.x) * 0.5) * CELL_SIZE
 	var z := (float(cell.y) + float(dims.y) * 0.5) * CELL_SIZE
 	var y := _mean_corner_height(kind, cell, rot)
+	var fp := structures.floor_piece_at_cell(cell)
+	if fp != null and fp.kind == &"foundation":
+		y = fp.floor0  # a kit standing on a foundation sits on its deck
 	var basis := Basis(Vector3.UP, deg_to_rad(float(_rot_step(rot)) * 90.0))
 	return Transform3D(basis, Vector3(x, y, z))
 

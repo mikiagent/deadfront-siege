@@ -16,6 +16,7 @@ var PetRecordS: GDScript
 var ItemStackS: GDScript
 var InventoryS: GDScript
 var CorpseS: GDScript
+var HarvestNodeScene: PackedScene
 
 func _process(_delta: float) -> bool:
 	if _started:
@@ -28,6 +29,7 @@ func _process(_delta: float) -> bool:
 	ItemStackS = load("res://scripts/items/item_stack.gd")
 	InventoryS = load("res://scripts/items/inventory.gd")
 	CorpseS = load("res://scripts/creatures/corpse.gd")
+	HarvestNodeScene = load("res://scenes/world/harvest_node.tscn")
 	_run.call_deferred()
 	return false
 
@@ -67,12 +69,14 @@ func _run() -> void:
 	player.vitals.max_health = 1000.0
 	player.vitals.health = 1000.0
 	await _test_grounded()
+	await _test_tree_resource_pools()
 	await _test_roll()
 	await _test_hold_and_manual_swing()
 	await _test_f_skips_pets()
 	await _test_pet_hp_and_summon()
 	await _test_pet_menu_bag_feed_dump()
 	await _test_corpse_full_bag()
+	await _test_corpse_take_xp()
 	await _test_no_creature_climb()
 	await _test_footsteps_and_ear()
 	_test_structure_interact()
@@ -109,6 +113,53 @@ func _reset_at(pos: Vector3) -> void:
 	player.global_position = pos
 	player.vitals.energy = player.vitals.max_energy
 	await _frames(20)
+
+## gather-tree-01: selecting wood logs equips an axe and may consume every log, but the tree
+## must remain both visible and selectable while it still has branches. It only disappears once
+## all of its resource pools are empty.
+func _test_tree_resource_pools() -> void:
+	await _reset_at(Vector3(0, 1.0, 0))
+	var tree = HarvestNodeScene.instantiate()
+	tree.setup(&"test_common_tree", &"wood_log", 1, 1, {"level": 1, "climate": "temperate"}, &"axe", Color(0.35, 0.6, 0.25), 0.1, 8.0, "CommonTree", false, 2)
+	tree.position = Vector3(1.2, 0.0, 0.0)
+	host.add_child(tree)
+	await physics_frame
+	var log_option := _harvest_option(tree, &"wood_log")
+	var branch_option := _harvest_option(tree, &"branch")
+	_expect(log_option >= 0 and branch_option >= 0, "CommonTree offers separate log and branch choices")
+	if log_option < 0 or branch_option < 0:
+		tree.queue_free()
+		return
+	tree.restore_pools({
+		"pools": {"wood_log": 2.0, "branch": 2.0},
+		"maxes": {"wood_log": 2, "branch": 2},
+		"regen": {},
+	})
+	if not player.inventory.has_tool_class(&"axe"):
+		player.inventory.add(ItemStackS.make(&"work_axe", 1))
+	var started: bool = player.actions.gather(tree, log_option)
+	var held = player.inventory.equipped_gather_tool()
+	_expect(started and held != null and held.def().tool_class == &"axe", "choosing logs automatically equips an axe")
+	player.actions.finish_gather()
+	player.actions.finish_gather()
+	_expect(tree.units_left_for(&"wood_log") == 0, "each gather cycle consumes one selected log")
+	_expect(tree.units_left_for(&"branch") == 2 and not tree.depleted and tree.visible, "the last log leaves a branch-bearing tree alive and visible")
+	var nearest = player.controls._nearest_harvest_node(2.6)
+	_expect(nearest == tree, "the hands shortcut can still select a tree with branches after its logs are gone")
+	var branch_started: bool = player.actions.gather(tree, branch_option)
+	_expect(branch_started, "the remaining branch choice starts gathering on the same tree")
+	player.actions.finish_gather()
+	player.actions.finish_gather()
+	_expect(tree.depleted and not tree.visible, "the tree disappears only after every resource pool is empty")
+	tree.queue_free()
+	await process_frame
+
+func _harvest_option(node, item: StringName) -> int:
+	var options: Array = node.options()
+	for i in options.size():
+		if StringName(str(options[i].get("item", ""))) == item:
+			return i
+	return -1
 
 ## pc-anim-01: the rig's lowest bone sits on the floor at idle (was 0.95 m above it).
 func _test_grounded() -> void:
@@ -194,6 +245,9 @@ func _test_hold_and_manual_swing() -> void:
 	var hits := [0]
 	var count := func (_t) -> void: hits[0] += 1
 	player.hunt.hit_landed.connect(count)
+	# Basic-swing cadence is under test: AUTOABILITY (on by default) opens with Tackle and Kick, and the
+	# kick pushes the raptor out of reach while HOLD keeps her in place (t_autoability owns the casts).
+	player.hunt.auto_ability = false
 	player.hunt.hold = true
 	player.hunt.start(raptor)
 	var window := 4.5
@@ -211,6 +265,7 @@ func _test_hold_and_manual_swing() -> void:
 	await create_timer(0.6, true, true).timeout
 	_expect(hits[0] == 1, "Auto off: F swings and lands once (%d)" % hits[0])
 	player.hunt.auto = true
+	player.hunt.auto_ability = true
 	player.hunt.hit_landed.disconnect(count)
 	await _clear_creatures()
 
@@ -280,8 +335,8 @@ func _test_pet_hp_and_summon() -> void:
 	block.queue_free()
 	await process_frame
 
-## tame-13, tame-16, build-storage-01: the pet menu offers Bag on a protoceratops (a mount with a
-## bag), Bag opens that bag, Feed reaches the pet whose menu was opened (not just the first one),
+## tame-13, tame-16, build-storage-01: the pet radial offers Bag on a protoceratops (a mount with a
+## bag), Bag opens that bag, Feed reaches the pet whose radial was opened (not just the first one),
 ## and a bag dump into full storage keeps what did not fit.
 func _test_pet_menu_bag_feed_dump() -> void:
 	await _reset_at(Vector3(0, 1.0, 0))
@@ -297,7 +352,7 @@ func _test_pet_menu_bag_feed_dump() -> void:
 	var ids: Array = []
 	for e in player.pets.entries(proto):
 		ids.append(e["id"])
-	_expect(&"ride" in ids and &"bag" in ids and &"feed" in ids and &"orders" in ids, "protoceratops menu: %s" % [ids])
+	_expect(&"ride" in ids and &"bag" in ids and &"feed" in ids and &"dismiss" in ids, "protoceratops menu: %s" % [ids])
 	player.pets.interact(proto)
 	_expect(player.pets.menu.visible and player.mounted_on == null, "tapping a mount pet opens its menu instead of mounting it")
 	player.pets._on_menu(proto, &"bag")
@@ -341,12 +396,61 @@ func _test_corpse_full_bag() -> void:
 	var take_s: float = (load("res://scripts/player/player_actions.gd") as GDScript).get_script_constant_map()["CORPSE_TAKE_SECONDS"]
 	await create_timer(take_s + 0.3, true, true).timeout
 	var left = corpse.loot.slots[slot]
-	_expect(left != null and left.count == 3 and is_equal_approx(player.skills.xp_of("butchering"), xp0), "full bag: the stack stays in the corpse, no XP (count %d)" % (left.count if left else 0))
+	_expect(left != null and corpse.loot.count_of(&"raw_meat") == 3 and is_equal_approx(player.skills.xp_of("butchering"), xp0), "full bag: the meat stays in the corpse, no XP (count %d)" % corpse.loot.count_of(&"raw_meat"))
 	player.inventory = bag
 	var moved: int = player.actions.loot(corpse, slot)
-	_expect(moved == 3 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
+	# W2-INV: three meat are three instances; a take moves the one in its slot.
+	_expect(moved == 1 and corpse.loot.slots[slot] == null and is_equal_approx(player.skills.xp_of("butchering") - xp0, 3.0), "with room: moved %d, XP +%.0f once" % [moved, player.skills.xp_of("butchering") - xp0])
 	corpse.queue_free()
 	await process_frame
+
+## W2-INV review 2: corpse loot is one instance per unit, so a flat +3 per take paid per unit.
+## Butchering XP is 3 per drop kind, the first time any of it leaves the corpse: radial takes,
+## chest takes of each item and Take all pay the same. Radial butcher grime (WATER) follows the XP.
+func _test_corpse_take_xp() -> void:
+	await _reset_at(Vector3(0, 1.0, 0))
+	if not player.inventory.has_tool_class(&"knife"):
+		player.inventory.add(ItemStackS.make(&"stone_knife_work", 1))
+	var paid: Array = []
+	for way in ["radial", "chest", "take_all"]:
+		var corpse = CorpseS.new()
+		host.add_child(corpse)
+		corpse.global_position = Vector3(1.2, 0, 0)
+		corpse.loot.add_growing(ItemStackS.make(&"raw_meat", 3))
+		corpse.loot.add_growing(ItemStackS.make(&"raptor_hide", 2))
+		var xp0 := _butchering_total()
+		if way == "radial":
+			# WATER's butcher grime is per loot stack: per drop kind, as the XP (5 instances, 2 kinds).
+			player.set_meta(&"water_grime", 0.0)
+			for id in [&"dirty", &"very_dirty"]:
+				player.statuses.clear_id(id)
+			for i in corpse.loot.slot_count:
+				if corpse.loot.slots[i]:
+					player.actions.loot(corpse, i)
+			var per: float = float(load("res://scripts/player/water_access.gd").data()["dirt"]["butcher"])
+			var grime: float = float(player.get_meta(&"water_grime", 0.0))
+			_expect(is_equal_approx(grime, 2.0 * per), "radial takes of 2 drop kinds add butcher grime twice, not per instance (grime %s)" % grime)
+		else:
+			corpse.open_loot(player)
+			if way == "chest":
+				for i in corpse.loot.slot_count:
+					if corpse.loot.slots[i]:
+						player.ui._take_storage(i)
+			else:
+				player.ui._take_all_storage()
+			player.ui.hide_ui()
+		paid.append(snappedf(_butchering_total() - xp0, 0.01))
+		_expect(corpse.loot.used_slots() == 0, "%s takes every loot instance (left %d)" % [way, corpse.loot.used_slots()])
+		corpse.queue_free()
+	_expect(paid == [6.0, 6.0, 6.0], "radial takes, chest takes and Take all each pay 3 per drop kind (paid %s)" % [paid])
+	await process_frame
+
+## Butchering XP earned in all, across level-ups (xp_of is the XP into the current level).
+func _butchering_total() -> float:
+	var n: float = player.skills.xp_of("butchering")
+	for l in player.skills.level_of("butchering"):
+		n += player.skills.xp_to_next(l)
+	return n
 
 ## phys-climb-01: a tap-to-walk route straight through a compsognathus, zebraceratops and
 ## velociraptor, held for 5 s, raises her at most 0.15 m (was +0.97, +1.16 and +1.82 m: the stall

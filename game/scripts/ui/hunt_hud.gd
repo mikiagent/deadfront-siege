@@ -2,8 +2,8 @@ class_name HuntHud
 extends Control
 ## The Durango HUD (docs/reference/durango-look-reference.webp, durango-combat-reference.jpg):
 ## top-left vitals bars, top-right minimap with survivable time and coordinates, bottom-left
-## menu hexes (MENU / PETS / BUILD / SKILLS), bottom-right inspect hex, XP bar along the
-## bottom, the survivor's name under her feet. During a hunt: red frame, top-centre target
+## rail MENU / BUILD / BAG (owner 2026-10-28; Skills and Animals live in the MENU sheet), bottom-right
+## INTERACT / ATTACK NEAREST / SPRINT (HudField), XP bar along the bottom, the survivor's name under her feet. During a hunt: red frame, top-centre target
 ## plate, End Combat, hex skill cluster with Auto and Attack Stance, Chase toggle.
 ## Everything is a tap; the old text HUD and the TouchControls button cluster are gone.
 
@@ -15,13 +15,17 @@ var _map_tex: ImageTexture
 var _map_island: StringName = &""
 var _map_span: int = 0
 var _menu_hex: HexButton
-var _pets_hex: HexButton
 var _build_hex: HexButton
-var _skills_hex: HexButton
+var _bag_hex: HexButton
 var _inspect_hex: HexButton
+var field: HudField  ## INTERACT / ATTACK NEAREST / SPRINT and the MENU notice badge
 var _fatigue_rect := Rect2() ## screen rect of the fatigue face and bar, recorded in _draw; a tap opens the panel
 var _fatigue_panel: FatiguePanel
-var _sheet: PanelContainer
+var _fat_rate := 0.0 ## EMA of d(fatigue)/dt, pt/s: rises while working awake, plunges on a sleep
+var _fat_prev := -1.0e9 ## last sampled fatigue; sentinel until the first frame
+var _fat_forgive := 0.0 ## countdown of fast forgetting after a one-off step (sleep/meal)
+var _belt_phase := 0.0 ## treadmill belt scroll position, px
+var _sheet: Control  ## the open sheet: a PanelContainer, or the NavMenu (B3) for &"menu"
 var _sheet_rows: ScrollContainer  ## the open sheet's rows; on a short canvas they scroll under a pinned header
 var _sheet_kind: StringName = &""
 var _skills_panel: Control
@@ -31,28 +35,74 @@ var _inspector: Panel
 var _end_btn: Button
 var _skill_hexes: Array[HexButton] = []
 var _auto_hex: HexButton
+var _auto_ability_hex: HexButton  ## AUTO-ABILITY (owner: on by default): casts the strongest ready ability over the basic attack
 var _chase_hex: HexButton
 var _feed_hex: HexButton
 var _food_hexes: Array[HexButton] = []
 var _whistle_hexes: Array[HexButton] = []  # attack / heel / guard, shown while a pet is out
+var _swords_hex: TargetSwordsHex  # beside the selected wild animal: starts the fight (spec 23)
 var _in_combat: bool = false
 var _combat_alpha: float = 0.0
 var _last_target: Creature  # top plate stays on the last creature attacked until it dies or a new one is hit
 var _stance_label: Label
 var _events := HudEventState.new()
+var top_feed := TopFeed.new()  ## the top-middle column: skill level-ups and gains by tier (owner 2026-10-28; it retired UIGATHER's yield card)
+var _rest_fx := HudRestBox.new()
+var _status_fx := StatusFx.new()
+var _buff_row := HudBuffRow.new()  ## HUDRULES: buffs / boons / debuffs under the vitals, with tooltips
+var stomach_rect := Rect2()  ## HUDRULES: the fullness ring beside the bars, drawn this frame
+var stomach_fill := 0.0  ## fullness, 1 = a full stomach, above 1 = overfull
+var stomach_saturation := 0.0  ## the outer ring: 0..1 of the digestion cooldown left
+var stomach_state: StringName = &"empty"
+var stomach_glyph_scale := 0.92  ## eased toward HudStomach.GLYPH_SCALE[stomach_state]
+var energy_bar_color := UiTokens.PLAYER_ENERGY  ## drawn this frame: the mount's darker blue while riding
+var energy_bar_segments := 0
+var orders_badge_rect := Rect2()  ## HUDRULES: the collapsed orders badge on the minimap, drawn this frame
+var orders_badge_text := ""
+var _orders_badge_px := 12
+var _orders_flash := 0.0
+var _orders_seen := -1
+## HUDRULES (owner: "auto expand when you are doing something to complete the task"): seconds the card
+## stays auto-expanded after the last progress on the shown order (or while the fight serves it).
+var orders_auto_t := 0.0
+var _orders_suppressed := false  # collapsed by hand during this activity: stays collapsed until it ends
+var _orders_frac := -1.0
+var _orders_frac_index := -1
+var _orders_poll := 0.0
+var _tasks_poll := 0.0  ## TASKSCREEN: seconds to the next claimable-task count for the MENU / Orders badge
+const ORDERS_AUTO_S := 4.0  # ASSUMPTION: the owner asked for "a few seconds"
+var _domain := DomainBanner.new()  ## spec 18: "<owner>'s Domain" on walking into claimed land
 var _ctx_hexes: Array[HexButton] = []
+var _claim_hex: HexButton  ## HUDTWEAK: the CLAIM context hex while it exists (above the day/night dial)
 var _ctx_ids: Array = []
 var _ctx_timer: float = 0.0
 var _place_hexes: Array[HexButton] = []
+var _claim_panel: ClaimPanel  ## the CLAIM confirm (a second claim asks first; claim_panel.gd)
+var _claim_tile := Vector2i.ZERO  ## where the survivor stood when it opened
 var _done_hex: HexButton
 var _levelup_lines: Array = []
 var _levelup_title: String = ""  ## the title line and one stat summary: the landscape-phone banner
 var _levelup_summary: String = ""
-var _levelup_t: float = -1.0
+var _levelup_sp: String = ""  ## the skill points the phone banner shows behind the brain glyph
+var hp_bar_rect := Rect2()  ## LEVELBAR: the health bar as last drawn (the energy bar is the same width under it)
+var xp_bar_rect := Rect2()  ## LEVELBAR: the bottom level bar as last drawn (tests read it)
+var _badge_centre_drawn := Vector2.ZERO  ## HUDTWEAK: tests read where the badge was centred
+var level_badge_rect := Rect2()  ## LEVELBADGE: the top-left level badge as last drawn, glow included
+var bar_trail: Dictionary = {}  ## LEVELBADGE: per-bar (fill, ghost, hold) for the trailing ghost fill (_trail)
+const TRAIL_HOLD := 0.4
+const TRAIL_EASE := 6.0
+var map_xy_text := ""  ## LEVELBADGE: the coordinates under the minimap, as last drawn
+var _map_xy := Vector2i(1 << 30, 0)
+var level_badge_tier := 0  ## its tier (HudLevelBadge.tier_of)
+var exhaust_sticker_rect := Rect2()  ## LEVELBADGE: the exhaustion face riding the belt at the strain marker
+var xp_bar_segments := 0  ## its segment count as last drawn
+var _levelups := LevelUpCelebration.new()  ## level-ups queued, celebrated one at a time, with their light (LEVELFX)
 ## Screen rects of the blocks _draw paints (vitals, quest card, map text, status badges, level line,
 ## target plate, level-up banner), rebuilt every draw. Layout gates check them with the controls, so
 ## nothing mirrors this file's geometry.
 var drawn_blocks: Dictionary = {}
+## The target plate's name, nature tag and HP bar rects from the last draw (layout tests read them).
+var target_rows: Dictionary = {}
 var _titles: Dictionary = {}
 var _level_gains: Dictionary = {}
 # hits on the survivor: bite/crunch jaws + red numbers
@@ -67,6 +117,7 @@ var _death_alpha: float = 0.0
 var _death_btn: Button
 
 const MAP_PX := 154.0
+const MAP_RIM := 6.0  ## LEVELBADGE: the minimap frame band
 const MAP_SCALE := 0.95  # metres per pixel
 const HEX := 64.0
 const SKILL_HEX := 72.0  # the hunt skill hexes (net / tackle / kick / roll)
@@ -85,6 +136,10 @@ func _ready() -> void:
 	add_child(_daynight)
 	_build_fatigue_panel()
 	_build_menu_row()
+	field = HudField.new(self)
+	if skills_pulse_on:  # bound (and counted) before the badge existed
+		notify_menu(&"skills")
+	_watch_skills()
 	_build_combat()
 	_build_place_hexes()
 	_build_death()
@@ -131,6 +186,14 @@ func _ready() -> void:
 			queue_redraw())
 	if Game.shot_path.contains("levelup"):
 		get_tree().create_timer(0.8).timeout.connect(func () -> void: World.pioneer_level += 1; World.pioneer_changed.emit(World.pioneer_level))
+	if Game.shot_path.contains("statusfx"):  # STATUSFX captures: she bleeds (x3), and is poisoned too on "poison"
+		get_tree().create_timer(0.6).timeout.connect(func () -> void:
+			if player:
+				player.statuses.apply(&"bleed_3")
+				if Game.shot_path.contains("poison"):
+					player.statuses.apply(&"venom"))
+	if Game.shot_path.contains("hudrules") or Game.shot_path.contains("titles") or Game.shot_path.contains("levelbar") or Game.shot_path.contains("levelbadge"):  # HUDRULES captures: bleed, Well Rested, a food buff (HudrulesShot)
+		get_tree().create_timer(0.6).timeout.connect(func () -> void: HudrulesShot.stage(self))
 	get_viewport().size_changed.connect(_layout)
 	_layout()
 	if "--bite-test" in OS.get_cmdline_user_args():  # screenshot runs: snap the jaws every 0.45 s
@@ -142,6 +205,70 @@ func _ready() -> void:
 
 func bind(p: Player) -> void:
 	player = p
+	top_feed.sync(p)
+	_watch_skills()
+
+## Skill feedback (spec 25 §7, islands-and-loop-plan §3.3): the XP toast and the bigger level-up toast
+## on skill_xp_gained/skill_leveled, and the MENU badge's skill notices (a level-up, SP that buys a node).
+## Connected here (a Player may be bound before or after this HUD enters the tree) and never twice.
+var _skills_watched: SkillState = null
+## Seconds between affordability recounts: node_state walks twelve trees, no need to do it per frame.
+const SKILL_PULSE_TICK := 0.25
+var skills_pulse_on: bool = false
+var _pulse_check: float = 0.0
+## HUDREDRAW probes and tests: how many times the HUD and its minimap have painted (t_hudredraw reads
+## them to count redraws while nothing changes).
+var draw_count: int = 0
+var map_draw_count: int = 0
+var draw_usec: int = 0  ## script time the HUD's own _draw has spent (t_hudredraw compares before/after)
+var map_draw_usec: int = 0
+## HUDREDRAW: the values the paint reads, as drawn (see _hud_sig). _process repaints only when this
+## changes, or while a piece animates (_animating). Every input of _draw must be in here.
+var _sig: Array = []
+var _sig_ready := false
+## Seconds since the last paint: the belt's drift and the pill timers only need whole-pixel / whole-
+## second resolution, so an idle HUD answers 0 redraws a second.
+var _since_draw := 0.0
+var _debug_sig := "--hudredraw-debug" in OS.get_cmdline_user_args()
+
+func _watch_skills() -> void:
+	if player == null or player.skills == null:
+		return
+	if _skills_watched == player.skills:
+		return
+	_skills_watched = player.skills
+	var sk := _skills_watched
+	if sk.has_signal("skill_xp_gained"):
+		sk.skill_xp_gained.connect(func (tree: StringName, amount: float, level: int) -> void:
+			_events.add_skill_xp(str(tree), amount, level, HudEventState.progress_of(sk, str(tree)))
+		)
+	if sk.has_signal("skill_leveled"):
+		sk.skill_leveled.connect(func (tree: StringName, level: int) -> void:
+			_events.add_skill_level(str(tree), level)
+			notify_menu(&"skills")  # MENU badge: a level-up to look at in Skills
+			_levelups.push_skill(tree, level)  # LEVELFX: the light, the banner, the MENU / Skills badge pulse
+		)
+	if sk.has_signal("skill_changed"):
+		# A purchase or a refund moves the SP, and the pulse must answer on the same frame.
+		sk.skill_changed.connect(func (_tree: StringName, _level: int) -> void:
+			_pulse_check = 0.0
+			_refresh_skill_pulse()
+		)
+	_refresh_skill_pulse()
+
+## True while at least one buyable node is affordable with the SP held (each time it turns true the
+## MENU badge gets a skills notice; the SKILLS rail hex and its halo are gone). Public for labs and tests.
+func skills_pulsing() -> bool:
+	return skills_pulse_on and player != null and not player.dead
+
+func _refresh_skill_pulse() -> void:
+	if player == null or player.skills == null:
+		skills_pulse_on = false
+		return
+	var was := skills_pulse_on
+	skills_pulse_on = SkillRules.affordable_now(player.skills)
+	if skills_pulse_on and not was and field:
+		notify_menu(&"skills")  # MENU badge: SP now buys a node (counted once each time it becomes true)
 
 # ---------------------------------------------------------------- layout
 
@@ -150,21 +277,29 @@ func _layout() -> void:
 	var inset := _safe_insets()
 	_minimap.position = Vector2(r.x - MAP_PX - 16.0 - inset.x, 34.0 + inset.z)
 	_daynight.dock(_minimap.get_rect())
-	var y := r.y - HEX - CAPTION_H - 14.0 - inset.y  # captions sit under the hexes, inside the safe area
+	# Rail bottom-left: MENU, BUILD, BAG (owner 2026-10-28), captions under them inside the safe area.
+	var rail := HudField.px(&"rail", r)
+	var y := r.y - rail - CAPTION_H - 14.0 - inset.y
 	var x := 16.0 + inset.w
-	for h in [_menu_hex, _pets_hex, _build_hex, _skills_hex]:
+	for h in [_menu_hex, _build_hex, _bag_hex]:
+		HudField.fit(h, rail)
 		h.position = Vector2(x, y)
-		x += HEX + 10.0
+		x += rail + 10.0
+	# Quick slots above the rail: two quick-food hexes, CHASE in the third slot during a fight.
+	var q := HudField.px(&"quick", r)
+	var qy := quick_row_y()
 	for i in _food_hexes.size():
-		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
+		HudField.fit(_food_hexes[i], q)
+		_food_hexes[i].position = Vector2(16.0 + inset.w + float(i) * (q + 10.0), qy)
+	HudField.fit(_chase_hex, q)
+	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (q + 10.0), qy)
 	# Debug hex stays off the minimap. On a phone it drops to the lower right so the vitals can sit beside the map.
 	_inspect_hex.visible = Game.debug_overlay
 	if UiTokens.is_phone(r):
 		_inspect_hex.position = Vector2(r.x - HEX - 16.0 - inset.x, r.y - HEX * 2.0 - 36.0 - inset.y)
 	else:
-		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + DayNightDial.DISC + 8.0)  # under the dial
-	# Chase joins the quick-food row (slot 2): at the rail's left edge it sat on the first food hex.
-	_chase_hex.position = Vector2(16.0 + inset.w + 2.0 * (HEX + 10.0), y - HEX - CAPTION_H - 12.0)
+		_inspect_hex.position = Vector2(_minimap.position.x - 12.0 - 56.0, _daynight.position.y + _daynight.size.y + 8.0)  # under the dial
+	field.place(r, inset, map_floor())
 	if HudLayout.landscape_phone(r):
 		HudLayout.place_landscape_phone(self, r, inset)
 	elif UiTokens.is_narrow(r):
@@ -176,6 +311,21 @@ func _layout() -> void:
 	# Context hexes are placed when built: rebuild them on the new canvas (CLAIM stayed off a resized view).
 	_ctx_ids = []
 	_ctx_timer = 0.0
+
+## The lowest y the minimap column holds: the map, then its "X n  Y n" line under it.
+func map_floor() -> float:
+	return _minimap.position.y + MAP_PX + 24.0
+
+## The quick row's top (food, food, CHASE above the rail).
+func quick_row_y() -> float:
+	var r := get_viewport_rect().size
+	var q := HudField.px(&"quick", r)
+	return r.y - HudField.px(&"rail", r) - CAPTION_H - 14.0 - _safe_insets().y - q - CAPTION_H - 12.0
+
+## A notice for the MENU badge (HudField.notify): &"skills", &"market" (hook: no client market events
+## yet) or any sheet id; urgent draws the badge red. Cleared when that sheet opens.
+func notify_menu(kind: StringName, n: int = 1, urgent: bool = false) -> void:
+	field.notify(kind, n, urgent)
 
 func _safe_insets() -> Vector4:  # x=right, y=bottom, z=top, w=left
 	return UiTokens.safe_insets(get_viewport())
@@ -192,6 +342,7 @@ func _build_minimap() -> void:
 	# _draw_minimap; no CanvasItem shader participates in this path.
 	World.island_changed.connect(_refresh_minimap_after_travel)
 	_minimap.draw.connect(_draw_minimap)
+	_minimap.draw.connect(_draw_orders_on_map)  # HUDRULES: after the map, so the badge sits over its corner
 	_minimap.gui_input.connect(func (ev: InputEvent) -> void:
 		if (ev is InputEventScreenTouch and not (ev as InputEventScreenTouch).pressed) or (ev is InputEventMouseButton and not (ev as InputEventMouseButton).pressed and (ev as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT):
 			_open_map()
@@ -216,14 +367,21 @@ func _hex(glyph: String, size_px: float = HEX, caption: String = "") -> HexButto
 
 func _build_menu_row() -> void:
 	_menu_hex = _hex("≡", HEX, "MENU")
+	_menu_hex.name = "MenuHex"
 	_menu_hex.pressed.connect(func () -> void: _toggle_sheet(&"menu"))
-	_pets_hex = _hex("", HEX, "ANIMALS")
-	_pets_hex.icon = UiIcons.icon(&"animals")
-	_pets_hex.pressed.connect(_open_animals)
 	_build_hex = _hex("⌂", HEX, "BUILD")
-	_build_hex.pressed.connect(func () -> void: _toggle_sheet(&"build"))
-	_skills_hex = _hex("★", HEX, "SKILLS")
-	_skills_hex.pressed.connect(_toggle_skills)
+	_build_hex.name = "BuildHex"
+	_build_hex.pressed.connect(func () -> void: var b := BuildUI.ensure(player); if b: b.toggle())  # UICRAFT: the D2 drawer
+	_bag_hex = _hex("", HEX, "BAG")
+	_bag_hex.name = "BagHex"
+	_bag_hex.icon = UiIcons.icon(&"bag")
+	_bag_hex.key_hint = "I"
+	_bag_hex.pressed.connect(func () -> void:
+		if player:
+			_close_sheet()
+			player.controls.toggle_inventory())
+	for h in [_menu_hex, _build_hex, _bag_hex]:
+		h.rim_color = UiTokens.HUD_RIM
 	for i in 2:
 		var fh := HexButton.new(HEX)
 		fh.glyph = "🍖"
@@ -278,7 +436,8 @@ func _toggle_debug() -> void:
 	print("[hud] debug %s" % ("on" if Game.debug_overlay else "off"))
 
 
-func _open_animals() -> void:
+## The Animals screen; with a record (the pet radial's Animals segment) it opens on that pet.
+func open_animals(rec: PetRecord = null) -> void:
 	_close_sheet()
 	if _animal_screen == null:
 		_animal_screen = AnimalScreen.new()
@@ -288,7 +447,42 @@ func _open_animals() -> void:
 		layer.layer = 96
 		add_child(layer)
 		layer.add_child(_animal_screen)
-	_animal_screen.open(player)
+	_animal_screen.open(player, rec)
+
+## TRIBE M1: the Animals screen's Tribe tab (a member or recruit tapped in the world opens it on them).
+var _tribe_screen: TribeScreen
+
+func open_tribe(rec: TribeRecord = null) -> TribeScreen:
+	_close_sheet()
+	if _animal_screen and _animal_screen.visible:
+		_animal_screen.close_screen()
+	if _tribe_screen == null or not is_instance_valid(_tribe_screen):
+		var layer := CanvasLayer.new()
+		layer.name = "TribeLayer"
+		layer.layer = 96
+		add_child(layer)
+		_tribe_screen = TribeScreen.new()
+		_tribe_screen.name = "TribeScreen"
+		layer.add_child(_tribe_screen)
+	_tribe_screen.open(player, rec)
+	return _tribe_screen
+
+## SADDLES: a tame's equipment (pet radial Gear, Animals screen Gear). Its own layer above the Animals
+## screen, so ‹ shows the Animals screen again when it was opened from there.
+var _pet_gear: PetGearSheet
+
+func open_pet_gear(rec: PetRecord) -> PetGearSheet:
+	if rec == null:
+		return null
+	if _pet_gear == null or not is_instance_valid(_pet_gear):
+		var layer := CanvasLayer.new()
+		layer.name = "PetGearLayer"
+		layer.layer = 97
+		add_child(layer)
+		_pet_gear = PetGearSheet.new()
+		layer.add_child(_pet_gear)
+	_pet_gear.open(player, rec)
+	return _pet_gear
 
 func _build_combat() -> void:
 	_end_btn = Button.new()
@@ -310,6 +504,10 @@ func _build_combat() -> void:
 		var h := HexButton.new(SKILL_HEX)
 		h.icon = UiIcons.icon(StringName(str(s[0])))
 		h.caption = s[1]
+		_combat_style(h)
+		# ASSUMPTION (UIGATHER): only ROLL gets a desktop key cap; the canvas's 1/2/4 caps have no
+		# handler behind them (tactic_1..4 are bound but nothing reads them), so they would lie.
+		h.key_hint = "Q" if s[0] == "roll" else ""
 		h.visible = false
 		h.pressed.connect(_on_skill.bind(StringName(s[0])))
 		add_child(h)
@@ -317,6 +515,7 @@ func _build_combat() -> void:
 	_auto_hex = HexButton.new(64.0)
 	_auto_hex.icon = UiIcons.icon(&"auto")
 	_auto_hex.caption = "AUTO"
+	_combat_style(_auto_hex)
 	_auto_hex.visible = false
 	_auto_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
@@ -325,6 +524,18 @@ func _build_combat() -> void:
 			_auto_hex.queue_redraw()
 	)
 	add_child(_auto_hex)
+	_auto_ability_hex = HexButton.new(64.0)
+	_auto_ability_hex.icon = UiIcons.icon(&"auto")
+	_auto_ability_hex.caption = "AUTO-ABILITY"
+	_combat_style(_auto_ability_hex)
+	_auto_ability_hex.visible = false
+	_auto_ability_hex.pressed.connect(func () -> void:
+		if player and player.hunt:
+			player.hunt.auto_ability = not player.hunt.auto_ability
+			_auto_ability_hex.selected = player.hunt.auto_ability
+			_auto_ability_hex.queue_redraw()
+	)
+	add_child(_auto_ability_hex)
 	for spec in [["attack", "sic", "SIC"], ["heel", "heel", "HEEL"], ["guard", "guard", "GUARD"]]:
 		var wh := HexButton.new(64.0)
 		wh.icon = UiIcons.icon(StringName(str(spec[1])))
@@ -340,6 +551,7 @@ func _build_combat() -> void:
 	_feed_hex = HexButton.new(64.0)
 	_feed_hex.icon = UiIcons.icon(&"feed")
 	_feed_hex.caption = "FEED"
+	_combat_style(_feed_hex)
 	_feed_hex.visible = false
 	_feed_hex.pressed.connect(func () -> void:
 		if player and player.hunt and player.hunt.target and FieldTame.can_attempt(player.hunt.target):
@@ -356,6 +568,7 @@ func _build_combat() -> void:
 	_chase_hex = HexButton.new(HEX)
 	_chase_hex.glyph = "🏃"
 	_chase_hex.caption = "CHASE"
+	_combat_style(_chase_hex)
 	_chase_hex.visible = false
 	_chase_hex.pressed.connect(func () -> void:
 		if player and player.hunt:
@@ -366,6 +579,10 @@ func _build_combat() -> void:
 			_chase_hex.queue_redraw()
 	)
 	add_child(_chase_hex)
+	_swords_hex = TargetSwordsHex.new()
+	_swords_hex.player = player
+	add_child(_swords_hex)
+	move_child(_swords_hex, 0)  # under every HUD control: where they meet, the HUD's tap wins
 
 ## Deliberate death card. Shown while player.dead; the survivor stays on the ground until respawn.
 func _build_death() -> void:
@@ -383,13 +600,18 @@ func _build_death() -> void:
 	_death_card = Panel.new()
 	_death_card.name = "DeathCard"
 	_death_card.custom_minimum_size = Vector2(280, 280)
-	_death_card.add_theme_stylebox_override("panel", UiTokens.panel_style(1.0))
+	var dsb := StyleBoxFlat.new()  # B4 death card: HUD fill, a LIFE top edge, a GOLD respawn button
+	dsb.bg_color = Color(UiTokens.HUD_FILL, 1.0)
+	dsb.border_color = UiTokens.LIFE
+	dsb.border_width_top = 4
+	_death_card.add_theme_stylebox_override("panel", dsb)
 	_death_panel.add_child(_death_card)
 	_death_title = Label.new()
 	_death_title.name = "DeathTitle"
 	_death_title.text = "YOU DIED"
 	_death_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_death_title.add_theme_color_override("font_color", UiTokens.DANGER)
+	_death_title.add_theme_color_override("font_color", UiTokens.LIFE)
+	_death_title.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
 	_death_card.add_child(_death_title)
 	_death_cause = Label.new()
 	_death_cause.name = "DeathCause"
@@ -407,19 +629,30 @@ func _build_death() -> void:
 	_death_btn = Button.new()
 	_death_btn.text = "Respawn at camp"
 	_death_btn.custom_minimum_size = Vector2(260, 64)
-	_death_btn.add_theme_color_override("font_color", UiTokens.ACTION)
-	_death_btn.add_theme_stylebox_override("normal", UiTokens.button_style(true))
-	_death_btn.add_theme_stylebox_override("hover", UiTokens.button_style(true))
-	_death_btn.add_theme_stylebox_override("pressed", UiTokens.button_style(true))
+	var gold := StyleBoxFlat.new()
+	gold.bg_color = UiTokens.GOLD
+	for st in ["normal", "hover", "pressed", "focus"]:
+		_death_btn.add_theme_stylebox_override(st, gold)
+	for st in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		_death_btn.add_theme_color_override(st, UiTokens.CTA_INK)
+	_death_btn.add_theme_font_override("font", UiTokens.ui_face(UiTokens.WEIGHT_BOLD))
 	_death_btn.pressed.connect(func () -> void:
 		if player:
 			player.respawn()
 	)
 	_death_card.add_child(_death_btn)
 
+const DEATH_FADE_IN := 2.0
+
+## The survivor's "HP / max" text. Rounded up, so 0 only ever means dead: "%.0f" showed a 0.4 HP survivor
+## as "0 / 100" and she fought on at a seeming 0 (owner: "still alive at 0 health for a while").
+static func hp_label(v: Vitals) -> String:
+	return "%d / %d" % [ceili(v.health), ceili(v.effective_max_health())]
+
 func _tick_death(delta: float) -> void:
 	var dead := player != null and player.dead
-	_death_alpha = move_toward(_death_alpha, 1.0 if dead else 0.0, delta * (0.8 if dead else 4.0))
+	# EYESDEATH: full in 0.5 s (was 1.25 s at 0.8/s; the faint first second read as "alive at 0").
+	_death_alpha = move_toward(_death_alpha, 1.0 if dead else 0.0, delta * (DEATH_FADE_IN if dead else 4.0))
 	var show := _death_alpha > 0.01
 	if _death_panel.visible != show:
 		_death_panel.visible = show
@@ -464,6 +697,20 @@ func _draw_death() -> void:
 		r = get_viewport_rect().size
 	_death_panel.draw_rect(Rect2(Vector2.ZERO, r), Color(0.02, 0.025, 0.03, 0.88))
 
+## B2 hex restyle (spec §2/§3): HUD fill, light 3-4 px rim, gold when selected.
+static func _combat_style(h: HexButton) -> void:
+	h.rim_color = UiTokens.HUD_RIM
+	h.rim_width = 4.0 if h.size.x >= 70.0 else 3.0
+	h.fill = UiTokens.HUD_FILL
+
+## Spec §7 B2 / spec 09: the NET hex turns GOLD-filled (dark net, GOLD rim) while a throw is allowed —
+## the target is stunned or at or under 30 % and a net and technique cover its tier (the hex is enabled).
+## TAMINGODDS: the hex's bottom_text is left free for a capture-odds figure.
+static func _net_gold(h: HexButton, on: bool) -> void:
+	h.fill = UiTokens.GOLD if on else UiTokens.HUD_FILL
+	h.rim_color = UiTokens.GOLD if on else UiTokens.HUD_RIM
+	h.glyph_color = UiTokens.CTA_INK if on else Color.WHITE
+
 func _on_skill(id: StringName) -> void:
 	if player == null or player.hunt == null:
 		return
@@ -501,14 +748,19 @@ func _build_place_hexes() -> void:
 			player.notice("Layout saved.")
 	)
 	add_child(_done_hex)
-	var specs := [["↻", "rotate", "ROTATE", "R"], ["✓", "confirm", "PLACE", "Enter"], ["✕", "cancel", "CANCEL", "Esc"]]
+	# UICRAFT (spec §7 D2, owner §1.9): ROTATE is the icon alone, SAVE a green check, CANCEL a red cross;
+	# the word sits inside the hex, no key letters.
+	var specs := [["↻", "rotate", "", Color.WHITE], ["✓", "confirm", "SAVE", UiTokens.OK_GREEN], ["✕", "cancel", "CANCEL", UiTokens.LIFE]]
 	for sp in specs:
-		var h := HexButton.new(64.0)
+		var h := HexButton.new(PLACE_HEX)
+		h.name = "Place_" + str(sp[1])
 		h.glyph = sp[0]
-		h.caption = sp[2]
-		h.top_text = sp[3]
-		if sp[1] == "confirm":
-			h.accent = UiTokens.TEAL
+		h.bottom_text = sp[2]
+		h.glyph_color = sp[3]
+		h.fill = UiTokens.HUD_FILL
+		h.rim_color = UiTokens.OK_GREEN if sp[1] == "confirm" else UiTokens.HUD_RIM
+		h.rim_width = 4.0
+		h.bottom_scale = 0.27
 		h.visible = false
 		var id: String = sp[1]
 		h.pressed.connect(func () -> void:
@@ -527,6 +779,10 @@ func _build_place_hexes() -> void:
 func bite_on_player(amount: float, heavy: bool) -> void:
 	_events.add_bite(amount, heavy)
 
+## CombatAvoid: "Dodged" / "Blocked" rises over her where a damage number would, smaller and grey.
+func avoid_on_player(text: String) -> void:
+	_events.add_float(text, CombatAvoid.COLOR, 0.0, CombatAvoid.PX)
+
 func _draw_bites(cam: Camera3D) -> void:
 	if cam == null or player == null:
 		return
@@ -534,12 +790,15 @@ func _draw_bites(cam: Camera3D) -> void:
 	for f in _events.player_floats:
 		var k: float = f["t"]
 		var a := 1.0 - smoothstep(0.55, 0.95, k)
-		var txt := "-%d" % int(round(float(f["n"])))
-		var fs := 22
+		var txt: String = str(f["txt"]) if f.has("txt") else "-%d" % int(round(float(f["n"])))
+		var col: Color = f.get("col", Color(1.0, 0.25, 0.2))
+		var fs := int(f.get("px", 22))
+		if f.get("pop", false):
+			fs = roundi(float(fs) * lerpf(0.7, 1.0, smoothstep(0.0, 0.15, k)))
 		var w := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
-		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0)
+		var p := chest + Vector2(float(f["x"]) - w * 0.5, -30.0 - k * 46.0 + float(f.get("dy", 0.0)))
 		draw_string(_font, p + Vector2(1, 1), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(0, 0, 0, 0.8 * a))
-		draw_string(_font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(1.0, 0.25, 0.2, a))
+		draw_string(_font, p, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(col, a))
 	for b in _events.bites:
 		var k: float = b["t"]
 		var heavy: bool = b["heavy"]
@@ -567,12 +826,27 @@ func _draw_bites(cam: Camera3D) -> void:
 		if k < 0.2 and heavy:
 			draw_rect(Rect2(0, 0, get_viewport_rect().size.x, get_viewport_rect().size.y), Color(0.9, 0.1, 0.1, 0.18 * (1.0 - k / 0.2)))
 
-func notice(text: String) -> void:
+## tint: a rare result (gold find, green trait), drawn in its colour on ink instead of the red refusal
+## box; GatherFeedback sets how long it lives (W2-GATHER).
+func notice(text: String, tint: Color = Color(0, 0, 0, 0)) -> void:
+	if tint.a > 0.0:
+		GatherFeedback.add_notice(_events.notices, text, tint, player)  # W2-GATHER: a repeat counts up ("x2")
+		return
 	_events.add_notice(text)
 
 func toast(id: StringName, n: int) -> void:
 	print("[ui] toast %s +%d" % [id, n])
 	_events.add_toast(id, n)
+	top_feed.push_gain(player, id, n)
+
+## A rare result (GatherFeedback: a find, a rare carcass part): its TopFeed row goes green.
+func feed_rare(id: StringName, where: String = "") -> void:
+	top_feed.push_rare(id, where)
+
+func _on_context(id: String) -> void:
+	if id != "claim":
+		claim_confirm_cancel()
+	player.context_action(id)
 
 func _refresh_context(delta: float) -> void:
 	_ctx_timer -= delta
@@ -583,6 +857,8 @@ func _refresh_context(delta: float) -> void:
 	if _in_combat:
 		# Siege actions use the two top combat hexes, not overlapping context controls.
 		actions = []
+	# INTERACT already shows (and runs) one of them: no second hex for the same thing.
+	actions = actions.filter(func (a: Dictionary) -> bool: return str(a["id"]) != field.choice_id)
 	var ids: Array = []
 	for a in actions:
 		ids.append([a["id"], a.get("uses", "")])
@@ -594,9 +870,17 @@ func _refresh_context(delta: float) -> void:
 	_ctx_hexes.clear()
 	var r := get_viewport_rect().size
 	var inset := _safe_insets()
-	var phone := UiTokens.is_phone(r)
-	# Portrait: no room beside the rail, so the context row sits one row above it, from the left.
-	var x := 16.0 + inset.w if phone else r.x - 16.0 - inset.x - 74.0 - 60.0
+	var compact := UiTokens.is_compact(r)
+	# The row runs right to left from SPRINT along the bottom line; past the rail it wraps one row up,
+	# where on the left it stops short of the quick slots.
+	var right := field.sprint_hex.position.x - 8.0
+	var left := _bag_hex.position.x + _bag_hex.size.x + 12.0
+	var row_y := r.y - UiTokens.xp_line_zone(r).size.y - CAPTION_H - 70.0 - inset.y  # captions clear the XP line
+	if UiTokens.is_narrow(r):  # portrait: the row above the quick slots, from the left
+		right = r.x - 16.0 - inset.x - field.interact_hex.size.x - 8.0
+		row_y = quick_row_y() - CAPTION_H - 12.0 - 70.0
+		left = 16.0 + inset.w
+	var x := right - 70.0
 	for a in actions:
 		var h := HexButton.new(70.0)
 		var id := str(a["id"])
@@ -604,21 +888,96 @@ func _refresh_context(delta: float) -> void:
 		h.icon = UiIcons.icon(StringName(id)) if UiIcons.path_for(StringName(id)) != "" else null
 		h.caption = str(a["label"]).to_upper()
 		h.bottom_text = str(a.get("uses", ""))
+		h.rim_color = UiTokens.HUD_RIM
 		if h.glyph == "" and h.icon == null:
 			h.glyph = h.caption
 			h.caption = ""
-		h.pressed.connect(func () -> void: player.context_action(id))
+		h.name = "Ctx_" + id  # TUTORIAL ISLAND: the onboarding pointer finds a context action by name
+		h.pressed.connect(_on_context.bind(id))
 		add_child(h)
 		if id == "claim":
-			# Land claim lives by the minimap (it is about the map, not the fight).
-			# Portrait: the quest card is under the map, so the claim hex goes under the card.
-			h.position = Vector2(_minimap.position.x + MAP_PX - 70.0, _minimap.position.y + MAP_PX + (52.0 + 72.0 + 8.0 if phone else 44.0))
+			# Spec §6: a small gold-rim CLAIM hex by the minimap. HUDTWEAK (owner 2026-10-28): "Move claim to
+			# above the day/night UI": centred over the dial's face, clear of the "X n  Y n" line under the
+			# map. Portrait: under the quest card.
+			var cp := HudField.px(&"claim", r)
+			HudField.fit(h, cp)
+			h.rim_color = Color(UiTokens.GOLD, 0.8)
+			h.rim_width = 3.0
+			# ASSUMPTION: on a landscape phone the 60 px between the map text and INTERACT takes the hex but
+			# not a caption; it stays icon-only there.
+			if compact and not UiTokens.is_narrow(r):
+				h.caption = ""
+			if UiTokens.is_narrow(r):
+				h.position = Vector2(_minimap.position.x + MAP_PX - cp, _minimap.position.y + MAP_PX + 52.0 + 72.0 + 8.0)
+			else:
+				var face := _daynight.face_rect()
+				var cap := CAPTION_H if h.caption != "" else 0.0  # the caption hangs under the hex, above the dial
+				h.position = Vector2(face.get_center().x - cp * 0.5, face.position.y - cp - cap - 4.0)
+			_claim_hex = h
 		else:
-			h.position = Vector2(x, r.y - 70.0 - 26.0 - inset.y - (96.0 if phone else 0.0))
-			x += 78.0 if phone else -78.0
+			if x < left:  # wrap: one row up, from the right again, clear of the quick slots
+				row_y -= 70.0 + CAPTION_H + 8.0
+				x = right - 70.0
+				left = _chase_hex.position.x + _chase_hex.size.x + 12.0
+			h.position = Vector2(x, row_y)
+			x -= 78.0
 		_ctx_hexes.append(h)
 	if _sheet:
 		move_child(_sheet, -1)  # a context hex added later drew (and took taps) over the open sheet
+
+## CLAIM pressed while this survivor already holds land here: ask, naming the plots that stay and the
+## plot this press would stake (claim_panel.gd). Nothing is staked, spent or moved until the panel's
+## CLAIM; Close, walking away or a second CLAIM press cancels it.
+func open_claim_confirm() -> void:
+	if player == null or World.runtime == null or player.actions == null:
+		return
+	if claim_panel_open():
+		claim_confirm_cancel()
+		return
+	var rt: Node = World.runtime
+	if not rt.has_method("claim_plot"):
+		return
+	_claim_tile = BuildGrid.tile_of(player.global_position)
+	var plot: Rect2i = rt.call("claim_plot", _claim_tile)
+	_claim_panel = ClaimPanel.new()
+	add_child(_claim_panel)
+	_claim_panel.answered.connect(_on_claim_answered)
+	_claim_panel.open(rt.get("claims"), _claim_tile, plot, str(rt.call("claim_expand_reason", _claim_tile)), _claim_stake_due())
+	_claim_panel.fit(get_viewport_rect().size, _safe_insets())
+
+func claim_panel_open() -> bool:
+	return is_instance_valid(_claim_panel) and _claim_panel.visible
+
+func claim_panel_text() -> String:
+	return _claim_panel.body_text() if claim_panel_open() else ""
+
+## Close the panel without staking (Close, Cancel, Esc, a HAUL / MOVE tap, walking away).
+func claim_confirm_cancel() -> void:
+	if is_instance_valid(_claim_panel):
+		_claim_panel.queue_free()
+	_claim_panel = null
+
+## The panel's answer (`confirmed` = its CLAIM). The test and a headless run reach the same path.
+func claim_confirm(confirmed: bool) -> void:
+	claim_confirm_cancel()
+	if confirmed and player and player.actions:
+		player.actions.claim_confirmed()
+
+func _on_claim_answered(confirmed: bool) -> void:
+	claim_confirm(confirmed)
+
+## The panel's confirm is about where the survivor stands when it is pressed.
+func _claim_stake_due() -> bool:
+	return not World.is_home() and World.free_claim_used
+
+func _refresh_claim_panel() -> void:
+	if not claim_panel_open():
+		return
+	var here := BuildGrid.tile_of(player.global_position) if player else _claim_tile
+	if here != _claim_tile or player.placer.placing != &"":
+		claim_confirm_cancel()
+		return
+	_claim_panel.fit(get_viewport_rect().size, _safe_insets())
 
 func _refresh_place_hexes() -> void:
 	var placing := player.placer != null and player.placer.placing != &""
@@ -636,10 +995,58 @@ func _refresh_place_hexes() -> void:
 	var ghost: Node3D = player.placer.get("_ghost_root")
 	if cam == null or ghost == null:
 		return
-	var base := cam.unproject_position(ghost.global_position) + Vector2(0, 40)
-	var offs := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
+	var px := 64.0 if UiTokens.is_compact(get_viewport_rect().size) else PLACE_HEX
+	var offs: Array = PLACE_OFFSETS.map(func (o: Vector2) -> Vector2: return o * (px / 64.0))
+	for h in _place_hexes:
+		if h.size.x != px:
+			h.custom_minimum_size = Vector2(px, px)
+			h.size = Vector2(px, px)
+			h.pivot_offset = h.size * 0.5
+	var base := HudLayout.placer_anchor(cam.unproject_position(ghost.global_position) + Vector2(0, 40), offs, _placer_rel(), _placer_taken(), get_viewport_rect().size, _safe_insets())
 	for i in _place_hexes.size():
-		_place_hexes[i].position = base + offs[i]
+		_place_hexes[i].position = base + (offs[i] as Vector2)
+
+## Offsets for 64 px hexes; a desktop canvas scales them to PLACE_HEX.
+const PLACE_OFFSETS := [Vector2(-105, 0), Vector2(-22, 28), Vector2(60, 0)]
+const PLACE_HEX := 88.0
+
+## What each placer hex draws relative to its own corner (its hexagon, then its caption box), from the
+## hexes themselves: the row is placed with the same geometry the check and the drawing use.
+func _placer_rel() -> Array:
+	var out: Array = []
+	for h in _place_hexes:
+		var hb := h as HexButton
+		var at := hb.position
+		var hex := hb.hex_rect()
+		var cap := hb.caption_rect() if hb.caption != "" else hex  # SAVE / CANCEL write inside the hex
+		out.append([Rect2(hex.position - at, hex.size), Rect2(cap.position - at, cap.size)])
+	return out
+
+## Every HUD rect the placer row must keep off: the same sources as HudLayout.taken_rects, minus the
+## row's own three hexes and their captions (by node, not by where they happened to be last frame).
+func _placer_taken() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for k in drawn_blocks:
+		out.append(drawn_blocks[k])
+	for n in get_tree().get_nodes_in_group(&"hex_button"):
+		var h := n as HexButton
+		if h and h.is_visible_in_tree() and not _place_hexes.has(h):
+			out.append(h.hex_rect())
+			if h.caption != "":
+				out.append(h.caption_rect())
+	for c in get_children():
+		var ctl := c as Control
+		if ctl == null or ctl is HexButton or not ctl.is_visible_in_tree() or ctl.size.x < 8.0 or ctl.size.y < 8.0:
+			continue
+		if ctl is Label and (ctl as Label).text.strip_edges() == "":
+			continue
+		out.append(ctl.get_global_rect())
+	if player and player.build_ui and is_instance_valid(player.build_ui) and (player.build_ui as BuildUI).visible:
+		out.append_array((player.build_ui as BuildUI).taken_rects())  # the build drawer stays open beside the ghost
+	var fig := figure_rect()
+	if fig.has_area():
+		out.append(fig)
+	return out
 
 func _load_level_data() -> void:
 	for pair in [["res://data/skills/titles.json", "t"], ["res://data/skills/pioneer_levels.json", "g"]]:
@@ -661,11 +1068,13 @@ func _on_level_up(stored: int) -> void:
 	_levelup_title = ""
 	_levelup_lines.append([LevelDisplay.label(level), 40, Color(1.0, 0.85, 0.35)])
 	_levelup_lines.append(["Pioneer XP %d" % World.pioneer_xp, 18, Color.WHITE])
-	_levelup_lines.append(["T-stones %d" % World.t_stones, 18, Color.WHITE])
+	_levelup_lines.append(["Gold %d" % World.t_stones, 18, Color.WHITE])
 	# W2-SKILLS: character levels pay the SP (spec 03); show what SkillState holds (sp_now recounts,
 	# since its own handler on this signal may not have run yet).
 	var sp: int = player.skills.sp_now() if player and player.skills else 0
-	_levelup_lines.append(["Available Skill Points: %d" % maxi(0, sp), 18, Color.WHITE])
+	var sp_gain: int = player.skills.sp_for_level(level) if player and player.skills else 0
+	# Skill points are the brain glyph, never words (owner, BRAINICON): a 4th entry names the icon drawn before the text.
+	_levelup_lines.append(["%d%s" % [maxi(0, sp), "  (+%d)" % sp_gain if sp_gain > 0 else ""], 18, Color.WHITE, &"brain"])
 	var title := str(_titles.get(str(level), ""))
 	if title != "":
 		_levelup_title = "Title %s acquired." % title
@@ -675,8 +1084,9 @@ func _on_level_up(stored: int) -> void:
 		print("[world] pioneer level %d" % level)
 	var per: Dictionary = _level_gains.get("per_level", {})
 	if player and player.vitals:
-		player.vitals.max_health += float(per.get("max_health", 0))
-		player.vitals.max_energy += float(per.get("max_energy", 0))
+		# Through Vitals, which remembers the level part in the save: added straight to max_health
+		# (the old way) the next status sync erased it and a reload never brought it back.
+		player.vitals.grant_level_bonus(float(per.get("max_health", 0)), float(per.get("max_energy", 0)))
 	var stats: Array = _level_gains.get("display_stats", [])
 	var gain := int(_level_gains.get("display_gain", 5))
 	var bonus := int(_level_gains.get("bonus_stat_gain", 6))
@@ -686,8 +1096,9 @@ func _on_level_up(stored: int) -> void:
 	# The landscape banner's one stat line. No pickup toast: "+5  level" read as five levels gained.
 	# ASSUMPTION: the banner alone announces a level-up (Durango shows one banner).
 	var top_stat := str(stats[level % stats.size()]) if not stats.is_empty() else "Stats"
-	_levelup_summary = "%s +%d · other stats +%d · Skill points %d" % [top_stat, bonus, gain, maxi(0, sp)]
-	_levelup_t = 0.0
+	_levelup_summary = "%s +%d · other stats +%d ·" % [top_stat, bonus, gain]
+	_levelup_sp = str(maxi(0, sp))  # drawn after the summary behind the brain glyph
+	_levelups.push_character(level, _levelup_lines, _levelup_title, _levelup_summary, _levelup_sp)
 
 # ---------------------------------------------------------------- sheets
 
@@ -697,6 +1108,10 @@ func _toggle_sheet(kind: StringName) -> void:
 		return
 	_close_sheet()
 	_sheet_kind = kind
+	if kind == &"menu":  # B3 nav menu (nav_menu.gd): two columns over the live world
+		_sheet = NavMenu.new(self)
+		add_child(_sheet)
+		return
 	_sheet = PanelContainer.new()
 	_sheet.name = "HudSheet"
 	var land := HudLayout.landscape_phone(get_viewport_rect().size)
@@ -744,13 +1159,6 @@ func _toggle_sheet(kind: StringName) -> void:
 		box.add_theme_constant_override("separation", 8)
 	_sheet_rows.add_child(box)
 	match kind:
-		&"menu":
-			title.text = "Menu"
-			_sheet_btn(box, "Bag", func () -> void: _close_sheet(); if player.ui: player.ui.visible = not player.ui.visible)
-			_sheet_btn(box, "Craft", func () -> void: _close_sheet(); if player.craft_ui: player.craft_ui.toggle())
-			_sheet_btn(box, "Map", func () -> void: _close_sheet(); _open_map())
-			_sheet_btn(box, "Save", func () -> void: _close_sheet(); (load("res://scripts/core/save_game.gd") as GDScript).save_now())
-			_sheet_btn(box, "Debug info: %s" % ("ON" if Game.debug_overlay else "OFF"), func () -> void: _toggle_debug(); _close_sheet(); _toggle_sheet(&"menu"))
 		&"pets":
 			title.text = "ANIMALS  %d owned" % player.bonded.size()
 			if player.bonded.is_empty():
@@ -798,16 +1206,28 @@ func _toggle_sheet(kind: StringName) -> void:
 				if fp is Array and (fp as Array).size() >= 2:
 					fp_txt = "  %d×%d" % [int(fp[0]), int(fp[1])]
 				_sheet_btn(box, "%s%s  ×%d" % [def.display_name, fp_txt, s.count], func () -> void: _close_sheet(); player.placer.begin(kind_id))
+			StructureSheet.fill_build(player, func (t: String, cb: Callable) -> void: _sheet_btn(box, t, cb), _refresh_sheet, _close_sheet)
+			any = true  # modular pieces are always buildable from materials: no "no kits" note eating the rows
 			if not any:
 				# Under the rows, wrapped to the sheet's width (in the two-column grid it stretched the sheet to 708 px).
 				var l := Label.new()
 				l.text = "No building kits in the bag. Craft one at the workbench."
 				l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 				outer.add_child(l)
+		&"structure":
+			title.text = StructureSheet.fill_card(box, player, func (t: String, cb: Callable) -> void: _sheet_btn(box, t, cb), _close_sheet)
 	add_child(_sheet)
 	_layout()
 	await get_tree().process_frame
 	_layout()
+
+## A tapped modular piece (W2-BUILDSYS): its card in the bottom sheet.
+func open_structure(sp: StructurePiece) -> void:
+	if player and player.build_ui and is_instance_valid(player.build_ui):
+		(player.build_ui as BuildUI).hide_ui()  # the card opens where the build drawer sits
+	StructureSheet.card = sp
+	_close_sheet()
+	_toggle_sheet(&"structure")
 
 func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 	var b := Button.new()
@@ -818,11 +1238,10 @@ func _sheet_btn(box: Container, text: String, cb: Callable) -> void:
 	b.pressed.connect(cb)
 	box.add_child(b)
 
-## True while one of the HUD's sheets is open. HANDS (held_item_slot.gd) and the creature plates sit
-## on canvas layers above the HUD's and hide meanwhile: on a landscape phone HANDS sat on the sheet's
-## Close, so a tap there swapped the held tool.
+## True while one of the HUD's sheets is open. The creature plates sit on canvas layers above the
+## HUD's and hide meanwhile.
 func sheet_open() -> bool:
-	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible)
+	return _sheet != null or (_skills_sheet != null and _skills_sheet.visible) or (_orders_sheet != null and _orders_sheet.visible)
 
 ## Screen rects the HUD holds this frame (see HudLayout.taken_rects).
 func taken_rects(skip: PackedStringArray = []) -> Array[Rect2]:
@@ -860,6 +1279,50 @@ func _toggle_skills(tree: String = "") -> void:
 		_skills_sheet.close()
 	else:
 		_skills_sheet.open(player.skills, tree)
+		field.clear(&"skills")  # the MENU badge's skill notices are read
+
+# ---------------------------------------------------------------- UICHAR entry points (nav menu B3)
+
+var _orders_sheet: OrdersSheet
+
+## C1 Character (character_sheet.gd, hosted by the bag's InventoryUI). ‹ comes back to the MENU.
+func open_character() -> void:
+	_close_sheet()
+	if player == null or player.ui == null:
+		return
+	if not player.ui.menu_requested.is_connected(_back_to_menu):
+		player.ui.menu_requested.connect(_back_to_menu)
+	player.ui.open_character()
+
+## C3 Skills (skills_sheet.gd), on `tree` or the last skill shown. ‹ comes back to the MENU.
+func open_skills(tree: String = "") -> void:
+	_close_sheet()
+	if player == null or player.skills == null:
+		return
+	if _skills_sheet == null or not _skills_sheet.visible:
+		_toggle_skills(tree)
+	elif tree != "":
+		_skills_sheet.open(player.skills, tree)
+	if not _skills_sheet.back_requested.is_connected(_back_to_menu):
+		_skills_sheet.back_requested.connect(_back_to_menu)
+
+## C4 Orders (orders_sheet.gd); "Track on HUD" points the quest card here. ‹ comes back to the MENU.
+func open_orders() -> void:
+	_close_sheet()
+	if _orders_sheet == null:
+		_orders_sheet = OrdersSheet.new()
+		_orders_sheet.name = "OrdersSheet"
+		add_child(_orders_sheet)
+		_orders_sheet.back_requested.connect(_back_to_menu)
+	_orders_sheet.open(player)
+
+## The nav menu, for screens whose ‹ returns to it (UIANIMALS calls this when it exists).
+func open_menu() -> void:
+	_back_to_menu()
+
+func _back_to_menu() -> void:
+	if _sheet_kind != &"menu":
+		_toggle_sheet(&"menu")
 
 var _map_screen: MapScreen
 
@@ -888,6 +1351,96 @@ func _open_map() -> void:
 func open_map() -> void:
 	_open_map()
 
+## F2 World Atlas for the nav menu: opens it (open_map toggles).
+func open_atlas() -> void:
+	if _map_screen == null or not _map_screen.is_open():
+		_open_map()
+
+## UIMARKET: the Island Market on its own layer (tab: buy | my_market | sell); its ‹ comes back to MENU.
+func open_market(tab: StringName = &"buy") -> MarketScreen:
+	var s := MarketScreen.open_for(self, tab)
+	if not s.back_pressed.is_connected(_market_back):
+		s.back_pressed.connect(_market_back)
+	return s
+
+func _market_back() -> void:
+	_toggle_sheet(&"menu")
+
+var _domain_screen: DomainScreen
+
+## spec 29: the Domain screen (four territory tabs, Declare/Expand with the ground preview).
+func _open_domain() -> void:
+	if _domain_screen == null:
+		_domain_screen = DomainScreen.new()
+		var layer := CanvasLayer.new()
+		layer.name = "DomainLayer"
+		layer.layer = 96
+		add_child(layer)
+		layer.add_child(_domain_screen)
+	if _domain_screen.is_open():
+		_domain_screen.close()
+	else:
+		_domain_screen.open(player)
+
+## The Domain screen, when the HUD has made one (the lab and tests read it).
+func domain_screen() -> DomainScreen:
+	return _domain_screen
+
+# ---------------------------------------------------------------- UIWORLD screens (nav menu entry points)
+
+var _world_sheets: Dictionary = {}  ## StringName -> UiWorldSheet, made on first open
+
+## The sheet `key`, made once with `make`, on its own canvas layer at the Domain screen's depth.
+func _world_sheet(key: StringName, make: Callable) -> UiWorldSheet:
+	var s: UiWorldSheet = _world_sheets.get(key)
+	if s != null and is_instance_valid(s):
+		return s
+	var layer := get_node_or_null("WorldSheetLayer") as CanvasLayer
+	if layer == null:
+		layer = CanvasLayer.new()
+		layer.name = "WorldSheetLayer"
+		layer.layer = 96
+		add_child(layer)
+	s = make.call()
+	layer.add_child(s)
+	s.back_pressed.connect(_back_to_menu)  # ‹ returns to the nav menu (§8)
+	_world_sheets[key] = s
+	return s
+
+## F1: open the Domain screen (never toggles it shut, unlike the old menu path).
+func open_domain() -> DomainScreen:
+	_close_sheet()
+	if _domain_screen == null or not _domain_screen.is_open():
+		_open_domain()
+	return _domain_screen
+
+## F3: the Factions screen (factions, reputation, missions); `fid` preselects a faction (a board's tap).
+func open_comms(fid: String = "") -> CommsUI:
+	_close_sheet()
+	var s := _world_sheet(&"comms", func () -> UiWorldSheet: return CommsUI.new()) as CommsUI
+	s.open(player, fid)
+	return s
+
+## F3: Radio University (career guides), its own screen; Back returns to Communication.
+func open_radio_university() -> RadioUniversityUI:
+	var comms := open_comms()
+	comms.open_radio()
+	return comms.radio
+
+## E2: the Taming Pen screen for `pen` (PlayerActions.pen_interact calls this; null = bag only).
+func open_taming_pen(pen: TamingPen = null) -> TamingPenUI:
+	_close_sheet()
+	var s := _world_sheet(&"pen", func () -> UiWorldSheet: return TamingPenUI.new()) as TamingPenUI
+	s.open(player, pen)
+	return s
+
+## FIREFUEL: a fire's fuel sheet (StationMenu's FUEL hex calls this).
+func open_fire_fuel(fire: Bonfire, who: Player = null) -> FireFuelSheet:
+	_close_sheet()
+	var s := _world_sheet(&"fire_fuel", func () -> UiWorldSheet: return FireFuelSheet.new()) as FireFuelSheet
+	s.open(who if who != null else player, fire)
+	return s
+
 # ---------------------------------------------------------------- per frame
 
 func _build_fatigue_panel() -> void:
@@ -900,24 +1453,89 @@ func _build_fatigue_panel() -> void:
 func _input(event: InputEvent) -> void:
 	if player == null or player.dead or _fatigue_panel == null:
 		return
+	if not sheet_open() and _orders_press(event):  # HUDRULES: the orders badge / card collapse toggle
+		if player.controls:
+			player.controls._desktop_click_fallback_pending = false
+		get_viewport().set_input_as_handled()
+		queue_redraw()
+		return
+	if not sheet_open() and _status_fx.input(event):  # a press on a status box pins its tooltip
+		if player.controls:
+			player.controls._desktop_click_fallback_pending = false
+		get_viewport().set_input_as_handled()
+		queue_redraw()
+		return
+	if not sheet_open() and _buff_row.input(event):  # HUDRULES: chip hover / click / tap toggles its tooltip
+		if player.controls:
+			player.controls._desktop_click_fallback_pending = false  # the chip took it: no world tap behind
+		get_viewport().set_input_as_handled()
+		queue_redraw()
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var pill := HudPills.node_at(event.position)  # UIGATHER: a harvest pill is tappable like its node
+		if pill and not sheet_open() and not player.controls.tap_blocked():
+			player.controls._desktop_click_fallback_pending = false  # the pill took it: no world tap behind
+			player._interact_tap_target(pill)
+			get_viewport().set_input_as_handled()
+			return
 		if _fatigue_rect.has_point(event.position):
 			_fatigue_panel.player = player
 			_fatigue_panel.toggle()
 			queue_redraw()
 			get_viewport().set_input_as_handled()
 
+## A tap (touch) or a real click on the orders badge or card toggles it; the mouse press a touch also
+## sends is swallowed without toggling back.
+func _orders_press(event: InputEvent) -> bool:
+	if event is InputEventScreenTouch and event.pressed and _orders_toggle_at(event.position):
+		orders_tap()
+		return true
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and _orders_toggle_at(event.position):
+		if event.device != InputEvent.DEVICE_ID_EMULATION:
+			orders_tap()
+		return true
+	return false
+
 func _process(delta: float) -> void:
 	if player == null:
 		return
+	if World.objective != _orders_seen:  # HUDRULES: a finished order flashes the collapsed badge
+		_orders_flash = HudOrdersBadge.FLASH_S if _orders_seen >= 0 and World.objective > _orders_seen else 0.0
+		_orders_seen = World.objective
+	_orders_flash = maxf(0.0, _orders_flash - delta)
+	_tick_orders_auto(delta)
 	_tick_death(delta)
+	# Exhaustion drift sampling (ExhaustTreadmill): sleep/meals arrive as one-off steps, work and
+	# climate as a steady creep; the EMA over fatigue deltas drives the belt's direction and speed.
+	if not player.dead and player.vitals != null:
+		var vf := player.vitals.fatigue
+		if _fat_prev > -1.0e8:
+			if absf(vf - _fat_prev) >= ExhaustTreadmill.STEP_AFTER:
+				_fat_forgive = ExhaustTreadmill.FORGET_HOLD_S
+			var instant := (vf - _fat_prev) / maxf(delta, 1.0 / 240.0)
+			if player.vitals.blocks_fatigue_gain:  # Well Rested: the treadmill pauses
+				_fat_rate = ExhaustTreadmill.paused_rate(_fat_rate, instant, delta)
+			else:
+				_fat_rate = ExhaustTreadmill.sample_rate(_fat_rate, instant, delta, _fat_forgive)
+		_fat_prev = vf
+		_fat_forgive = maxf(0.0, _fat_forgive - delta)
+		_belt_phase = ExhaustTreadmill.phase(_belt_phase, _fat_rate, delta)
+		# HUDREDRAW: the sheen clock only runs while the treads scroll (a belt at rest is a still picture).
+		ExhaustTreadmill.tick(delta, clampf(vf / maxf(1.0, player.vitals.max_fatigue), 0.0, 1.0),
+			player.vitals.blocks_fatigue_gain, ExhaustTreadmill.direction(_fat_rate) != 0)
+		if _fatigue_panel != null:
+			_fatigue_panel.rate = _fat_rate
 	var hunting := player.hunt != null and player.hunt.target != null and is_instance_valid(player.hunt.target)
+	field.tick(delta)
 	if hunting != _in_combat:
 		_in_combat = hunting
 		_end_btn.visible = hunting
 		for h in _skill_hexes:
 			h.visible = hunting
 		_auto_hex.visible = hunting
+		_auto_ability_hex.visible = hunting
+		_auto_ability_hex.selected = player.hunt.auto_ability
+		_auto_ability_hex.queue_redraw()
 		_stance_label.visible = hunting
 		_chase_hex.visible = hunting
 		if not hunting:
@@ -942,17 +1560,19 @@ func _process(delta: float) -> void:
 		var ranged := weapon != null and weapon.def() != null and weapon.def().range_m > 0.0
 		_skill_hexes[0].caption = "FIRE %d" % player.inventory.count_of(weapon.def().ammo_id) if ranged else "NET"
 		_skill_hexes[0].icon = UiIcons.icon(&"fire_ranged" if ranged else &"net")
-		_skill_hexes[0].disabled = player.inventory.count_of(weapon.def().ammo_id) <= 0 if ranged else not (player.hunt.target.capturable() and player.hunt._best_net_ok())
+		_skill_hexes[0].disabled = player.inventory.count_of(weapon.def().ammo_id) <= 0 if ranged else not (player.hunt._net_health_ok() and player.hunt._best_net_ok())
 		if siege:
 			_skill_hexes[0].caption = "SIEGE %d" % player.inventory.count_of(&"stone_shot")
 			_skill_hexes[0].icon = UiIcons.icon(&"siege")
 			_skill_hexes[0].disabled = catapult.reload_left > 0 or player.inventory.count_of(&"stone_shot") == 0
+		_net_gold(_skill_hexes[0], not ranged and not siege and not _skill_hexes[0].disabled)
 		_skill_hexes[0].queue_redraw()
 		_skill_hexes[1].disabled = (catapult.reload_left > 0 or player.inventory.count_of(&"toxin_pot") == 0) if siege else player.hunt._tackle_cd > 0.0
 		_skill_hexes[2].disabled = player.hunt._kick_cd > 0.0
 		for h in _skill_hexes:
 			h.queue_redraw()
 	_refresh_context(delta)
+	_refresh_claim_panel()
 	_refresh_place_hexes()
 	_refresh_food_hexes()
 	var pet_out := not player.live_pets().is_empty()
@@ -966,19 +1586,213 @@ func _process(delta: float) -> void:
 			if wh.selected != want:
 				wh.selected = want
 				wh.queue_redraw()
-	if _levelup_t >= 0.0:
-		_levelup_t += delta
-		if _levelup_t > 6.5:
-			_levelup_t = -1.0
+	_levelups.tick(delta, self)
+	if _levelups.menu_pulse() > 0.0 and _sheet is NavMenu:
+		(_sheet as NavMenu).root.queue_redraw()  # the Skills entry's badge pulses
+	GatherFeedback.tick_notices(_events.notices, player, drawn_blocks)  # W2-GATHER: rare notice life, off _draw
 	_events.tick(delta)
-	_minimap.queue_redraw()
-	queue_redraw()
+	top_feed.tick(delta)
+	_rest_fx.tick(player, _events, delta)
+	_status_fx.tick(player, _events, delta)  # STATUSFX: boxes' slots, the emitters on her, tick numbers  # REST: recovery floats over her while she rests or sleeps
+	_pulse_check -= delta
+	if _pulse_check <= 0.0:
+		_pulse_check = SKILL_PULSE_TICK
+		_refresh_skill_pulse()
+	_domain.tick(delta, World.runtime, player.global_position)
+	# The stomach ring's fill and its eased glyph scale (drawn, but read here so the paint is pure).
+	stomach_fill = HudStomach.fullness_of(player)
+	stomach_saturation = HudStomach.saturation_of(player)
+	stomach_state = HudStomach.state_of(stomach_fill)
+	stomach_glyph_scale = move_toward(stomach_glyph_scale, float(HudStomach.GLYPH_SCALE[stomach_state]), delta * HudStomach.SCALE_SPEED)
+	_tick_redraw(delta)
+
+# ---------------------------------------------------------------- HUDREDRAW
+
+## HUDREDRAW: the field HUD used to call queue_redraw() on itself and the minimap every frame
+## (~1.3-1.7 ms of a desktop frame, claude-tutperf). It now paints only when what it paints changed:
+## `_hud_sig()` is every value `_draw` reads, quantized to what can be seen (whole metres, whole
+## seconds, 0.1 px), and `_animating()` is true while a piece that moves by itself is on screen. A new
+## input of `_draw` must be added to the signature, or it waits for the next animating frame. The
+## day/night dial and the hexes keep their own redraw logic.
+
+func _q10(v: float) -> int:
+	return int(round(v * 10.0))
+
+func _q2(v: Vector2) -> Vector2i:
+	return Vector2i(_q10(v.x), _q10(v.y))
+
+func _q3(v: Vector3) -> Vector3i:
+	return Vector3i(_q10(v.x), _q10(v.y), _q10(v.z))
+
+## Everything _draw reads, as one comparable key.
+func _hud_sig() -> Array:
+	var cam := get_viewport().get_camera_3d()
+	var v := player.vitals
+	var out: Array = [get_viewport_rect().size, player.dead, _q3(player.global_position), level_badge_tier,
+		HudStomach.fullness_of(player), HudStomach.saturation_of(player), stomach_state, _q10(stomach_glyph_scale)]
+	if v != null:
+		out.append_array([_q10(v.health), _q10(v.effective_max_health()), _q10(v.energy), _q10(v.effective_max_energy()),
+			_q10(v.fatigue), _q10(v.max_fatigue), hp_label(v)])
+	# The treadmill: its treads at whole pixels and its sheen at 15 Hz (ExhaustTreadmill.look_key), so a
+	# crawling belt steps a pixel now and then instead of repainting 60 times a second.
+	out.append(ExhaustTreadmill.look_key(_belt_phase))
+	var en := energy_reading(player)
+	out.append_array([_q10(float(en["value"])), _q10(float(en["max"])), str(en["name"])])
+	# Level badge, level bar, XP feed: the badge animates only from tier 4 (grey/bronze/silver are still).
+	out.append_array([LevelDisplay.player_level(), LevelDisplay.xp_bar()])
+	if player.visual:
+		out.append(_q10(player.visual.rotation.y))
+	if cam:
+		out.append_array([_q3(cam.global_position), _q3(cam.global_rotation), _q10(cam.fov)])
+	out.append_array([World.island_id, World.objective, World.is_home(), World.is_tutorial(),
+		int(ceil(World.remaining_lifetime / 60.0)), World.crater_discovered])
+	# Statuses: the chip row (a buff, boon or debuff) and the max-HP note; the afflictions' own boxes
+	# (StatusFx) animate while they show anyway.
+	var statuses: Array = []
+	if player.statuses:
+		for inst in player.statuses.instances():
+			statuses.append([str(inst.id), inst.stacks, int(ceil(inst.time_left))])
+		out.append(player.statuses.max_health_note())
+	out.append(statuses)
+	var buffs: Array = []
+	for e in HudBuffRow.entries(player):
+		buffs.append([str(e["key"]), int(e["stacks"]), int(ceil(float(e["time_left"])))])
+	out.append(buffs)
+	# Open tooltips: a hover on a chip or a status box changes what is painted without any other input.
+	out.append_array([_buff_row.shown(), _buff_row.pinned, str(_status_fx.pinned), str(_status_fx.hovered)])
+	if player.sim:
+		out.append(Array(player.sim.rest.hud_lines()))
+	# Orders card / badge and the level bar: rounded progress, so a slow fill steps a pixel at a time.
+	var step := OrdersSheet.hud_step(player)
+	out.append_array([int(step.get("index", -1)), int(step.get("count", 0)), str(step.get("progress", "")),
+		_q10(float(step.get("frac", 0.0))), orders_expanded(), _orders_flash > 0.0, orders_badge_text])
+	# The target plate (and its capture hint) follows the fight target.
+	var t: Creature = player.hunt.target if player.hunt and player.hunt.target and is_instance_valid(player.hunt.target) else null
+	if t == null and player.controls and player.controls.selection:
+		t = player.controls.selection.current()
+	if t and is_instance_valid(t):
+		var st: Array = []
+		if t.statuses:
+			for inst in t.statuses.instances():
+				st.append([str(inst.id), inst.stacks])
+		# FOODTORPOR: the plate's violet torpor strip and its knock-out tick follow t.torpor.
+		out.append_array([t.get_instance_id(), _q10(t.health.hp), t.level, t.nature_id(), st, _q3(t.global_position),
+			_q10(t.torpor) if t.torpor > 0.05 else 0])
+	else:
+		out.append(0)
+	# The world pills and the nameplate: what is near her, and whether she is moving (pills fade).
+	var near: Array = []
+	for n in get_tree().get_nodes_in_group("harvest"):
+		if n is Node3D and player.global_position.distance_to((n as Node3D).global_position) <= 9.0:
+			# A picked-clean node's pill shows its regrow timer: whole seconds, so it steps once a second.
+			near.append([n.get_instance_id(), int(ceil((n as HarvestNode).regen_left())) if n is HarvestNode else 0])
+	out.append(near)
+	out.append(player.velocity.length() > 0.5)
+	out.append(_fatigue_panel != null and _fatigue_panel.visible)
+	if player.placer:
+		out.append_array([str(player.placer.placing), player.placer.layout_mode, player.placer.moving != null])
+	return out
+
+## True while a piece of the HUD moves by itself: transient text, celebrations, the status pulse, the
+## domain banner, the combat frame, a high-tier level badge, the treadmill, the ghost fills, pills
+## gliding and the fog trail fading. Only then does an otherwise idle HUD repaint.
+func _animating() -> bool:
+	if not (_events.notices.is_empty() and _events.toasts.is_empty() and _events.skill_toasts.is_empty()
+			and _events.bites.is_empty() and _events.player_floats.is_empty()):
+		return true
+	if top_feed.busy() or _levelups.showing() or _levelups.menu_pulse() > 0.0:
+		return true
+	if _status_fx.pulsing() or not StatusFx.effects(player).is_empty():
+		return true
+	if _domain.showing() or _orders_flash > 0.0 or HudPills.animating:
+		return true
+	if absf(_combat_alpha - (1.0 if _in_combat else 0.0)) > 0.001:
+		return true
+	if level_badge_tier >= 4 or _trail_moving:
+		return true
+	var fog := World.map_fog
+	if fog and not fog.trail.is_empty() and player.velocity.length() > 0.2:
+		return true  # its dots fade out as she walks on (a standing trail holds its alphas)
+	if player.placer and (player.placer.placing != &"" or player.placer.layout_mode):
+		return true
+	return false
+
+func _tick_redraw(delta: float) -> void:
+	_tick_trails(delta)
+	_tick_map_redraw(delta)
+	_since_draw += delta
+	var sig := _hud_sig()
+	if _debug_sig and _sig_ready and sig != _sig:
+		print("[hudredraw] sig %s" % _sig_diff(_sig, sig))
+	if not _sig_ready or sig != _sig or _animating():
+		_sig = sig
+		_sig_ready = true
+		_since_draw = 0.0
+		queue_redraw()
+
+## Which signature slots differ (`-- --hudredraw-debug` prints it; a help for the next HUD change).
+func _sig_diff(a: Array, b: Array) -> String:
+	var out: Array = []
+	for i in maxi(a.size(), b.size()):
+		var x: Variant = a[i] if i < a.size() else null
+		var y: Variant = b[i] if i < b.size() else null
+		if str(x) != str(y):
+			out.append("%d: %s -> %s" % [i, str(x).left(60), str(y).left(60)])
+	return " | ".join(out)
+
+## The minimap's own key: where she stands, which way she and the camera face, what the fog and the
+## map texture show, and the creatures inside the disc.
+var _map_sig: Array = []
+var _map_sig_ready := false
+
+func _map_sig_key() -> Array:
+	var cam := get_viewport().get_camera_3d()
+	var out: Array = [get_viewport_rect().size, World.island_id, _map_tex != null,
+		Vector2i(roundi(player.global_position.x / MAP_SCALE), roundi(player.global_position.z / MAP_SCALE)),
+		int(round(rad_to_deg(player.visual.rotation.y))) if player.visual else 0,
+		int(round(rad_to_deg(cam.global_rotation.y))) if cam else 0]
+	var fog := World.map_fog
+	out.append_array([fog.version if fog else -1, fog.trail.size() if fog else 0,
+		orders_badge_text, _orders_flash > 0.0, World.crater_discovered])
+	var near: Array = []
+	for n in get_tree().get_nodes_in_group("creatures"):
+		var cr := n as Creature
+		if cr and not cr.health.dead and player.global_position.distance_to(cr.global_position) < 130.0:
+			near.append([cr.get_instance_id(), Vector2i(roundi(cr.global_position.x / MAP_SCALE), roundi(cr.global_position.z / MAP_SCALE)), cr.is_pet])
+	out.append(near)
+	return out
+
+func _tick_map_redraw(_delta: float) -> void:
+	var key := _map_sig_key()
+	if not _map_sig_ready or key != _map_sig or _animating():
+		_map_sig = key
+		_map_sig_ready = true
+		_minimap.queue_redraw()
+
+## The bottom level bar: a track, the green fill, and a gap after every `unit` XP of the level's
+## `cost` (the last segment is what is left over, so widths stay proportional to XP).
+func _draw_xp_bar(rect: Rect2, xp: int, cost: int, unit: int) -> void:
+	draw_rect(rect, Color(0.05, 0.05, 0.07, 0.9))
+	draw_rect(Rect2(rect.position, Vector2(rect.size.x * clampf(float(xp) / maxf(1.0, cost), 0.0, 1.0), rect.size.y)), UiTokens.XP_GREEN)
+	var step := rect.size.x * float(unit) / maxf(1.0, cost)
+	var gap_x := rect.position.x + step
+	while gap_x < rect.end.x - 1.0:
+		draw_rect(Rect2(gap_x - 1.0, rect.position.y, 2.0, rect.size.y), Color(0.02, 0.02, 0.03, 0.95))
+		gap_x += step
 
 func _draw() -> void:
+	# HUDREDRAW: the paint is one function (`_draw_hud`) so the probe can count and time it.
+	var t_draw := Time.get_ticks_usec()
+	draw_count += 1
+	_draw_hud()
+	draw_usec += Time.get_ticks_usec() - t_draw
+
+func _draw_hud() -> void:
 	if player == null or player.dead:
 		return
 	var r := get_viewport_rect().size
 	drawn_blocks.clear()
+	_status_fx.draw_vignette(self, player, r)  # STATUSFX: under everything the HUD draws
 	var v := player.vitals
 	if player.placer and player.placer.placing != &"":
 		draw_rect(Rect2(Vector2.ZERO, r), Color(0.02, 0.03, 0.04, 0.28))
@@ -990,135 +1804,177 @@ func _draw() -> void:
 	# old 176 px / 12 px block "tiny desktop typography"). Phone keeps the compact block.
 	var vitals := HudLayout.vitals_rect(self, r)
 	var panel_w := vitals.size.x
-	var bar_w := 232.0 if not phone else maxf(88.0, panel_w - 54.0)
+	# LEVELBADGE (owner 2026-10-28): the level badge is back at the left, its ring richer toward Lv 60; the bars follow it.
+	var full_w := panel_w - HudLevelBadge.COLUMN - 24.0 if UiTokens.is_compact(r) or phone else 276.0
 	var big := 16.0 if not phone else 12.0
-	var small := 10.0 if not phone else 8.0
 	var gap := 6.0
+	# Owner 2026-10-28: the stomach ring moved down to lead the buff row, so the bars take the full width.
+	var bar_w := full_w
 	var num_px := UiTokens.body(r) - 1 if not phone else 12
 	var bar_px := UiTokens.meta(r) if not phone else 12
-	draw_rect(vitals, UiTokens.INK)
+	# LEVELBADGE (owner): no dark box behind the vitals; each piece carries its own rim and shadow.
 	drawn_blocks["vitals"] = vitals
-	var lvl_r := 18.0 if not phone else 16.0
-	draw_circle(Vector2(x + lvl_r, y + lvl_r), lvl_r, Color(0.08, 0.09, 0.11, 0.95))
-	draw_string(_font, Vector2(x, y + lvl_r + num_px * 0.36), str(LevelDisplay.player_level()), HORIZONTAL_ALIGNMENT_CENTER, lvl_r * 2.0, num_px, Color.WHITE)
-	x += lvl_r * 2.0 + 8.0
+	var badge_c := HudLayout.badge_centre(self, r)
+	_badge_centre_drawn = badge_c
+	level_badge_rect = HudLevelBadge.draw(self, badge_c, HudLevelBadge.R, LevelDisplay.player_level(), Time.get_ticks_msec() * 0.001, _font)
+	level_badge_tier = HudLevelBadge.tier_of(LevelDisplay.player_level())
+	_levelups.draw_pulse_rings(self, badge_c, HudLevelBadge.R)  # LEVELFX: gold rings out of the badge on a level-up
+	x += HudLevelBadge.COLUMN
 	var yy := y
-	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", "%.0f / %.0f" % [v.health, v.effective_max_health()], num_px)
+	hp_bar_rect = Rect2(Vector2(x, yy), Vector2(bar_w, big))
+	_bar(Vector2(x, yy), Vector2(bar_w, big), v.health / maxf(1.0, v.effective_max_health()), Color(0.78, 0.13, 0.13), "", hp_label(v), num_px, 0, &"hp")
 	yy += big + gap
-	_bar(Vector2(x, yy), Vector2(bar_w, big), v.energy / maxf(1.0, v.max_energy), Color(0.20, 0.45, 0.80), "", "%.0f / %.0f" % [v.energy, v.max_energy], num_px)
+	var en := energy_reading(player)
+	var en_text := "%.0f / %.0f" % [en.value, en.max]
+	# The mount's name leads the numbers when it fits (a phone bar may only fit the numbers; amber still says "mount").
+	if en.name != "" and _font.get_string_size("%s  %s" % [en.name, en_text], HORIZONTAL_ALIGNMENT_LEFT, -1, num_px).x <= bar_w - 12.0:
+		en_text = "%s  %s" % [en.name, en_text]
+	# Owner 2026-10-28: riding, the bar is the mount's, segmented and a darker blue (UiTokens.MOUNT_ENERGY).
+	energy_bar_color = UiTokens.MOUNT_ENERGY if en.name != "" else UiTokens.PLAYER_ENERGY
+	energy_bar_segments = UiTokens.MOUNT_ENERGY_SEGMENTS if en.name != "" else 0
+	_bar(Vector2(x, yy), Vector2(bar_w, big), en.value / maxf(1.0, en.max), energy_bar_color, "", en_text, num_px, energy_bar_segments, StringName("en:" + en.name))
 	yy += big + gap
+	# HUDREDRAW: kept up to date (and eased) by _process; the paint only reads them.
 	var strain: float = clampf(v.fatigue / maxf(1.0, v.max_fatigue), 0.0, 1.0)
-	var face_pos := Vector2(x + 11.0, yy + 10.0)
-	_draw_exhaustion_face(face_pos, strain)
-	var face_label := "RESTED" if strain < 0.25 else ("TIRED" if strain < 0.5 else ("WEARY" if strain < 0.75 else "EXHAUSTED"))
 	var face_col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
-	draw_string(_font, Vector2(x + 27.0, yy + 14.0), face_label, HORIZONTAL_ALIGNMENT_LEFT, bar_w - 30.0, bar_px, face_col)
-	yy += 22.0
-	_bar(Vector2(x, yy), Vector2(bar_w, small), strain, face_col, "", "%d%%" % int(strain * 100.0), bar_px)
-	_fatigue_rect = Rect2(x, face_pos.y - 14.0, bar_w, maxf(UiTokens.TARGET_MIN, yy + small - face_pos.y + 14.0))
+	# Owner 2026-10-27: this row is a treadmill — the tread chevrons point and scroll right while
+	# exhaustion rises (work, climate, wet) and left while it eases (sleep, meals); scroll speed
+	# carries how fast it is changing. The drift is sampled in _process. HUDTWEAK (owner 2026-10-28):
+	# no tier word; the belt sits right under the energy bar and the face sticker says the tier.
+	var belt := Rect2(Vector2(x, yy), Vector2(full_w, ExhaustTreadmill.BELT_H))
+	draw_rect(Rect2(belt.position + Vector2(0, 2), belt.size), Color(0, 0, 0, 0.35))  # drop shadow, no panel behind
+	ExhaustTreadmill.draw_belt(self, belt, _fat_rate, _belt_phase, strain, face_col, _font, bar_px)
+	# Owner 2026-10-28: the face rides the belt like a sticker, at the strain marker.
+	var sticker := Vector2(clampf(ExhaustTreadmill.marker_rect.get_center().x, belt.position.x + 11.0, belt.end.x - 11.0), belt.get_center().y)
+	_draw_exhaustion_face(sticker, strain)
+	exhaust_sticker_rect = Rect2(sticker - Vector2(12, 12), Vector2(24, 24))
+	_fatigue_rect = Rect2(x, belt.get_center().y - UiTokens.TARGET_MIN * 0.5, full_w, maxf(UiTokens.TARGET_MIN, ExhaustTreadmill.BELT_H))
 	if _fatigue_panel and _fatigue_panel.visible:
 		_fatigue_panel.position = Vector2(_fatigue_rect.position.x, _fatigue_rect.end.y + 8.0)
-	# status badges live under the minimap (right side), left of the Claim hex; on a landscape phone
-	# End Combat stands there, so they go under the vitals, after the whistle row
-	var mp0 := _minimap.position
-	var sx := mp0.x
-	var sy := mp0.y + MAP_PX + 50.0
-	if HudLayout.landscape_phone(r):
-		sx = 16.0 + inset.w + (3.0 * (HEX + 10.0) if _whistle_hexes[0].visible else 0.0)
-		sy = vitals.end.y + 8.0
+	# Player conditions belong with the player's vitals, directly beneath the top-left panel. On a
+	# landscape phone with pet commands visible, keep the row after those commands so they do not
+	# occupy the same strip; both remain within the wide compact vitals block.
+	# HUDTWEAK (owner 2026-10-28): the chip row starts at the health bar's left edge; the stomach ring is
+	# the badge's size, centred under it. A landscape phone's whistle row takes the same strip, so the chips drop under it.
+	var sx := hp_bar_rect.position.x
+	var sy := vitals.end.y + 8.0
+	if HudLayout.landscape_phone(r) and _whistle_hexes[0].visible:
+		sy = _whistle_hexes[0].position.y + _whistle_hexes[0].size.y + 6.0
+	var sc := HudLayout.stomach_circle(self, r)
+	stomach_rect = HudStomach.draw(self, Vector2(sc.x, sc.y), sc.z, stomach_fill, stomach_saturation, stomach_glyph_scale)
+	drawn_blocks["stomach"] = stomach_rect  # tooltips and notices place around it
 	if player.statuses:
 		var sx0 := sx
-		for inst in player.statuses.instances():
-			HudStatusChip.draw(self, _font, Vector2(sx, sy), inst.id, Color(1, 0.75, 0.45))
-			if inst.time_left < 3600.0:  # "until washed / treated" statuses (9999 s) show no countdown
-				draw_string(_font, Vector2(sx, sy + 40), "%.0f" % inst.time_left, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiTokens.META)
-			sx += 30
+		var rest_lines := player.sim.rest.hud_lines() if player.sim else PackedStringArray()
+		if not rest_lines.is_empty():  # REST: the Resting chip comes first while she rests or sleeps
+			HudBuffRow.draw_chip(self, _font, Rect2(Vector2(sx, sy), Vector2(HudBuffRow.CHIP, HudBuffRow.CHIP)), &"resting", &"")
+			sx += HudBuffRow.PITCH
+		# HUDRULES: only buffs, boons and debuffs here; afflictions are StatusFx's boxes beside her.
+		var row := _buff_row.draw(self, _font, Vector2(sx, sy), player, r)
+		if row.has_area():
+			sx = row.end.x + 4.0
 		if sx > sx0:
-			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - 4.0, 44.0)
+			drawn_blocks["statuses"] = Rect2(sx0, sy, sx - sx0 - (HudBuffRow.PITCH - HudBuffRow.CHIP), HudBuffRow.ROW_H)
+		# SAVEFIX: a status that lowers max HP says so under its chip (the number alone was a mystery).
+		var hp_note: String = player.statuses.max_health_note()
+		var rest_y := sy + HudBuffRow.ROW_H + 2.0
+		if hp_note != "":
+			var ny := sy + HudBuffRow.ROW_H + 2.0
+			var nw := _font.get_string_size(hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px).x
+			draw_string(_font, Vector2(sx0, ny), hp_note, HORIZONTAL_ALIGNMENT_LEFT, -1, bar_px, Color(0.96, 0.62, 0.42))
+			drawn_blocks["status_maxhp"] = Rect2(sx0, ny - bar_px, nw, bar_px + 4.0)
+			rest_y = ny + 8.0
+		if not rest_lines.is_empty():  # REST: its live rates in a box right under the chips (and the max-HP note)
+			drawn_blocks["rest"] = HudRestBox.draw(self, _font, Vector2(sx0, rest_y), UiTokens.body(r), rest_lines)
 	var mp := _minimap.position
-	var top := "Home" if World.is_home() else ("Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
+	var top := "Home" if World.is_home() else ("Tutorial Island" if World.is_tutorial() else "Survivable %d min" % int(ceil(World.remaining_lifetime / 60.0)))
 	if World.island_id == &"":
 		top = "Lab"
 	var meta_px := UiTokens.meta(r)
-	draw_string(_font, Vector2(mp.x, mp.y - 16.0), UiTokens.ellipsis(_font, top, MAP_PX, meta_px), HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, Color.WHITE)
+	var top_s := UiTokens.ellipsis(_font, top, MAP_PX, meta_px)
+	draw_string_outline(_font, Vector2(mp.x, mp.y - 16.0), top_s, HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, 3, Color(0, 0, 0, 0.75))
+	draw_string(_font, Vector2(mp.x, mp.y - 16.0), top_s, HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, Color.WHITE)
 	drawn_blocks["map_title"] = Rect2(mp.x, mp.y - 16.0 - meta_px, MAP_PX, meta_px + 4.0)
-	var tile := BuildGrid.tile_of(player.global_position)
-	draw_string(_font, Vector2(mp.x, mp.y + MAP_PX + 16), "X %d  Y %d" % [tile.x, tile.y], HORIZONTAL_ALIGNMENT_LEFT, MAP_PX, meta_px, UiTokens.META)
+	# Owner 2026-10-28: "X 503 Y 295" centred under the map, in whole metres. X = world x (east), Y = -world z
+	# (NORTHUP: Y grows northward, up the screen and the map).
+	var xy := Vector2i(roundi(player.global_position.x), -roundi(player.global_position.z))
+	if xy != _map_xy:  # format only when a metre changes
+		_map_xy = xy
+		map_xy_text = "X %d  Y %d" % [xy.x, xy.y]
+	var xy_pos := Vector2(mp.x, mp.y + MAP_PX + 16)
+	draw_string_outline(_font, xy_pos, map_xy_text, HORIZONTAL_ALIGNMENT_CENTER, MAP_PX, meta_px, 3, Color(0, 0, 0, 0.75))
+	draw_string(_font, xy_pos, map_xy_text, HORIZONTAL_ALIGNMENT_CENTER, MAP_PX, meta_px, Color(0.92, 0.94, 0.96))
 	# The clock and phase line moved into the day/night dial's label: the dial shows the phase already.
 	drawn_blocks["map_text"] = Rect2(mp.x, mp.y + MAP_PX + 16.0 - meta_px, MAP_PX, meta_px + 4.0)
-	# The target plate (current hunt target, else the last creature attacked while it lives) and the
-	# level-up banner take over the landscape phone's centre band from the quest card while they show.
+	# The target plate (current hunt target, else on desktop the selection, else the last creature attacked while it lives) and
+	# the level-up banner take over the landscape phone's centre band from the quest card while they show.
+	var band := HudLayout.centre_band(self, r)
 	var plate_t: Creature = player.hunt.target if (player.hunt and player.hunt.target and is_instance_valid(player.hunt.target)) else null
+	if plate_t == null and not band.has_area():
+		plate_t = player.controls.selection.current()  # a tap selects: its plate shows before any fight (a phone keeps the quest card)
 	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
 		plate_t = _last_target
-	var band := HudLayout.centre_band(self, r)
-	if not band.has_area() or (plate_t == null and _levelup_t < 0.0):
-		_draw_quest(r, mp)
+	# HUDRULES (owner 2026-10-28): in combat the card hides unless the fight serves the shown order.
+	# Collapsed (the default, OrdersSheet.hud_expanded) it is a badge in the minimap's corner.
+	var fight_order := _in_combat and quest_served_by_fight()
+	orders_badge_rect = Rect2()
+	if not _in_combat or fight_order:
+		if orders_expanded() and (not band.has_area() or (plate_t == null and not _levelups.hides_quest(band, quest_rect(r, mp)))):
+			_draw_quest(r, mp)
+		elif not (orders_expanded() and fight_order and _draw_quest_strip(r)):
+			_draw_orders_badge(mp, meta_px)  # collapsed, or the phone band is taken and no strip fits
 	# --- XP bar along the bottom
 	# One bar: the pioneer level, which every skill XP grant also feeds.
-	var prog := World.pioneer_progress() if World.has_method("pioneer_progress") else 0.0
-	draw_rect(Rect2(0, r.y - 4, r.x, 4), Color(0.05, 0.05, 0.07, 0.9))
-	draw_rect(Rect2(0, r.y - 4, r.x * prog, 4), Color(0.90, 0.68, 0.12))
-	var lv := "%s  %.1f%%" % [LevelDisplay.player_label(), prog * 100.0]
+	# LEVELBAR (owner 2026-10-28): one segment per unit of XP, so a dearer level draws more, thinner ones.
+	var xb := LevelDisplay.xp_bar()
+	xp_bar_rect = Rect2(0, r.y - UiTokens.XP_BAR_H, r.x, UiTokens.XP_BAR_H)
+	xp_bar_segments = int(xb["segments"])
+	_draw_xp_bar(xp_bar_rect, int(xb["xp"]), int(xb["cost"]), int(xb["unit"]))
+	_levelups.draw_bar_pulse(self, xp_bar_rect)
+	var lv := "%s  %d / %d XP  · %d XP each" % [LevelDisplay.player_label(), int(xb["xp"]), int(xb["cost"]), int(xb["unit"])]
 	var lw := _font.get_string_size(lv, HORIZONTAL_ALIGNMENT_CENTER, -1, 13).x
-	var lv_pos := Vector2(r.x - lw - 16.0 - inset.x, r.y - HEX - 22.0) if phone else Vector2(r.x * 0.5 - lw * 0.5, r.y - 7.0)
+	# LAYOUT (owner 2026-10-30: "the skill XP + player XP UI lower, above EAT"): the readout stands
+	# bottom-left, just over the quick-food row, where the skill XP rows stack above it.
+	var lv_pos := Vector2(16.0 + inset.w, HudLayout.xp_feed_top(self) - 4.0)
+	draw_string_outline(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3, Color(0.0, 0.0, 0.0, 0.7))
 	draw_string(_font, lv_pos, lv, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	drawn_blocks["level"] = Rect2(lv_pos - Vector2(0.0, 12.0), Vector2(lw, 15.0))
 	# --- name under the survivor
 	var cam := get_viewport().get_camera_3d()
-	if cam:
+	# Not under the pet radial: its see-through centre shows the pet, and the ring cut the name in two.
+	if cam and not (player.pets.menu and player.pets.menu.visible):
 		drawn_blocks["nameplate"] = HudLayout.nameplate_rect(cam, player, _font)
-		var at := (drawn_blocks["nameplate"] as Rect2).position + Vector2(0.0, NAME_PX)
-		draw_string(_font, at + Vector2.ONE, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0, 0, 0, 0.7))
-		draw_string(_font, at, player.display_name(), HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_PX, Color(0.95, 0.95, 0.95))
+		HudLayout.draw_nameplate(self, _font, drawn_blocks["nameplate"], player)
+	_status_fx.draw_tint(self, player, HudLayout.figure_rect(self))
 	_draw_bites(cam)
 	# --- level-up: a gold stack top-left under the bars; on a landscape phone a short banner in the
 	# centre band (its 13 lines ran over the rail and off the bottom of a 390 px canvas)
 	if plate_t:
 		_draw_target_plate(plate_t, maxf(_combat_alpha, 0.85), band)
-	if _levelup_t >= 0.0:
-		var la := 1.0 - smoothstep(5.5, 6.5, _levelup_t)
-		if band.has_area():
-			var below := maxf(band.end.y, (drawn_blocks.get("plate", band) as Rect2).end.y) + 8.0
-			HudLayout.draw_levelup_banner(self, band if plate_t == null else Rect2(band.position.x, below, band.size.x, 84.0), la)
-		else:
-			var ly := 160.0
-			var stack := Rect2()
-			for line in _levelup_lines:
-				var col: Color = line[2]
-				col.a *= la
-				draw_string(_font, Vector2(31, ly + 1), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), Color(0, 0, 0, 0.6 * la))
-				draw_string(_font, Vector2(30, ly), line[0], HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1]), col)
-				var lr := Rect2(30.0, ly - float(line[1]), _font.get_string_size(str(line[0]), HORIZONTAL_ALIGNMENT_LEFT, -1, int(line[1])).x + 1.0, float(line[1]) + 6.0)
-				stack = lr if not stack.has_area() else stack.merge(lr)
-				ly += float(line[1]) + 8.0
-			drawn_blocks["levelup"] = stack
-	# --- pickup toasts near the top-centre, rising and fading, then the notices: each takes the nearest
-	# free spot up or down its column, off every block and hex (on a landscape phone they crossed the
-	# quest card at y 100-128). On a phone the toasts stack under the vitals instead: in the centre
-	# they covered the survivor. One with no room left on screen is skipped.
-	# ASSUMPTION: pickup toasts may move to the left edge on a phone (no reference for it).
+	var levelup := _levelups.draw(self, band, drawn_blocks.get("plate", Rect2()) if plate_t else Rect2(), drawn_blocks.get("quest", Rect2()))
+	if levelup.has_area():
+		drawn_blocks["levelup"] = levelup
+	_levelups.draw_menu_pulse(self, _menu_hex)  # LEVELFX: the MENU hex pulses with a level-up's new notice
+	# --- the domain banner, before the moving text so it keeps off the banner
+	_domain.draw(self)
+	# --- STATUSFX: the status boxes beside her, before the moving text so toasts keep off them
+	var sfx := _status_fx.draw_boxes(self, _font, player, HudLayout.figure_rect(self), taken_rects(), r)
+	if sfx.has_area():
+		drawn_blocks["statusfx"] = sfx
+	var sfx_tip := _status_fx.draw_tip(self, _font, taken_rects(), r)  # the status box's tooltip
+	if sfx_tip.has_area():
+		drawn_blocks["statusfx_tip"] = sfx_tip
+	# HUDRULES: the open chip tooltip, before the moving text so the feed and the toasts keep off it
+	var tip := _buff_row.draw_tooltip(self, _font, taken_rects(), r)
+	if tip.has_area():
+		drawn_blocks["buff_tip"] = tip
+	# --- the left XP feed and the yield card, then the notices: each takes the nearest free spot off
+	# every block and hex. One with no room left on screen is skipped.
 	var taken := taken_rects()
-	var toast_left := UiTokens.is_compact(r)
 	var cx := band.get_center().x if band.has_area() else r.x * 0.5  # a phone's free middle, off HANDS and the map
-	for i in _events.toasts.size():
-		var t: Dictionary = _events.toasts[i]
-		var k: float = t["t"]
-		var alpha := 1.0 - smoothstep(0.7, 1.3, k)
-		var def := Data.item(t["id"])
-		var label := "+%d  %s" % [int(t["n"]), def.display_name if def else str(t["id"])]
-		var tw := _font.get_string_size(label, HORIZONTAL_ALIGNMENT_CENTER, -1, 18).x
-		var rise := 35.0 * (1.0 - minf(k, 1.0))
-		var cand := Rect2(cx - tw * 0.5 - 10, 65.0 + rise, tw + 20, 28)
-		if toast_left:
-			cand.position = Vector2(vitals.position.x, vitals.end.y + 8.0 + rise)
-		var box := UiTokens.free_spot(cand, taken, r)
-		if not box.has_area():
-			continue
-		taken.append(box)
-		drawn_blocks["toast%d" % i] = box
-		draw_rect(box, Color(0.05, 0.06, 0.08, 0.8 * alpha))
-		draw_string(_font, box.position + Vector2(10, 20), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 1, 1, alpha))
+	# UIGATHER (spec §6, owner §1.6): skill XP lines are the left feed under the vitals; item gains are
+	# the yield card above the node (YieldCard, spec §4.5) instead of the top-centre toast.
+	drawn_blocks.merge(YieldCard.draw_feed(self, _font, _events.skill_toasts, Vector2(16.0 + inset.w, HudLayout.xp_feed_top(self) - 20.0), taken, player.skills), true)
 	if player.placer and player.placer.layout_mode:
 		var hint := "Layout mode: drag a building to move it · tap one to rotate · blue = ok, red = blocked · DONE saves" if player.placer.moving == null else "Release to drop (red snaps it back)"
 		var hw := _font.get_string_size(hint, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
@@ -1129,23 +1985,75 @@ func _draw() -> void:
 		var n: Dictionary = _events.notices[i]
 		var k: float = n["t"]
 		var alpha := 1.0 - smoothstep(2.4, 3.2, k)
-		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0, 17)
-		var tw := _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x
-		var box := UiTokens.free_spot(Rect2(cx - tw * 0.5 - 12, 170.0, tw + 24, 30), taken, r)
+		var txt: String = UiTokens.ellipsis(_font, n["text"], r.x - 48.0 - HudEventState.NOTICE_GLYPH, 17)
+		var tw := HudEventState.notice_width(_font, txt, 17, r) if not n.has("tint") else _font.get_string_size(txt, HORIZONTAL_ALIGNMENT_CENTER, -1, 17).x + 24.0
+		var cand := Rect2(cx - tw * 0.5, 170.0, tw, 30)
+		# W2-GATHER: a rare (tinted) notice also keeps off the radial, plates and the survivor, and keeps its side
+		var box := GatherFeedback.notice_box(n, player, cand, taken, r) if n.has("tint") else UiTokens.free_spot(cand, taken, r)
 		if not box.has_area():
 			continue
 		taken.append(box)
 		drawn_blocks["notice%d" % i] = box
-		draw_rect(box, Color(0.35, 0.08, 0.06, 0.85 * alpha))
-		draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(1, 0.9, 0.8, alpha))
+		if n.has("tint"):
+			var pu := GatherFeedback.notice_punch(n)  # lands big and bright, eases back
+			var c := GatherFeedback.notice_colors(n["tint"], alpha, pu.y)
+			draw_set_transform(box.get_center() * (1.0 - pu.x), 0.0, Vector2.ONE * pu.x)
+			draw_rect(box, c[0])
+			draw_rect(box, c[1], false, 2.0)
+			draw_string(_font, box.position + Vector2(12, 21), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, c[2])
+			draw_set_transform(Vector2.ZERO)
+			continue
+		HudEventState.draw_notice(self, _font, box, txt, 17, alpha, bool(n.get("ok", false)))  # B4 warning / ok row
+	# --- the top-middle column (TopFeed): under the vitals' bottom on the desktop, under the centre
+	# band (and a plate in it) on a phone; after the notices, so its rows ease around them, never they around it
+	var feed_top := HudLayout.vitals_rect(self, r).end.y + 10.0
+	if band.has_area():
+		feed_top = maxf(band.end.y, (drawn_blocks.get("plate", Rect2()) as Rect2).end.y if plate_t else 0.0) + 8.0
+	var feed_taken := taken + GatherFeedback.radial_rects(player)
+	var fb := top_feed.draw(self, _font, TopFeed.column_cx(self, r), feed_top, feed_taken)
+	for k in fb:
+		taken.append(fb[k])
+	drawn_blocks.merge(fb, true)
 	# --- label pills on buildings and nodes within 8 m (reference: base building), last: they give way
 	# to everything above and to the open radials
+	if _combat_alpha > 0.01:
+		_draw_capture_hint(cam, taken, _combat_alpha)  # before the pills, so they give way to it
+		if drawn_blocks.has("capturehint"):
+			taken.append(drawn_blocks["capturehint"])
 	HudPills.draw(self, cam, taken)
 	# --- combat layer
 	if _combat_alpha > 0.01:
 		var a := _combat_alpha
 		draw_rect(Rect2(0, 0, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
 		draw_rect(Rect2(0, r.y - 6, r.x, 6), Color(0.85, 0.1, 0.1, 0.75 * a))
+
+## B2: a gold line by the fought animal saying whether the net can go now (spec 09 window).
+func _draw_capture_hint(cam: Camera3D, taken: Array[Rect2], a: float) -> void:
+	var t: Creature = player.hunt.target if player.hunt else null
+	if cam == null or t == null or not is_instance_valid(t) or t.def == null or not t.def.tameable or t.is_pet:
+		return
+	var at := t.global_position + Vector3.UP * 1.2
+	if cam.is_position_behind(at):
+		return
+	var text := "Knocked out — throw the net!" if FieldTame.capture_window(t) else ("Sedate it: torpor %d%% / %d%%" % [int(round(100.0 * t.torpor_frac())), int(round(100.0 * FieldTame.torpor_ko_frac()))] if FieldTame.is_weak(t) else "Weaken to %d%% to capture" % int(round(FieldTame.CAPTURE_HEALTH_FRAC * 100.0)))
+	var view := get_viewport_rect().size
+	var px := UiTokens.body(view)
+	var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x + 16.0
+	var sp := cam.unproject_position(at)
+	var box := UiTokens.free_spot(Rect2(sp.x - w * 0.5, sp.y - float(px) - 18.0, w, float(px) + 10.0), taken + GatherFeedback.plate_rects(4.0), view, true)
+	drawn_blocks.erase("capturehint")
+	if not box.has_area():
+		return
+	drawn_blocks["capturehint"] = box
+	draw_string(_font, Vector2(box.position.x + 9.0, box.end.y - 6.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(0, 0, 0, 0.7 * a))
+	draw_string(_font, Vector2(box.position.x + 8.0, box.end.y - 7.0), text, HORIZONTAL_ALIGNMENT_LEFT, -1, px, Color(UiTokens.GOLD, a))
+
+## ALPHATAG: where the ALPHA chip's top-left goes so it sits on the name's baseline row, `name_pos` being
+## the name's left-baseline point. Pure, so the geometry (and a test) can be checked without a draw pass.
+static func alpha_tag_pos(name_pos: Vector2, is_alpha: bool) -> Vector2:
+	if not is_alpha:
+		return name_pos
+	return Vector2(name_pos.x, name_pos.y - AlphaChip.CHIP_H + 1.0)
 
 func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 	var r := get_viewport_rect().size
@@ -1158,44 +2066,176 @@ func _draw_target_plate(t: Creature, a: float, band: Rect2 = Rect2()) -> void:
 				pw = band.size.x
 				px = band.position.x
 				py = band.position.y + 8.0
-			var block := Rect2(px, py - 4.0, pw, 70.0)
-			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else str(t.def.id).capitalize()
+			# NATURES (§11): the nature tag sits under the name; with one, the bar and every row below drop by dy.
+			var nat := t.nature_id()
 			var name_px := UiTokens.heading(r)
-			nm = UiTokens.ellipsis(_font, nm, pw - 150.0, name_px)
-			draw_string(_font, Vector2(px + 12, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0, name_px, Color(1, 1, 1, a))
-			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x
+			# The name's Latin line box: the symbol fallbacks inflate _font's own ascent/descent, never this text's.
+			var latin: Font = (_font as FontVariation).base_font if _font is FontVariation else _font
+			var chip_y := py + 29.0 + latin.get_descent(name_px)  # 1 px under the name's line box
+			var dy := maxf(0.0, chip_y + NatureChip.CHIP_H + CreaturePlates.CHIP_GAP - (py + 44.0)) if NatureChip.text_for(nat) != "" else 0.0
+			var block := Rect2(px, py - 4.0, pw, 70.0 + dy + HudBuffRow.CHIP + 8.0)
+			# ALPHATAG: a gold "ALPHA" tag in front of the name, then the name starts after it.
+			var prefix_w := 0.0
+			var aname_x := px + 12.0
+			var atag := AlphaChip.draw_at(self, _font, alpha_tag_pos(Vector2(px + 12, py + 28), t.is_alpha()), t.is_alpha(), a)
+			if atag.has_area():
+				prefix_w = atag.size.x + AlphaChip.NAME_GAP
+				aname_x = atag.end.x + AlphaChip.NAME_GAP
+				block = block.merge(atag)
+			var nm := ("%s  [%s IV]" % [str(t.def.id).capitalize(), t.genetics.overall_tier() if t.genetics else &"?"]) if t.is_pet else CreatureNatures.display_title(t)
+			nm = UiTokens.ellipsis(_font, nm, pw - 150.0 - prefix_w, name_px)
+			draw_rect(Rect2(px, py - 4, pw, 48 + dy), Color(UiTokens.INK, 0.75 * a))  # the reference's dark band: the name reads on foliage
+			draw_string(_font, Vector2(aname_x, py + 28), nm, HORIZONTAL_ALIGNMENT_LEFT, pw - 120.0 - prefix_w, name_px, Color(1, 1, 1, a))
+			var nmw := _font.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px).x + prefix_w
+			var asc := latin.get_ascent(name_px)
+			target_rows = {"name": Rect2(px + 12, py + 28 - asc, nmw, asc + latin.get_descent(name_px))}
+			if atag.has_area():
+				target_rows["alpha"] = atag
+			target_rows["chip"] = NatureChip.draw_at(self, _font, Vector2(px + 12, chip_y), nat, a)
 			draw_string(_font, Vector2(px + 18 + nmw, py + 28), "Lv. %d" % t.level, HORIZONTAL_ALIGNMENT_LEFT, -1, name_px, UiTokens.DANGER)
 			draw_rect(Rect2(px + pw - 60, py - 4, 52, 52), Color(0.12, 0.12, 0.14, 0.9 * a))
-			draw_string(_font, Vector2(px + pw - 48, py + 32), str(t.def.id).left(1).to_upper(), HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 1, 1, a))
+			# ASSUMPTION: no per-species portrait art exists yet; the Animals head stands in for the reference's portrait.
+			draw_texture_rect(UiIcons.icon(&"animals"), Rect2(px + pw - 54, py + 2, 40, 40), false, Color(1, 1, 1, a))
 			var frac := clampf(t.health.hp / maxf(1.0, t.health.max_hp), 0.0, 1.0)
+			py += dy  # everything below the tag
+			target_rows["bar"] = Rect2(px, py + 44, pw, 22)
 			draw_rect(Rect2(px, py + 44, pw, 22), Color(0.12, 0.05, 0.05, 0.9 * a))
-			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(0.80, 0.12, 0.12, 0.95 * a))
+			var window := FieldTame.capture_window(t)  # weak + torpor past the threshold: the bar turns GOLD
+			draw_rect(Rect2(px, py + 44, pw * frac, 22), Color(UiTokens.GOLD, 0.95 * a) if window else Color(0.80, 0.12, 0.12, 0.95 * a))
 			var hp := "%.0f / %.0f" % [t.health.hp, t.health.max_hp]
 			var hw := _font.get_string_size(hp, HORIZONTAL_ALIGNMENT_CENTER, -1, 15).x
 			draw_string(_font, Vector2(px + pw * 0.5 - hw * 0.5, py + 61), hp, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(1, 1, 1, a))
+			if not t.is_pet and t.torpor > 0.05:  # FOODTORPOR: violet torpor strip + the knock-out tick
+				draw_rect(Rect2(px, py + 67, pw, 5), Color(0.06, 0.04, 0.12, 0.9 * a))
+				draw_rect(Rect2(px, py + 67, pw * t.torpor_frac(), 5), Color(CreaturePlates.TORPOR_COLOR, 0.95 * a))
+				draw_rect(Rect2(px + pw * FieldTame.torpor_ko_frac() - 1.0, py + 67, 2, 5), Color(1, 1, 1, 0.9 * a))
+				target_rows["torpor"] = Rect2(px, py + 67, pw, 5)
 			if t.brain is TyrantBrain:
 				var label := (t.brain as TyrantBrain).opening_label()
 				draw_rect(Rect2(px,py+108,pw,26),Color(0.1,0.1,0.12,0.9*a))
 				draw_string(_font,Vector2(px+8,py+128),label,HORIZONTAL_ALIGNMENT_LEFT,pw-16,16,Color(1,0.85,0.2,a))
 				block = block.merge(Rect2(px, py + 108.0, pw, 26.0))
 			var ix := px
+			# CREATURECHIPS: the target bar's status chips are the player's chip renderer (HudBuffRow
+			# .draw_chip, 38 px black tile, white rim, white icon) with the numbered stack badge —
+			# the same look and count as the plate's chips and her own row.
+			target_rows["chips"] = {}
 			if t.statuses:
-				for inst in t.statuses.instances():
-					HudStatusChip.draw(self, _font, Vector2(ix, py + 74), inst.id, Color(1, 0.6, 0.5), a)
-					block = block.merge(Rect2(ix, py + 74.0, 26.0, 26.0))
-					ix += 30
+				for e in HudBuffRow.creature_entries(t):
+					var box := Rect2(Vector2(ix, py + 74.0), Vector2(HudBuffRow.CHIP, HudBuffRow.CHIP))
+					HudBuffRow.draw_chip(self, _font, box, e["icon"], e["kind"], false, int(e.get("stacks", 1)))
+					target_rows["chips"][str(e["key"])] = box
+					block = block.merge(box.grow(2.0))
+					ix += HudBuffRow.PITCH
 			drawn_blocks["plate"] = block
 
-func _draw_quest(r: Vector2, mp: Vector2) -> void:
+## HUDRULES: true while she fights an animal the shown order's `fight` list names (objectives.json).
+func quest_served_by_fight() -> bool:
+	var t: Creature = player.hunt.target if player and player.hunt and is_instance_valid(player.hunt.target) else null
+	return t != null and OrdersSheet.served_by_fight(OrdersSheet.shown_index(), t)
+
+func _draw_orders_badge(mp: Vector2, px: int) -> void:
+	var step := OrdersSheet.hud_step(player)
+	var text := "%d/%d" % [int(step["index"]) + 1, int(step["count"])] if not step.is_empty() else "Done"
+	orders_badge_text = text
+	_orders_badge_px = px
+	orders_badge_rect = HudOrdersBadge.rect_for(_font, mp, text, px)
+	drawn_blocks["orders_badge"] = orders_badge_rect  # drawn by _draw_minimap: the map control paints over the HUD
+
+## The card shows expanded: by hand (OrdersSheet.hud_expanded), or auto while she works on the order
+## unless she collapsed it during this activity.
+func orders_expanded() -> bool:
+	return OrdersSheet.hud_expanded or (orders_auto_t > 0.0 and not _orders_suppressed)
+
+## A tap on the badge expands; a tap on the card collapses (and keeps an auto-expanded card down).
+func orders_tap() -> void:
+	if orders_expanded():
+		OrdersSheet.hud_expanded = false
+		_orders_suppressed = orders_auto_t > 0.0
+	else:
+		OrdersSheet.hud_expanded = true
+
+## Progress on the shown order (its fill rose) or a fight that serves it keeps the auto timer up.
+func _tick_orders_auto(delta: float) -> void:
+	orders_auto_t = maxf(0.0, orders_auto_t - delta)
+	if orders_auto_t <= 0.0:
+		_orders_suppressed = false
+	_tasks_poll -= delta
+	if _tasks_poll <= 0.0:
+		_tasks_poll = 1.0
+		var ready := Tasks.claimable_count(player)
+		if ready != field.tasks_ready:
+			field.tasks_ready = ready
+			field.apply_badge()
+	_orders_poll -= delta
+	if _orders_poll > 0.0:
+		return
+	_orders_poll = 0.25
+	var step := OrdersSheet.hud_step(player)
+	var i := int(step.get("index", -1))
+	var frac := float(step.get("frac", 0.0))
+	if i == _orders_frac_index and frac > _orders_frac + 0.0001:
+		orders_auto_t = ORDERS_AUTO_S
+	_orders_frac = frac
+	_orders_frac_index = i
+	if _in_combat and quest_served_by_fight():
+		orders_auto_t = ORDERS_AUTO_S
+
+func _draw_orders_on_map() -> void:
+	if orders_badge_rect.has_area():
+		var local := Rect2(orders_badge_rect.position - _minimap.global_position, orders_badge_rect.size)
+		HudOrdersBadge.draw(_minimap, _font, local, orders_badge_text, _orders_badge_px, _orders_flash)
+
+## HUDRULES: a press on the orders badge expands the card; a press on the card collapses it.
+func _orders_toggle_at(pos: Vector2) -> bool:
+	var compact := UiTokens.is_compact(get_viewport_rect().size)
+	var hit := (orders_badge_rect.has_area() and HudOrdersBadge.touch_rect(orders_badge_rect, compact).has_point(pos)) \
+		or (drawn_blocks.has("quest") and (drawn_blocks["quest"] as Rect2).has_point(pos))
+	return hit
+
+## A landscape phone in a fight that serves the order: the plate owns the centre band, so the order shows
+## as a 40 px strip (title and progress) on a free spot under the vitals' chip row. False when none is free.
+func _draw_quest_strip(r: Vector2) -> bool:
+	var step := OrdersSheet.hud_step(player)
+	if step.is_empty():
+		return false
+	var v := HudLayout.vitals_rect(self, r)
+	var top := maxf(v.end.y + 8.0, stomach_rect.end.y + 6.0)  # under the stomach ring that leads the buff row
+	for k in ["statuses", "status_maxhp", "rest"]:
+		if drawn_blocks.has(k):
+			top = maxf(top, (drawn_blocks[k] as Rect2).end.y + 6.0)
+	var box := UiTokens.free_spot(Rect2(v.position.x, top, minf(260.0, v.size.x), 40.0), taken_rects(), r)
+	if not box.has_area():
+		return false
+	var px := UiTokens.meta(r)
+	draw_rect(box, UiTokens.INK)
+	draw_rect(Rect2(box.position, Vector2(3.0, box.size.y)), UiTokens.TEAL)
+	draw_rect(Rect2(box.position, Vector2(3.0, box.size.y * float(step["frac"]))), UiTokens.TEAL.lightened(0.3))
+	var prog := str(step["progress"])
+	var pw := _font.get_string_size(prog, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x
+	draw_string(_font, box.position + Vector2(10, 15), "ORDERS %d/%d" % [int(step["index"]) + 1, int(step["count"])], HORIZONTAL_ALIGNMENT_LEFT, -1, px - 2, UiTokens.META)
+	draw_string(_font, box.position + Vector2(10, 33), UiTokens.ellipsis(_font, str(step["title"]), box.size.x - pw - 26.0, px + 1), HORIZONTAL_ALIGNMENT_LEFT, -1, px + 1, UiTokens.TEXT)
+	draw_string(_font, box.position + Vector2(box.size.x - pw - 8.0, 33), prog, HORIZONTAL_ALIGNMENT_LEFT, -1, px, UiTokens.TEAL)
+	drawn_blocks["quest"] = box
+	return true
+
+## The quest card's rect: under the map on a phone, left of it otherwise.
+func quest_rect(r: Vector2, mp: Vector2) -> Rect2:
 	var phone := UiTokens.is_phone(r)
 	var w := MAP_PX if phone else 240.0  # wide enough for "Home Grassland" at heading size
 	var origin := Vector2(mp.x, mp.y + MAP_PX + 52.0) if phone else Vector2(mp.x - w - 12.0, mp.y)
-	if origin.x < 8.0:
-		origin.x = 8.0
-	draw_rect(Rect2(origin, Vector2(w, 72.0)), UiTokens.INK)
+	if not phone and is_instance_valid(_claim_hex) and _claim_hex.is_visible_in_tree():
+		origin.x = minf(origin.x, _claim_hex.hex_rect().position.x - w - 8.0)  # HUDTWEAK: CLAIM sits over the dial
+	return Rect2(maxf(origin.x, 8.0), origin.y, w, 72.0)
+
+func _draw_quest(r: Vector2, mp: Vector2) -> void:
+	var q := quest_rect(r, mp)
+	var origin := q.position
+	var w := q.size.x
+	draw_rect(q, UiTokens.INK)
 	draw_rect(Rect2(origin, Vector2(3.0, 72.0)), UiTokens.TEAL)
-	drawn_blocks["quest"] = Rect2(origin, Vector2(w, 72.0))
-	var step := Objectives.current(player)
+	drawn_blocks["quest"] = q
+	var step := OrdersSheet.hud_step(player)  # the running order, or the one tracked in Orders
 	var head := UiTokens.heading(r) - 4
 	var meta_px := UiTokens.meta(r)
 	if step.is_empty():
@@ -1219,8 +2259,10 @@ func _draw_quest(r: Vector2, mp: Vector2) -> void:
 func _draw_exhaustion_face(center: Vector2, strain: float) -> void:
 	var tier := mini(3, int(strain * 4.0))
 	var col := Color(0.42, 0.78, 0.53).lerp(Color(0.96, 0.42, 0.36), strain)
-	draw_circle(center, 10.0, col)
-	draw_arc(center, 10.0, 0.0, TAU, 18, Color(0.06, 0.08, 0.08), 1.4)
+	draw_circle(center + Vector2(0, 1.5), 12.5, Color(0, 0, 0, 0.45), true, -1.0, true)  # sticker: shadow, white peel rim
+	draw_circle(center, 12.0, Color(0.97, 0.97, 0.94), true, -1.0, true)
+	draw_circle(center, 10.0, col, true, -1.0, true)
+	draw_arc(center, 10.0, 0.0, TAU, 24, Color(0.06, 0.08, 0.08), 1.2, true)
 	for side in [-1.0, 1.0]:
 		draw_circle(center + Vector2(side * 3.4, -2.0), 1.0, Color(0.08, 0.1, 0.1))
 	var dark := Color(0.08, 0.1, 0.1)
@@ -1234,15 +2276,74 @@ func _draw_exhaustion_face(center: Vector2, strain: float) -> void:
 		3:
 			draw_arc(center + Vector2(0, 9.0), 5.5, PI + 0.15, TAU - 0.15, 12, dark, 1.6)
 
-func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12) -> void:
+## What the energy bar shows: the ridden mount's pool while mounted (named, amber), else the
+## survivor's stamina. The exhaustion face and treadmill stay the survivor's either way.
+static func energy_reading(pl: Player) -> Dictionary:
+	var m: Creature = pl.mounted_on if pl and is_instance_valid(pl.mounted_on) else null
+	if m:
+		var nm: String = m.pet_record.name if m.pet_record and m.pet_record.name != "" else m.def.species
+		return {"value": m.energy, "max": m.energy_max, "name": nm}
+	return {"value": pl.vitals.energy, "max": pl.vitals.effective_max_energy(), "name": ""}
+
+func _bar(pos: Vector2, size: Vector2, frac: float, col: Color, glyph: String, text: String, text_px: int = 12, segments: int = 0, trail_key: StringName = &"") -> void:
+	# LEVELBADGE: no panel behind, so each bar has its own shadow, dark rim and a lit top edge.
+	draw_rect(Rect2(pos + Vector2(-1, 1), size + Vector2(2, 2)), Color(0, 0, 0, 0.4))
 	draw_rect(Rect2(pos, size), Color(0.08, 0.08, 0.1, 0.85))
-	draw_rect(Rect2(pos, Vector2(size.x * clampf(frac, 0.0, 1.0), size.y)), col)
+	frac = clampf(frac, 0.0, 1.0)
+	if trail_key != &"":  # a pale ghost trails a loss and leads a gain; the real fill moves, never jumps up
+		# HUDREDRAW: _tick_trails eases it once a frame in _process; the paint only reads it.
+		var st: Vector3 = bar_trail.get(trail_key, Vector3(frac, frac, 0.0))
+		frac = clampf(st.x, 0.0, 1.0)
+		if st.y > st.x:
+			draw_rect(Rect2(pos + Vector2(size.x * st.x, 0), Vector2(size.x * (st.y - st.x), size.y)), col.lerp(Color.WHITE, 0.55))
+	draw_rect(Rect2(pos, Vector2(size.x * frac, size.y)), col)
+	draw_rect(Rect2(pos, Vector2(size.x * frac, maxf(1.0, size.y * 0.3))), Color(1, 1, 1, 0.16))
+	for k in range(1, segments):  # a 2 px dark gap between segments
+		draw_rect(Rect2(pos.x + size.x * float(k) / float(segments) - 1.0, pos.y, 2.0, size.y), Color(0.02, 0.03, 0.05, 0.9))
 	draw_rect(Rect2(pos, size), Color(0, 0, 0, 0.6), false, 1.0)
 	if glyph != "":
 		draw_string(_font, pos + Vector2(-14, size.y - 3), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color.WHITE)
 	if text != "":
 		var w := _font.get_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, -1, text_px).x
+		draw_string_outline(_font, pos + Vector2(size.x - w - 6, size.y * 0.5 + text_px * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_px, 3, Color(0, 0, 0, 0.6))
 		draw_string(_font, pos + Vector2(size.x - w - 6, size.y * 0.5 + text_px * 0.36), text, HORIZONTAL_ALIGNMENT_LEFT, -1, text_px, Color.WHITE)
+
+## Pokémon-style bar motion (owner 2026-10-28): bar_trail[key] = (drawn fill, ghost, hold). A loss drops
+## the fill at once and the ghost holds at the old value TRAIL_HOLD s, then eases down; a gain puts the
+## ghost at the new value and the fill eases up to it. Returns (fill, ghost) to draw.
+func _trail(key: StringName, target: float, dt: float) -> Vector2:
+	var s: Vector3 = bar_trail.get(key, Vector3(target, target, 0.0))
+	if target < s.x - 0.0005:
+		s.y = maxf(s.y, s.x)
+		s.x = target
+		s.z = TRAIL_HOLD
+	elif target > s.x:
+		s.y = maxf(s.y, target)
+		s.x = target if target - s.x < 0.002 else lerpf(s.x, target, 1.0 - exp(-TRAIL_EASE * dt))
+	if s.z > 0.0:
+		s.z -= dt
+	else:  # the ghost settles on the target (down after a loss; on a gain it already sits there)
+		s.y = target if absf(s.y - target) < 0.002 else lerpf(s.y, target, 1.0 - exp(-TRAIL_EASE * dt))
+	s.y = maxf(s.y, s.x)
+	bar_trail[key] = s
+	return Vector2(s.x, s.y)
+
+## HUDREDRAW: the ghost-fill easing, once a frame from _process (it used to advance inside _draw, which
+## made the paint mutate state and left the trail with no frame to move in once the HUD stopped
+## repainting). `_trail_moving` says whether it is still easing (the HUD then keeps repainting).
+var _trail_moving := false
+
+func _tick_trails(dt: float) -> void:
+	var v := player.vitals
+	var hp := clampf(v.health / maxf(1.0, v.effective_max_health()), 0.0, 1.0)
+	_trail(&"hp", hp, dt)
+	var en := energy_reading(player)
+	_trail(StringName("en:" + en.name), clampf(float(en.value) / maxf(1.0, float(en.max)), 0.0, 1.0), dt)
+	_trail_moving = false
+	for key in bar_trail:
+		var st: Vector3 = bar_trail[key]
+		if st.z > 0.0 or absf(st.y - st.x) > 0.0005:
+			_trail_moving = true
 
 # ---------------------------------------------------------------- minimap
 
@@ -1256,67 +2357,84 @@ func _ensure_map_texture() -> void:
 	var span: int = int(rt.get("_tile_span"))
 	if types.is_empty() or span <= 0:
 		return
-	var img := Image.create(span, span, false, Image.FORMAT_RGB8)
-	for z in span:
-		for x in span:
-			var t := int(types[x + z * span])
-			var c := Color(0.36, 0.52, 0.28)  # grass
-			match t:
-				1: c = Color(0.52, 0.50, 0.32)
-				2, 7: c = Color(0.42, 0.32, 0.22)
-				3: c = Color(0.80, 0.72, 0.52)
-				10: c = Color(0.62, 0.55, 0.42)
-				4: c = Color(0.55, 0.78, 0.82)
-				8: c = Color(0.16, 0.30, 0.46)
-				5, 9: c = Color(0.45, 0.45, 0.44)
-				6: c = Color(0.36, 0.28, 0.20)
-			img.set_pixel(x, z, c)
+	# Grass and dry land are coloured by biome zone (BiomeZones), everything else by tile type.
+	var img := BiomeZones.map_image(rt)
 	_map_tex = ImageTexture.create_from_image(img)
 	_map_island = World.island_id
 	_map_span = span
 
 func _draw_minimap() -> void:
+	var t_draw := Time.get_ticks_usec()
+	map_draw_count += 1
+	_draw_minimap_body()
+	map_draw_usec += Time.get_ticks_usec() - t_draw
+
+func _draw_minimap_body() -> void:
 	var c := _minimap
-	c.draw_rect(Rect2(Vector2.ZERO, c.size), Color(0.05, 0.06, 0.08, 0.85))
+	# LEVELBADGE (owner 2026-10-28): no square box; the map is a disc drawn as a UV polygon (clipped by
+	# geometry, so nothing covers the corners), framed by a shadowed metal rim.
+	var centre := Vector2(MAP_PX * 0.5, MAP_PX * 0.5)
+	var disc_r := MAP_PX * 0.5 - MAP_RIM
+	c.draw_circle(centre + Vector2(0, 2.0), MAP_PX * 0.5 - 1.0, Color(0, 0, 0, 0.45), true, -1.0, true)
+	c.draw_circle(centre, disc_r, Color(0.05, 0.06, 0.08, 0.92), true, -1.0, true)
 	_ensure_map_texture()
 	if player == null:
 		return
 	var rt := World.runtime
-	# Camera-up map: the iso camera looks along a 45° diagonal, so a north-up map made running
-	# left read as south-west. Everything below is drawn rotated by the camera yaw around the
-	# centre (so screen-up on the map is screen-up in the world); the frame clips the corners.
-	var centre := Vector2(MAP_PX * 0.5, MAP_PX * 0.5)
+	# Camera-up map: drawn rotated by the camera yaw around the centre, so screen-up on the map is
+	# screen-up in the world. The camera looks due north (IsoCamera.YAW_DEG 0), so this is north-up.
 	var cam := get_viewport().get_camera_3d()
 	var cam_yaw := cam.global_rotation.y if cam else 0.0
 	c.draw_set_transform(centre, cam_yaw, Vector2.ONE)
 	if _map_tex and rt:
 		var size_m: float = float(rt.get("_size"))
-		var span_px := MAP_PX * 1.45  # covers the frame's corners once rotated
-		var half := span_px * 0.5 * MAP_SCALE  # metres from centre to the drawn edge
+		var half := disc_r * MAP_SCALE  # metres from centre to the disc's edge
 		var pp := player.global_position
-		var u0 := (pp.x - half + size_m * 0.5)
-		var v0 := (pp.z - half + size_m * 0.5)
-		c.draw_texture_rect_region(_map_tex, Rect2(Vector2(-span_px * 0.5, -span_px * 0.5), Vector2(span_px, span_px)), Rect2(u0, v0, half * 2.0, half * 2.0))
+		_map_disc(c, _map_tex, disc_r, Vector2(pp.x + size_m * 0.5, pp.z + size_m * 0.5), MAP_SCALE)  # one texel per metre
 		var to_px := func (w: Vector3) -> Vector2:
 			return Vector2((w.x - pp.x) / MAP_SCALE, (w.z - pp.z) / MAP_SCALE)
-		var marker_r := MAP_PX * 0.5 - 5.0
+		# Fog of war: the same per-island bitmap the atlas draws, camera-up like the terrain. The
+		# survivor is at the centre, so the brush is always the middle of the disc.
+		var fog := World.map_fog
+		var fog_tex: ImageTexture = fog.texture() if fog else null
+		if fog_tex:
+			# The fog image is one pixel per fog cell, not per terrain tile.
+			var cell_m := size_m / float(maxi(1, fog.span))
+			_map_disc(c, fog_tex, disc_r, Vector2(pp.x + size_m * 0.5, pp.z + size_m * 0.5) / cell_m, MAP_SCALE / cell_m)
+		var trail_pts: Array = []
+		var trail_alphas: Array[float] = []
+		if fog:
+			for i in fog.trail.size():
+				var tp := fog.trail[i]
+				var q := Vector2((tp.x - pp.x) / MAP_SCALE, (tp.y - pp.z) / MAP_SCALE)
+				if q.length() <= disc_r:
+					trail_pts.append(q)
+					trail_alphas.append(fog.trail_alpha(i))
+			MapIcons.trail(c, trail_pts, 1.6, trail_alphas)
+		var marker_r := disc_r - 4.0
 		var camp: Vector3 = rt.get("_camp_pos")
 		var harb: Vector3 = rt.get("_harbour_pos")
 		var camp_q: Vector2 = to_px.call(camp)
 		var harb_q: Vector2 = to_px.call(harb)
 		if camp_q.length() <= marker_r:
-			c.draw_circle(camp_q, 4.0, Color(1.0, 0.85, 0.3))
+			MapIcons.flame(c, camp_q, 3.4, Color(1.0, 0.90, 0.55), Color(0.02, 0.03, 0.05, 0.9))
 		if harb_q.length() <= marker_r:
-			c.draw_circle(harb_q, 4.0, Color(0.7, 0.85, 1.0))
-		if World.crater_discovered:
+			MapIcons.anchor(c, harb_q, 3.6, Color(0.70, 0.85, 1.0), Color(0.02, 0.03, 0.05, 0.9))
+		if World.crater_discovered and World.current_landmarks().is_empty():
 			var cr: Vector3 = rt.get("_crater_pos")
 			var crater_q: Vector2 = to_px.call(cr)
 			if crater_q.length() <= marker_r:
 				c.draw_circle(crater_q, 4.0, Color(0.9, 0.4, 0.2))
+		for lm in MapIcons.found_landmarks():  # LANDMARKS: found sites only
+			var lq: Vector2 = to_px.call(lm["at"])
+			if lq.length() <= marker_r:
+				MapIcons.landmark(c, lq, 4.0, bool(lm["sealed"]), Color(0.02, 0.03, 0.05, 0.9))
 		for n in get_tree().get_nodes_in_group("creatures"):
 			var cr := n as Creature
 			if cr == null or cr.health.dead:
 				continue
+			if fog and not fog.revealed_at(cr.global_position):
+				continue  # fog: unseen animals stay off the minimap
 			var q: Vector2 = to_px.call(cr.global_position)
 			if q.length() > marker_r:
 				continue
@@ -1330,21 +2448,27 @@ func _draw_minimap() -> void:
 	_draw_minimap_bezel(c)
 
 func _draw_minimap_bezel(c: Control) -> void:
-	# Shader clipping was lost after island travel in WebGL. Cover the four square corners
-	# with opaque polygons instead; this is pure Canvas draw state and survives texture swaps.
+	# LEVELBADGE: a dark rim, a bronze band lit on its top-left, and a fine inner line; no corner covers.
 	var centre := c.size * 0.5
-	var radius := MAP_PX * 0.5 - 1.5
-	var cover := Color(0.035, 0.04, 0.05, 1.0)
-	var corners := [
-		[Vector2(centre.x, 0), Vector2(c.size.x, 0), Vector2(c.size.x, centre.y), 0.0, -PI * 0.5],
-		[Vector2(c.size.x, centre.y), Vector2(c.size.x, c.size.y), Vector2(centre.x, c.size.y), PI * 0.5, 0.0],
-		[Vector2(centre.x, c.size.y), Vector2(0, c.size.y), Vector2(0, centre.y), PI, PI * 0.5],
-		[Vector2(0, centre.y), Vector2(0, 0), Vector2(centre.x, 0), PI * 1.5, PI],
-	]
-	for spec in corners:
-		var pts := PackedVector2Array([spec[0], spec[1], spec[2]])
-		for i in 13:
-			var angle: float = lerpf(float(spec[3]), float(spec[4]), float(i) / 12.0)
-			pts.append(centre + Vector2(cos(angle), sin(angle)) * radius)
-		c.draw_colored_polygon(pts, cover)
-	c.draw_circle(centre, radius, Color(1, 1, 1, 0.48), false, 2.0)
+	var r := MAP_PX * 0.5 - MAP_RIM * 0.5
+	c.draw_arc(centre, r, 0.0, TAU, 64, Color(0.02, 0.02, 0.03, 0.95), MAP_RIM + 2.0, true)
+	c.draw_arc(centre, r, 0.0, TAU, 64, Color(0.55, 0.45, 0.30), MAP_RIM - 1.5, true)
+	c.draw_arc(centre, r, PI * 0.95, PI * 1.85, 24, Color(0.95, 0.85, 0.62, 0.85), (MAP_RIM - 1.5) * 0.45, true)
+	c.draw_arc(centre, r, -0.05 * PI, 0.85 * PI, 24, Color(0.20, 0.15, 0.08, 0.8), (MAP_RIM - 1.5) * 0.4, true)
+	c.draw_arc(centre, MAP_PX * 0.5 - MAP_RIM - 0.5, 0.0, TAU, 64, Color(0, 0, 0, 0.6), 1.0, true)
+	# A small compass pip at the bottom of the rim, where the coordinates hang.
+	var b := Vector2(centre.x, MAP_PX - MAP_RIM * 0.5)
+	c.draw_colored_polygon(PackedVector2Array([b + Vector2(0, -5), b + Vector2(4, 0), b + Vector2(0, 5), b + Vector2(-4, 0)]), Color(0.02, 0.02, 0.03))
+	c.draw_colored_polygon(PackedVector2Array([b + Vector2(0, -3.5), b + Vector2(2.6, 0), b + Vector2(0, 3.5), b + Vector2(-2.6, 0)]), Color(0.98, 0.86, 0.55))
+
+## A texture as a disc of radius `r` around the map centre (already rotated to the camera):
+## `at` is the texel under the centre, `per_px` texels per map pixel.
+func _map_disc(c: Control, tex: Texture2D, r: float, at: Vector2, per_px: float) -> void:
+	var ts := tex.get_size()
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	for i in 48:
+		var d := Vector2.from_angle(TAU * float(i) / 48.0) * r
+		pts.append(d)
+		uvs.append((at + d * per_px) / ts)
+	c.draw_polygon(pts, PackedColorArray([Color.WHITE]), uvs, tex)

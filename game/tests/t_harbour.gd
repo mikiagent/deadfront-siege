@@ -73,7 +73,10 @@ func _check_island(id: String) -> void:
 	var to_water := _water_dist(rt, rt._harbour_pos)
 	_expect(to_water <= 3.0, "%s harbour_to_water_m=%.2f <= 3" % [id, to_water])
 	var arrive: Vector3 = rt.arrival_point()
-	_expect(arrive.y > _HS.WATER_Y and _water_dist(rt, arrive) <= 3.0, "%s arrival point is dry sand at the water's edge" % id)
+	var edge: Vector2 = _HS.arrival_point(cell, rot)
+	_expect(_water_dist(rt, Vector3(edge.x, 0.0, edge.y)) <= 3.0, "%s the strip behind the dock base is at the water's edge" % id)
+	# LEGSFIX: she lands IslandRuntime.LANDING_ROW rows behind the base, clear of the shed roof's sight line, on the approach strip.
+	_expect(arrive.y > _HS.WATER_Y and rt.on_harbour_approach(arrive), "%s arrival point is dry ground on the dock's approach" % id)
 	var j: Array = _world.def_of(StringName(id)).get("harbour", [])
 	var jd := INF if j.size() < 3 else Vector2(float(j[0]) - arrive.x, float(j[2]) - arrive.z).length()
 	_expect(jd <= 1.0, "%s json harbour is the dock's arrival point: want [%.1f, 0, %.1f], have %s" % [id, arrive.x, arrive.z, j])
@@ -126,7 +129,8 @@ func _test_old_save_snaps_to_coast() -> void:
 
 ## A moved home harbour remains the source of travel, basket placement and walkable deck state.
 func _test_moved_harbour_follows() -> void:
-	var site: Dictionary = _HS.find(_world.runtime, Vector2(61.0, -7.0))
+	# The hint rule (not the southern-most one the island itself uses): a pose the player moved to.
+	var site: Dictionary = _HS.find(_world.runtime, Vector2(61.0, -7.0), false)
 	_expect(not site.is_empty(), "found a legal moved harbour pose")
 	if site.is_empty():
 		return

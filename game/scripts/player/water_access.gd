@@ -10,6 +10,13 @@ extends RefCounted
 const PATH := "res://data/water.json"
 ## Hidden grime count on the Player (Object meta).
 const GRIME := &"water_grime"
+## ASSUMPTION: below 1.3 m the survivor wades; at/above it they swim. Wading is 60 % pace,
+## swimming 45 %, tuned for readable movement on the mobile camera rather than simulation.
+## 1.3 m is chest-deep on the 2 m survivor, and treading water (float centre at the plane, swim_idle
+## lift -0.4) puts her feet 1.3 m under it: shallower, she trod water with her legs in the riverbed (INVIS).
+const SWIM_DEPTH_M := 1.3
+const WADE_SPEED_MULT := 0.60
+const SWIM_SPEED_MULT := 0.45
 
 static var _data: Dictionary = {}
 
@@ -26,6 +33,21 @@ static func in_water(pos: Vector3) -> bool:
 	var rt := World.runtime as IslandRuntime
 	return rt != null and rt.surface_y(pos.x, pos.z) < HarbourSite.WATER_Y
 
+static func depth(pos: Vector3) -> float:
+	var rt := World.runtime as IslandRuntime
+	if rt == null:
+		return 0.0
+	return maxf(0.0, HarbourSite.WATER_Y - rt.surface_y(pos.x, pos.z))
+
+static func is_swimming(pos: Vector3) -> bool:
+	return depth(pos) >= SWIM_DEPTH_M
+
+static func movement_speed_multiplier(pos: Vector3) -> float:
+	var d := depth(pos)
+	if d <= 0.0:
+		return 1.0
+	return SWIM_SPEED_MULT if d >= SWIM_DEPTH_M else WADE_SPEED_MULT
+
 ## River water. IslandTerrain marks the river channel and its banks MUD (the mouth's shallows too);
 ## the open sea never is. The fresh-water mask is kept from the build, so a harvested tile stays fresh.
 static func is_fresh(pos: Vector3) -> bool:
@@ -34,13 +56,21 @@ static func is_fresh(pos: Vector3) -> bool:
 ## Fresh water underfoot or within about reach_m: 17 heightmap lookups (feet, 8 directions at half
 ## and full reach), cheap enough for the HUD's 0.3 s refresh or every frame.
 static func near_fresh(pos: Vector3) -> bool:
-	if is_fresh(pos):
+	return _near(pos, is_fresh)
+
+## Any water, sea included: washing works in the ocean (owner 2026-10-29 "no option to wash off dirt in
+## the ocean"); drinking and filling stay river-only.
+static func near_any(pos: Vector3) -> bool:
+	return _near(pos, in_water)
+
+static func _near(pos: Vector3, test: Callable) -> bool:
+	if test.call(pos):
 		return true
 	var reach := float(data().get("reach_m", 2.0))
 	for r: float in [reach * 0.5, reach]:
 		for k in 8:
 			var a := TAU * float(k) / 8.0
-			if is_fresh(pos + Vector3(cos(a) * r, 0.0, sin(a) * r)):
+			if test.call(pos + Vector3(cos(a) * r, 0.0, sin(a) * r)):
 				return true
 	return false
 
@@ -56,7 +86,8 @@ static func drink(p: Player) -> bool:
 
 ## Wash: clears Dirty and Very dirty and grants Clean, -20 % fatigue gain for 6 min (PRD 6.4, :447).
 static func wash(p: Player) -> bool:
-	if not _at_water(p):
+	if not near_any(p.global_position):
+		p.notice("No water here")
 		return false
 	p.statuses.clear_by_item(&"wash")
 	p.set_meta(GRIME, 0.0)

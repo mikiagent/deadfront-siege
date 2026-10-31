@@ -1,6 +1,9 @@
 class_name GatherRing
 extends Control
 ## Floating ring over an active harvest node: pool fill, unit progress and icon.
+## ASSUMPTION (UIGATHER, spec §4 / open question 7): retired for harvest nodes. The gather radial's hex
+## pie carries unit progress, its count the node's depletion, the yield card the result. Kept only for
+## tame feeding, crafting and a gather with no radial (show_for stays as that fallback).
 
 const SIZE_PX := 72.0
 const RADIUS_OUTER := 32.0

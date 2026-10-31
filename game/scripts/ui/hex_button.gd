@@ -21,6 +21,9 @@ var accent: Color = Color(0.95, 0.95, 0.95)
 var fill: Color = Color(0.07, 0.08, 0.09, 0.93)
 var badge: String = ""  # e.g. "⊘" when blocked
 var badge_color: Color = Color(0.85, 0.15, 0.12, 0.95)
+var badge_ink: Color = Color.WHITE  ## the badge's text (CTA_INK on a GOLD notice badge)
+## A white UiIcons drawing painted in the badge instead of its text (the butcher fan's tool_needed).
+var badge_icon: Texture2D
 var label_text: String = ""   # optional label drawn to the right (station radial)
 var caption: String = ""      # action word drawn under the hex, outside the outline (rail, skills)
 var hint_text: String = ""    # small red line under the label (blocked reason)
@@ -29,6 +32,24 @@ var selected: bool = false
 var enabled_look: bool = true
 ## Item and creature thumbnails stay colored. Action glyphs and HUD symbols stay white.
 var color_icon: bool = false
+## Hex orientation (docs/design/ui-redesign-spec.md §3). One global switch: UiTokens.HEX_FLAT_TOP,
+## which the owner set flat-top on 2026-10-28. A hex may still ask for pointy-top.
+var flat_top: bool = UiTokens.HEX_FLAT_TOP
+## Rim colour; a fully transparent value means "follow `accent`" (today's look, and what selected and
+## blocked states keep overriding). Restyled screens set HUD_RIM / GOLD here instead.
+var rim_color: Color = Color(0, 0, 0, 0)
+## Rim stroke width in px. 2.0 is the shipped look; the spec's restyle uses 4.0 (3.0 under 70 px).
+var rim_width: float = RIM_W
+## Pie fill, 0..1, over the hex interior (§4). Separate from `cooldown`, which keeps its slice sweep.
+var fill_ratio: float = 0.0
+## Desaturate the icon (gather hexes draw the resource symbol greyed out).
+var icon_grey: bool = false
+## Small boxed key label at the hex's top-right on desktop ("Esc", "F", "⇧"); hidden on phones.
+var key_hint: String = ""
+## Tint of a white glyph / symbol (the build SAVE check draws OK_GREEN, the CANCEL cross LIFE red).
+var glyph_color: Color = Color.WHITE
+## bottom_text size as a share of the radius (0.40 shipped); a word like CANCEL inside the hex uses less.
+var bottom_scale: float = 0.40
 
 var _down: bool = false
 var _hold: float = 0.0
@@ -37,6 +58,16 @@ static var _white: ShaderMaterial
 
 ## Caption type size under the hex, shared by _draw and caption_rect().
 const CAPTION_PX := 13
+## Key cap glyph size and box (§3): a small boxed key label at the hex's top-right.
+const HINT_PX := 14
+## The shipped rim stroke: a 2 px outline centred on the edge. Kept as the default so every existing
+## call site renders exactly as before the UI-token package.
+const RIM_W := 2.0
+## Pie fill colour: HUD_RIM at ~45% alpha over the dark interior (§4).
+const PIE_ALPHA := 0.45
+## Grey icon copies, keyed by source texture (desaturating 128 px icons on the CPU each frame hitched
+## the phone in the white_material work, so it is done once and cached).
+static var _grey: Dictionary = {}
 
 ## Compatibility with the station radial (M8e): icon or glyph, label, seconds on top, count below.
 func setup(p_icon: Texture2D, p_glyph: String, p_label: String, p_seconds: String = "", p_count: String = "") -> void:
@@ -86,33 +117,41 @@ func _init(size_px: float = 72.0) -> void:
 	# HuntHud.taken_rects finds every hex on screen (HUD, station and gather radials) through this.
 	add_to_group(&"hex_button")
 
+## The rim colour drawn this frame: rim_color when set, else the accent (today's look). Selected draws
+## in GOLD on a restyled hex and TEAL on a shipped one; blocked greys it out.
+func effective_rim(p_selected: bool = false) -> Color:
+	var c := rim_color if rim_color.a > 0.0 else accent
+	return (UiTokens.GOLD if rim_color.a > 0.0 else UiTokens.TEAL) if p_selected else c
+
+## The hexagon's corners, from the one geometry source (UiTokens.hex_points).
 func _hex(r: float, c: Vector2) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	for i in 6:
-		var a := deg_to_rad(60.0 * float(i) - 30.0)  # pointy top
-		pts.append(c + Vector2(cos(a), sin(a)) * r)
-	return pts
+	return UiTokens.hex_points(c, r, flat_top)
 
 func _draw() -> void:
-	var tex: Texture2D = icon if icon else _glyph_icon
+	var tex: Texture2D = drawn_icon()
 	var want: Material = white_material() if tex and not color_icon else null
 	if material != want:
 		material = want
 	var c := size * 0.5
 	var r := minf(size.x, size.y) * 0.5 - 2.0
 	var f := fill
-	var rim := accent
+	var rim := effective_rim(selected)
 	if disabled or not enabled_look:
 		f = Color(0.05, 0.05, 0.06, 0.8)
 		rim = Color(0.5, 0.5, 0.5, 0.8)
-	if selected:
-		rim = UiTokens.TEAL
 	if _down:
 		f = f.lightened(0.15)
-	draw_colored_polygon(_hex(r, c), f)
+	# Draw order (spec §3): rim hex, the fill hex inside it, the pie sector, then icon and texts.
+	var rw := maxf(1.0, rim_width)
+	var fr := maxf(0.0, r - rw * 0.5)
 	var outline := _hex(r, c)
 	outline.append(outline[0])
-	draw_polyline(outline, rim, 2.0, true)
+	draw_polyline(outline, rim, rw, true)
+	draw_colored_polygon(_hex(fr, c), f)
+	if fill_ratio > 0.0:
+		var pie := UiTokens.pie_points(c, fr, fill_ratio, flat_top)
+		if pie.size() >= 3:
+			draw_colored_polygon(pie, Color(UiTokens.HUD_RIM, PIE_ALPHA))
 	if has_focus():
 		var ring := _hex(r + 4.0, c)
 		ring.append(ring[0])
@@ -123,27 +162,41 @@ func _draw() -> void:
 		# Smaller icon when seconds/count sit above and below it, so the 12 px text clears the rim.
 		var isz := r * (0.8 if has_texts else 1.05)
 		var ic := c + Vector2(0.0, 2.0 if top_text != "" else 0.0)
-		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0)
+		var tint := Color(1, 1, 1, 0.45 if disabled else 1.0) if color_icon else Color(glyph_color, 0.45 if disabled else 1.0)
+		if icon_grey and not color_icon:
+			tint = tint * Color(0.62, 0.62, 0.62)  # white symbol greyed; own-colour icons use the grey copy
+		elif fill_ratio > 0.0:
+			tint = tint * (1.0 + 0.4 * clampf(fill_ratio, 0.0, 1.0))
 		draw_texture_rect(tex, Rect2(ic - Vector2(isz, isz) * 0.5, Vector2(isz, isz)), false, tint)
 	elif glyph != "":
 		var short := glyph.length() <= 2
 		var gs := maxi(UiTokens.TYPE_MIN, int(r * (0.72 if bottom_text != "" else 0.9)) if short else (int(r * 0.40) if glyph.length() <= 4 else int(r * 0.30)))
 		var w := font.get_string_size(glyph, HORIZONTAL_ALIGNMENT_CENTER, -1, gs).x
 		var gy := c.y + gs * (0.2 if bottom_text != "" else 0.35)
-		draw_string(font, Vector2(c.x - w * 0.5, gy), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(1, 1, 1, 0.5 if disabled else 1.0))
+		draw_string(font, Vector2(c.x - w * 0.5, gy), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, gs, Color(glyph_color, 0.5 if disabled else 1.0))
 	if top_text != "":
 		UiTokens.draw_centered(self, font, Vector2(c.x, c.y - r * 0.52), top_text, int(r * 0.30), Color(0.85, 0.85, 0.85))
 	if bottom_text != "":
-		UiTokens.draw_centered(self, font, Vector2(c.x, c.y + r * 0.62), bottom_text, int(r * 0.40), Color.WHITE)
+		UiTokens.draw_centered(self, font, Vector2(c.x, c.y + r * 0.62), bottom_text, int(r * bottom_scale), Color.WHITE)
 	if caption != "":
 		var at := _caption_at(font)
 		draw_string(font, Vector2(at.x, at.y), _caption_text(font), HORIZONTAL_ALIGNMENT_LEFT, -1, CAPTION_PX, Color(1, 1, 1, 0.55 if disabled else 1.0))
-	if badge != "":
+	if key_visible():
+		var kr := key_rect()
+		draw_rect(kr, UiTokens.INK)
+		draw_rect(kr, Color(0.85, 0.85, 0.85), false, 1.5)
+		UiTokens.draw_centered(self, font, kr.get_center(), key_hint, HINT_PX, UiTokens.TEXT)
+	if badge != "" and badge_icon != null:
+		var bc := c + Vector2(r * 0.74, -r * 0.62)  # on the upper-right edge, clear of the seconds on top
+		var br := r * 0.3  # a drawing needs a little more room than one glyph
+		draw_circle(bc, br, badge_color)
+		draw_texture_rect(badge_icon, Rect2(bc - Vector2(br, br) * 0.8, Vector2(br, br) * 1.6), false, badge_ink)
+	elif badge != "":
 		var bc := c + Vector2(r * 0.55, -r * 0.55)
 		draw_circle(bc, r * 0.26, badge_color)
 		var bsz := maxi(UiTokens.TYPE_MIN, int(r * 0.34))
 		var w := font.get_string_size(badge, HORIZONTAL_ALIGNMENT_CENTER, -1, bsz).x
-		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, Color.WHITE)
+		draw_string(font, Vector2(bc.x - w * 0.5, bc.y + bsz * 0.36), badge, HORIZONTAL_ALIGNMENT_LEFT, -1, bsz, badge_ink)
 
 	if cooldown > 0.0:
 		# Durango-style progress: a translucent circular dial fills in discrete slices.
@@ -193,10 +246,52 @@ func _caption_at(font: Font) -> Vector3:
 	cx = maxf(cx, 4.0 - gx)
 	return Vector3(cx, c.y + r + 15.0, cw)
 
-## The drawn hexagon's box, global: pointy-top, so sqrt(3) * r wide, not the control's full width.
+## The drawn hexagon's box, global: flat-top so 2r wide and sqrt(3)r tall, pointy-top the other way
+## round, never the control's full width.
 func hex_rect() -> Rect2:
 	var r := minf(size.x, size.y) * 0.5 - 2.0
-	return Rect2(get_global_rect().get_center() - Vector2(r * 0.866, r), Vector2(r * 1.732, r * 2.0))
+	var half := Vector2(r, r * 0.866) if flat_top else Vector2(r * 0.866, r)
+	return Rect2(get_global_rect().get_center() - half, half * 2.0)
+
+## The texture _draw paints: the icon itself, or a cached grey copy when `icon_grey` and the icon
+## keeps its own colours (white glyphs are greyed by the draw tint instead).
+func drawn_icon() -> Texture2D:
+	var tex: Texture2D = icon if icon else _glyph_icon
+	if tex != null and icon_grey and color_icon:
+		return grey_texture(tex)
+	return tex
+
+## A desaturated (luma) copy of `tex`, built once per texture. CPU work, not a shader: the icon
+## share white_material with the hex polygons, which would grey the fill too.
+static func grey_texture(tex: Texture2D) -> Texture2D:
+	if tex == null:
+		return null
+	var id := tex.get_instance_id()
+	if _grey.has(id) and is_instance_valid(_grey[id]):
+		return _grey[id]
+	var img := tex.get_image()
+	if img == null:
+		return tex
+	img = img.duplicate() as Image
+	if img.is_compressed():
+		img.decompress()
+	for y in img.get_height():
+		for x in img.get_width():
+			var p := img.get_pixel(x, y)
+			var l := p.r * 0.299 + p.g * 0.587 + p.b * 0.114
+			img.set_pixel(x, y, Color(l, l, l, p.a))
+	var out := ImageTexture.create_from_image(img)
+	_grey[id] = out
+	return out
+
+## Key hint shown? Never on a phone (either way up: a landscape phone is not `is_phone`).
+func key_visible() -> bool:
+	return key_hint != "" and not UiTokens.is_compact(get_viewport_rect().size)
+
+## The key cap at the hex's top-right, local. Desktop only.
+func key_rect() -> Rect2:
+	var r := minf(size.x, size.y) * 0.5 - 2.0
+	return Rect2(Vector2(size.x * 0.5 + r * 0.55, size.y * 0.5 - r * 0.95), Vector2(HINT_PX + 6.0, HINT_PX + 4.0))
 
 ## The caption's box under the hex, global (empty without a caption). Layout gates check it.
 func caption_rect() -> Rect2:

@@ -6,9 +6,14 @@ const CONTRACT: Array[StringName] = [
 	&"idle", &"walk", &"run", &"attack_primary", &"attack_heavy",
 	&"hit_react", &"knockdown", &"death", &"alert", &"feed",
 ]
-const LOOPING: Array[StringName] = [&"idle", &"walk", &"run"]
-## Authored on some species only (the T. rex); CreatureAnim falls back to idle where missing.
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe"]
+const LOOPING: Array[StringName] = [&"idle", &"walk", &"run", &"charge", &"strafe_left", &"strafe_right", &"walk_back", &"investigate"]
+## Authored on some species only; loaded when the GLB exists, CreatureAnim falls back to idle where
+## missing. bite_combo: deinonychus chomp, Chomp, CHOMP (three hit fracs in anim_events.json).
+## hop_back / leap_back: short and long backward leaps, pounce: the forward leap (airborne fracs in
+## anim_events); strafe_left/right and walk_back: direction-aware locomotion (CreatureAnim.set_move_velocity).
+## investigate: the idle while aware of prey but not attacking (CreatureAnim.play_idle(true)); sniff: the inspect
+## one-shot a brain plays when it spots prey (velociraptor, owner 2026-10-30: head tilts, curious but aggressive).
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120
@@ -21,7 +26,7 @@ static func attach(player: AnimationPlayer, view: CreatureView, def: CreatureDef
 		player.root_node = NodePath("..")
 	var lib := AnimationLibrary.new()
 	var loaded: Dictionary = {}
-	for clip in CONTRACT:
+	for clip in CONTRACT + OPTIONAL:
 		var path := "res://assets/creatures/%s/anim/%s.glb" % [def.id, clip]
 		if ResourceLoader.exists(path):
 			var anim := _from_glb(path, view, player, clip)
@@ -228,6 +233,17 @@ static func _len(clip: StringName) -> float:
 			return 1.2
 		_:
 			return 0.8
+
+## Every hit frame of a clip as clip fractions: hit_fracs when listed (bite_combo has three), else [hit_frac].
+static func hit_fracs(clip: StringName) -> Array[float]:
+	var out: Array[float] = []
+	var row: Variant = (Data.anim_events.get("clips", {}) as Dictionary).get(str(clip))
+	if row is Dictionary and (row as Dictionary).get("hit_fracs") is Array:
+		for f in (row as Dictionary)["hit_fracs"]:
+			out.append(float(f))
+	if out.is_empty():
+		out.append(_hit_frac(clip))
+	return out
 
 static func _hit_frac(clip: StringName) -> float:
 	var clips: Dictionary = Data.anim_events.get("clips", {})

@@ -5,14 +5,8 @@
     "climate": "grassland",
     "tier": 10,
     "permanent": true,
-    "size_m": 160,
-    "terrains": [
-      "meadow",
-      "forest",
-      "rocky",
-      "riverside",
-      "coastal"
-    ],
+    "size_m": 416,
+    "terrains": ["meadow", "forest", "rocky", "riverside", "coastal"],
     "spawns": {
       "gathering": [
         {
@@ -30,7 +24,9 @@
       "crater": [],
       "far_shore": []
     },
-    "crater_type": null
+    "crater_type": null,
+    "seed": 17,
+    "harbour": [-1.5, 0, 64.5]
   },
   "savannah_15": {
     "id": "savannah_15",
@@ -79,7 +75,11 @@
           "tier_offset": 5
         }
       ]
-    }
+    },
+    "size_m": 368,
+    "shape_family": "bulky",
+    "seed": 1151,
+    "harbour": [-119.5, 0, -41.5]
   },
   "temperate_20": {
     "id": "temperate_20",
@@ -127,7 +127,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 368,
+    "shape_family": "chain",
+    "seed": 2027,
+    "harbour": [-166.5, 0, -2.5]
   },
   "temperate_25": {
     "id": "temperate_25",
@@ -181,7 +185,11 @@
           "chance": 0.25
         }
       ]
-    }
+    },
+    "size_m": 368,
+    "shape_family": "crescent",
+    "seed": 2521,
+    "harbour": [43.5, 0, 150.5]
   },
   "tropical_25": {
     "id": "tropical_25",
@@ -224,7 +232,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 368,
+    "shape_family": "atoll",
+    "seed": 2533,
+    "harbour": [-165.5, 0, -8.5]
   },
   "tundra_30": {
     "id": "tundra_30",
@@ -267,7 +279,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 416,
+    "shape_family": "bulky",
+    "seed": 3011,
+    "harbour": [-176.5, 0, -12.5]
   },
   "desert_35": {
     "id": "desert_35",
@@ -310,7 +326,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 416,
+    "shape_family": "lobed",
+    "seed": 3517,
+    "harbour": [-139.5, 0, -48.5]
   },
   "temperate_35": {
     "id": "temperate_35",
@@ -348,7 +368,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 416,
+    "shape_family": "round_peak",
+    "seed": 3539,
+    "harbour": [-142.5, 0, -7.5]
   },
   "tropical_40": {
     "id": "tropical_40",
@@ -392,7 +416,11 @@
           "chance": 0.3
         }
       ]
-    }
+    },
+    "size_m": 416,
+    "shape_family": "crescent",
+    "seed": 4013,
+    "harbour": [-181.5, 0, -22.5]
   },
   "savannah_45": {
     "id": "savannah_45",
@@ -435,7 +463,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 416,
+    "shape_family": "lobed",
+    "seed": 4519,
+    "harbour": [-147.5, 0, -29.5]
   },
   "temperate_45": {
     "id": "temperate_45",
@@ -478,7 +510,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 416,
+    "shape_family": "spiral",
+    "seed": 4547,
+    "harbour": [-124.5, 0, 0.5]
   },
   "desert_50": {
     "id": "desert_50",
@@ -527,7 +563,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 464,
+    "shape_family": "chain",
+    "seed": 5003,
+    "harbour": [-171.5, 0, -36.5]
   },
   "swamp_55": {
     "id": "swamp_55",
@@ -570,7 +610,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 464,
+    "shape_family": "atoll",
+    "seed": 5517,
+    "harbour": [-197.5, 0, -10.5]
   },
   "tundra_55": {
     "id": "tundra_55",
@@ -613,7 +657,11 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 464,
+    "shape_family": "spiral",
+    "seed": 5529,
+    "harbour": [-194.5, 0, -41.5]
   },
   "volcanic_60": {
     "id": "volcanic_60",
@@ -646,6 +694,10 @@
           "groups": 1
         }
       ]
-    }
+    },
+    "size_m": 464,
+    "shape_family": "round_peak",
+    "seed": 6029,
+    "harbour": [-145.5, 0, -36.5]
   }
 }

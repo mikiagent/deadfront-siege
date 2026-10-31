@@ -6,13 +6,14 @@ extends SceneTree
 const OWNED := [
 	"res://scripts/core/display_mode.gd", "res://scripts/ui/ui_tokens.gd", "res://scripts/ui/hex_button.gd",
 	"res://scripts/ui/status_glyph.gd", "res://scripts/ui/gather_ring.gd", "res://scripts/ui/eat_progress.gd",
-	"res://scripts/ui/held_item_slot.gd", "res://scripts/ui/craft_ui.gd", "res://scripts/ui/craft_card.gd",
+	"res://scripts/ui/craft_ui.gd", "res://scripts/ui/craft_card.gd",
 	"res://scripts/ui/station_menu.gd", "res://scripts/ui/station_radial.gd", "res://scripts/ui/skills_sheet.gd",
 	"res://scripts/ui/map_screen.gd", "res://scripts/ui/fatigue_panel.gd", "res://scripts/ui/world_ui.gd",
 	"res://scripts/ui/creature_plates.gd", "res://scripts/ui/context_radial.gd", "res://scripts/ui/gather_radial.gd",
-	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/pickup_toast.gd", "res://scripts/ui/respawn_ring.gd",
+	"res://scripts/ui/food_inspector.gd", "res://scripts/ui/respawn_ring.gd",
 	"res://scripts/ui/character_creation.gd", "res://scripts/ui/level_display.gd",
-	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd",
+	"res://scripts/ui/hud_layout.gd", "res://scripts/ui/hud_pills.gd", "res://scripts/ui/yield_card.gd",
+	"res://scripts/ui/pet_radial.gd", "res://scripts/ui/pet_rename_dialog.gd",
 ]
 const TYPE_MIN := 12
 ## The HUD and bag joined W1-UI late (orchestrator option a). The bag is emoji-free; the HUD's rail
@@ -284,13 +285,15 @@ func _test_display_mode() -> void:
 	var sheet: Rect2 = SS.panel_rect(land)
 	# A landscape phone gets an opaque full-screen sheet (under the vitals only 3 of 12 rows fitted).
 	_expect(SS.is_sheet(land) and sheet.encloses(zones[0]), "landscape skills sheet %s covers the vitals band %s" % [sheet, zones[0]])
-	_expect(not SS.is_sheet(Vector2(1600, 900)) and not SS.is_sheet(Vector2(390, 844)), "desktop and portrait skills keep the panel between the HUD blocks")
+	# C3 rebuild (UICHAR): Skills is a full-screen sheet on every canvas (spec §8 shared chrome).
+	_expect(SS.is_sheet(Vector2(1600, 900)) and SS.panel_rect(Vector2(1600, 900)) == Rect2(0, 0, 1600, 900), "desktop skills is a full-screen sheet")
 	_expect(sheet.end.y <= land.y and sheet.size.y >= 4.0 * SS.ROW_H, "landscape skills panel fits the view with room for rows (%s)" % sheet)
 	_expect(zones.size() == 6 and zones[1].position.x > land.x * 0.7, "landscape HUD zones include the right map/rail column (%s)" % [zones])
-	# HANDS stacks above the rail's last hex on landscape (the gather label landed on it).
-	var HS: GDScript = load("res://scripts/ui/held_item_slot.gd")
-	var hands := Rect2(16.0 + (HS.RAIL_HEXES - 1.0) * (HS.SLOT + 10.0), land.y - 96.0 - HS.SLOT - 34.0, HS.SLOT, HS.SLOT + 18.0)
-	_expect(zones.size() == 6 and zones[3].encloses(hands), "landscape HUD zones cover the HANDS slot %s" % hands)
+	# The quick row holds three slots above the MENU / BUILD / BAG rail (HANDS removed, owner 2026-10-28):
+	# CHASE in the third, and the zone stops there (64 px rail and quick hexes on a landscape phone).
+	var chase := Rect2(16.0 + 2.0 * 74.0, land.y - 14.0 - 18.0 - 64.0 - 12.0 - 18.0 - 64.0, 64.0, 82.0)
+	_expect(zones.size() == 6 and zones[3].encloses(chase), "landscape HUD zones cover the CHASE slot %s" % chase)
+	_expect(zones[3].end.x < 16.0 + 3.0 * 74.0 + 32.0, "the quick-row zone no longer reserves a fourth slot (%s)" % zones[3])
 	# ...the quick-food row beside it, and the pet whistle row under the vitals (hunt_hud.gd).
 	_expect(zones[3].encloses(Rect2(16.0, land.y - 96.0 - 64.0 - 30.0, 64.0, 82.0)), "landscape HUD zones cover the first quick-food hex")
 	_expect(zones[5].encloses(Rect2(16.0, 104.0, 3.0 * 74.0 - 10.0, 82.0)), "landscape HUD zones cover the whistle row under the vitals (%s)" % zones[5])
@@ -371,7 +374,7 @@ func _test_level_up_banner() -> void:
 				title = str(l[0])
 		var want := "Title %s acquired." % titles[key]
 		_expect(str(lines[0][0]) == "Lv. %s" % key and title == want, "level-up to Lv. %s: banner \"%s\" with \"%s\" (got \"%s\")" % [key, lines[0][0], want, title])
-		_expect(str(hud.get("_levelup_title")) == want and str(hud.get("_levelup_summary")).contains("Skill points"), "level-up to Lv. %s: the phone banner has the title and one stat line (\"%s\")" % [key, hud.get("_levelup_summary")])
+		_expect(str(hud.get("_levelup_title")) == want and str(hud.get("_levelup_summary")).contains("other stats") and str(hud.get("_levelup_sp")).is_valid_int(), "level-up to Lv. %s: the phone banner has the title, one stat line and the skill points behind the brain (\"%s\" %s)" % [key, hud.get("_levelup_summary"), hud.get("_levelup_sp")])
 		checked += 1
 	world.pioneer_level = was
 	hud.free()
