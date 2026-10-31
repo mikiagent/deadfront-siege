@@ -228,6 +228,7 @@ func _position() -> void:
 	var walk := CreatureClips.natural_speed(creature.def, &"walk")
 	speed_override = walk if walk > 0.0 else 1.0
 	var spot := attack_target.global_position - dir * want_d
+	spot.y = creature.global_position.y  # STUNLOCK: her origin is her capsule centre, ~1 m up, so the 0.5 m test below never passed and it stood idle
 	if creature.global_position.distance_to(spot) < 0.5:
 		# In range but not yet turned: a small sidestep, so the turn is carried by the strafe clip's steps.
 		spot = creature.global_position + creature.global_basis.x * (0.8 if angle_difference(deg_to_rad(bearing_of(attack_target.global_position)), deg_to_rad(want_b)) > 0.0 else -0.8)

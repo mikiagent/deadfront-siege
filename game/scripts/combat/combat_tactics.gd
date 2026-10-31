@@ -67,7 +67,7 @@ static func tackle(h: Hunt) -> void:
 	target.next_hit_kind = &"strong"
 	target.health.take_damage(float(tune.get("damage", 6.0)), player)
 	target.status_float.emit(&"tackle")
-	target.stagger_left = maxf(target.stagger_left, float(tune.get("stagger_s", 0.8)))  # a short stagger on the target
+	target.stagger(float(tune.get("stagger_s", 0.8)))  # a short stagger, unless it is poised or just recovered from one
 	h.commit_tactic(&"tackle", float(tune.get("cooldown", 8.0)), float(tune.get("lock", 0.55)))
 	player.play_tactic(&"tackle", true)
 	print("[combat] body tackle %s" % target.def.id)
@@ -80,14 +80,19 @@ static func mass_proxy(c: Creature) -> float:
 		return 1.0
 	return maxf(0.1, c.def.real_length_m * c.def.height_meters)
 
-## Shove distance for this body: full push up to ref_mass, falling off with mass, 0 for giants.
+## Shove distance for this body: full push up to ref_mass, falling off with mass, 0 for giants and armour.
 static func kick_push(c: Creature) -> float:
 	var tune := CombatTuning.section("kick")
 	var mass := mass_proxy(c)
-	if mass >= float(tune.get("giant_mass", 60.0)):
+	if mass >= float(tune.get("giant_mass", 60.0)) or (c and c.def and tune.get("armoured", []).has(str(c.def.id))):
 		return 0.0
 	var push := float(tune.get("push_m", 3.5)) * clampf(float(tune.get("ref_mass", 8.0)) / mass, 0.0, 1.0)
 	return push if push >= float(tune.get("min_push_m", 0.3)) else 0.0
+
+## STUNLOCK: a body the kick cannot shove (a giant, or an armoured species in kick.armoured) shrugs off every
+## stagger from hits and tackles too (Creature.stagger), so it always fights back.
+static func poised(c: Creature) -> bool:
+	return kick_push(c) <= 0.0
 
 ## Kick: shove the target back (scaled by its mass; giants do not budge) with 4 damage.
 static func kick(h: Hunt) -> void:
@@ -126,6 +131,5 @@ static func kick(h: Hunt) -> void:
 	target.next_hit_kind = &"hit"
 	target.health.take_damage(float(tune.get("damage", 4.0)), player)
 	target.status_float.emit(&"kick")
-	target.stagger_left = maxf(target.stagger_left, float(tune.get("stagger_s", 0.5)))
 	h.commit_tactic(&"kick", float(tune.get("cooldown", 6.0)), float(tune.get("lock", 0.45)))
 	print("[combat] kick %s push=%.2f" % [target.def.id, push])

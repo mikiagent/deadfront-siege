@@ -96,6 +96,8 @@ var _shove_v := Vector3.ZERO
 var _shove_s: float = 0.0
 var _shove_left: float = 0.0
 var _stagger_immune_until: float = -1.0
+## STUNLOCK: after a stagger ends it is immune to the next one for this long, so it always gets a window to act.
+const STAGGER_IMMUNE_S := 0.7
 var _aggro_ring_r: float = -1.0
 var _aggro_ring_t: float = 0.0
 ## Pet regen accumulates here and is applied in one tick per second, so the heal float
@@ -702,7 +704,19 @@ func shove(push: Vector3, seconds: float) -> void:
 	_shove_s = seconds
 	_shove_left = seconds
 	_shove_v = push * (2.0 / seconds)  # linear decay from 2d/T to 0 covers d metres
+	stagger_left = maxf(stagger_left, seconds)  # the slide is the stagger: a kick's push is never refused
+	_stagger_immune_until = maxf(_stagger_immune_until, _now_s() + seconds + STAGGER_IMMUNE_S)
+
+## STUNLOCK (owner 2026-10-31: "ankylosaurus is getting stunlocked and not fighting back"): every stagger a hit or a
+## tackle puts on it comes through here. A poised body (CombatTactics.poised: a giant or an armoured species) shrugs
+## it off; anyone else is staggered at most once per stagger + STAGGER_IMMUNE_S, so it always gets to act between.
+## True = staggered.
+func stagger(seconds: float) -> bool:
+	if seconds <= 0.0 or CombatTactics.poised(self) or _now_s() < _stagger_immune_until:
+		return false
 	stagger_left = maxf(stagger_left, seconds)
+	_stagger_immune_until = _now_s() + seconds + STAGGER_IMMUNE_S
+	return true
 
 ## An animal standing still on the ground has nothing to slide (most of the idle cost), so it
 ## slides only every IDLE_SLIDE_EVERY frames: often enough to notice a floor that went away. The
@@ -1083,10 +1097,8 @@ func _on_damaged(_amount: float, source: Node) -> void:
 		return
 	var staggered := false
 	var armored: bool = brain is TyrantBrain or (brain != null and brain.super_armor())  # a committed charge does not flinch
-	if not armored and _now_s() >= _stagger_immune_until:
-		stagger_left = 0.45 if kind == &"crit" else 0.3
-		_stagger_immune_until = _now_s() + 1.0
-		staggered = true
+	if not armored:
+		staggered = stagger(0.45 if kind == &"crit" else 0.3)
 	if not armored and not anim.current_clip in CreatureAnim.ATTACKS:  # a hit never cuts a bite or the combo short
 		var authored: Dictionary = def.pipeline.get("authored_clips", {})
 		# The authored hurt clip plays when the rig has one (the test was inverted), gated by the
