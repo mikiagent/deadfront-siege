@@ -142,3 +142,10 @@ overhaul twice more (sp-tarbosaurus, megaloceros stag and doe, compyfeel, sp-car
   which of its hits landed.
 - `t_bigreach`: the AI-on approach gets 20 s instead of 10 s. Live, the animal charges, knocks her down and turns
   away, and a swing at a part that moved misses. It failed about one run in three at 10 s.
+
+## Ankyloclose, ceratosaurus, trike alpha, cornered, plantedflinch merge (same pass)
+- **ANKYLOCLOSE.** The stomp (forefeet) and the shoves (shoulders, torso, front leg) are clip strikes on hurtboxes
+  (`ankylosaurus.moves.stomp / shove_left / shove_right`). They are calibrated with her standing on each move's aim
+  spot. The tackle's run keeps its contact sphere, and bodies without hurtboxes keep the spot sphere.
+- **Ceratosaurus and the trike alpha** plug in through `pipeline.hit_parts` and the calibration.
+- **Duplicate func names** in the merged .gd files: none.

@@ -14,6 +14,8 @@ T=$(mktemp -d)
 run() { "$BL" -b "$@" > "$T/log_$RANDOM.txt" 2>&1 || { echo "FAILED: $*"; exit 1; }; }
 # base: a Jaw bone. The Tripo mouth is modelled open; --x-side keeps +X opening (a level jaw came out with X flipped)
 run --python tools/jaw/add_jaw.py -- $D/work/transplant_base.glb $D/carnotaurus.glb --open --x-side --pivot 0.071 0.36 --split -5 --blend 0.01
+# CARNOLIP: the Tripo lower jaw is modelled long, so once shut its chin jutted ~1 cm (mesh) past the upper lip; slide it back under
+run --python tools/jaw/trim_jaw.py -- $D/carnotaurus.glb $D/carnotaurus.glb
 # alpha skin (owner sheet 2): rust and black, baked from the regular map
 run -P tools/gait/make_carno_alpha_skin.py -- $D/carnotaurus.glb $D/carnotaurus_alpha_albedo.jpg
 mkdir -p $T/x $T/j $T/g

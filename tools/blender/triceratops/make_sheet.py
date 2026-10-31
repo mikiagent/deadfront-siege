@@ -11,7 +11,8 @@ bpy.context.view_layer.update()
 P = rlib.mesh_points(mesh); paths = []
 for k, d in enumerate([(0, 1, 0.05), (1, 0, 0.02), (0, -1, 0.1), (1, 1.1, 0.45), (-1, 1.1, 0.45), (-1, 0, 0.02)]):
     p = f"{tmp}/rest_{k}.png"; rlib.shot(p, d, P, 300, 214, margin=1.04); paths.append(p)
-for clip in ["idle", "walk", "run", "attack_primary", "attack_heavy", "hit_react", "knockdown", "death", "alert"]:
+only = sys.argv[sys.argv.index("--") + 2:]  # optional clip names; default: every baked clip
+for clip in (only or [a.name for a in bpy.data.actions]):
     act = bpy.data.actions[clip]; arm.animation_data.action = act
     try: arm.animation_data.action_slot = act.slots[0]
     except Exception: pass

@@ -6,7 +6,8 @@ import bpy, sys, os, json, math, importlib
 import numpy as np
 from mathutils import Vector
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import qlib, clips, rlib
+import qlib, rlib
+clips = importlib.import_module(os.environ.get("TRIKE_CLIPS", "clips"))  # clips_alpha: the Alpha's set
 importlib.reload(qlib); importlib.reload(clips)
 a = sys.argv[sys.argv.index("--") + 1:]
 out_blend, out_stats = a[0], a[1]

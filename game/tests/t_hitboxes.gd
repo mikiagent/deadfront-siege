@@ -162,6 +162,7 @@ func _moves_of(c) -> Array:
 	# A TyrantBrain swings at anything inside its reach, so its timed moves must also land well inside it.
 	var tyrant: bool = c.brain.get_script().get_global_name() in [&"TyrantBrain", &"MegaRexBrain"]
 	var near: Array = [reach * 0.6, reach] if tyrant else [reach]
+	var club_tail: bool = c.brain.get_script().get_global_name() == &"ClubTailBrain"
 	out.append([&"attack_primary", 0, false, near])
 	# tactics.heavy_reach_m: an in-place kick fires only that close (the gallimimus rake).
 	out.append([&"attack_heavy", 0, false, [minf(reach, float(tac.get("heavy_reach_m", 1e9)))]])
@@ -183,6 +184,18 @@ func _moves_of(c) -> Array:
 			out.append([&"pin_stab", i, false, [float(tac.get("pin_reach_m", 1.5)) * c.size_scale()]])
 	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)):
 		out.append([&"kick", 0, true, [reach]])  # the hind kick at prey behind it (after a charge, or point blank)
+	if club_tail:
+		out.clear()  # its club moves sweep the club live (t_ankyloai); only the close moves are clip strikes
+	# ClubTailBrain's close moves (ANKYLOCLOSE): judged with her on each move's aim spot.
+	var close: Dictionary = c.brain.get(&"close_moves") if c.brain.get(&"close_moves") is Dictionary else {}
+	for move_id in close:
+		var row: Dictionary = close[move_id]
+		if row.has("lunge_m") or not ap.has_animation(StringName(str(row.get("clip", "")))):
+			continue  # the tackle is judged by its run's contact sphere
+		var spot: Vector3 = c.brain.strike_spot(StringName(str(move_id))) - c.global_position
+		out.append([StringName(str(row["clip"])), 0, false, [Vector3(spot.x, 0.0, spot.z)]])
+	if club_tail:
+		return out
 	if tac.get("charge_impale", false) and ap.has_animation(&"impale"):
 		# STYRAFIX: the impale's hit frame comes when she stands impale_reach_m ahead on the charge line.
 		out.append([&"impale", 0, false, [float(tac.get("impale_reach_m", reach)) * c.size_scale()]])
@@ -205,13 +218,13 @@ func _test_species(id: StringName) -> void:
 	var share := _cover(c)
 	_expect(share >= COVER_MIN, "%s: %.0f %% of the skinned mesh inside a hurtbox" % [id, share * 100.0])
 	_bone_track_check(c)
-	if id != &"ankylosaurus":
+	if true:  # the ankylosaurus's club moves are t_ankyloai's; its close moves are listed by _moves_of
 		var reach: float = c.brain.contact_reach()
 		for row in _moves_of(c):
 			var mv: StringName = row[0]
 			var side: float = 1.0 if row[2] else -1.0
 			for dist in row[3]:
-				_place_survivor(Vector3(0, 0, side * float(dist)), c)
+				_place_survivor(dist if dist is Vector3 else Vector3(0, 0, side * float(dist)), c)
 				await _pose_for(mv, c)
 				var hit: Dictionary = HX.strike(c, mv, player, int(row[1]))
 				if hit.is_empty() and OS.has_environment("HB_DEBUG"):
@@ -220,7 +233,7 @@ func _test_species(id: StringName) -> void:
 					print("[hbdebug] %s %s size %.3f need %s spec %s pos %s anim %s pclip %s" % [id, mv, c.size_scale(), dbg, HX.move_spec(c, mv, int(row[1])), player.global_position, c.anim.current_clip, player.anim.current_clip])
 				await _unpose(mv)
 				_expect(not hit.is_empty(), "%s %s[%d]: connects with a survivor %s at %.2f m (contact reach %.2f) (%s)" % [id, mv, row[1], "behind it" if row[2] else "in front", dist, reach, hit.get("part", "-")])
-			if not row[2] and mv != &"charge":
+			if not row[2] and mv != &"charge" and not (row[3][0] is Vector3):
 				_place_survivor(Vector3(reach + 0.3, 0, 1.0), c)
 				await _frames(1)
 				_expect(HX.strike(c, mv, player, int(row[1])).is_empty(), "%s %s[%d]: misses a survivor beside its hips" % [id, mv, row[1]])
@@ -452,8 +465,6 @@ func _test_debug_draw() -> void:
 ## The radius each move's parts need to reach a survivor at contact reach (front; behind for kick / tail), at
 ## both ends of the species' size range, in metres at size 1.0 (data radii scale with the body).
 func _calibrate_species(id: StringName) -> void:
-	if id == &"ankylosaurus":
-		return
 	var done := {}
 	var range_: Vector2 = load("res://scripts/creatures/creature_genetics.gd").size_range_for(data.creature(StringName(str(id).get_slice("/", 0))))
 	for size in [range_.x, (range_.x + range_.y) * 0.5, range_.y, 0.0]:  # 0: the size this test's own spawn rolls
@@ -464,7 +475,7 @@ func _calibrate_species(id: StringName) -> void:
 		var sk: Skeleton3D = HB.skeleton_of(c)
 		for row in _moves_of(c):
 			for dist in row[3]:
-				_place_survivor(Vector3(0, 0, (1.0 if row[2] else -1.0) * float(dist)), c)
+				_place_survivor(dist if dist is Vector3 else Vector3(0, 0, (1.0 if row[2] else -1.0) * float(dist)), c)
 				await _pose_for(row[0], c)
 				_calib_need(c, sk, row, size, done)
 				await _unpose(row[0])
