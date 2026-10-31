@@ -91,3 +91,11 @@ tail. A real hip shift needs two-bone IK on each leg.
   no skin weights, so the test ignores them. If it ever shows on screen, look at the crossfade time, not the pin.
 - Ankylosaurus brain and attack work on `claude/mmo-ankyloclose` is untouched. Only `Creature._on_damaged` (2
   lines) and `CreatureView` changed.
+
+## Follow-up: therizinosaurus (branch claude/mmo-flinchtheri)
+
+After the therizinosaurus merge, t_plantedflinch failed on canon. Its authored hit_react (`tools/gait/make_theri_moves.py`)
+had a stagger step back that lifted the left foot 42 cm and slid it 27 cm. That was a real step, so the root-bone
+correction could not hide it. I took the step out: both feet stay planted, while the head, neck, chest and arms jerk as
+before. Then I rebuilt only hit_react (make_theri_moves.py + ground_clip.py). check_theri.py gives THERI_CHECK PASS.
+After the rebuild the feet move at most 1.1 cm.

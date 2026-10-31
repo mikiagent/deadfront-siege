@@ -639,6 +639,8 @@ func _prey_leaving() -> bool:
 	var v: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
 	return Vector3(v.x, 0.0, v.z).dot(-_to_me()) > 1.0
 
+const CIRCLE_MIN_S := 0.3
+
 func _enter_circle(hold: float = -1.0) -> void:
 	_set_state(&"circle")
 	_circle_t = 0.0
@@ -665,6 +667,10 @@ func _circle(delta: float) -> void:
 		creature.move_to(attack_target.global_position + _to_me().rotated(Vector3.UP, step) * ring_m() / cos(step))
 	# At the ring (or with prey that followed it into its jaws after a beat of backing off) the
 	# strongest attack that is ready goes; while everything cools down it keeps moving.
+	# ASSUMPTION (KNOCKDOWN merge): a circle lasts at least CIRCLE_MIN_S before its next move, so a move that ends
+	# into the circle never flips straight into another (charge -> circle -> charge in one frame read as flicker).
+	if _circle_t < CIRCLE_MIN_S:
+		return
 	var in_jaws := d <= reach_to(attack_target) and _circle_t >= _t("contact_after_s", 1.0)
 	if _offence(d, in_jaws):
 		return
@@ -1037,6 +1043,9 @@ func _charge_impale(delta: float) -> void:
 			creature.stop_move()
 			if _phase_t >= _phase_len:
 				_charge_cleanup()
+				# ASSUMPTION (HITBOXES merge): the charge cooldown runs from the end of the recover, so a missed charge
+				# never paws into the next one the frame it stands up (t_styrafix's A->B->A check caught it).
+				_start_cd(&"charge")
 				if not _strike(_flat_dist(attack_target), ["kick"]):
 					_after_charge()
 
@@ -1078,7 +1087,15 @@ func _impale_contact() -> bool:
 func _impale_hit() -> void:
 	_charge_hit = true
 	impale_gap = _flat_between(horn_tip(), attack_target.global_position)
-	if impale_gap > _t("impale_r_m", 1.6) + 0.8:
+	var horned := {}
+	if Hitbox.applies(creature, attack_target):
+		# HITBOXES: the impale clip's horns (hitboxes.json <species>.moves.impale) must reach her hurtboxes.
+		horned = Hitbox.strike(creature, &"impale", attack_target)
+		if horned.is_empty():
+			tactic.emit(&"charge_miss")
+			return
+		Hitbox.mark(attack_target, horned)
+	elif impale_gap > _t("impale_r_m", 1.6) + 0.8:
 		tactic.emit(&"charge_miss")  # she got clear between contact and the hit frame
 		return
 	var mult := _t("charge_mult", 1.8)
@@ -1101,8 +1118,10 @@ func _fling() -> void:
 		return
 	var up := _t("toss_up_mps", 6.0)
 	var air := 2.0 * up / 9.8
-	_caught.sim.shove(_charge_dir * _t("charge_shove_m", 4.0), air)
-	_caught.velocity.y = up
+	# KNOCKDOWN: the lift makes it a throw (PlayerKnock: ballistic arc, lands on her butt, gets up winded).
+	_caught.sim.shove(_charge_dir * _t("charge_shove_m", 4.0), air, up, creature)
+	if not _caught.sim.knock.active():
+		_caught.velocity.y = up  # rolling, swimming or pinned: the plain shove with the old lift
 	_caught = null
 
 ## A body-check off the line: she is beside the horns but against its flank. Shoved clear sideways (one
@@ -1122,7 +1141,7 @@ func _glance() -> void:
 		var pl := attack_target as Player
 		pl.receive_creature_hit(creature, &"attack_heavy")
 		if pl.sim:
-			pl.sim.shove((side + _charge_dir * 0.5).normalized() * _t("charge_shove_m", 4.0) * 0.6, _t("charge_shove_stagger_s", 0.6))
+			pl.sim.shove((side + _charge_dir * 0.5).normalized() * _t("charge_shove_m", 4.0) * 0.6, _t("charge_shove_stagger_s", 0.6), 0.0, creature)
 
 ## Back to the ring, or straight after her when she is already past it (no one-frame circle in between).
 func _after_charge() -> void:
@@ -1200,7 +1219,7 @@ func _charge(delta: float) -> void:
 		var to := attack_target.global_position - creature.global_position
 		to.y = 0.0
 		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
-				and creature.part_hit(&"charge", attack_target):
+				and (Hitbox.applies(creature, attack_target) or creature.part_hit(&"charge", attack_target)):
 			_charge_impact()
 		if _flat_dist_to(_charge_to) <= 1.0 or _left <= 0.0:
 			_charge_end()
@@ -1227,7 +1246,7 @@ func landed(clip: StringName, target: Node) -> void:
 	if pl.sim == null or away.length_squared() <= 0.0001:
 		return
 	if clip == &"attack_heavy" and _t("heavy_shove_m", 0.0) > 0.0:
-		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6))
+		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6), 0.0, creature)
 		tactic.emit(&"heavy_shove")
 	elif clip == &"attack_primary" and _t("primary_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("primary_shove_m", 0.0), _t("primary_shove_stagger_s", 0.5))
@@ -1239,6 +1258,13 @@ func landed(clip: StringName, target: Node) -> void:
 			tactic.emit(&"hook_pull")
 
 func _charge_impact() -> void:
+	# HITBOXES: the ram lands when the head and horns (the charge part) reach her body, not at the reach ring.
+	var hit := {}
+	if Hitbox.applies(creature, attack_target):
+		hit = Hitbox.strike(creature, &"charge", attack_target)
+		if hit.is_empty():
+			return  # still closing: the next frame tries again
+		Hitbox.mark(attack_target, hit)
 	_charge_hit = true
 	var mult := _t("charge_mult", 1.8)
 	tactic_hit.emit(&"charge", 0, mult)
@@ -1258,6 +1284,7 @@ func _charge_impact() -> void:
 		# A ram, not a horn stab (owner 2026-10-29: "tackling/ramming"): the body-slam shoves her along the line.
 		# tactics.charge_toss_deg (carnotaurus): the horns hook her that far off the line, to the side she is on,
 		# so the runner can carry on through (straight ahead she stood in its path and stopped it dead).
+		# KNOCKDOWN: push x this animal's size picks the reaction (PlayerKnock): a light shove, knocked down, or thrown.
 		var push := _charge_dir
 		var toss := deg_to_rad(_t("charge_toss_deg", 0.0))
 		if toss != 0.0:
@@ -1267,7 +1294,7 @@ func _charge_impact() -> void:
 		if pl.sim:
 			# SP-TRIKEALPHA: a toss with toss_side_m throws her sideways, to the animal's right (the clip's twist).
 			var throw := Vector3(-_charge_dir.z, 0.0, _charge_dir.x) * (_t("toss_side_m", 0.0) if tossing else 0.0)
-			pl.sim.shove(push * _t("charge_shove_m", 0.0) + throw, _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0)
+			pl.sim.shove(push * _t("charge_shove_m", 0.0) + throw, _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0, creature)
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).
@@ -1657,15 +1684,25 @@ func _pounce_land(clip: StringName = &"pounce") -> void:
 	_pounce_landed = false
 	var ahead := tgt.global_position - creature.global_position
 	ahead.y = 0.0
-	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close. A species with pounce
-	# hit parts (pipeline.hit_parts) must also reach it with them (the smilodon's sabres).
-	if _flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0 or not creature.part_hit(clip, tgt):
+	# Jaws first: prey it sailed past (behind it along the flight) is missed, however close. With hurtboxes the
+	# pounce clip's parts decide below instead (the smilodon's sabres included); else a species with pounce hit
+	# parts (pipeline.hit_parts) must also reach it with them.
+	if not Hitbox.applies(creature, tgt) and (_flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(_pounce_dir) < 0.0 or not creature.part_hit(clip, tgt)):
 		_log("[ai] %s pounce missed" % creature.def.id)
 		if tgt is Player or tgt is Creature:
 			CombatAvoid.avoided(tgt, creature, &"miss")
 		return
 	if tgt is Player and (tgt as Player).dead:
 		return
+	# HITBOXES: the jaws and claws of the pounce clip must sweep through her hurtboxes.
+	if Hitbox.applies(creature, tgt):
+		var hit := Hitbox.strike(creature, clip, tgt)
+		if hit.is_empty():
+			_log("[ai] %s pounce missed (no part touched)" % creature.def.id)
+			if tgt is Player or tgt is Creature:
+				CombatAvoid.avoided(tgt, creature, &"miss")
+			return
+		Hitbox.mark(tgt, hit)
 	# A roll is judged by CreatureAttack against the roll's opening window (RollRules), as for any bite.
 	var mult := _t("pounce_mult", 2.5)
 	_pounce_landed = true

@@ -243,6 +243,10 @@ func _test_fight() -> void:
 	await _free(c)
 
 	# 3. Sprint charge with a sharp turn: hit and shove, hop round in the air only, charge back through.
+	# KNOCKDOWN x HITBOXES: the ram threw her; she must be up (standing hurtboxes) before the charge, not lying.
+	player.sim.knock.cancel()
+	player.statuses.clear_all()
+	player.anim.release_knockdown()
 	player.global_position = Vector3(0, 0.9, 0)
 	player.velocity = Vector3.ZERO
 	# 6.8 m out: with no navmesh in the test a goal past 12 m is not steered to (the charge runs on 5 m past her)
