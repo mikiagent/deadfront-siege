@@ -65,13 +65,13 @@ func _run() -> void:
 	for v in ([] if OS.get_cmdline_user_args().has("joust") else ([&"graded"] if OS.get_cmdline_user_args().has("quick") else [&"graded", &"ochre"])):
 		await _test_spins(v)
 		await _test_double_and_pivot(v)
-		await _test_close(v, &"stomp", Vector3(0, 0, -5.0))
-		await _test_close(v, &"rear_slam", Vector3(0, 0, -5.0))
-		await _test_close(v, &"hind_stomp_right", Vector3(3.6, 0, 2.5))
-		await _test_close(v, &"hind_stomp_left", Vector3(-3.6, 0, 2.5))
-		await _test_close(v, &"shove_right", Vector3(3.6, 0, -1.0))
-		await _test_close(v, &"shove_left", Vector3(-3.6, 0, -1.0))
-		await _test_close(v, &"tackle", Vector3(0, 0, -7.5))
+		await _test_close(v, &"stomp", Vector3(-0.6, 0, -2.6))
+		await _test_close(v, &"rear_slam", Vector3(0, 0, -2.6))
+		await _test_close(v, &"hind_stomp_right", Vector3(2.0, 0, 2.0))
+		await _test_close(v, &"hind_stomp_left", Vector3(-2.0, 0, 2.0))
+		await _test_close(v, &"shove_right", Vector3(1.5, 0, -1.5))
+		await _test_close(v, &"shove_left", Vector3(-1.5, 0, -1.5))
+		await _test_close(v, &"tackle", Vector3(0, 0, -9.5))
 	if not OS.get_cmdline_user_args().has("joust"):
 		await _test_anky_front_spin()
 		await _test_anky_no_backin()
@@ -280,7 +280,9 @@ func _test_close(v: StringName, want: StringName, at: Vector3) -> void:
 	if want == &"rear_slam":
 		b._front_n = 1  # the front order is stomp, rear slam: start on the slam
 	_provoke(c)
-	_place(c.global_transform * at)
+	# STEGOSPIN port: she stands on the move's spot (ai.json target_bearing_deg / target_dist_m x body size: where the
+	# clip puts the stomping foot or the slamming shoulder at the hit frame); `at` only for the tackle's run.
+	_place(c.global_transform * at if want == &"tackle" else b.strike_spot(want))
 	var from: Vector3 = player.global_position
 	var start: Vector3 = c.global_position
 	var yaw0: float = c.rotation.y
@@ -288,6 +290,8 @@ func _test_close(v: StringName, want: StringName, at: Vector3) -> void:
 	var landed := false
 	var push := Vector3.ZERO
 	var started: Array = []
+	var leap_from := Vector3.INF
+	var leap := 0.0
 	_t = 0.0
 	for f in 6 * 60:
 		await physics_frame
@@ -295,6 +299,10 @@ func _test_close(v: StringName, want: StringName, at: Vector3) -> void:
 		player.hunt.stop()  # she stands: no retaliation walk-in
 		if b.move_id != &"" and (started.is_empty() or started[-1] != b.move_id):
 			started.append(b.move_id)
+		if b._leap_t >= 0.0:  # the tackle's leap: how far it carries the body
+			if leap_from == Vector3.INF:
+				leap_from = c.global_position
+			leap = maxf(leap, Vector2(c.global_position.x - leap_from.x, c.global_position.z - leap_from.z).length())
 		if b.move_id == want and want != &"tackle":
 			moved = maxf(moved, (c.global_position - start).length() + absf(angle_difference(c.rotation.y, yaw0)) * 3.0)
 		var hit := _hits.filter(func(h: Array) -> bool: return h[0] == want and h[1] == player)
@@ -302,6 +310,8 @@ func _test_close(v: StringName, want: StringName, at: Vector3) -> void:
 			landed = true
 			for k in 40:
 				await physics_frame
+				if b._leap_t >= 0.0 and leap_from != Vector3.INF:  # the leap is committed: it carries on past the hit
+					leap = maxf(leap, Vector2(c.global_position.x - leap_from.x, c.global_position.z - leap_from.z).length())
 			push = player.global_position - from
 			break
 	var side: float = c.global_basis.x.dot(push)
@@ -309,6 +319,10 @@ func _test_close(v: StringName, want: StringName, at: Vector3) -> void:
 	if want.begins_with("shove") or want.begins_with("hind_stomp"):
 		var s := 1.0 if want.ends_with("right") else -1.0
 		_expect(side * s >= 1.0, "%s: %s sends her off its %s side (%.1f m)" % [v, want, "right" if s > 0 else "left", side * s])
+	if want == &"tackle":
+		# owner 2026-10-31: "a jump/lunge that goes kind of far": the leap covers its lunge_m (it was a 3.5 m run).
+		var need: float = float(b.close_moves[&"tackle"]["lunge_m"]) * c.size_scale() * 0.95
+		_expect(leap >= need, "%s: the tackle's leap covers %.1f m (at least %.1f)" % [v, leap, need])
 	if want != &"tackle":
 		_expect(moved <= 0.05, "%s: %s plays on the spot (body moved/turned %.3f)" % [v, want, moved])
 	player.statuses.clear_all()
@@ -320,7 +334,7 @@ func _test_anky_front_spin() -> void:
 	var c = await _spawn(&"ankylosaurus")
 	await physics_frame
 	var b = c.brain
-	b._front_n = 1  # front order stomp, spin, tackle
+	b._front_n = 3  # front order stomp, tackle, tail, spin
 	_provoke(c)
 	_place(Vector3(0.6, 0, -4.4))
 	var toes := ToeTrack.new()

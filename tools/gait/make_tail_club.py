@@ -20,9 +20,9 @@ alert 1.6 s and sleep 2.5 s (not looped) are unchanged from ANKYLO3D.
 ANKYLOCLOSE (owner 2026-10-31: "ankylosaurus is hardly fighting back ... stomp, shove, tackle"): the front and side arcs.
 STOMP       stomp 1.5 s: the front rears up off the left forefoot (weight back and right), the foot hauled high and
             forward, held trembling, then slammed down in front (impact 0.55) with the front dropping and a crouch.
-SHOVE       shove_left / shove_right 1.2 s: cocks away (head and shoulders turned off, body leaning off), then the head
-            and shoulders swing hard into that side (impact 0.48) while the body lurches over and the near forefoot steps
-            out into it; steps back in.
+SHOVE       shove_left / shove_right 1.8 s: the SHOULDER SLAM (replaced the 1.2 s head swing, which barely moved the body):
+            cocked off, a bound (airborne 0.24-0.42, the brain throws the body at her), it lands into her with the shoulder
+            dropped (impact 0.46), then it rocks back, re-plants and steadies.
 STEGOSPIN (owner 2026-10-31: "don't have the ankylosaurus back himself into me for an attack, he should also joust and be
 able to hit you with his tail from the front by spinning and smacking you with the tail"): TURN clips. The animal turns
 turn_deg about the inner front foot (it twists on the spot; ClubTailBrain turns the body in code by exactly
@@ -32,7 +32,8 @@ SPIN        spin_right / spin_left 3.6 s: crouch, the club raised and cocked, tr
             front foot (0.28-0.86) with the tail whipping round the outside: the club comes round through the front.
 PIVOT       pivot_right / pivot_left 1.6 s: a 90 deg repositioning turn on the inner front foot.
 TACKLE      tackle 0.9 s: the coil before the body check: crouch, front low, weight back over the hind feet, head down, a
-            forefoot paws once; the brain then lunges it 2-3 m at a run into her (ClubTailBrain).
+            forefoot paws once; the brain then runs it up at the run gait, and tackle_lunge 1.25 s: gather, a leap
+            (airborne 0.14-0.52, carried by the brain), land, steady.
 Extra curves: pitch (deg, + = front up, about the hind feet), shift (mesh units, + = body to its right), back (mesh
 units, + = body back toward the tail). A step may carry (foot, u0, u1, yaw, out, fwd, lift, "stomp"): fwd moves its plant
 forward (mesh units), lift is the arc height, "stomp" rises fast, holds high and slams (accelerating) down.
@@ -50,8 +51,8 @@ from mathutils import Matrix, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:]
 BASE, OUT = argv[:2]
-WANT = argv[2:] or ["attack_primary", "attack_heavy", "tail_swipe", "alert", "sleep", "stomp", "shove_left", "shove_right", "tackle",
-                    "spin_right", "spin_left", "pivot_right", "pivot_left"]
+WANT = argv[2:] or ["attack_primary", "attack_heavy", "tail_swipe", "alert", "sleep", "stomp", "shove_left", "shove_right", "tackle", "tackle_lunge",
+                    "spin_right", "spin_left", "pivot_right", "pivot_left", "about_right", "about_left"]
 FPS = 24
 TAILS = ["Tail1", "Tail2", "Tail3", "Tail4", "Tail5"]
 LEGS = [(f"{e}UpLeg.{s}", f"{e}LowLeg.{s}", f"{e}Foot.{s}") for e in ("Back", "Front") for s in ("L", "R")]
@@ -161,18 +162,31 @@ CLIPS = {
         look=Z0,
         tremble=None,
         steps=[("FrontFoot.L", 0.12, 0.56, 0, 0.004, -0.025, 0.1, "stomp"), ("FrontFoot.L", 0.76, 0.94, 0, 0, 0, 0.02)]),
+    # SHOULDER SLAM (owner 2026-10-31: "the anky has this move where it like looks at you and you get hurt. I want it to
+    # use its momentum and drop its shoulder? and throw its body weight at the player. Like a proper slam. and then steady
+    # itself after"; "the shove attack on the ankylosaurus needs more range, and I want you to kind of throw the ankys body
+    # weight at the player"): cocked off (0-0.22), then all four feet leave the ground (airborne 0.24-0.42: ClubTailBrain
+    # throws the body up to close_moves.shove_*.carry_m at her in exactly that window, anim_events), it lands on its near
+    # feet set wide and drives the shoulder down and over into her (impact 0.46), holds; then it rocks back, re-plants
+    # (0.66-0.92) and steadies.
     "shove_right": dict(
-        n=29, lag=0.04,
-        yaw=[(0, 0), (0.4, 4), (0.5, -6), (0.7, -6), (1.0, 0)],
-        tail=[(0, 0), (0.4, -8), (0.55, 10), (0.75, 6), (1.0, 0)],
+        n=44, lag=0.04,
+        yaw=[(0, 0), (0.22, 6), (0.42, -8), (0.50, -10), (0.62, -8), (0.80, 2), (0.90, -1), (1.0, 0)],
+        tail=[(0, 0), (0.22, -10), (0.45, 14), (0.70, 6), (1.0, 0)],
         lift=Z0,
-        crouch=[(0, 0), (0.4, 0.008), (0.5, 0.004), (0.7, 0.006), (1.0, 0)],
-        roll=[(0, 0), (0.4, 6), (0.5, -9), (0.7, -7), (1.0, 0)],
-        shift=[(0, 0), (0.4, -0.012), (0.5, 0.03), (0.7, 0.026), (1.0, 0)],
-        head=[(0, 0), (0.4, 4), (0.5, -10), (0.7, -6), (1.0, 0)],
-        look=[(0, 0), (0.4, -30), (0.5, 45), (0.7, 35), (1.0, 0)],
+        # the belly rides a hand's width off the ground: a deeper crouch or roll only lifts the Body (floor pass)
+        crouch=[(0, 0), (0.20, 0.010), (0.26, 0.0), (0.40, 0.0), (0.46, 0.008), (0.56, 0.008), (0.70, 0.002), (0.82, 0.006), (1.0, 0)],
+        roll=[(0, 0), (0.22, 6), (0.42, -4), (0.48, -8), (0.58, -8), (0.72, 3), (0.84, -2), (1.0, 0)],
+        shift=[(0, 0), (0.22, -0.02), (0.42, 0.02), (0.48, 0.06), (0.58, 0.06), (0.72, 0.0), (0.84, 0.008), (1.0, 0)],
+        back=[(0, 0), (0.22, 0.012), (0.42, -0.01), (0.48, -0.03), (0.58, -0.03), (0.72, 0.006), (1.0, 0)],
+        head=[(0, 0), (0.22, 6), (0.42, -8), (0.48, -12), (0.60, -8), (0.78, 4), (1.0, 0)],
+        look=[(0, 0), (0.18, -25), (0.36, 40), (0.60, 30), (1.0, 0)],
         tremble=None,
-        steps=[("FrontFoot.R", 0.38, 0.52, -4, 0.03), ("FrontFoot.R", 0.78, 0.95, 0, 0)]),
+        steps=[("FrontFoot.R", 0.20, 0.42, -4, 0.05, -0.02, 0.05), ("BackFoot.R", 0.21, 0.43, -2, 0.03, -0.01, 0.05),
+               ("FrontFoot.L", 0.22, 0.44, -3, -0.02, -0.02, 0.04), ("BackFoot.L", 0.23, 0.45, 0, 0, 0, 0.04),
+               ("FrontFoot.R", 0.66, 0.80, 0, 0, 0, 0.025), ("BackFoot.R", 0.70, 0.84, 0, 0, 0, 0.02),
+               ("FrontFoot.L", 0.80, 0.92, 0, 0, 0, 0.02)],
+        stamps=[("BackFoot.L", 0.86, 0.94, 0.015)]),
     "tackle": dict(
         n=22, lag=0.04,
         yaw=Z0,
@@ -186,12 +200,33 @@ CLIPS = {
         look=Z0,
         tremble=(0.45, 0.85, 3.0, 2.0),
         stamps=[("FrontFoot.R", 0.18, 0.4, 0.025)]),
+    # TACKLE LUNGE (owner 2026-10-31: "tackle should be legs moving fast, then a jump/lunge that goes kind of far"): after
+    # the run-up (the run gait, ClubTailBrain) a short gather, airborne 0.14-0.52 (the brain carries the body forward on
+    # an arc in exactly that window: anim_events tackle_lunge.airborne), head down, forefeet reaching; forefeet land 0.52,
+    # hind 0.56, it absorbs, steps the forefeet back in and steadies.
+    "tackle_lunge": dict(
+        n=30, lag=0.04,
+        yaw=Z0,
+        tail=Z0,
+        lift=[(0, 4), (0.3, 10), (0.6, -2), (0.8, 2), (1.0, 0)],
+        crouch=[(0, 0.012), (0.12, 0.02), (0.18, -0.004), (0.50, 0.0), (0.62, 0.026), (0.76, 0.012), (1.0, 0)],
+        roll=Z0,
+        pitch=[(0, -3), (0.12, -5), (0.2, 8), (0.4, 2), (0.54, -6), (0.66, -4), (0.85, -1), (1.0, 0)],
+        back=[(0, 0.01), (0.12, 0.016), (0.2, -0.012), (0.54, -0.01), (0.66, 0.006), (1.0, 0)],
+        head=[(0, -20), (0.2, -24), (0.5, -26), (0.62, -16), (0.85, -4), (1.0, 0)],
+        look=Z0,
+        tremble=None,
+        steps=[("FrontFoot.L", 0.10, 0.52, 0, 0, -0.03, 0.05), ("FrontFoot.R", 0.11, 0.52, 0, 0, -0.03, 0.05),
+               ("BackFoot.L", 0.12, 0.56, 0, 0, 0, 0.05), ("BackFoot.R", 0.13, 0.56, 0, 0, 0, 0.05),
+               ("FrontFoot.L", 0.68, 0.80, 0, 0, 0, 0.02), ("FrontFoot.R", 0.74, 0.86, 0, 0, 0, 0.02)]),
 }
 # shove_left: shove_right mirrored (curves that point sideways flip sign, feet swap side).
 _m = dict(CLIPS["shove_right"])
 for k in ("yaw", "tail", "roll", "shift", "look"):
     _m[k] = [(u, -v) for u, v in _m[k]]
-_m["steps"] = [("FrontFoot.L",) + tuple(-x if i == 2 else x for i, x in enumerate(s[1:])) for s in _m["steps"]]
+_sw = lambda f: f.replace(".R", ".X").replace(".L", ".R").replace(".X", ".L")
+_m["steps"] = [(_sw(s[0]),) + tuple(-x if i == 2 else x for i, x in enumerate(s[1:])) for s in _m["steps"]]
+_m["stamps"] = [(_sw(s[0]),) + tuple(s[1:]) for s in _m.get("stamps", [])]
 CLIPS["shove_left"] = _m
 # STEGOSPIN turn clips. Feet: L is +X; the rig faces -Y. turn_deg + = left (CCW from above).
 CLIPS["spin_right"] = dict(
@@ -214,12 +249,27 @@ CLIPS["pivot_right"] = dict(
     head=[(0, 0), (0.3, -4), (1.0, 0)],
     look=[(0, 0), (0.15, 15), (0.85, 12), (1.0, 0)],
     tremble=None)
-for _r, _l in (("spin_right", "spin_left"), ("pivot_right", "pivot_left")):
+# ABOUT-FACE (owner 2026-10-31: "have it try to rush me by turning and walking toward me but when it gets to me it rotates
+# 180 for a massive tail whip and tail smash ... it just rotates to hit me"): a fast 180 deg turn on the spot about the
+# point piv_y (Blender y, mesh units: 0.6 m ahead of the origin, so the origin swings 1.2 m toward her; no pivot foot:
+# all four feet step round it), the club
+# cocked and swung wide round the outside. ClubTailBrain chains the tail whip or smash straight after it.
+CLIPS["about_right"] = dict(
+    n=36, lag=0.03, turn_deg=-180.0, turn=(0.08, 0.90), pivot=None, piv_y=-0.107, gait=dict(hind=4, front=4),
+    yaw=Z0,
+    tail=[(0, 0), (0.10, 14), (0.30, -10), (0.70, -20), (0.90, -8), (1.0, 0)],
+    lift=[(0, 0), (0.12, 10), (0.80, 8), (1.0, 0)],
+    crouch=Z0,
+    roll=Z0,
+    head=[(0, 0), (0.2, -6), (0.9, -4), (1.0, 0)],
+    look=[(0, 0), (0.1, 25), (0.8, 30), (1.0, 0)],
+    tremble=None)
+for _r, _l in (("spin_right", "spin_left"), ("pivot_right", "pivot_left"), ("about_right", "about_left")):
     _m = dict(CLIPS[_r])
     for k in ("yaw", "tail", "roll", "look"):
         _m[k] = [(u, -v) for u, v in _m[k]]
     _m["turn_deg"] = -_m["turn_deg"]
-    _m["pivot"] = "FrontFoot.L"
+    _m["pivot"] = "FrontFoot.L" if _m["pivot"] else None
     CLIPS[_l] = _m
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -296,11 +346,17 @@ def turn_steps(c):
     out = []
     phases = {"BackFoot.L": 0.0, "BackFoot.R": 0.5, "FrontFoot.L": 0.25, "FrontFoot.R": 0.25}
     sw = 0.55
+    if not c["pivot"]:  # an about-face: all four step, in walk order, never two on a side or all at once in the air
+        phases = {"BackFoot.L": 0.0, "FrontFoot.R": 0.25, "BackFoot.R": 0.5, "FrontFoot.L": 0.75}
+        sw = 0.45
     for f in phases:
         if f == c["pivot"]:
             continue
         n = c["gait"]["front" if f.startswith("Front") else "hind"]
         p = (b - a) / (n - 1 + phases[f] + sw + 0.15)
+        if not c["pivot"]:  # one period for all four, so the walk order holds (at most two feet up)
+            n = c["gait"]["front"]
+            p = (b - a) / (n - 1 + 0.75 + sw + 0.15)
         for i in range(n):
             u0 = a + p * (i + phases[f] + 0.15)
             u1 = u0 + sw * p
@@ -419,7 +475,7 @@ def pose(c, u):
     for up, low, foot in LEGS:
         solve_leg(up, low, foot)
     # floor pass: a crouch must not push knee or belly skin through the ground; lift the Body (feet stay)
-    for _ in range(4):  # re-solving the legs after a lift can tilt a shin under again: repeat until it holds
+    for _ in range(10):  # re-solving the legs after a lift can tilt a shin under again: repeat until it holds
         lz = low_z()
         if lz >= -0.0005:
             break
@@ -434,7 +490,11 @@ sc = bpy.context.scene
 for name in WANT:
     c = dict(CLIPS[name])
     CUR["piv"] = PIVOT
-    if "turn_deg" in c:
+    if "turn_deg" in c and not c["pivot"]:
+        CUR["piv"] = Vector((0.0, c["piv_y"], 0.0))
+        c["_turn_steps"] = turn_steps(c)  # about the body's PIVOT: every foot steps round it
+        print(f"PIVOT {name} blender=({CUR['piv'].x:.4f},{CUR['piv'].y:.4f}) gltf_xz=({CUR['piv'].x:.4f},{-CUR['piv'].y:.4f}) turn_deg={c['turn_deg']} turn={c['turn']}")
+    elif "turn_deg" in c:
         # the pivot is the sole's centre (vertices weighted 0.9+ to the foot): a foot turned about its bone head swings its sole round
         sole = [skin.matrix_world @ v.co for v in skin.data.vertices
                 if sum(g.weight for g in v.groups if gi[g.group] == c["pivot"]) > 0.9]

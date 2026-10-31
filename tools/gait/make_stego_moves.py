@@ -19,8 +19,10 @@ REAR SLAM rear_slam 2.2 s: rears up on the hind legs (24 deg), both forefeet hig
           (impact 0.62), wide.
 HIND STOMP hind_stomp_left / _right 1.4 s: the hind foot on that side hauled up and out, stamped down beside the flank
           (impact 0.55), body rolled into it, tail swung toward it.
-SHOVE     shove_left / shove_right 1.2 s: cocks away, head and shoulders swung hard into that side, near forefoot steps out.
-TACKLE    tackle 0.9 s: the coil before the body check (crouch, head down, a forefoot paws); the brain runs the rest.
+SHOVE     shove_left / shove_right 1.7 s: the SHOULDER SLAM: momentum step-in, the whole body lurched over and forward
+          into that side with the shoulder dropped (impact 0.40), then it rocks back, re-plants and steadies.
+TACKLE    tackle 0.9 s: the coil before the body check (crouch, head down, a forefoot paws); the brain runs it up at the
+          run gait, then tackle_lunge 1.25 s: gather, a leap (airborne 0.14-0.52, carried by the brain), land, steady.
 
 usage: Blender -b -P tools/gait/make_stego_moves.py -- <base.glb> <idle.glb> <out_dir> [clip ...]
 """
@@ -34,7 +36,7 @@ from mathutils import Matrix, Vector
 argv = sys.argv[sys.argv.index("--") + 1:]
 BASE, IDLE, OUT = argv[:3]
 ALL = ["spin_right", "spin_left", "pivot_right", "pivot_left", "stomp", "rear_slam", "hind_stomp_left", "hind_stomp_right",
-       "shove_left", "shove_right", "tackle"]
+       "shove_left", "shove_right", "tackle", "tackle_lunge"]
 WANT = argv[3:] or ALL
 FPS = 24
 TAILS = [f"tail_0{i}" for i in range(1, 8)]
@@ -97,16 +99,25 @@ HSTOMP_R = dict(
     head=[(0, 0), (0.3, 6), (0.56, -8), (1.0, 0)],
     look=[(0, 0), (0.25, 40), (0.7, 35), (1.0, 0)],
     steps=[("hind_foot_R", 0.12, 0.56, 0, 0.55, -0.2, 0.95, "stomp"), ("hind_foot_R", 0.74, 0.94, 0, 0, 0, 0.12)])
+# SHOULDER SLAM (STEGOSPIN port, owner 2026-10-31 on the ankylosaurus' shove: "use its momentum and drop its shoulder ...
+# throw its body weight at the player. Like a proper slam. and then steady itself after"; the stego's shove only swung
+# its head over her): weight cocked off (0-0.26) while the near forefoot and hind foot step in, then the whole body lurches
+# over and forward into that side with the shoulder dropped (impact 0.40), held; it rocks back, re-plants (0.64-0.86) and
+# steadies (a stamp of the far forefoot).
 SHOVE_R = dict(
-    n=29, lag=0.04,
-    yaw=[(0, 0), (0.4, 5), (0.5, -7), (0.7, -7), (1.0, 0)],
-    tail=[(0, 0), (0.4, -10), (0.55, 12), (0.75, 8), (1.0, 0)],
-    crouch=[(0, 0), (0.4, 0.08), (0.5, 0.05), (0.7, 0.07), (1.0, 0)],
-    roll=[(0, 0), (0.4, -5), (0.5, 8), (0.7, 6), (1.0, 0)],
-    shift=[(0, 0), (0.4, -0.12), (0.5, 0.3), (0.7, 0.26), (1.0, 0)],
-    head=[(0, 0), (0.4, 4), (0.5, -10), (0.7, -6), (1.0, 0)],
-    look=[(0, 0), (0.4, -30), (0.5, 45), (0.7, 35), (1.0, 0)],
-    steps=[("front_foot_R", 0.38, 0.52, -4, 0.4, 0.0, 0.25), ("front_foot_R", 0.78, 0.95, 0, 0, 0, 0.15)])
+    n=40, lag=0.04,
+    yaw=[(0, 0), (0.26, 6), (0.40, -8), (0.54, -7), (0.70, 2), (0.84, -1), (1.0, 0)],
+    tail=[(0, 0), (0.26, -12), (0.45, 14), (0.70, 6), (1.0, 0)],
+    lift=[(0, 0), (0.3, 4), (1.0, 0)],
+    crouch=[(0, 0), (0.26, 0.12), (0.40, 0.30), (0.52, 0.32), (0.68, 0.06), (0.80, 0.12), (1.0, 0)],
+    roll=[(0, 0), (0.26, -6), (0.40, 13), (0.52, 14), (0.68, -3), (0.82, 1), (1.0, 0)],
+    shift=[(0, 0), (0.26, -0.25), (0.40, 0.62), (0.52, 0.64), (0.68, 0.0), (0.82, 0.05), (1.0, 0)],
+    back=[(0, 0), (0.26, 0.15), (0.40, -0.35), (0.52, -0.35), (0.68, 0.05), (1.0, 0)],
+    head=[(0, 0), (0.26, 6), (0.40, -14), (0.55, -10), (0.75, 4), (1.0, 0)],
+    look=[(0, 0), (0.2, 35), (0.4, 30), (0.6, 20), (1.0, 0)],
+    steps=[("front_foot_R", 0.12, 0.30, -4, 0.55, 0.25, 0.3), ("hind_foot_R", 0.20, 0.36, 0, 0.3, 0.15, 0.25),
+           ("front_foot_R", 0.64, 0.80, 0, 0, 0, 0.2), ("hind_foot_R", 0.70, 0.86, 0, 0, 0, 0.2)],
+    stamps=[("front_foot_L", 0.86, 0.95, 0.12)])
 CLIPS = {
     "spin_right": SPIN_R,
     "pivot_right": PIVOT_R,
@@ -143,6 +154,21 @@ CLIPS = {
         head=[(0, 0), (0.4, -18), (1.0, -22)],
         tremble=(0.45, 0.85, 3.0, 2.0),
         stamps=[("front_foot_R", 0.18, 0.4, 0.25)]),
+    # TACKLE LUNGE (owner 2026-10-31: "tackle should be legs moving fast, then a jump/lunge that goes kind of far"): after
+    # the run-up (the run gait, ClubTailBrain) a short gather, then airborne 0.14-0.52 (the brain carries the body
+    # forward on an arc in exactly that window: anim_events tackle_lunge.airborne) with the head down and the forefeet
+    # reaching; the forefeet land at 0.52, the hind at 0.56, it absorbs, steps the forefeet back in and steadies.
+    "tackle_lunge": dict(
+        n=30, lag=0.04,
+        tail=Z0,
+        lift=[(0, 4), (0.3, 10), (0.6, -2), (0.8, 2), (1.0, 0)],
+        crouch=[(0, 0.1), (0.12, 0.22), (0.18, -0.04), (0.50, 0.0), (0.62, 0.30), (0.76, 0.14), (1.0, 0)],
+        pitch=[(0, -3), (0.12, -5), (0.2, 8), (0.4, 2), (0.54, -6), (0.66, -4), (0.85, -1), (1.0, 0)],
+        back=[(0, 0.08), (0.12, 0.14), (0.2, -0.1), (0.54, -0.08), (0.66, 0.05), (1.0, 0)],
+        head=[(0, -18), (0.2, -22), (0.5, -24), (0.62, -14), (0.85, -4), (1.0, 0)],
+        steps=[("front_foot_L", 0.10, 0.52, 0, 0, 0.3, 0.5), ("front_foot_R", 0.11, 0.52, 0, 0, 0.3, 0.5),
+               ("hind_foot_L", 0.12, 0.56, 0, 0, 0, 0.45), ("hind_foot_R", 0.13, 0.56, 0, 0, 0, 0.45),
+               ("front_foot_L", 0.68, 0.80, 0, 0, 0, 0.15), ("front_foot_R", 0.74, 0.86, 0, 0, 0, 0.15)]),
 }
 SIDEWAYS = ("turn_deg", "yaw", "tail", "roll", "shift", "look")
 

@@ -175,19 +175,27 @@
       "note": "ankylosaurus (ANKYLOCLOSE, tools/gait/make_tail_club.py stomp), 1.5 s: the front rears off the left forefoot, the foot hauled high and forward, held, then slammed down in front (impact 0.56); ClubTailBrain lands the hit (ai.json club_tail.close_moves.stomp: an area in front, knockdown)"
     },
     "shove_left": {
-      "hit_frac": 0.48,
+      "airborne": [
+        0.24,
+        0.42
+      ],
+      "hit_frac": 0.46,
       "windup": true,
-      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 1.2 s: cocks away, then head and shoulders swing hard to its left while the body lurches over and the left forefoot steps out (impact 0.48); ClubTailBrain lands the hit (close_moves.shove_left, knockback sideways)"
+      "note": "mirror of shove_right"
     },
     "shove_right": {
-      "hit_frac": 0.48,
+      "hit_frac": 0.46,
       "windup": true,
-      "note": "mirror of shove_left, to its right"
+      "note": "SHOULDER SLAM, ankylosaurus (STEGOSPIN port, owner 2026-10-31: 'use its momentum and drop its shoulder ... throw its body weight at the player ... and then steady itself after' / 'needs more range'; make_tail_club.py, 1.8 s): cocked off, a bound (airborne 0.24-0.42: ClubTailBrain throws the body up to close_moves.shove_right.carry_m at her in this window), it lands into her with the shoulder dropped (impact 0.46), holds, rocks back, re-plants and steadies; the hit is its shoulder / foreleg hitbox parts swept live (knockdown). The stegosaurus' shove_right (make_stego_moves.py, 1.7 s) is the same slam on the spot (impact 0.40, no airborne window used)",
+      "airborne": [
+        0.24,
+        0.42
+      ]
     },
     "tackle": {
       "hit_frac": 1.0,
       "windup": true,
-      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up to close_moves.tackle.lunge_m into her and lands the hit on contact (knockdown)"
+      "note": "ankylosaurus / stegosaurus (make_tail_club.py, make_stego_moves.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up at the run gait and plays tackle_lunge"
     },
     "spin_right": {
       "hit_frac": 1.0,
@@ -228,6 +236,21 @@
       "hit_frac": 0.56,
       "windup": false,
       "note": "raptor (RAPTORFLANK, owner 2026-10-31: 'run past, turn, strafe, attack from behind'; make_raptor_moves.py flank_rake, 1.0 s): from behind the prey a short leap onto its back (the brain carries the arc inside airborne), both sickle feet swung forward and cocked, arms thrown forward with the hand claws spread, jaws wide; at 0.56 both feet and hands rake down through it and the jaws bite (TacticalBrain flank, x flank_mult); it rakes back and drops into its stance"
+    },
+    "tackle_lunge": {
+      "airborne": [
+        0.14,
+        0.52
+      ],
+      "hit_frac": 0.45,
+      "windup": false,
+      "note": "TACKLE leap (STEGOSPIN port, owner 2026-10-31: 'tackle should be legs moving fast, then a jump/lunge that goes kind of far'), 1.25 s: a short gather out of the run-up, airborne 0.14-0.52 (ClubTailBrain carries the body close_moves.tackle.lunge_m along the line in exactly this window, on an arc), head down and forefeet reaching; forefeet land at 0.52, hind at 0.56, it absorbs, steps the forefeet back in and steadies"
+    },
+    "about_right": {
+      "note": "ABOUT-FACE (STEGOSPIN port, owner 2026-10-31: 'when it gets to me it rotates 180 for a massive tail whip and tail smash'; make_tail_club.py, 1.5 s): a 180 deg turn right on the spot about a point 0.6 m ahead of its origin (code turn in step with the clip, every foot stepping round), the club swung wide; the tail moves follow"
+    },
+    "about_left": {
+      "note": "mirror of about_right"
     }
   },
   "natural_speeds": {

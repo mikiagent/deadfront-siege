@@ -191,8 +191,8 @@ func _moves_of(c) -> Array:
 	var close: Dictionary = c.brain.get(&"close_moves") if c.brain.get(&"close_moves") is Dictionary else {}
 	for move_id in close:
 		var row: Dictionary = close[move_id]
-		if row.has("lunge_m") or row.has("line_bone") or not ap.has_animation(StringName(str(row.get("clip", "")))):
-			continue  # the tackle is judged by its run's contact sphere; a line_bone move (STEGOSPIN spin) by its body line
+		if row.has("lunge_m") or row.has("carry_m") or row.has("turn_deg") or row.has("line_bone") or not ap.has_animation(StringName(str(row.get("clip", "")))):
+			continue  # the tackle's leap and the slam's throw are swept live (ClubTailBrain._tick_leap); a turn has no hit; a line_bone move (STEGOSPIN spin) by its body line
 		var spot: Vector3 = c.brain.strike_spot(StringName(str(move_id))) - c.global_position
 		out.append([StringName(str(row["clip"])), 0, false, [Vector3(spot.x, 0.0, spot.z)]])
 	if club_tail:

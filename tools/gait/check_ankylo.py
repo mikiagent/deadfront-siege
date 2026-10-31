@@ -34,7 +34,7 @@ MOVES = {m["clip"]: m for m in _CT["club_moves"].values()}
 # ANKYLOCLOSE: stomp / shove / tackle keep every foot planted except the one that steps or stomps
 PLANTED = set(MOVES) | {"alert"} | {m["clip"] for m in _CT.get("close_moves", {}).values()}
 TURNS = {m["clip"]: m for g in ("club_moves", "close_moves", "pivots") for m in _CT.get(g, {}).values() if "turn_deg" in m}
-PLANTED |= set(TURNS)
+PLANTED |= set(TURNS) | {"tackle_lunge"}  # the tackle's leap and the slam's bound: feet planted outside the airborne window (they float inside it)
 SURVIVOR_R = 0.35
 FPS = 24
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -113,7 +113,7 @@ for f in sorted(os.listdir(anim_dir)):
     bad, extra = [], ""
     if stretch > 12.0: bad.append(f"stretch {stretch:.2f}")
     if lo < -0.03: bad.append(f"sinks {lo:.3f}")
-    if clip not in LYING and clip not in ("run",) and hi_low > 0.05: bad.append(f"floats {hi_low:.3f}")
+    if clip not in LYING and clip not in ("run", "tackle_lunge", "shove_left", "shove_right") and hi_low > 0.05: bad.append(f"floats {hi_low:.3f}")
     drift = {}
     if clip in ("walk", "run", "walk_back"):
         for k, seq in feet.items():

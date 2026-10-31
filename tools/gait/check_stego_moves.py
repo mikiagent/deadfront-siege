@@ -22,7 +22,7 @@ from mathutils import Matrix, Vector
 a = sys.argv[sys.argv.index("--") + 1:]
 base, anim_dir, ai = a[:3]
 CLIPS = a[3:] or ["spin_right", "spin_left", "pivot_right", "pivot_left", "stomp", "rear_slam", "hind_stomp_left",
-                  "hind_stomp_right", "shove_left", "shove_right", "tackle"]
+                  "hind_stomp_right", "shove_left", "shove_right", "tackle", "tackle_lunge"]
 prof = json.load(open(ai))["archetypes"]["spiked_tail"]
 TURNS = {}
 for group in ("club_moves", "close_moves", "pivots"):

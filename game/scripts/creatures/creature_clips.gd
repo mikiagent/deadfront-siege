@@ -20,9 +20,10 @@ const LOOPING: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"
 ## stalk: the low hunting creep a tactics.stalk brain approaches in; pin_stab: the sabre stabs while it holds pinned prey
 ## (smilodon, SP-SMILODON). lope / sprint: extra gaits either side of the run (CreatureAnim._pick_gait's ladder), leap: the
 ## chase bound one-shot (airborne fracs in anim_events; smilodon, SMILORUN). spin_* / pivot_* (a turn the brain does in code in
-## step with the clip), rear_slam, hind_stomp_*: the stegosaurus' and ankylosaurus' STEGOSPIN moves.
+## step with the clip), rear_slam, hind_stomp_*: the stegosaurus' and ankylosaurus' STEGOSPIN moves; tackle_lunge: the tackle's leap,
+## about_*: the ankylosaurus' 180 deg ABOUT-FACE.
 ## bull_windup: head down, a foot pawing twice with snorts, before a charge (pachycephalosaurus, tactics.display_clip).
-const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right"]
+const OPTIONAL: Array[StringName] = [&"sleep", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"strafe_left", &"strafe_right", &"walk_back", &"kick", &"charge", &"investigate", &"sniff", &"pin_foot", &"charge_crouch", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"bite_shake", &"lope", &"sprint", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right"]
 ## A loop whose last quarter or more holds one pose is a donor clip with a dead tail.
 const FROZEN_TAIL_MIN := 0.25
 const TRIM_SAMPLES := 120

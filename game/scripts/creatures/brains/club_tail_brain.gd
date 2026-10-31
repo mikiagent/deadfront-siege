@@ -24,6 +24,11 @@ extends CreatureBrain
 ## feet stay planted in the world; tools/gait/make_stego_moves.py, make_tail_club.py). A spin repeats once at once while
 ## she stays in reach. It never walks backwards into her to bring the tail round: out of reach it pivots and comes head
 ## first, and with a joust profile (the ankylosaurus) it charges past her from far off, arcs round and charges again.
+## STEGOSPIN port (owner 2026-10-31): TACKLE is a run-up at the run gait, then a leap (leap_clip) that carries the body
+## lunge_m, landing through the leap's hitbox parts. The ankylosaurus RUSHES in head first at the run gait (rush_min_m),
+## and a front_sequence "tail" entry ABOUT-FACES (about_left / about_right, a 180 deg turn on the spot about a point just
+## ahead of its origin, every foot stepping round it) when she is inside tail_radius_m, so the tail moves take her
+## behind it as usual: "it just rotates to hit me".
 
 signal club_hit(move: StringName, target: Node3D, kind: StringName)  ## kind: &"club", &"shock", &"close" or &"joust"
 
@@ -31,6 +36,8 @@ signal club_hit(move: StringName, target: Node3D, kind: StringName)  ## kind: &"
 ## aim_tol_deg / range_tol_m override.
 const AIM_TOL_DEG := 18.0
 const RANGE_TOL_M := 0.8
+## The sidestep goal while it lines its tail up: past the nav agent's arrival distance (creature.gd target_desired_distance).
+const SIDESTEP_M := 2.0
 ## ASSUMPTION: two threats within this many metres draw the CLUB SWEEP.
 const SURROUND_M := 6.0
 ## ASSUMPTION: the move order while it faces one threat (owner: "tail whip, tail smash, etc"); profile club_sequence overrides.
@@ -39,6 +46,9 @@ const SEQUENCE: Array[StringName] = [&"whip", &"whip", &"smash", &"whip", &"swee
 const CLUB_ALONG := 1.0
 ## ASSUMPTION: the front-arc order (owner: "a stomp attack, a shove attack, a tackle attack, etc"); profile front_sequence overrides.
 const FRONT_SEQUENCE: Array[StringName] = [&"stomp", &"tackle"]
+## Stepping clips: a move never starts out of one. Their feet are mid-stride, and the cross-fade into a move keyed from
+## the idle stance would slide the planted feet (STEGOSPIN port: 0.2 m toe slide at a spin's start out of the walk).
+const STEPPING: Array[StringName] = [&"walk", &"lope", &"run", &"sprint", &"strafe_left", &"strafe_right", &"walk_back"]
 
 var moves: Dictionary = {}
 var move_id: StringName = &""
@@ -67,6 +77,13 @@ var _front_n := 0
 var _lunge_left := -1.0  ## >= 0 while the tackle's run is on (metres still to go)
 var _lunge_from := Vector3.ZERO
 var _lunge_dir := Vector3.ZERO
+var _leap_t := -1.0  ## >= 0 while the tackle's leap plays (seconds into it)
+var _leap_len := 1.0
+var _leap_from := Vector3.ZERO
+var _leap_to := Vector3.ZERO
+var _leap_air := Vector2(0.0, 1.0)
+var _leap_clip: StringName = &""
+var _part_prev: Array = []  ## the leap's hit parts' world positions last frame
 ## TURN moves: the turn put on the view so far (deg, + = left), about _turn_pivot (body-local).
 var _turn_on := false
 var turn_applied := 0.0
@@ -74,6 +91,7 @@ var _turn_pivot := Vector3.ZERO
 var _view_base := Transform3D.IDENTITY
 var _clip_length := 1.0
 var _spun := 0  ## spins in the current chain (a spin repeats once while she stays in reach)
+var _still_t := 0.0  ## seconds since the last stepping clip: a move starts once its stance has blended in
 ## JOUST: &"run" (a straight charge past her) or &"arc" (swinging round to face her again), &"" when off.
 var joust_phase: StringName = &""
 var _joust_cd := 0.0
@@ -177,6 +195,8 @@ func close_side(t: Node3D) -> StringName:
 
 ## A sequence entry to a move id: &"spin" picks the spin whose tail swings round to her side first.
 func _resolve(id: StringName, t: Node3D) -> StringName:
+	if id == &"tail":  # ABOUT-FACE, then the tail moves take her behind it
+		return &"about_left" if bearing_of(t.global_position) < 0.0 else &"about_right"
 	if id != &"spin":
 		return id
 	return &"spin_right" if bearing_of(t.global_position) < 0.0 else &"spin_left"
@@ -196,6 +216,9 @@ func _close_move(t: Node3D) -> StringName:
 		var st: Dictionary = close_moves.get(&"stomp", {})
 		if close_moves.has(&"tackle") and _flat_dist(t) > (float(st.get("target_dist_m", 4.4)) + float(st.get("hit_radius_m", 2.0))) * creature.size_scale():
 			id = &"tackle"
+		# ASSUMPTION (tail_radius_m): past the tail's reach once it has turned, the about-face would whiff: the tackle.
+		elif str(id).begins_with("about") and _flat_dist(t) > float(close_zone.get("tail_radius_m", 4.6)) * creature.size_scale():
+			id = &"tackle" if close_moves.has(&"tackle") else &"stomp"
 	elif str(side).begins_with("flank_"):
 		id = StringName("hind_stomp_" + str(side).trim_prefix("flank_"))
 	else:
@@ -220,6 +243,7 @@ func _pre_think(dt: float) -> bool:
 	return handled
 
 func _think(delta: float) -> void:
+	_still_t = 0.0 if creature.anim.current_clip in STEPPING else _still_t + delta
 	_close_cd = maxf(0.0, _close_cd - delta)
 	_pivot_cd = maxf(0.0, _pivot_cd - delta)
 	_joust_cd = maxf(0.0, _joust_cd - delta)
@@ -299,7 +323,7 @@ func _position() -> void:
 	var delta_deg := rad_to_deg(angle_difference(deg_to_rad(b), deg_to_rad(want_b)))
 	if dist <= want_d + float(mv.get("range_tol_m", RANGE_TOL_M)):
 		# In reach (closer is fine: nothing walks back into her).
-		if absf(delta_deg) <= float(mv.get("aim_tol_deg", AIM_TOL_DEG)):
+		if _aimed(mv, b):
 			creature.stop_move()
 			strafe_face = null
 			speed_override = -1.0
@@ -310,12 +334,15 @@ func _position() -> void:
 		_set_state(&"hold")
 		if _try_pivot(delta_deg):
 			return
-		# A small sidestep, so the turn is carried by the strafe clip's steps (never toward her).
+		# A sidestep, so the turn is carried by the strafe clip's steps (never toward her). ANKYLOOPEN (owner 2026-10-31:
+		# "gets stuck in hold/idle animation when the player initially attacks"): the goal was 0.8 m off, inside the nav
+		# agent's 0.9 m arrival distance, so it never stepped and so never turned: it stood in hold. The goal is re-set
+		# every think and it stops as soon as it is lined up, so a goal well past the arrival distance only keeps it moving.
 		_aim.global_position = creature.global_position + dir.rotated(Vector3.UP, deg_to_rad(want_b)) * 6.0
 		strafe_face = _aim
 		var step_walk := CreatureClips.natural_speed(creature.def, &"walk")
 		speed_override = step_walk if step_walk > 0.0 else 1.0
-		creature.move_to(creature.global_position + creature.global_basis.x * (0.8 if delta_deg > 0.0 else -0.8))
+		creature.move_to(creature.global_position + creature.global_basis.x * (SIDESTEP_M if delta_deg > 0.0 else -SIDESTEP_M))
 		return
 	# Out of reach: from far off, the joust; else turn head first to her (pivot) and walk in, so the front moves take over.
 	_set_state(&"approach")
@@ -326,7 +353,21 @@ func _position() -> void:
 	strafe_face = null
 	var walk := CreatureClips.natural_speed(creature.def, &"walk")
 	speed_override = walk if walk > 0.0 else 1.0
+	# RUSH (owner 2026-10-31: "try to rush me by turning and walking toward me"): head first at the run gait while far.
+	var run := CreatureClips.natural_speed(creature.def, &"run")
+	if profile.has("rush_min_m") and run > 0.0 and dist > float(profile["rush_min_m"]) * creature.size_scale():
+		speed_override = run
 	creature.move_to(attack_target.global_position)
+
+## Lined up for mv with her at bearing b: within aim_tol_deg of its target bearing, or, for a club that sweeps an arc
+## through straight behind (sweep_arc_deg [from, to]: the arc's ends a little inside where the club passes, e.g. the whip
+## from behind its left round to its right flank), anywhere on that arc.
+func _aimed(mv: Dictionary, b: float) -> bool:
+	if mv.get("sweep_arc_deg") is Array:
+		var arc: Array = mv["sweep_arc_deg"]
+		if b <= float(arc[0]) or b >= float(arc[1]):
+			return true
+	return absf(rad_to_deg(angle_difference(deg_to_rad(b), deg_to_rad(float(mv.get("target_bearing_deg", 180.0)))))) <= float(mv.get("aim_tol_deg", AIM_TOL_DEG))
 
 func _target_down() -> bool:
 	return attack_target is Player and (attack_target as Player).statuses.has(&"knockdown")
@@ -345,6 +386,9 @@ func _try_pivot(delta_deg: float) -> bool:
 	return true
 
 func _start(id: StringName) -> void:
+	if _still_t < CreatureAnim.XFADE * 2.0:
+		creature.stop_move()  # stand first: the stance blends in, then the move starts from planted feet
+		return
 	move_id = id
 	move = moves[id]
 	if not close_moves.has(id) and not pivots.has(id):
@@ -365,12 +409,14 @@ func _start(id: StringName) -> void:
 	move_len = _clip_length / maxf(0.01, creature.anim.cadence(clip))
 	if move.has("turn_deg"):
 		_turn_begin()
-	if pivots.has(id):
+	if move.has("carry_m"):
+		_start_carry()
+	if _turn_only(move):
 		_log("[ai] %s %s" % [creature.def.id, id])
 		return
 	var strike: Array = move.get("strike", [0.5, 0.6])
 	var shock := float(move.get("shock_radius_m", 0.0))
-	var ring_s := float(strike[1]) * move_len + float(move.get("lunge_m", 0.0)) / maxf(0.1, float(move.get("lunge_mps", 1.0)))
+	var ring_s := float(strike[1]) * move_len + float(move.get("run_m", 0.0)) / maxf(0.1, float(move.get("run_mps", 1.0)))
 	var hint := "ROLL AWAY" if close_moves.has(id) else "ROLL OR GET TO ITS HEAD"
 	var spot := strike_spot(id)
 	var radius := maxf(float(move.get("hit_radius_m", 1.1)), shock) * _close_scale(id)
@@ -379,6 +425,10 @@ func _start(id: StringName) -> void:
 		radius = float(move["ring_radius_m"]) * creature.size_scale()
 	telegraph = Telegraph.show_club(creature, spot, radius, ring_s, "%s - %s" % [str(move.get("label", id)).to_upper(), hint])
 	_log("[ai] %s %s (wind-up %.1fs)" % [creature.def.id, id, float(strike[0]) * move_len])
+
+## A PIVOT or ABOUT-FACE: a turn with no hit of its own.
+static func _turn_only(mv: Dictionary) -> bool:
+	return mv.has("turn_deg") and not mv.has("strike")
 
 ## TURN: the turn at clip fraction u, as the clip was keyed (turn_deg * smoothstep over [a, b]).
 func turn_at(u: float) -> float:
@@ -447,7 +497,7 @@ func _tick_move(delta: float) -> void:
 	if (creature.anim.current_clip != clip and u < 0.97) or creature.health.dead:
 		_end_move()  # knocked down, killed or otherwise cut off
 		return
-	if pivots.has(move_id):
+	if _turn_only(move):
 		if u >= 1.0:
 			_end_move()
 		return
@@ -539,32 +589,139 @@ func _impact() -> void:
 			continue
 		_strike(t, float(move.get("damage_mult", 1.0)), float(move.get("knockback_m", 0.0)), bool(move.get("knockdown", false)), &"close")
 
-## TACKLE: after the coil, a run (the stride-matched gait, no glide) on a line locked now, up to lunge_m.
+## TACKLE (owner 2026-10-31: "tackle should be legs moving fast, then a jump/lunge that goes kind of far"): after the coil
+## (the clip), a run-up at run_mps (the stride-matched run gait: legs pumping, no glide) on a line locked now, up to run_m,
+## until she is within lunge_m + reach_m; then the LEAP (_start_leap).
 func _start_lunge() -> void:
 	var k := _close_scale(move_id)
-	_lunge_left = float(move.get("lunge_m", 2.5)) * k
-	# ASSUMPTION (KNOCKDOWN merge): the stomp now slides her back as it lays her down, so the tackle runs on to her,
-	# up to half again its lunge_m (it still runs its full lunge_m when she is closer).
-	if _valid_target():
-		_lunge_left = clampf(_flat_dist(attack_target) - float(move.get("contact_dist_m", 4.0)) * k, _lunge_left, _lunge_left * 1.5)
 	_lunge_from = creature.global_position
 	var f := -creature.global_basis.z
 	f.y = 0.0
 	f = f.normalized()
-	var to := attack_target.global_position - creature.global_position if _valid_target() else f
+	# aim_side_m: it leads with one shoulder, the line set that far to its right of her (the stegosaurus' chest rides over
+	# a survivor, so its left foreleg is what bowls her over).
+	var aim := attack_target.global_position + f.cross(Vector3.UP) * float(move.get("aim_side_m", 0.0)) * k if _valid_target() else Vector3.ZERO
+	var to := aim - creature.global_position if _valid_target() else f
 	to.y = 0.0
 	# ASSUMPTION: it runs at her when she is within 45 deg of its snout, else straight ahead.
 	_lunge_dir = to.normalized() if to.length() > 0.1 and f.dot(to.normalized()) > cos(deg_to_rad(45.0)) else f
+	var leap_at := (float(move.get("lunge_m", 4.0)) + float(move.get("reach_m", 2.0))) * k
+	_lunge_left = clampf((_flat_dist(attack_target) if _valid_target() else 0.0) - leap_at, 0.0, float(move.get("run_m", 6.0)) * k)
+	_leap_t = -1.0
+	if _lunge_left <= 0.05:
+		_start_leap()
 
-func _tick_lunge(_delta: float) -> void:
+func _tick_lunge(delta: float) -> void:
+	if creature.health.dead or creature.statuses.has(&"knockdown"):
+		_end_move()
+		return
+	if _leap_t >= 0.0:
+		_tick_leap(delta)
+		return
 	var k := _close_scale(move_id)
-	speed_override = float(move.get("lunge_mps", 5.0))
-	creature.move_to(_lunge_from + _lunge_dir * (_lunge_left + 2.0))  # aim past the end: no slowing into her
-	var hit := _contact(float(move.get("contact_dist_m", 4.0)) * k, float(move.get("contact_radius_m", 1.3)) * k, move, &"close", _struck)
+	speed_override = float(move.get("run_mps", 5.0))
+	creature.move_to(_lunge_from + _lunge_dir * (_lunge_left + 3.0))  # aim past the end: no slowing into the leap
 	var ran := Vector2(creature.global_position.x - _lunge_from.x, creature.global_position.z - _lunge_from.z).length()
-	var limit_s := _lunge_left / k / maxf(0.1, float(move.get("lunge_mps", 5.0))) + 0.8
-	if hit or ran >= _lunge_left or move_t - move_len > limit_s or creature.health.dead:
-		creature.stop_move()
+	var close := _valid_target() and _flat_dist(attack_target) <= (float(move.get("lunge_m", 4.0)) + float(move.get("reach_m", 2.0))) * k
+	var limit_s := _lunge_left / maxf(0.1, float(move.get("run_mps", 5.0))) + 0.8
+	if close or ran >= _lunge_left or move_t - move_len > limit_s:
+		_start_leap()
+
+## The LEAP: leap_clip plays and the body is carried lunge_m along the run's line inside the clip's airborne window
+## (anim_events <leap_clip>.airborne), on an arc of leap_height_m; the feet are off the ground there, planted outside it.
+## The hit: the clip's parts (hitboxes.json <leap_clip>) swept frame to frame through her hurtboxes (Hitbox.touch).
+func _start_leap() -> void:
+	var k := _close_scale(move_id)
+	creature.stop_move()
+	speed_override = -1.0
+	var clip := StringName(str(move.get("leap_clip", "tackle_lunge")))
+	if not creature.anim.has_state(clip):
+		_end_move()
+		return
+	creature.look_at(creature.global_position + _lunge_dir, Vector3.UP)  # square to the line (the run-up already faces it)
+	creature.anim.play_clip(clip)
+	_carry_begin(clip, _lunge_dir * float(move.get("lunge_m", 4.0)) * k)
+
+## Carry the body by `by` (flat, world) inside clip's airborne window (anim_events <clip>.airborne), sweeping the clip's
+## hitbox parts live (_tick_leap). The clip is already playing.
+func _carry_begin(clip: StringName, by: Vector3) -> void:
+	_leap_clip = clip
+	_leap_t = 0.0
+	_lunge_left = 0.0  # _tick_move hands every frame to _tick_lunge, which runs the carry
+	_leap_from = creature.global_position
+	_leap_to = _leap_from + Vector3(by.x, 0.0, by.z)
+	var ap := creature.anim.player
+	_leap_len = (ap.get_animation(clip).length if ap.has_animation(clip) else 1.0) / maxf(0.01, creature.anim.cadence(clip))
+	var air: Variant = ((Data.anim_events.get("clips", {}) as Dictionary).get(str(clip), {}) as Dictionary).get("airborne")
+	_leap_air = Vector2(float(air[0]), float(air[1])) if air is Array else Vector2(0.15, 0.5)
+	_touched.clear()
+	_part_prev = _leap_parts()
+
+## SHOULDER SLAM (owner 2026-10-31: "the shove attack on the ankylosaurus needs more range, and I want you to kind of throw
+## the ankys body weight at the player"): the body is thrown at her, up to carry_m (x size), so the slamming shoulder
+## (slam_point: body-frame x / z of where the clip drives it, metres at size 1) ends at her body; then it lands into her.
+func _start_carry() -> void:
+	var k := _close_scale(move_id)
+	var by := Vector3.ZERO
+	if _valid_target():
+		var sp: Array = move.get("slam_point", [0.0, 0.0])
+		var at := creature.global_transform * (Vector3(float(sp[0]), 0.0, float(sp[1])) * k)
+		by = attack_target.global_position - at
+		by.y = 0.0
+		by = by.normalized() * clampf(by.length() - 0.3, 0.0, float(move["carry_m"]) * k) if by.length() > 0.3 else Vector3.ZERO
+	_carry_begin(StringName(str(move.get("clip", ""))), by)
+
+## World positions of the leap's hit parts now: [[a, b, radius], ...].
+func _leap_parts() -> Array:
+	var clip := _leap_clip
+	var spec := Hitbox.move_spec(creature, clip)
+	var sk := _skeleton()
+	var out := []
+	if sk == null:
+		return out
+	var i := 0
+	for part in spec.get("parts", []) as Array:
+		var bi := sk.find_bone(str((part as Dictionary).get("bone", "")))
+		if bi >= 0:
+			var g := sk.global_transform * sk.get_bone_global_pose(bi)
+			var ax: Array = (part as Dictionary).get("axis", [0, 1, 0])
+			var tip := g.origin + g.basis.orthonormalized() * Vector3(float(ax[0]), float(ax[1]), float(ax[2])).normalized() * float((part as Dictionary).get("length", 0.0)) * creature.size_scale()
+			out.append([g.origin, tip, Hitbox.part_radius(creature, clip, i)])
+			i += 1
+	return out
+
+func _tick_leap(delta: float) -> void:
+	_leap_t += delta
+	var u := _leap_t / maxf(0.01, _leap_len)
+	var clip := _leap_clip
+	if creature.anim.current_clip != clip and u < 0.97:
+		_end_move()  # cut off
+		return
+	var f := clampf((u - _leap_air.x) / maxf(0.01, _leap_air.y - _leap_air.x), 0.0, 1.0)
+	var step := _leap_from.lerp(_leap_to, f) - creature.global_position
+	step.y = 0.0
+	creature.move_and_collide(step)
+	creature.view.position.y = sin(PI * f) * float(move.get("leap_height_m", 0.5)) * _close_scale(move_id)
+	var now := _leap_parts()
+	if u >= _leap_air.x and u <= _leap_air.y + 0.08:
+		for t in _threats():
+			if _struck.has(t):
+				continue
+			for i in mini(now.size(), _part_prev.size()):
+				var hit := {}
+				if Hurtboxes.of(t):
+					hit = Hitbox.touch(creature, _part_prev[i][0], now[i][0], float(now[i][2]), t)
+					if hit.is_empty() and now[i][1] != now[i][0]:
+						hit = Hitbox.touch(creature, _part_prev[i][1], now[i][1], float(now[i][2]), t)
+				elif _in_sphere(now[i][0], t, float(now[i][2])):
+					hit = {"part": &""}
+				if not hit.is_empty():
+					_touched[t] = hit
+					IsoCamera.shake(PlayerRegistry.local(), CombatTuning.num("camera", "heavy_hit", 0.6))
+					_strike(t, float(move.get("damage_mult", 1.0)), float(move.get("knockback_m", 0.0)), bool(move.get("knockdown", false)), &"close")
+					break
+	_part_prev = now
+	if u >= 1.0:
 		_end_move()
 
 ## A body check: everyone not yet in `struck` inside the sphere `dist` ahead of the snout is hit with mv. True on a hit.
@@ -641,6 +798,9 @@ func _end_move() -> void:
 			_front_n += 1
 		_lunge_left = -1.0
 		speed_override = -1.0
+		if _leap_t >= 0.0:
+			_leap_t = -1.0
+			creature.view.position.y = 0.0
 	else:
 		# A spin goes round again at once while she stays in reach and on her feet (owner: "spinning a lot").
 		again = bool(move.get("double", false)) and _spun == 0 and _valid_target() and not _target_down() \
@@ -655,6 +815,19 @@ func _end_move() -> void:
 		telegraph.queue_free()
 	telegraph = null
 	if again:
+		_start(id)
+	elif str(id).begins_with("about") and _valid_target() and not _target_down() and not creature.health.dead and creature.stagger_left <= 0.0:
+		_tail_after_about()
+
+## After the ABOUT-FACE she is behind it: the planned tail move at once if she is in its reach and lined up (_aimed);
+## else the usual tail positioning takes over (a sidestep).
+func _tail_after_about() -> void:
+	var id := _next_move()
+	var b := bearing_of(attack_target.global_position)
+	var mv: Dictionary = moves[id]
+	if not _aimed(mv, b):
+		return  # the smash lands on one spot: the usual tail positioning lines it up (a sidestep), then it comes down
+	if _flat_dist(attack_target) <= float(mv.get("target_dist_m", 3.0)) + float(mv.get("range_tol_m", RANGE_TOL_M)) + _size_excess(attack_target):
 		_start(id)
 
 ## JOUST (the ankylosaurus, ai.json club_tail.joust; owner 2026-10-31: "he should also joust"): from min_m or more, a

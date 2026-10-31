@@ -6,6 +6,15 @@ extends SceneTree
 ##    from the front, at least one knocks her down, and both front moves show within the fight;
 ## 2. beside its shoulder (right, then left): it shoves her to that side (SHOVE, knockback away from its flank);
 ## 3. behind it, in the club's reach: the tail, and no back-in (STEGOSPIN).
+## STEGOSPIN port (owner 2026-10-31):
+## 4. "tackle should be legs moving fast, then a jump/lunge that goes kind of far": the tackle runs up, then its leap
+##    carries the body at least lunge_m (x size; it was a 2.5 m run) and lands on her with a knockdown;
+## 5. "rush me by turning and walking toward me but when it gets to me it rotates 180 for a massive tail whip and tail
+##    smash": with her in front inside tail_radius_m it about-faces and the TAIL WHIP lands, and (planned) the TAIL SMASH;
+## 7. "the shove attack on the ankylosaurus needs more range ... throw the ankys body weight at the player": with her
+##    standing 5 m off its flank the SHOULDER SLAM starts, throws the body at least SLAM_CARRY_M at her and lands;
+## 6. it never moves backwards toward her: while it closes on her (no move playing), its step along its own facing is
+##    never negative.
 ## Run: Godot --headless --path game --script res://tests/t_ankyloclose.gd  -> "[t_ankyloclose] PASS", exit 0.
 
 const ID := &"ankylosaurus"
@@ -15,6 +24,8 @@ const FIGHT_S := 10.0
 ## ASSUMPTION: the longest a close move's cooldown (tackle 1.8 s) plus a think and a flinch may leave her unanswered.
 const IDLE_MAX_S := 2.5
 const DT := 1.0 / 60.0
+## ASSUMPTION: about a body length (snout to hips, ~3.5 m on an adult): how far the slam must throw the body.
+const SLAM_CARRY_M := 3.0
 
 var failures: Array[String] = []
 var _started := false
@@ -59,6 +70,12 @@ func _run() -> void:
 	await _test_side(1.0)
 	await _test_side(-1.0)
 	await _test_behind()
+	await _test_tackle_leap()
+	await _test_tail_front(0, &"attack_primary")
+	await _test_tail_front(2, &"attack_heavy")
+	await _test_no_backwards()
+	await _test_slam_range(1.0)
+	await _test_slam_range(-1.0)
 	root.get_node("Game").god_mode = false
 	if failures.is_empty():
 		print("[t_ankyloclose] PASS")
@@ -150,7 +167,13 @@ func _test_front() -> void:
 	_expect(landed.size() >= 1 and float(landed[0][3]) <= 3.0, "the first close hit lands within 3 s (%.2f s)" % (float(landed[0][3]) if not landed.is_empty() else INF))
 	var ids := landed.map(func(h: Array) -> StringName: return h[0])
 	_expect(&"stomp" in ids and &"tackle" in ids, "both front moves land: stomp and tackle (%s)" % str(ids))
-	_expect(_of(r["starts"], [&"whip", &"smash", &"sweep"]).is_empty(), "no tail move at a survivor in front of it (%s)" % str(r["starts"]))
+	# STEGOSPIN port: a tail move at her in front only ever comes out of an about-face (never a back-in).
+	var st: Array = r["starts"]
+	var bad := []
+	for i in st.size():
+		if st[i][0] in [&"whip", &"smash", &"sweep"] and (i == 0 or not str(st[i - 1][0]).begins_with("about")):
+			bad.append(st[i])
+	_expect(bad.is_empty(), "no tail move at a survivor in front of it but out of an about-face (%s)" % str(r["starts"]))
 	_expect(float(r["idle"]) <= IDLE_MAX_S, "no long idle gap: with her up and close it stands idle at most %.2f s (limit %.1f)" % [r["idle"], IDLE_MAX_S])
 	c.queue_free()
 	await physics_frame
@@ -159,7 +182,7 @@ func _test_front() -> void:
 func _test_side(side: float) -> void:
 	var c = _spawn()
 	await physics_frame
-	var r := await _fight(c, Vector3(2.9 * side, 0, -1.2), 6.0)
+	var r := await _fight(c, Vector3(2.3 * side, 0, -2.0), 6.0)  # beside the shoulder, where the SHOULDER SLAM reaches
 	var want := &"shove_right" if side > 0.0 else &"shove_left"
 	var landed := _hits.filter(func(h: Array) -> bool: return h[1] == player and h[0] == want)
 	_expect(landed.size() >= 1, "%s lands on her beside it (%d; moves %s)" % [want, landed.size(), str(r["starts"])])
@@ -195,5 +218,137 @@ func _test_behind() -> void:
 	_expect(starts.filter(func(m: StringName) -> bool: return b.close_moves.has(m)).is_empty() or not b.close_moves.has(starts[0]), "no close move first at a survivor behind it (%s)" % str(starts))
 	_expect(not starts.is_empty() and not b.close_moves.has(starts[0]) and not b.pivots.has(starts[0]), "it swings its tail at her behind it, first (%s)" % str(starts))
 	_expect(moved <= 0.3, "it does not back into her before the swing (%.2f m toward her)" % moved)
+	c.queue_free()
+	await physics_frame
+
+## 4. The tackle from 6.5 m in front (past the stomp's reach): a run-up, then the leap carries it at least lunge_m.
+func _test_tackle_leap() -> void:
+	var c = _spawn()
+	await physics_frame
+	var b = c.brain
+	b.attack_target = player
+	b._provoked_until = b._now_s() + 60.0
+	b._set_state(&"approach")
+	_place(c.global_transform * Vector3(0, 0, -6.5))
+	_hits.clear()
+	var leap_from := Vector3.INF
+	var leap := 0.0
+	var started := []
+	for f in 6 * 60:
+		await physics_frame
+		player.hunt.stop()
+		if b.move_id != &"" and (started.is_empty() or started[-1] != b.move_id):
+			started.append(b.move_id)
+		if b._leap_t >= 0.0:
+			if leap_from == Vector3.INF:
+				leap_from = c.global_position
+			leap = maxf(leap, Vector2(c.global_position.x - leap_from.x, c.global_position.z - leap_from.z).length())
+		if leap_from != Vector3.INF and b.move_id == &"":
+			break
+	var need: float = float(b.close_moves[&"tackle"]["lunge_m"]) * c.size_scale() * 0.95
+	_expect(leap >= need, "the tackle's leap covers %.1f m (at least %.1f; moves %s)" % [leap, need, str(started)])
+	var landed := _hits.filter(func(h: Array) -> bool: return h[0] == &"tackle" and h[1] == player)
+	_expect(not landed.is_empty() and player.statuses.has(&"knockdown"), "the tackle's leap lands on her and knocks her down (%d)" % landed.size())
+	player.sim.knock.cancel()
+	player.statuses.clear_all()
+	c.queue_free()
+	await physics_frame
+
+## 5. She stands in front inside tail_radius_m and the next front move is the tail: it about-faces, then `want` lands.
+## move_n picks the planned tail move (club_sequence whip, whip, smash, ...).
+func _test_tail_front(move_n: int, want_clip: StringName) -> void:
+	var c = _spawn()
+	await physics_frame
+	var b = c.brain
+	b._front_n = b.front_sequence.find("tail")
+	b._move_n = move_n
+	b.attack_target = player
+	b._provoked_until = b._now_s() + 60.0
+	b._set_state(&"approach")
+	_place(c.global_transform * Vector3(0.3, 0, -3.4))
+	_hits.clear()
+	var started := []
+	var landed: Array = []
+	for f in 8 * 60:
+		await physics_frame
+		player.hunt.stop()
+		if b.move_id != &"" and (started.is_empty() or started[-1] != b.move_id):
+			started.append(b.move_id)
+		landed = _hits.filter(func(h: Array) -> bool: return h[1] == player and h[2] == &"club" and StringName(str(b.moves[h[0]]["clip"])) == want_clip)
+		if not landed.is_empty():
+			break
+	_expect(not started.is_empty() and str(started[0]).begins_with("about"), "tail from the front: it about-faces first (%s)" % str(started))
+	_expect(not landed.is_empty(), "tail from the front: the %s lands on her (%s)" % [want_clip, str(started)])
+	player.sim.knock.cancel()
+	player.statuses.clear_all()
+	c.queue_free()
+	await physics_frame
+
+## 6. From 9 m behind and 7.6 m off its front right it closes on her (the joust runs count): never a step backwards
+## along its own facing.
+func _test_no_backwards() -> void:
+	for at in [Vector3(0, 0, 9.0), Vector3(7.0, 0, -3.0)]:
+		var c = _spawn()
+		await physics_frame
+		var b = c.brain
+		b.attack_target = player
+		b._provoked_until = b._now_s() + 60.0
+		b._set_state(&"approach")
+		_place(c.global_transform * at)
+		var prev: Vector3 = c.global_position
+		var prev_d: float = b._flat_dist(player)
+		var worst := 0.0
+		var closed := 0.0
+		for f in 8 * 60:
+			await physics_frame
+			player.hunt.stop()
+			var step: Vector3 = c.global_position - prev
+			step.y = 0.0
+			var d: float = b._flat_dist(player)
+			if b.move_id == &"" and d < prev_d:
+				var fwd: Vector3 = -c.global_basis.z
+				fwd.y = 0.0
+				worst = minf(worst, step.dot(fwd.normalized()) / DT)
+				closed += prev_d - d
+			prev = c.global_position
+			prev_d = d
+			if b.move_id != &"" and not b.pivots.has(b.move_id):
+				break
+		_expect(closed > 1.0 and worst >= -0.05, "from %s it closes %.1f m on her, never backwards (worst %.2f m/s along its facing; first move %s)" % [at, closed, worst, b.move_id])
+		player.statuses.clear_all()
+		c.queue_free()
+		await physics_frame
+
+## 7. The SHOULDER SLAM from range: she stands still 5 m off its flank (side +1 = its right).
+func _test_slam_range(side: float) -> void:
+	var c = _spawn()
+	await physics_frame
+	var b = c.brain
+	b.attack_target = player
+	b._provoked_until = b._now_s() + 60.0
+	b._set_state(&"approach")
+	_place(c.global_transform * Vector3(5.0 * side, 0, -1.8))
+	_hits.clear()
+	var want := &"shove_right" if side > 0.0 else &"shove_left"
+	var from := Vector3.INF
+	var carry := 0.0
+	var started := []
+	for f in 5 * 60:
+		await physics_frame
+		player.hunt.stop()
+		if b.move_id != &"" and (started.is_empty() or started[-1] != b.move_id):
+			started.append(b.move_id)
+		if b.move_id == want:
+			if from == Vector3.INF:
+				from = c.global_position
+			carry = maxf(carry, Vector2(c.global_position.x - from.x, c.global_position.z - from.z).length())
+		elif from != Vector3.INF:
+			break
+	var landed := _hits.filter(func(h: Array) -> bool: return h[0] == want and h[1] == player)
+	_expect(not started.is_empty() and started[0] == want, "%s starts from 5 m off its flank (%s)" % [want, str(started)])
+	_expect(carry >= SLAM_CARRY_M, "%s throws its body %.1f m at her (at least %.1f)" % [want, carry, SLAM_CARRY_M])
+	_expect(not landed.is_empty(), "%s lands from that range (%d)" % [want, landed.size()])
+	player.sim.knock.cancel()
+	player.statuses.clear_all()
 	c.queue_free()
 	await physics_frame
