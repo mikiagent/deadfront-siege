@@ -89,7 +89,7 @@
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing",
-      "note_compsognathus": "compsognathus: its own backpedal loop (make_gait.py compsognathus.json strafe --as walk_back --travel 0,1,0), 0.625 s, natural_speeds.compsognathus.walk_back"
+      "note_compsognathus": "compsognathus: its own backpedal loop (make_gait.py compsognathus.json strafe_v1 --as walk_back --travel 0,1,0), 0.625 s, natural_speeds.compsognathus.walk_back"
     },
     "dodge_left": {
       "airborne": [
@@ -368,21 +368,21 @@
     },
     "compsognathus": {
       "height_m": 1.2,
-      "run_l": 2.367,
+      "run_l": 2.508,
       "run_len": 0.708,
-      "run_r": 2.367,
-      "walk_l": 0.312,
+      "run_r": 2.508,
+      "walk_l": 0.331,
       "walk_len": 2.458,
-      "walk_r": 0.312,
-      "walk": 0.312,
-      "run": 2.367,
-      "strafe_left": 1.243,
+      "walk_r": 0.331,
+      "walk": 0.331,
+      "run": 2.508,
+      "strafe_left": 1.326,
       "strafe_left_len": 0.5,
-      "strafe_right": 1.243,
+      "strafe_right": 1.326,
       "strafe_right_len": 0.5,
-      "walk_back": 0.576,
+      "walk_back": 0.612,
       "walk_back_len": 0.625,
-      "charge": 4.446,
+      "charge": 4.837,
       "charge_len": 0.333
     },
     "deinonychus": {
