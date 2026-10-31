@@ -552,3 +552,16 @@ Owner: "call that monstrosity MegaRex ... make it a boss fight". Report `docs/or
 | **MR3** | Rare: a `crater` row of one MegaRex, chance 0.5, on swamp_55, tundra_55 and volcanic_60 (at most one per island). | `world/islands.json` | Which islands and how rare. |
 | **MR4** | Loot: every MegaRex carcass rolls as an alpha's (the guaranteed rare rows, the trophy, the alpha pool: alpha_hide 3-4, alpha_fang 3); butchering = the T. rex rows x~1.5. Not tameable. | `corpse.gd`, `loot_tables.json`, `butchering.json` | Boss rewards. |
 | **MR5** | Look: the olive v2 hide the owner saw. The armoured slate recolour from the Alpha sheet (`megarex/ref/megarex_armoured_albedo.jpg`, `tools/gait/rex_alpha_skin.py`) is not used; the sheet's horns and spike row would need another Tripo mesh. Lying clips go down on the belly (side-lying tore the thigh skin on this rig). The mesh is its left half mirrored (Tripo modelled a mid-stride pose). The plate shows "Mega Rex" (the game capitalises species names). | `megarex.json`, `make_rex_moves.py --v2` | Cosmetic choices the owner may want changed. |
+
+### CORNERED (2026-10-31) — fleeing animals fight back when chased (claude/mmo-cornered)
+
+Owner: "Animals that run away from you should get territorial and attack you if you chase them". Report `docs/orchestration/reports/claude-cornered.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **CN1** | Chasing = the threat within `radius_m` 10 of a fleeing animal and moving at it at `pursuit_mps` 1.5 or more; each hit while it flees adds `hit_s` 1.5; pressure decays at half speed when not pressed. Turns at `pressure_s` 3 or `chase_m` 20 of pursuit. | `ai.json default.cornered` | How long a chase takes before it turns. |
+| **CN2** | The fight lasts `fight_s` 12 (wall-clock, a provocation); then the normal grazer rules run (it flees again if still pressed). Under `weak_frac` 0.3 HP it runs at once and has to be chased again to turn. | `ai.json default.cornered` | Fight length and the run-away cut-off. |
+| **CN3** | The display is the first of roar / crest_flare / stomp / alert the rig has, held `display_s` 0.8; every rig today only has `alert`. | `ai.json default.cornered.display_clips` | Real roar/stomp clips would read better. |
+| **CN4** | Any chaser counts (a pet too), not only the survivor. Timid (flee nature) animals turn too when chased (they still flee first and run sooner when hurt). Swarm/pack tactical flights and a Timid rage (enrage_flee) are exempt: they come back on their own. | `brain_cornered.gd`, `tactical_brain.gd _provoked` | Whether Timid should ever fight. |
+| **CN5** | Defaults for every species; no species override shipped. A species turns it off or retunes it with a `"cornered"` block in its tactics (e.g. `{"enabled": false}`). | species JSON tactics | Per-species tuning. |
+

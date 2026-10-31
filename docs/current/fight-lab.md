@@ -85,6 +85,22 @@ Skittish-territorial (Gallimimus, Megaloceros; `tactics.territorial` in `ai.json
 after 3 s, or when the flight outruns the leash, it turns on the threat (within 30 m) and fights while the threat stays.
 Under 30 % HP it runs again; once the threat is gone it grazes and the cycle restarts. Test: `game/tests/t_coelomoves.gd`.
 
+Cornered (owner 2026-10-31: "Animals that run away from you should get territorial and attack you if you chase them";
+`BrainCornered`, on every brain): any animal that is fleeing (skittish grazers on sight, defensive grazers and Timid
+natures after a big hit) and is chased turns and fights. Chasing = within 10 m and moving at it at 1.5 m/s or more, or
+hitting it (+1.5 s each). After 3 s of that, or 20 m of pursuit, it stops, plays its display clip (alert today; roar,
+crest_flare or stomp first when a rig has one) and fights with its own attacks for 12 s; under 30 % HP it runs again.
+Stand still and it keeps running. Numbers: `ai.json default.cornered`, per species a `"cornered"` block in its tactics.
+Test: `game/tests/t_cornered.gd`.
+
+| Species | Brain | Flees when | Chased into a fight |
+|---|---|---|---|
+| Zebraceratops, Pachycephalosaurus, Protoceratops (pack_mule, skittish) | TacticalBrain | on sight | its display, charge, shove, kick |
+| Gallimimus (runner), Megaloceros (antlered) | TacticalBrain | on sight | its fight; it also still turns by itself after one 3 s flight (territorial) |
+| Stegosaurus (defensive), Triceratops, Styracosaurus, Woolly rhino (territorial) | CreatureBrain / TacticalBrain | a big hit while not provoked | its own attacks |
+| Any species with the Timid nature | any | a big hit (retreat_as_flee) | its own attacks (Timid no longer means never fights back once chased) |
+| Not affected | | swarm and pack flights (`_flee_left`, compsognathus, mate-death scatter), a Timid rage (enrage_flee); every other brain (ClubTail, Tyrant, MegaRex) inherits the rule whenever it is in `flee` | |
+
 Pin shots: `-- --lab=creature_lab --god --skip-charcreate --species=tyrannosaurus --pinshots=DIR` (windowed, off
 screen with `--position 6000,3000`) saves the stomp, the foot pin and the release, then quits. Test: `game/tests/t_pinfeel.gd`.
 
