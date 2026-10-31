@@ -150,6 +150,14 @@
     "charge_mult": 2.0,
     "charge_shove_m": 3.5,
     "charge_shove_stagger_s": 0.8,
-    "charge_speed_mult": 1.6
+    "charge_speed_mult": 1.6,
+    "_bull": "PACHYBULL (owner 2026-10-31: 'instead of it walking back slowly, have it jump backwards and wind up like a bull, huff huff, and then charge'): after every charge (hit or miss) two quick back-hops of 1.6 m (hop_back clip, facing the prey), then the bull windup (display_clip bull_windup: head down, the right foot paws twice with a snort, 1.25 s) and the next charge. Any other back-off is a hop too (backoff leap), never pack_mule's walk_back scurry. # ASSUMPTION: distances, two hops, no miss stagger (the reset is the punish window).",
+    "charge_reset": "bull",
+    "bull_hops": 2,
+    "bull_hop_m": 1.6,
+    "display_clip": "bull_windup",
+    "backoff": "leap",
+    "hop_m": 1.6,
+    "leap_back_m": 2.0
   }
 }

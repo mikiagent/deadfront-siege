@@ -231,9 +231,20 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   "Alpha"). The 176 px pill keeps one height (114 px, `FULL_H`) and the chip row is always reserved, so a plate does not
   resize between creatures; an animal without a nature draws no chip. A landscape phone's bar-only
   plate has no chip.
+  WORLDUI (owner 2026-10-31): the pill's bottom edge hangs `HEAD_GAP` 6 px over the top-centre of the
+  model's skinned-mesh bounds (rest pose, cached per body size; `CreaturePlates.plate_anchor`), centred on
+  it, so a compy and a MegaRex alike wear it over the head and it never bobs. It only ever lifts (off a
+  neighbour, the HUD or its own body box, eased at 480 px/s; `lift_spot`); with no room above it hides
+  instead of sliding under the animal. It fades out from 36 to 45 m and never draws for an animal behind
+  the camera. When the top target bar shows its animal the floating bar fades out (6/s) and its damage
+  numbers keep rising over the animal.
 - Target plate top-centre (≤520 px): creature name + "Lv. n" (pets show their tier), an HP bar, a
-  species-letter tile, the target's status chips and a Tyrant's opening label. It lingers on the
-  last creature attacked (within 40 m) until it dies or a new one is hit.
+  species-letter tile, the target's status chips and a Tyrant's opening label. `HudTarget`
+  (`ui/hud_target.gd`, WORLDUI) picks it each frame: the hunt target; on desktop the selection; the
+  nearest wild animal within 6 m of its body's edge (kept until 8 m; ASSUMPTION); the last creature
+  attacked (within 40 m) until it dies or a new one is hit; a MegaRex fighting you always (its boss bar,
+  with a red BOSS tag after the level). On a landscape phone a merely close animal yields the centre band
+  to the expanded quest card and to a tapped selection. It fades in over 0.2 s on a new creature.
 - Context hexes (70 px, rescanned every 0.3 s from `player.context_actions()`) offer Wash, Fill,
   Rest, etc. and hide in combat. They run right to left along the bottom from SPRINT (wrapping one row
   up, clear of the quick slots). CLAIM is a gold-rim hex (52 px desktop, 64 phone) centred just above the
@@ -400,6 +411,10 @@ screen on 100. Everything is a tap: `_ready` sets `TouchControls.hud_mode = true
   (the category's hex icon under a flare, "Skill Category Level Up", "<Category> Lv. N"); the occupation
   head start celebrates nothing. Each level-up shown pulses the MENU hex (gold rim, glow, rings off its
   badge) and, with the nav menu open, rings off the Skills entry's badge, ~2.7 s.
+- WORLDUI (owner 2026-10-31): a pill is anchored on its object's top from its first visible frame and
+  fades in over 0.18 s; only a pill that was drawn visibly keeps a row to glide from (one laid out at
+  alpha 0 just inside 8 m flew down onto its resource as it faded in). Test `game/tests/t_worldui.gd`;
+  captures `docs/orchestration/reports/worldui/` (lab `scenes/dev/worldui_lab.tscn`).
 - HUD pills (`game/scripts/ui/hud_pills.gd`) label buildings and nodes within 8 m (UIGATHER, spec
   §4.1): a dark box, a harvest node's pill leading with its resource symbol greyed (dimmed when picked
   clean, red-tinted without the tool), 30 px tall with 18 px type on desktop, 22 / 14 on a phone. A

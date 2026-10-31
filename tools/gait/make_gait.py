@@ -129,7 +129,8 @@ def foot_plan(name, t):
         reach = math.radians(clip.get("reach_roll", 0.0)) * abs(2 * s - 1) ** 1.5
         return pos, max(roll * smoothstep(heel), reach), True
     s = (u - DUTY) / (1 - DUTY)  # swing: lift and carry forward
-    pos = a0 + TRAVEL * (STANCE * (smoothstep(s) - 0.5))
+    # swing_ease_<end> > 1: the foot trails behind longer, then reaches forward late (a gallop's folded fore/hind legs)
+    pos = a0 + TRAVEL * (STANCE * (smoothstep(s) ** clip.get("swing_ease_" + leg["end"], 1.0) - 0.5))
     pos = pos + UP * (lift * math.sin(math.pi * s) ** clip.get("lift_shape", 0.8))
     pitch = roll + (curl - roll) * math.sin(math.pi * min(1.0, s * 1.6)) if s < 0.625 else curl * (1 - smoothstep((s - 0.625) / 0.375))
     return pos, pitch, False
@@ -139,10 +140,35 @@ def toe_pivot(leg, ankle, pitch, planted):
     """Rotate the foot about its toe while the heel peels off (stance) so the toe never slides."""
     toe_vec = leg["toe0"] - leg["ankle0"]
     r = Matrix.Rotation(pitch, 4, -SIDE)  # positive pitch = toe down
-    if planted and pitch > 0:
+    # swing_toe_pivot (RAPTORFLANK): keep pivoting about the toe through the swing too, so the toe carries the planned
+    # lift; without it the heel-off pivot snapped away at toe-off and the toe dug 11 cm into the ground (raptor walk).
+    if (planted or clip.get("swing_toe_pivot", 0)) and pitch > 0:
         toe = ankle + toe_vec
         ankle = toe - (r.to_3x3() @ toe_vec)
     return ankle, r
+
+
+SPINE = cfg.get("spine", {})
+
+
+def flex_angles(t):
+    """Spine flex (rad) for the front and hind sections: positive arches the back (gathered), negative stretches it.
+    flex_deg is the swing about flex_bias_deg, peaking (most arched) at cycle time flex_phase."""
+    if not SPINE or not clip.get("flex_deg"):
+        return 0.0, 0.0
+    phi = math.radians(clip.get("flex_bias_deg", 0.0) + clip["flex_deg"] * math.cos(2 * math.pi * (t - clip.get("flex_phase", 0.0))))
+    share = clip.get("flex_hind_share", 0.5)
+    return phi * (1 - share), phi * share
+
+
+def flexed_hip(leg, t):
+    """Rest hip joint moved by the spine flex (front section nose-down about the pivot, rump down about the pelvis)."""
+    if not SPINE or not clip.get("flex_deg"):
+        return leg["hip0"]
+    ff, fh = flex_angles(t)
+    if leg["end"] == "front":
+        return rot_about(bones[SPINE["front"][0]].head_local, SIDE, -ff) @ leg["hip0"]
+    return rot_about(bones[SPINE["hind"][0]].head_local, SIDE, fh) @ leg["hip0"]
 
 
 def ends_drop(t):
@@ -151,7 +177,7 @@ def ends_drop(t):
     for name, leg in LEGS.items():
         ankle, pitch, planted = foot_plan(name, t)
         ankle, _ = toe_pivot(leg, ankle, pitch, planted)
-        hip = leg["hip0"] + TRAVEL * clip.get("legroot_" + leg["end"], 0.0) * (ankle - leg["ankle0"]).dot(TRAVEL)
+        hip = flexed_hip(leg, t) + TRAVEL * clip.get("legroot_" + leg["end"], 0.0) * (ankle - leg["ankle0"]).dot(TRAVEL)
         reach = REACH * (leg["l1"] + leg["l2"])
         flat = ankle - hip
         horiz = (flat - UP * flat.dot(UP)).length
@@ -220,8 +246,27 @@ def pose(t, f):
     roll = math.radians(clip.get("roll_deg", 0.0)) * wave(t, clip.get("roll_phase", 0.0), 1)
     sway = clip.get("sway", 0.0) * wave(t, clip.get("roll_phase", 0.0), 1)
     body = cfg["body"]
-    m = Matrix.Translation(UP * mid + SIDE * sway) @ rot_about(body_pivot, SIDE, -pitch) @ rot_about(body_pivot, FWD, roll) @ rest(body)
+    # a positive angle about SIDE lifts the nose, so the legacy -pitch tipped the nose DOWN as the front rose and swapped
+    # the ends' rock and drop; "true_pitch": 1 opts a clip into the right sign (old clips keep their tuned look)
+    body_rot = pitch if clip.get("true_pitch") else -pitch
+    m = Matrix.Translation(UP * mid + SIDE * sway) @ rot_about(body_pivot, SIDE, body_rot) @ rot_about(body_pivot, FWD, roll) @ rest(body)
     set_matrix(body, m)
+    # spine flex (cfg "spine" + clip flex_*): bend the front chain nose-down and the pelvis rump-down, and carry each
+    # end's leg roots with its section so the shoulder and haunch skin move with the back
+    ff, fh = flex_angles(t)
+    if ff or fh:
+        for sec, ang, ref in (("front", -ff, SPINE["front"][-1]), ("hind", fh, SPINE["hind"][-1])):
+            before = pbs[ref].matrix.copy()
+            for bname in SPINE[sec]:
+                cur = pbs[bname].matrix.copy()
+                set_matrix(bname, rot_about(cur.translation, SIDE, ang / len(SPINE[sec])) @ cur)
+            delta = pbs[ref].matrix @ before.inverted()
+            for rname in SPINE[sec + "_roots"]:
+                set_matrix(rname, delta @ pbs[rname].matrix)
+        # head_level: the neck takes back this share of the shoulders' pitch, so the head stays steady
+        if clip.get("head_level") and "Neck" in pbs:
+            cur = pbs["Neck"].matrix.copy()
+            set_matrix("Neck", rot_about(cur.translation, SIDE, -clip["head_level"] * (body_rot - ff)) @ cur)
     # spine / head / tail counter-motion, as small local rotations
     for bname, spec in cfg.get("wiggle", {}).items():
         if bname not in pbs:
