@@ -53,6 +53,15 @@
   },
   "tactics": {
     "base": "horned_charger",
+    "joust": {
+      "_about": "MEGAJOUST (owner 2026-10-31: 'the jousting brain is good for many of the four legged animals'): JoustBrain, charge through, wheel wide, charge again; no strafe or hop. ASSUMPTION numbers (Open Questions MJ3). The toss on impact stays; the paw display opens a fight.",
+      "turn_radius_m": 8.0,
+      "overshoot_m": 6.0,
+      "min_run_m": 9.0,
+      "align_deg": 25.0,
+      "wheel_max_s": 10.0,
+      "display": true
+    },
     "_about": "ASSUMPTION (SP-WOOLLY_RHINO): the horned_charger brain (display -> charge, point-blank heavy, basic) with the rhino's moves: display = the paw-the-ground alert clip, a longer charge that tosses (the toss clip on impact, the survivor shoved charge_shove_m and lifted toss_lift_mps), attack_heavy = the wide horn sweep, the basic = the forefoot stamp. No hind kick (no kick clip).",
     "sequences": [
       {"name": "paw_charge", "steps": ["display", "charge"], "weight": 4.0},

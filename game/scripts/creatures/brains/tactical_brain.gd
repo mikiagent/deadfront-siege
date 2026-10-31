@@ -883,7 +883,8 @@ func _charge(delta: float) -> void:
 	if tac.get("charge_straight", false):
 		speed_override = creature.move_speed_mps() * _t("charge_speed_mult", 1.5)  # committed: no can_sprint gate mid-line
 		gait_clip = &"charge"
-		creature.move_to(_charge_to)
+		# a carrot on the locked line, not its far end: a long pass (megaloceros joust) past 12 m got no direct steer without a navmesh
+		creature.move_to(creature.global_position + (_charge_to - creature.global_position).limit_length(8.0))
 		var to := attack_target.global_position - creature.global_position
 		to.y = 0.0
 		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
