@@ -122,7 +122,8 @@ func _test_aware_state() -> void:
 	var flat := Vector2(c.velocity.x, c.velocity.z).length()
 	_expect(flat < 0.05, "it holds still while investigating (%.2f m/s)" % flat)
 	await _frames(int(1.6 * Engine.physics_ticks_per_second))
-	_expect(c.brain.state == &"approach" or c.brain.state == &"attack", "after the hold it commits (state %s)" % c.brain.state)
+	# COELOMOVES: the velociraptor runs the deinonychus TacticalBrain, so it may commit with any of its moves.
+	_expect(c.brain.state != &"alert" and c.brain.state in [&"approach", &"attack", &"circle", &"feint", &"lunge", &"pounce", &"combo", &"charge", &"hold", &"hop", &"dodge"], "after the hold it commits (state %s)" % c.brain.state)
 	_expect(c.anim.current_clip != &"investigate", "and leaves the investigate idle (clip %s)" % c.anim.current_clip)
 	c.free()
 	p.free()

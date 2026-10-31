@@ -136,6 +136,7 @@
     ]
   },
   "tactics": {
+    "base": "pack_mule",
     "_about": "# ASSUMPTION (owner 2026-10-31: 'give it fight moves that suit a dome-headed brawler'): pack_mule's herd behaviour, display and head-down charge (the dome headbutt with knockback), plus at point blank a hip check (kick) when the prey is behind it, else a stomp (attack_heavy, its own cooldown), else a dome butt. Bigger shove than the other grazers: it is a head-butting specialist.",
     "point_blank": [
       "kick",
