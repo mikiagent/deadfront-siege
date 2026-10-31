@@ -1,6 +1,6 @@
 # ALLOFEEL: allosaurus arms in every attack, three new moves (carno kit waiting on canon)
 
-Branch `claude/mmo-allofeel`, from `origin/claude/mmo-overhaul`, with canon merged back in (bigstomp, 2eecfc3e). Pushed, not merged to canon.
+Branch `claude/mmo-allofeel`, from `origin/claude/mmo-overhaul`, with canon merged back in (bigstomp 2eecfc3e, then megajoust f1b73788; every gate rerun after the last merge). Pushed, not merged to canon.
 Credits: Tripo 0, Meshy 0, Higgsfield 0. The model and rig (`allosaurus.glb`) are untouched; only clips, data and code changed.
 
 What the owner said: "Alosaurus model turned out great! the arms should be moving as part of the attack animation and add more attacks generally. Carnotaurus attacks are welcome on this".
