@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://digy53k8ulwrg"
-path="res://.godot/imported/gallimimus_Image_3.jpg-d554d91431ce7f6913dcb19b20cbf29a.ctex"
+uid="uid://om3i0il1kbf8"
+path="res://.godot/imported/gallimimus_ORM_e0cba9ee-23e6-4fe0-8b93-2899cffb2d5e.jpg-3c56f8db4623d09884f8e56eefaace3f.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "3919811b11492e3375246b1e1c23cd96"
+"md5": "28fe27264cd41802973689f8f3e04f19"
 }
 
 [deps]
 
-source_file="res://assets/creatures/gallimimus/gallimimus_Image_3.jpg"
-dest_files=["res://.godot/imported/gallimimus_Image_3.jpg-d554d91431ce7f6913dcb19b20cbf29a.ctex"]
+source_file="res://assets/creatures/gallimimus/gallimimus_ORM_e0cba9ee-23e6-4fe0-8b93-2899cffb2d5e.jpg"
+dest_files=["res://.godot/imported/gallimimus_ORM_e0cba9ee-23e6-4fe0-8b93-2899cffb2d5e.jpg-3c56f8db4623d09884f8e56eefaace3f.ctex"]
 
 [params]
 

@@ -11,7 +11,7 @@ bone-heat weighted on the repaired mesh (voxel proxy when heat leaves verts unwe
 - capped at 4 influences and normalised.
 
 The spec JSON (mesh units after orienting: head -Y, centred, feet on z=0; left = +x) gives joint points:
-  {"spine": [[y,z] Hips, Spine1, Chest, Neck1, Neck2, Head, HeadTip],  "tail": [[y,z] Tail1 head ... tip],
+  {"spine": [[y,z] Hips, Spine1, Chest, Neck1, Neck2, (Neck3,) Head, HeadTip],  "tail": [[y,z] Tail1 head ... tip],
    "leg": [[x,y,z] hip, knee, ankle, ball, toe tip],  "arm": [[x,y,z] shoulder, elbow, wrist, finger tip(, claw tip)],
    "jaw": [[y,z] pivot, tip], "belly_z": 0.17, "jaw_split": ...}
 usage: Blender -b -P tools/gait/rig_biped.py -- <tripo.glb> <spec.json> <out.glb>
@@ -54,6 +54,16 @@ mesh.data.transform(Matrix.Translation(Vector((-(lo.x + hi.x) / 2, -(lo.y + hi.y
 lo, hi = bbox()
 print("RIG bbox", [round(v, 3) for v in lo], [round(v, 3) for v in hi])
 
+# foot_drop {"L": dz, "top_z": z} (optional, gallimimus): Tripo left one foot hovering; lower that side's foot skin by dz,
+# fading to nothing at top_z, so both soles rest on the floor and the IK plants them
+if "foot_drop" in spec:
+    fd = spec["foot_drop"]
+    for v in mesh.data.vertices:
+        for sd, sx in (("L", 1.0), ("R", -1.0)):
+            if sd in fd and v.co.x * sx > 0.01 and v.co.z < fd["top_z"]:
+                v.co.z -= fd[sd] * (1.0 - v.co.z / fd["top_z"])
+    lo, hi = bbox()
+
 # repair: weld duplicate seam verts so bone heat sees one surface (UVs stay on the loops)
 bm = bmesh.new()
 bm.from_mesh(mesh.data)
@@ -95,6 +105,8 @@ sp = [yz(p) for p in spec["spine"]]
 hip = sp[0]
 bone("root", (0, hip.y, 0), (0, hip.y, 0.1), deform=False)
 names = ["Hips", "Spine1", "Chest", "Neck1", "Neck2", "Head"]
+if len(sp) == 8:  # a long neck (gallimimus): an 8th spine point adds Neck3 between Neck2 and Head
+    names = ["Hips", "Spine1", "Chest", "Neck1", "Neck2", "Neck3", "Head"]
 for i, n in enumerate(names):
     bone(n, sp[i], sp[i + 1], "root" if i == 0 else names[i - 1], connect=i > 0)
 tl = [yz(p) for p in spec["tail"]]
@@ -208,6 +220,16 @@ for i, v in enumerate(mesh.data.vertices):
             elif p.z < ankle_top - 0.01:
                 keep = {n: x for n, x in keep.items() if not n.startswith("Thigh")} or keep
             W[i] = keep
+    # leg_top_z [z0, z1] (optional, gallimimus): leg weight fades out from z0 to z1 and hands over to Hips, so a long
+    # thigh swing never drags a spike of back skin out of the hips
+    if "leg_top_z" in spec and p.z > spec["leg_top_z"][0]:
+        z0, z1 = spec["leg_top_z"]
+        keep = max(0.0, min(1.0, (z1 - p.z) / (z1 - z0)))
+        w = W[i]
+        for n in [n for n in w if n.split(".")[0] in LEG]:
+            x = w[n] * (1.0 - keep)
+            w[n] -= x
+            w["Hips"] = w.get("Hips", 0.0) + x
     top = sorted(W[i].items(), key=lambda kv: -kv[1])[:4]
     s = sum(x for _, x in top)
     W[i] = {n: x / s for n, x in top} if s > 0 else {}
