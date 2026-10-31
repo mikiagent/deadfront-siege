@@ -91,9 +91,10 @@ static func land(t: Creature, spot: Dictionary, source: Node) -> float:
 			var c: Creature = ref.get_ref() as Creature
 			if c and c.anim:
 				c.anim.set_time_scale(1.0, &"hit_stop"))
-	# ASSUMPTION (CS5): after the first weak-spot hit, that animal's spots glow faintly for the rest of its life.
+	# Owner 2026-10-31: "i don't want to see the crit spots unless im in debug mode": the glow only with the H view on.
 	if not t.has_meta(FOUND_META):
 		t.set_meta(FOUND_META, true)
-		CritSpotMarks.attach(t)
+		if Hitbox.debug_draw:
+			CritSpotMarks.attach(t)
 	print("[combat] weak spot %s %s x%.2f" % [t.def.id, spot["name"], float(spot["mult"])])
 	return float(spot["mult"])
