@@ -10,7 +10,7 @@ extends Node3D
 ## Run windowed off-screen: Godot --path game --position 6000,3000 -- --skip-charcreate --lab=theroroar_lab --out=DIR
 ##   [--species=ceratosaurus,megarex] [--clip=roar] [--pcts=10,35,60,85] [--cams=tq,behind]
 
-const SPECIES: Array[String] = ["ceratosaurus", "tyrannosaurus", "megarex", "allosaurus", "majungasaurus", "tarbosaurus"]
+const SPECIES: Array[String] = ["ceratosaurus", "tyrannosaurus", "megarex", "allosaurus", "majungasaurus", "tarbosaurus", "spinosaurus"]
 
 var _out := ""
 var _species: Array[String] = SPECIES.duplicate()

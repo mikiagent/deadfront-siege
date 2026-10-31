@@ -26,7 +26,7 @@ signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn", &"bound", &"flank", &"spit"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"charge_turn", &"bound", &"flank", &"spit", &"grab"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -240,6 +240,8 @@ func setup(c: Creature) -> void:
 		tac = tac.duplicate(true)
 		tac.merge(over, true)
 	rng.randomize()
+	if tac.get("grab", false):
+		process_priority = 100  # _process holds grabbed prey in the jaws after the AnimationTree has posed them
 	_circle_sign = _flank_sign
 	state_changed.connect(_on_state_changed)
 
@@ -490,6 +492,7 @@ func _think(delta: float) -> void:
 		&"pin": _pin(delta)
 		&"spit": _spit(delta)
 		&"bound": _bound(delta)
+		&"grab": _grab(delta)
 		&"flank": _flank(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
@@ -740,9 +743,15 @@ func attack_available(move: StringName, d: float) -> bool:
 			var close := tac.has("kick_max_m") and d <= _t("kick_max_m", 0.0) + _size_excess(attack_target)
 			return creature.anim.has_state(&"kick") and in_reach and (_prey_behind() or close)
 		&"grab":
-			# SP-ALLOSAURUS: the hands-then-jaws grab, in front at jaw range (not under the chin), on prey it can hold
-			return tac.get("grab", false) and creature.anim.has_state(&"grab_bite") and in_reach and not _prey_behind() \
-				and d > _t("kick_max_m", 0.0) + _size_excess(attack_target) and _pinnable(attack_target) != null
+			# tactics.grab, point blank in front. SP-ALLOSAURUS (a grab_bite clip): the hands-then-jaws grab at jaw range
+			# (not under the chin), on prey it can hold. SP-SPINOSAURUS (bite_shake): the snap-and-shake, on prey its jaws can
+			# lift (a survivor, or a creature no bigger than itself).
+			if not tac.get("grab", false) or not in_reach or _prey_behind():
+				return false
+			if creature.anim.has_state(&"grab_bite"):
+				return d > _t("kick_max_m", 0.0) + _size_excess(attack_target) and _pinnable(attack_target) != null
+			return creature.anim.has_state(&"bite_shake") \
+				and (attack_target is Player or (attack_target is Creature and (attack_target as Creature).body_radius() <= creature.body_radius()))
 		&"heavy":
 			# The sweeping horn swipe (the attack_heavy clip, a CONTRACT clip): point blank only,
 			# in front (the horns sweep the head's arc). ASSUMPTION: heavy_mult, heavy_cd.
@@ -795,7 +804,10 @@ func _strike(d: float, only: Array = []) -> bool:
 			&"heavy":
 				_heavy()
 			&"grab":
-				_grab()
+				if creature.anim.has_state(&"grab_bite"):
+					_grab_hands()  # SP-ALLOSAURUS
+				else:
+					_start_grab()  # SP-SPINOSAURUS snap-and-shake
 		return true
 	return false
 
@@ -1200,7 +1212,7 @@ func _charge_cleanup() -> void:
 
 ## Hit reactions do not interrupt a committed charge (paw, run, impale); brake and recover can be punished.
 func super_armor() -> bool:
-	return state == &"charge" and _charge_phase in [&"paw", &"run", &"impale"]
+	return (state == &"charge" and _charge_phase in [&"paw", &"run", &"impale"]) or (state == &"grab" and _held != null)
 
 ## World position of the nose-horn tip on the live pose: the mesh's frontmost rest vertex, kept in Head-bone
 ## space and carried by the bone (so it follows the dip and scoop). No rig: a point ahead of the body.
@@ -1317,7 +1329,7 @@ func landed(clip: StringName, target: Node) -> void:
 
 ## SP-ALLOSAURUS grab (tactics.grab): the grab_bite clip in place; its first hit clamps the hands on the prey (landed ->
 ## _hold_victim: Pinned, held pin_reach_m ahead), the next two are bites (x pin_mult). A missed clamp is just a miss.
-func _grab() -> void:
+func _grab_hands() -> void:
 	_just_disengaged = false
 	_basic_streak = 0
 	creature.stop_move()
@@ -2158,6 +2170,128 @@ func _end_pin() -> void:
 	if st:
 		st.clear_id(&"pinned")
 
+## SNAP-AND-SHAKE (tactics.grab, SP-SPINOSAURUS): the bite_shake clip at point blank. The windup (head drawn back, the
+## long jaws gaping, claws raised, the ground ring on her) is the tell; at the clip's hit_frac (anim_events) the jaws
+## clamp, and only if they reach her (pipeline.hit_parts.bite_shake) she is caught: carried between the jaws with no
+## control while the head thrashes (x grab_mult on the clamp), then flung off to its left at release_frac (shove + lift:
+## the throw tier once PlayerKnock is on canon). A miss snaps shut on air and leaves it open for the rest of the clip.
+var _grab_t := 0.0
+var _grab_len := 0.0
+var _grab_done := false
+var _held: Player = null
+var _held_y := 0.0
+## Where the clamp caught her (metres from the jaw point to her, -1 before one, INF on a miss): read by t_sp_spinosaurus.
+var grab_gap := -1.0
+
+func _start_grab() -> void:
+	_just_disengaged = false
+	_basic_streak = 0
+	creature.stop_move()
+	creature.anim.play_clip(&"bite_shake")
+	_grab_len = creature.anim.player.get_animation(&"bite_shake").length
+	_grab_t = 0.0
+	_grab_done = false
+	_set_state(&"grab")
+	var hit := _grab_len * CreatureClips._hit_frac(&"bite_shake")
+	if is_instance_valid(_telegraph):
+		_telegraph.queue_free()
+	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("grab_radius_m", 2.0) + _size_excess(attack_target), hit / maxf(0.01, creature.anim.cadence(&"bite_shake")))
+	_mark_pack()
+	tactic.emit(&"grab")
+	_log("[ai] %s snap-and-shake windup" % creature.def.id)
+
+func _grab(delta: float) -> void:
+	# Clip time as the tree plays it (the travel into bite_shake cross-fades, so a wall clock runs ~0.15 s ahead of the pose).
+	var an := creature.anim
+	_grab_t = an._os_t if an._os_state == &"bite_shake" and an._os_last >= 0.0 else _grab_t
+	creature.stop_move()
+	var row: Dictionary = (Data.anim_events.get("clips", {}) as Dictionary).get("bite_shake", {})
+	var hit := _grab_len * float(row.get("hit_frac", 0.3))
+	var release := _grab_len * float(row.get("release_frac", 0.78))
+	if not _grab_done:
+		creature.face_towards(attack_target.global_position, delta)  # tracks her through the windup
+		if is_instance_valid(_telegraph):
+			_telegraph.global_position = attack_target.global_position
+		if _grab_t >= hit:
+			_grab_done = true
+			_grab_clamp()
+	if _held:
+		if _grab_t < release and is_instance_valid(_held) and not _held.dead:
+			_hold_in_jaws()
+		else:
+			_grab_fling()
+	if _grab_t >= _grab_len or creature.anim.current_clip != &"bite_shake":
+		_end_grab()
+		if _valid_target():
+			_back_off()
+
+func _hold_in_jaws() -> void:
+	var at := grab_point()
+	_held.global_position = Vector3(at.x, maxf(at.y - 0.9, _held_y), at.z)  # her middle in the jaws, never in the ground
+	_held.velocity = Vector3.ZERO
+
+## Held prey follows the jaws on the drawn pose too: the thrash swings the snout metres per frame, and the physics-rate
+## think runs before the animation advances. process_priority (setup) puts this after the creature's AnimationTree.
+func _process(_delta: float) -> void:
+	if _held != null and is_instance_valid(_held) and state == &"grab":
+		_hold_in_jaws()
+
+## The jaw point: 60 % of the way from the jaw hinge to the snout tip (between the jaws), on the live pose.
+func grab_point() -> Vector3:
+	var rig := creature.view.rig if creature.view else null
+	var sk := rig.skeleton if rig else null
+	var jaw := sk.find_bone("Jaw") if sk else -1
+	if jaw < 0:
+		return horn_tip()
+	var hinge := sk.global_transform * sk.get_bone_global_pose(jaw).origin
+	return hinge.lerp(horn_tip(), 0.6)
+
+func _grab_clamp() -> void:
+	var tgt := attack_target
+	var ahead := tgt.global_position - creature.global_position
+	ahead.y = 0.0
+	if _flat_dist(tgt) > reach_to(tgt) + 0.3 or ahead.dot(-creature.global_basis.z) < 0.0 or not creature.part_hit(&"bite_shake", tgt):
+		grab_gap = INF
+		tactic.emit(&"grab_miss")
+		if tgt is Player or tgt is Creature:
+			CombatAvoid.avoided(tgt, creature, &"miss")
+		return
+	grab_gap = _flat_between(grab_point(), tgt.global_position)
+	var mult := _t("grab_mult", 1.6)
+	tactic_hit.emit(&"bite_shake", 0, mult)
+	tactic.emit(&"grab_hit")
+	if not CreatureAttack.apply_for(creature, &"bite_shake", tgt, mult):
+		return
+	if tgt is Player:
+		var pl := tgt as Player
+		pl.receive_creature_hit(creature, &"bite_shake")
+		if pl.sim and not pl.dead:
+			_held = pl
+			_held_y = pl.global_position.y
+			pl.sim.shove(-creature.global_basis.z * 0.01, _grab_len)  # no control while in the jaws; the fling sets the throw
+
+## Flung off to its left (the clip whips the head that way and opens the jaws): grab_fling_m along the ground, up at grab_up_mps.
+func _grab_fling() -> void:
+	if _held == null or not is_instance_valid(_held):
+		_held = null
+		return
+	var pl := _held
+	_held = null
+	var dir := (-creature.global_basis.x - creature.global_basis.z * 0.4)
+	dir.y = 0.0
+	var up := _t("grab_up_mps", 5.0)
+	# KNOCKDOWN (on canon since this branch): the lift makes it a throw (PlayerKnock), as the rhino's toss.
+	pl.sim.shove(dir.normalized() * _t("grab_fling_m", 5.0), 2.0 * up / 9.8, up, creature)
+	if not pl.sim.knock.active():
+		pl.velocity.y = up  # rolling, swimming or pinned: the plain shove with the old lift
+	tactic.emit(&"grab_fling")
+
+func _end_grab() -> void:
+	_grab_fling()
+	if is_instance_valid(_telegraph):
+		_telegraph.queue_free()
+	_telegraph = null
+
 func _start_retreat(seconds: float) -> void:
 	if str(tac.get("retreat_mode", "leap")) == "flee":
 		_start_flee(_t("flee_s", 3.0))
@@ -2356,6 +2490,8 @@ func _on_state_changed(prev: StringName, _next: StringName) -> void:
 		_charge_cleanup()  # never leave her hanging on the horn
 	if prev == &"pin":
 		_end_pin()
+	if prev == &"grab":
+		_end_grab()
 	if prev == &"pounce":
 		_end_pounce()
 	elif prev == &"hop" or prev == &"lunge" or prev == &"dodge" or prev == &"bound":

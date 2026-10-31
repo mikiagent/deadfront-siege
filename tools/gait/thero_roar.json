@@ -9,6 +9,7 @@
     "majungasaurus": {"secs": 2.8, "jaw": 34},
     "tarbosaurus": {"secs": 3.1, "jaw": 40},
     "tyrannosaurus": {"secs": 3.2, "jaw": 46},
-    "megarex": {"secs": 3.4, "jaw": 46}
+    "megarex": {"secs": 3.4, "jaw": 46},
+    "spinosaurus": {"secs": 3.2, "jaw": 30}
   }
 }

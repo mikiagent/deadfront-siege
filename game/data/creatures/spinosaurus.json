@@ -1,0 +1,270 @@
+{
+  "species": "Spinosaurus",
+  "clade": "Spinosauridae",
+  "period": "Mid Cretaceous",
+  "real_length_m": 28.0,
+  "height_meters": 9.0,
+  "rig": "biped",
+  "tier": 58,
+  "climate": "swamp",
+  "archetype": "apex_raptor",
+  "tameable": true,
+  "capture_tier": 5,
+  "verb": "snap-and-shake (grab and fling), forearm claw rake (bleed), croc snap, tail swipe, sail-flare display, water ambush lunge",
+  "status_applied": [
+    "bleed_2"
+  ],
+  "stats": {
+    "hp": 20000,
+    "attack": 620,
+    "defense": 220,
+    "speed": 470
+  },
+  "turn_rate": 1.5,
+  "tamed_role": [
+    "combat"
+  ],
+  "variants": [],
+  "size_note": "# ASSUMPTION (SP-SPINOSAURUS): a ~14 m real animal at the house 1.6x is 21.6 m nose to tail on screen and 9.0 m to the top of the sail (hips about 4.9 m: a 1.78 m survivor reaches its knee); real_length_m 28 is the roster's 2x convention.",
+  "look": "huge semi-aquatic spinosaur: a long low crocodile-like snout with interlocking teeth, a tall sail on the back from the shoulders to the base of the tail, strong forearms with big hooked thumb claws, dark olive-green hide with bold orange vertical bands on the sail, back and tail, a cream throat and belly",
+  "prompt": "Spinosaurus from the owner's turnaround sheet: huge semi-aquatic theropod, long crocodile-like snout, tall continuous dorsal sail with orange stripes, strong clawed forearms, dark green hide with orange bands, cream belly, mouth slightly parted. No saddle.",
+  "texture_prompt": "dark olive-green scaly hide with bold orange vertical bands on the sail, back and tail, cream throat and belly, dark claws, matte surface",
+  "clips": {
+    "idle": "slow breaths swelling the chest under the sail, a look left and right with the long snout, claws flexing, tail swaying",
+    "walk": "heavy theropod walk, body level, long snout carried low and forward, the sail riding the back",
+    "run": "heavy theropod run, body tipped forward, arms tucked, tail out straight",
+    "stalk": "the low wading creep: body sunk, neck low, the snout held level just off the ground like a crocodile in the shallows",
+    "alert": "sail-flare display and roar: turns broadside so the whole sail shows while the head keeps on the threat, rears up with the arms spread and the claws open, then roars with the jaws wide and the head shaking",
+    "attack_primary": "croc snap: the head swings out to the side with the long jaws gaping and the claws hooking forward, then snaps shut across the prey (hit 0.42)",
+    "attack_heavy": "forearm claw rake: rears up with both arms cocked high and the hooked claws spread (held telegraph to 0.6), then drops forward off a planted step and rakes both claws down and across (hit 0.72); applies Bleed",
+    "bite_shake": "snap-and-shake: head drawn back with the jaws gaping and claws raised (telegraph), a low lunge and clamp (0.30), lifts the prey and thrashes it side to side three times, whips the head to its left and opens (release 0.78): the prey is flung",
+    "kick": "tail swipe (the brain's kick slot, when the prey is behind it): the hips pivot on planted feet and the long tail whips across behind it (hit 0.45)",
+    "pounce": "water ambush lunge: sunk low with the snout flat, a flat surge with the jaws wide and the claws reaching (airborne 0.2-0.65), the snap on landing (hit 0.7) and a tug",
+    "hit_react": "head and chest jerk back, the arms fling out, a stagger step",
+    "knockdown": "knees buckle, it topples onto its side, the sail swinging down flat, and lies there (the capture hold)",
+    "death": "a heavy fall onto its side, neck and tail slack",
+    "sleep": "settles belly-down onto folded legs, the long snout laid on the ground, arms tucked, tail curled round",
+    "feed": "head down to a carcass, the claws pinning it, tearing bites with a tug"
+  },
+  "taming": {
+    "preferred_food": [
+      "fish"
+    ],
+    "accepted_food": [
+      "raw_meat",
+      "raptor_meat"
+    ],
+    "feeds_needed": 7,
+    "window_seconds": 45,
+    "requires_pen": true
+  },
+  "coloration": {
+    "hue_deg": 8,
+    "sat": 0.1,
+    "val": 0.1,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "",
+        "weight": 6.0
+      },
+      {
+        "id": "countershade",
+        "weight": 1.0,
+        "scale": 1.0,
+        "strength": 0.2
+      }
+    ]
+  },
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 0.416,
+    "source_length_m": 0.998,
+    "route": "rig_biped_v1",
+    "mesh": "Tripo P1 multiview (left view drawn by Codex from the owner's sheet 1, front and back drawn by Codex from it, right = mirrored left, all on one scale), task a83eaa9c-8129-4dd0-8031-5dfce167a2c4, 50 Tripo credits (2026-10-31). Tripo kept the sail whole, so it is part of the body mesh (no separate Blender sail).",
+    "mesh_source": "res://assets/creatures/spinosaurus/work/spinosaurus_tripo_v1.glb",
+    "mesh_views": "ref/spinosaurus_view_{front,left,back,right}.png",
+    "reference_sheet": "game/assets/creatures/spinosaurus/ref/spinosaurus_owner_sheet_1.png",
+    "rig": "tools/gait/rig_biped.py with tools/gait/spinosaurus_rig.json (joints read off slices and ortho renders); tools/gait/sail_weights.py smooths the sail onto the spine chain",
+    "jaw": "tools/jaw/add_jaw.py --pivot 0.033 0.285 --split -14 --blend 0.008 --snout 0.145 --x-side; tools/jaw/open_mouth.py (lips ripped, mouth bag)",
+    "gaits": "tools/gait/make_gait.py tools/gait/spinosaurus.json: walk, run, stalk; strafe_left/right and walk_back from the walk plan (stride 0.18)",
+    "clips_from": {
+      "idle,alert,attack_primary,attack_heavy,bite_shake,kick,pounce,hit_react,knockdown,death,sleep,feed": "tools/gait/make_spino_moves.py (feet IK-planted; lying clips rest on the floor)"
+    },
+    "grounding": "tools/gait/ground_clip.py --fps 24 on every clip",
+    "build": "tools/gait/build_spinosaurus.sh; gate tools/gait/check_spino.py --height 9.0",
+    "credits_spent": 50,
+    "hit_parts": {
+      "attack_primary": {
+        "bones": [
+          "Jaw",
+          "Head"
+        ],
+        "radius_m": 2.6
+      },
+      "bite_shake": {
+        "bones": [
+          "Jaw",
+          "Head"
+        ],
+        "radius_m": 2.6
+      },
+      "attack_heavy": {
+        "bones": [
+          "Hand.L",
+          "Hand.R",
+          "Forearm.L",
+          "Forearm.R"
+        ],
+        "radius_m": 1.6
+      },
+      "kick": {
+        "bones": [
+          "Tail4",
+          "Tail5",
+          "Tail6"
+        ],
+        "radius_m": 2.4
+      },
+      "pounce": {
+        "bones": [
+          "Jaw",
+          "Head"
+        ],
+        "radius_m": 2.8
+      }
+    },
+    "hit_parts_note": "SP-SPINOSAURUS: each hit needs its part (Creature.part_hit): the snap, the snap-and-shake and the lunge from the jaws (the Jaw bone is the hinge, ~2.4 m behind the snout tip, hence the wide radius), the rake from the claws, the tail swipe from the back half of the tail. # ASSUMPTION radii (metres at size 1, plus the target's radius).",
+    "status_clips": {
+      "bleed": [
+        "attack_heavy"
+      ]
+    },
+    "status_clips_note": "SP-SPINOSAURUS: Bleed rides on the claw rake only (CreatureAttack._apply_token).",
+    "assumptions": [
+      "# ASSUMPTION: height_meters 9.0, real_length_m 28 (see size_note)",
+      "# ASSUMPTION: stats between the ceratosaurus/allosaurus and the tarbosaurus (tier 58, 20000 HP, attack 620); tameable in a pen like the other big carnivores, fish preferred; combat role only (no saddle built)",
+      "# ASSUMPTION: climate swamp; spawns on the far shores (coast) of swamp_55 and tropical_40 for the water ambush",
+      "# ASSUMPTION: Bleed x2 per claw rake"
+    ],
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "stalk",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "alert",
+      "attack_primary",
+      "attack_heavy",
+      "bite_shake",
+      "kick",
+      "pounce",
+      "hit_react",
+      "knockdown",
+      "death",
+      "sleep",
+      "feed",
+      "roar"
+    ]
+  },
+  "tactics": {
+    "base": "saber_cat",
+    "_about": "# ASSUMPTION (SP-SPINOSAURUS, owner: 'Be creative with what moves you think they should do when they fight'). A huge lone semi-aquatic hunter on the saber_cat profile. Near a river or the shore it lurks on the bank (the ceratosaurus' water-edge ambush) and opens with the LUNGE out of the shallows (the ambush pounce: sunk low, jaws wide, claws reaching); it closes in on the low wading creep (stalk). From 11-18 m: the lunge (telegraphed by the claw-rake rear-up under the ground ring), the SAIL-FLARE display (alert: broadside, sail shown, roar) into a charge, or a strafe into the lunge. Point blank: the TAIL SWIPE when the prey is behind it (kick), the FOREARM CLAW RAKE (heavy: a held rear-up with the claws cocked, then both claws raked down; Bleed; shoves her) on prey close under its chest, the SNAP-AND-SHAKE (grab: clamps her in the jaws, thrashes her and flings her), else the CROC SNAP (bite). Big and heavy: it strafes and arcs, never hops (w_hop 0, w_dodge 0, scurry back-off). big_stomp: opts in to the shared big-dinosaur stomp (claude/mmo-bigstomp) when it lands; 'stomp' in point_blank is ignored until then.",
+    "scale": 1.6,
+    "stalk": true,
+    "stalk_speed_frac": 0.4,
+    "pin": false,
+    "ambush": true,
+    "ambush_cover": "water",
+    "cover_m": 45.0,
+    "bank_river_m": 10.0,
+    "ambush_radius_m": 12.0,
+    "back_radius_m": 18.0,
+    "ambush_pounce_max_m": 17.0,
+    "ambush_open_s": 2.5,
+    "reach_m": 10.0,
+    "ring_m": 14.0,
+    "pounce_min_m": 11.0,
+    "pounce_max_m": 17.0,
+    "chase_pounce_max_m": 15.0,
+    "pounce_radius_m": 2.6,
+    "pounce_cd": 10.0,
+    "pounce_telegraph_s": 1.2,
+    "pounce_leap_s": 0.6,
+    "leap_height_per_m": 0.02,
+    "pounce_mult": 1.6,
+    "pounce_overshoot_chance": 0.1,
+    "sequences": [
+      {
+        "name": "lunge",
+        "steps": [
+          "pounce"
+        ],
+        "weight": 2.0
+      },
+      {
+        "name": "strafe_left_lunge",
+        "steps": [
+          "strafe_left",
+          "pounce"
+        ],
+        "weight": 1.0
+      },
+      {
+        "name": "strafe_right_lunge",
+        "steps": [
+          "strafe_right",
+          "pounce"
+        ],
+        "weight": 1.0
+      },
+      {
+        "name": "sail_flare_charge",
+        "steps": [
+          "display",
+          "charge"
+        ],
+        "weight": 1.5
+      }
+    ],
+    "display_s": 1.9,
+    "point_blank": [
+      "kick",
+      "heavy",
+      "grab",
+      "stomp",
+      "bite"
+    ],
+    "big_stomp": true,
+    "grab": true,
+    "grab_cd": 9.0,
+    "grab_mult": 1.6,
+    "grab_radius_m": 2.4,
+    "grab_fling_m": 6.0,
+    "grab_up_mps": 5.0,
+    "heavy_reach_m": 8.0,
+    "heavy_cd": 7.0,
+    "heavy_mult": 1.4,
+    "heavy_shove_m": 3.0,
+    "heavy_shove_stagger_s": 0.7,
+    "kick_cd": 5.0,
+    "kick_mult": 1.3,
+    "bite_cd": 3.0,
+    "charge_cd": 9.0,
+    "charge_speed_mult": 1.25,
+    "charge_max_s": 2.4,
+    "w_hop": 0.0,
+    "w_dodge": 0.0,
+    "hop_m": 2.0,
+    "leap_back_m": 2.0,
+    "backoff": "scurry",
+    "scurry_s": 0.9,
+    "max_retreat_m": 22.0
+  }
+}

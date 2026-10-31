@@ -12,6 +12,7 @@
       "windup": true,
       "windup_hold": 0.6,
       "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
+      "note_spinosaurus": "spinosaurus (make_spino_moves.py): forearm claw rake, 1.6 s: rears up with both claws cocked (held to windup_hold 0.6), drops forward and rakes both claws down at 0.72; hits from the hands",
       "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (pipeline.status_clips)"
     },
     "hit_react": {
@@ -120,6 +121,13 @@
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
+    "bite_shake": {
+      "hit_frac": 0.3,
+      "windup": true,
+      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab.",
+      "release_frac": 0.78,
+      "note_spinosaurus": "spinosaurus (SP-SPINOSAURUS, make_spino_moves.py bite_shake): snap-and-shake, 2.5 s: draws back (telegraph), clamps at 0.30, lifts and thrashes three times, whips to its left and opens at release_frac 0.78 (TacticalBrain tactics.grab carries her until release_frac and flings her)."
+    },
     "toss": {
       "hit_frac": 0.3,
       "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
@@ -142,15 +150,12 @@
       "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn",
       "note_raptor": "raptor (RAPTORFLANK, make_raptor_moves.py charge_turn, 0.71 s): the flank's skid-turn after it runs past the prey: brakes leaning back, hops with the arms flung wide and the tail lifted, lands crouched facing the prey; same airborne window, TacticalBrain flank turns the short way inside it"
     },
-    "spit": {
-      "hit_frac": 0.62,
-      "windup": false,
-      "note": "dilophosaurus venom spit (SP-DILOPHOSAURUS, tools/gait/make_dilo_moves.py), 1.4 s: the frill flares and the head draws back and up, jaws gaping (held, quivering, to 0.55), then the neck whips forward; at 0.62 TacticalBrain.launch_spit fires the VenomSpit glob at where the prey stood (the brain's ground ring is the telegraph)"
-    },
-    "bite_shake": {
-      "hit_frac": 0.3,
-      "windup": true,
-      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
+    "leap": {
+      "airborne": [
+        0.12,
+        0.78
+      ],
+      "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
     },
     "charge_windup": {
       "note": "STYRAFIX telegraph before a horned charge (styracosaurus): horns lowered, a fore-foot paws twice, a snort; the body stands still (tools/jaw/make_styra_impale.py)"
@@ -183,17 +188,15 @@
       "windup": true,
       "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up to close_moves.tackle.lunge_m into her and lands the hit on contact (knockdown)"
     },
+    "spit": {
+      "hit_frac": 0.62,
+      "windup": false,
+      "note": "dilophosaurus venom spit (SP-DILOPHOSAURUS, tools/gait/make_dilo_moves.py), 1.4 s: the frill flares and the head draws back and up, jaws gaping (held, quivering, to 0.55), then the neck whips forward; at 0.62 TacticalBrain.launch_spit fires the VenomSpit glob at where the prey stood (the brain's ground ring is the telegraph)"
+    },
     "arm_bite": {
       "hit_frac": 0.42,
       "windup": false,
       "note": "utahraptor (UTAHARMS 2026-10-31): its attack_primary with the hands reaching forward, claws spread, and raking down clenched on the bite (tools/gait/raptor_overlay.py --keep); same timing as attack_primary; TacticalBrain plays it for tactics.bite_alt_chance of the bites"
-    },
-    "leap": {
-      "airborne": [
-        0.12,
-        0.78
-      ],
-      "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
     },
     "grab_bite": {
       "hit_frac": 0.3,
@@ -221,25 +224,6 @@
     }
   },
   "natural_speeds": {
-    "majungasaurus": {
-      "height_m": 5.0,
-      "walk": 2.873,
-      "walk_l": 2.875,
-      "walk_r": 2.871,
-      "walk_len": 1.083,
-      "run": 9.379,
-      "run_l": 9.379,
-      "run_r": 9.379,
-      "run_len": 0.667,
-      "charge": 11.43,
-      "charge_len": 0.583,
-      "strafe_left": 1.915,
-      "strafe_left_len": 1.083,
-      "strafe_right": 1.915,
-      "strafe_right_len": 1.083,
-      "walk_back": 1.915,
-      "walk_back_len": 1.083
-    },
     "carnotaurus": {
       "height_m": 5.74,
       "walk": 3.203,
@@ -275,6 +259,34 @@
       "strafe_right_len": 1.083,
       "walk_back": 0.793,
       "walk_back_len": 1.083
+    },
+    "ceratosaurus": {
+      "height_m": 4.0,
+      "run_l": 11.242,
+      "run_len": 0.542,
+      "run_r": 11.051,
+      "walk_l": 2.912,
+      "walk_len": 1.0,
+      "walk_r": 2.912,
+      "walk": 2.912,
+      "run": 11.146,
+      "strafe_left": 1.941,
+      "strafe_left_len": 1.0,
+      "strafe_right": 1.941,
+      "strafe_right_len": 1.0,
+      "walk_back": 1.941,
+      "walk_back_len": 1.0
+    },
+    "spinosaurus": {
+      "height_m": 9.0,
+      "run_l": 14.355,
+      "run_len": 0.667,
+      "run_r": 14.337,
+      "walk_l": 4.653,
+      "walk_len": 1.208,
+      "walk_r": 4.655,
+      "walk": 4.654,
+      "run": 14.346
     },
     "coelophysis": {
       "height_m": 2.0,
@@ -401,6 +413,23 @@
       "strafe_left_len": 0.917,
       "strafe_right": 1.329,
       "strafe_right_len": 0.917
+    },
+    "megarex": {
+      "height_m": 10.4,
+      "run_l": 5.957,
+      "run_len": 0.917,
+      "run_r": 5.956,
+      "walk_l": 2.018,
+      "walk_len": 1.417,
+      "walk_r": 2.018,
+      "walk": 2.018,
+      "run": 5.957,
+      "strafe_left": 2.018,
+      "strafe_left_len": 1.417,
+      "strafe_right": 2.018,
+      "strafe_right_len": 1.417,
+      "walk_back": 2.018,
+      "walk_back_len": 1.417
     },
     "tyrannosaurus": {
       "height_m": 8.0,
@@ -537,22 +566,41 @@
       "walk_back": 1.162,
       "walk_back_len": 1.0
     },
-    "ceratosaurus": {
-      "height_m": 4.0,
-      "run_l": 11.242,
-      "run_len": 0.542,
-      "run_r": 11.051,
-      "walk_l": 2.912,
-      "walk_len": 1.0,
-      "walk_r": 2.912,
-      "walk": 2.912,
-      "run": 11.146,
-      "strafe_left": 1.941,
-      "strafe_left_len": 1.0,
-      "strafe_right": 1.941,
-      "strafe_right_len": 1.0,
-      "walk_back": 1.941,
-      "walk_back_len": 1.0
+    "therizinosaurus": {
+      "height_m": 8.0,
+      "walk": 3.729,
+      "walk_l": 3.729,
+      "walk_r": 3.729,
+      "walk_len": 1.208,
+      "run": 10.018,
+      "run_l": 10.028,
+      "run_r": 10.009,
+      "run_len": 0.667,
+      "strafe_left": 2.194,
+      "strafe_left_len": 1.208,
+      "strafe_right": 2.194,
+      "strafe_right_len": 1.208,
+      "walk_back": 2.194,
+      "walk_back_len": 1.208
+    },
+    "majungasaurus": {
+      "height_m": 5.0,
+      "walk": 2.873,
+      "walk_l": 2.875,
+      "walk_r": 2.871,
+      "walk_len": 1.083,
+      "run": 9.379,
+      "run_l": 9.379,
+      "run_r": 9.379,
+      "run_len": 0.667,
+      "charge": 11.43,
+      "charge_len": 0.583,
+      "strafe_left": 1.915,
+      "strafe_left_len": 1.083,
+      "strafe_right": 1.915,
+      "strafe_right_len": 1.083,
+      "walk_back": 1.915,
+      "walk_back_len": 1.083
     },
     "dilophosaurus": {
       "height_m": 3.6,
@@ -571,40 +619,6 @@
       "walk_back": 1.838,
       "walk_back_len": 0.917,
       "_note": "SP-DILOPHOSAURUS: walk/run from tools/bake_clip_speeds.py --dry-run; strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.16/0.917 mesh units/s x 3.6/0.3418)"
-    },
-    "megarex": {
-      "height_m": 10.4,
-      "run_l": 5.957,
-      "run_len": 0.917,
-      "run_r": 5.956,
-      "walk_l": 2.018,
-      "walk_len": 1.417,
-      "walk_r": 2.018,
-      "walk": 2.018,
-      "run": 5.957,
-      "strafe_left": 2.018,
-      "strafe_left_len": 1.417,
-      "strafe_right": 2.018,
-      "strafe_right_len": 1.417,
-      "walk_back": 2.018,
-      "walk_back_len": 1.417
-    },
-    "therizinosaurus": {
-      "height_m": 8.0,
-      "walk": 3.729,
-      "walk_l": 3.729,
-      "walk_r": 3.729,
-      "walk_len": 1.208,
-      "run": 10.018,
-      "run_l": 10.028,
-      "run_r": 10.009,
-      "run_len": 0.667,
-      "strafe_left": 2.194,
-      "strafe_left_len": 1.208,
-      "strafe_right": 2.194,
-      "strafe_right_len": 1.208,
-      "walk_back": 2.194,
-      "walk_back_len": 1.208
     },
     "allosaurus": {
       "height_m": 6.5,

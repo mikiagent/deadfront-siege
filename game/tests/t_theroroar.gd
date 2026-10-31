@@ -9,7 +9,7 @@ extends SceneTree
 ##  - MegaRex: a phase change opens with the roar (roar clip as the windup), and its impact fires the burst.
 ## Run: Godot --headless --path game --script res://tests/t_theroroar.gd  -> "[t_theroroar] PASS", exit 0.
 
-const SPECIES: Array[StringName] = [&"ceratosaurus", &"tyrannosaurus", &"megarex", &"allosaurus", &"majungasaurus", &"tarbosaurus"]
+const SPECIES: Array[StringName] = [&"ceratosaurus", &"tyrannosaurus", &"megarex", &"allosaurus", &"majungasaurus", &"tarbosaurus", &"spinosaurus"]
 const FEET := ["Metatarsal.L", "Metatarsal.R", "Toe.L", "Toe.R"]
 const FOOT_TOL := 0.05
 const STEPS := 48

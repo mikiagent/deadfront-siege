@@ -636,6 +636,21 @@ Owner sheet: "use this for the therezino". The PRDs say nothing about the Theriz
 | **TZ4** | Claw sweep shoves her 3 m back (`primary_shove_m`); the hook's first hit drags her up to 3.5 m toward it, never closer than 4.5 m from its centre (`hook_pull_m`, `hook_stop_m`). Both are new `TacticalBrain.landed` hooks. | `tactical_brain.gd`, `ai.json` | The pull sets up the rake; the owner may want it stronger or a stagger on it. |
 | **TZ5** | Only the overhead rake bleeds (`status_applied` bleed_2, limited to attack_heavy by canon's `pipeline.status_clips`). | `therizinosaurus.json` | Bleed strength/duration. |
 | **TZ6** | Spawns: temperate_45 working ring (1, 60 %) and temperate_35 far shore (1, 50 %); climate temperate. Hits use claw-tip marker bones (`ClawTip.L/R`, `pipeline.hit_parts`, radius 1.4-1.6) until claude/mmo-hitboxes lands. | `world/islands.json`, `therizinosaurus.json` | Which islands and how common; move hit parts to hitboxes.json later. |
+
+### SP-SPINOSAURUS (2026-10-31) — the Spinosaurus, a semi-aquatic grab-and-fling predator (claude/mmo-sp-spinosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight". Report `docs/orchestration/reports/claude-sp-spinosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **SPN1** | Size: ~14 m real at the house 1.6x = 21.6 m nose to tail, `height_meters` 9.0 to the sail top (hips 4.9 m, the survivor reaches its knee); `real_length_m` 28 (the roster's 2x). Bigger than the T. rex (8 m). | `spinosaurus.json` | One number if he wants it smaller. |
+| **SPN2** | Stats: tier 58, 20000 HP, attack 620, defense 220, speed 470 (between the allosaurus and the tarbosaurus); tameable in a pen, fish preferred (7 feeds), combat role only (no saddle). One snap or rake kills a fresh 100 HP survivor. | `spinosaurus.json` | Balance pass; rideable or not. |
+| **SPN3** | Moves: snap-and-shake (new `tactics.grab`, bite_shake x1.6: clamps her in the jaws, carries her ~5 m up through three thrashes, flings her 4-6 m to its left); forearm claw rake (attack_heavy x1.4, held rear-up telegraph, the only move that bleeds, shoves her 3 m); croc snap (attack_primary); tail swipe (kick slot); sail-flare display (alert: turns broadside, sail shown, roar) leading into a charge; water lunge (pounce). Point-blank order kick, heavy (only within 8 m: the claws are short), grab, stomp, bite. | `spinosaurus.json` tactics, `TacticalBrain._start_grab` | Move set, multipliers and the grab's height and throw distance are first pass. |
+| **SPN4** | Water: reuses the ceratosaurus' water-edge lurk (dry bank within 45 m of home) and stalks in on a low wading creep (stalk clip); it does not stand in or submerge in the water. Spawns on the far shore (coast) of swamp_55 (1) and tropical_40 (1, 50 %). | `islands.json`, `TacticalBrain._find_water_edge` | A real half-submerged approach needs water depth support in the brain. |
+| **SPN5** | The sail is part of the Tripo body (Tripo kept it whole), weight-smoothed onto the spine chain; it does not flare or fold on its own (the display shows it by turning broadside). | `tools/gait/sail_weights.py` | A sail that visibly flushes or spreads would need sail bones. |
+| **SPN6** | Knockdown/throw tiers: the claude/mmo-knockdown branch is not on canon, so the rake's `heavy_shove_m` and the fling (shove + lift) use today's shove; once PlayerKnock lands they go through it with no spino change (the fling has lift, so it is a throw). Shared big stomp: `big_stomp: true` and `"stomp"` in point_blank are the opt-in hook; nothing reads them yet. | `spinosaurus.json` tactics | Check once both branches are on canon. |
+| **SPN7** | No alpha skin (no alpha sheet was given). | — | Needs an alpha sheet. |
+
 ### HITBOXES (2026-10-31) — every melee hit is a swept attack part touching a hurtbox (claude/mmo-hitboxes)
 
 Owner: "are we even using hitboxes for attacks? We should have hitboxes and it should correlate with whatever is used to attack and whatever is hitable on the body". Report `docs/orchestration/reports/claude-hitboxes.md`, how it works `docs/current/hitboxes.md`.
