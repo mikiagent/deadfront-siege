@@ -74,7 +74,7 @@ func _reset_player(at: Vector3) -> void:
 
 ## pc-combat-02: the heavy's ring must still exist when the bite lands (was gone 0.18-0.42 s early).
 func _telegraph_phase() -> void:
-	for species in [&"velociraptor", &"protoceratops"]:
+	for species in [&"velociraptor", &"zebraceratops"]:
 		var c := _spawn(species, Vector3(6, 0, -6))
 		await _frames(2)
 		var rec := {"live": -1, "at": 0.0}

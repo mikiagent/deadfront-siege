@@ -47,7 +47,7 @@ func run(host: Node) -> void:
 		return
 	player.global_position = platform.global_position+Vector3(2.5,0.5,0)
 	var sp := Spawner.new()
-	sp.species = &"protoceratops"
+	sp.species = &"zebraceratops"
 	sp.count = 1
 	sp.radius = 0.1
 	sp.position = platform.global_position+Vector3(0,0,10)
