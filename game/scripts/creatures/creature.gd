@@ -719,6 +719,8 @@ func _size_collision() -> void:
 func _make_brain() -> void:
 	if is_pet:
 		brain = PetBrain.new()
+	elif def and def.id == &"megarex":
+		brain = MegaRexBrain.new()  # MEGAREX: the boss rex, three phases
 	elif def and def.id == &"tyrannosaurus":
 		brain = TyrantBrain.new()
 	elif def and def.archetype == &"club_tail":

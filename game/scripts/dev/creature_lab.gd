@@ -31,7 +31,8 @@ var spawn_panel: LabSpawnPanel
 var _seq_dir := ""
 var _seq_t := 0.0
 var _seq_n := 0
-const CLIPSHOTS: Array[StringName] = [&"idle", &"walk", &"run", &"alert", &"attack_primary", &"attack_heavy", &"tail_swipe"]
+const CLIPSHOTS: Array[StringName] = [&"idle", &"walk", &"run", &"alert", &"attack_primary", &"attack_heavy", &"tail_swipe",
+	&"bite_shake", &"walk_back", &"strafe_left", &"strafe_right", &"hit_react", &"feed", &"knockdown", &"death", &"sleep", &"pin_foot"]
 var _sheet_dir := ""
 var _sheet_clips: Array[StringName] = [&"investigate", &"sniff"]
 var _clips_given := false
@@ -281,7 +282,7 @@ func _pinshots(dir: String, id: StringName) -> void:
 	await get_tree().create_timer(1.5).timeout
 	var c: Creature = null
 	for n in get_tree().get_nodes_in_group("creatures"):
-		if n is Creature and (n as Creature).def.id == id:
+		if n is Creature and (n as Creature).def.id == id and not (n as Creature).is_pet:  # the lab's tame mount is a rex too
 			c = n
 	if c == null or not (c.brain is TyrantBrain or c.brain is TacticalBrain):
 		push_error("[pinshots] no %s with a TyrantBrain or TacticalBrain" % id)
