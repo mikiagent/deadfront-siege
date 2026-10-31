@@ -46,7 +46,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 
 | Species | Brain (archetype) | Verb | Moves | Fight clips | Verdict |
 |---|---|---|---|---|---|
-| Ankylosaurus | ClubTailBrain (club_tail) | tail club | no rush: shuffles to turn its tail to you; TAIL WHIP (side sweep, knockback), TAIL SMASH (overhead slam behind it, knockdown + shockwave), CLUB SWEEP (long arc behind, also when two of you are close); order whip, whip, smash, whip, sweep; hits only from the club (the head is safe); a ring + the move name for the whole wind-up, roll through it | alert, attack_primary, attack_heavy, tail_swipe | reworked per owner 2026-10-31, re-test |
+| Ankylosaurus | ClubTailBrain (club_tail) | tail club behind, stomp / shove / tackle in front and beside | behind or away: shuffles to turn its tail to you; TAIL WHIP (side sweep, knockback), TAIL SMASH (overhead slam behind it, knockdown + shockwave), CLUB SWEEP (long arc behind, also when two of you are close); order whip, whip, smash, whip, sweep; close in front: STOMP (a forefoot slammed down, area in front, knockdown) and TACKLE (a coil, then a run of up to 2.5 m into you, knockdown; also when you stand just past the stomp), alternating; close beside it: SHOVE (head and shoulders swung into your side, 3 m knockback sideways); one punch from close makes it fight (no look-around), it waits for you to get up; each move shows a ring + its name, roll through it | alert, attack_primary, attack_heavy, tail_swipe, stomp, shove_left, shove_right, tackle | close moves added per owner 2026-10-31 ("hardly fighting back"), re-test |
 | Coelophysis | TacticalBrain (flock_harass; the deinonychus profile) | flock harass, darting bites | backstep, strafe, pounce, charge, combo, ambush from cover, leap-in, back-leaps; lighter hits (pounce x2.0, combo x0.8) | alert, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Megaloceros | TacticalBrain (antlered, horned_charger moves, skittish-territorial) | antler gore, flees | runs from the first threat, then turns and fights: display, straight antler ram, attack_heavy at point blank, hind kick from behind; runs again under 30 % HP | alert, attack_primary, attack_heavy, kick, charge | brain reworked per owner 2026-10-31 (model and clips being rebuilt on claude/mmo-sp-megaloceros), re-test |
 | Compsognathus | TacticalBrain (swarm) | swarm nips, four to eight at once | charge, pounce, strafe, backstep | alert, attack_primary, attack_heavy, pounce | |
@@ -69,6 +69,8 @@ Verdict: approve / new animations / reject model / new moves or AI.
 
 ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
 archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
+ANKYLOCLOSE: the close moves and the zone that draws them are `ai.json archetypes.club_tail.close_moves` / `close_zone`;
+test `game/tests/t_ankyloclose.gd`; review shots `--lab=ankyloai_lab --out=DIR --moves=stomp,shove_right,tackle`.
 
 No glide (owner 2026-10-31): a body never moves under a one-shot. Attacks play in place; alert, sniff and hit_react
 give way to the stride-matched gait when the brain moves the body; leaps move on their own arc. Test:
