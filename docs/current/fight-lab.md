@@ -57,7 +57,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Stegosaurus | CreatureBrain (spiked_tail) | thagomizer tail sweep | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
 | Styracosaurus | TacticalBrain (horned_charger) | horn sweep, knockback | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
 | Triceratops | TacticalBrain (horned_charger) | full charge | display, charge, strafe | alert, attack_primary, attack_heavy | |
-| Tyrannosaurus | TyrantBrain (tyrant) | three-phase raid: stomp, roar, tail | telegraphed bite, stomp every 3rd attack, tail whip from behind, roar on spotting | alert, attack_primary, attack_heavy, tail_swipe | |
+| Tyrannosaurus | TyrantBrain (tyrant) | three-phase raid: stomp, roar, tail | telegraphed bite, stomp every 3rd attack (a stomp that lands pins you under its foot), tail whip from behind, roar on spotting | alert, attack_primary, attack_heavy, tail_swipe, pin_foot | |
 | Utahraptor | TacticalBrain (apex_raptor; the deinonychus profile, distances x1.4) | one devastating claw strike | backstep, strafe, pounce (x3.0), charge, combo, ambush from cover, leap-in, back-leaps | alert, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Velociraptor | TacticalBrain (pack_raptor; the deinonychus profile, distances x0.75, no tree ambush) | pounce knockdown from off-screen | sniff, then the investigate hold (3 s), then backstep, strafe, pounce, charge, combo, leap-in, back-leaps; lighter hits (pounce x2.0, combo x0.8) | alert, investigate, sniff, attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right | reworked per owner 2026-10-31, re-test |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
@@ -75,6 +75,9 @@ are the deinonychus clips moved onto each rig (`tools/gait/transfer_clips.py --f
 Skittish-territorial (Gallimimus, Megaloceros; `tactics.territorial` in `ai.json`): the first threat sends it running;
 after 3 s, or when the flight outruns the leash, it turns on the threat (within 30 m) and fights while the threat stays.
 Under 30 % HP it runs again; once the threat is gone it grazes and the cycle restarts. Test: `game/tests/t_coelomoves.gd`.
+
+Pin shots: `-- --lab=creature_lab --god --skip-charcreate --species=tyrannosaurus --pinshots=DIR` (windowed, off
+screen with `--position 6000,3000`) saves the stomp, the foot pin and the release, then quits. Test: `game/tests/t_pinfeel.gd`.
 
 Test: `game/tests/t_godlab.gd` (GOD survives a T. rex bite chain at full health, off without `--god`; NEXT
 cycles every modelled species, one model each).

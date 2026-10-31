@@ -286,14 +286,20 @@
     },
     "zebraceratops": {
       "height_m": 1.8,
-      "run_l": 4.102,
+      "run_l": 4.105,
       "run_len": 0.625,
       "run_r": 4.109,
       "walk_l": 1.541,
       "walk_len": 0.833,
-      "walk_r": 1.541,
-      "walk": 1.541,
-      "run": 4.106
+      "walk_r": 1.54,
+      "walk": 1.54,
+      "run": 4.107,
+      "strafe_left": 1.027,
+      "strafe_left_len": 0.833,
+      "strafe_right": 1.027,
+      "strafe_right_len": 0.833,
+      "walk_back": 1.027,
+      "walk_back_len": 0.833
     }
   }
 }
