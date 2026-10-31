@@ -67,3 +67,8 @@ not show in a fight, and verbs such as Gallimimus "kick" have no move behind the
 
 Test: `game/tests/t_godlab.gd` (GOD survives a T. rex bite chain at full health, off without `--god`; NEXT
 cycles every modelled species, one model each).
+
+Reach on big bodies (BIGREACH): a swing is in reach by the old centre rule or when the survivor's edge is within
+`player_melee.edge_reach_m` (0.5 m) of the creature's visible footprint (`Creature.footprint()`, mesh bounds), so
+the flank, legs, head and tail all count; auto-attack walks to the nearest point of that footprint, not the centre.
+The collision capsule is clamped to the visible half-width. Test: `game/tests/t_bigreach.gd`.
