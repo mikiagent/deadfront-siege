@@ -85,6 +85,8 @@ func _run() -> void:
 		quit(1)
 
 func _spawn(id: StringName, variant: StringName = &""):
+	player.sim.knock.cancel()  # KNOCKDOWN (rooted): no fall left over from the last case (she would not be sent again)
+	player.statuses.clear_all()
 	_place(Vector3(40, 0, 40))  # out of the way: a body spawned on top of her throws her into the sky
 	for i in 3:
 		await physics_frame
