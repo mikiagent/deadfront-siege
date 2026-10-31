@@ -465,7 +465,8 @@
       "_attack_range": "ASSUMPTION (COELOMOVES 2026-10-31): attack_range set so the survivor's surface at contact reach (attack_range + 0.3 - 0.35) sits just inside where the snout is at the bite's hit frame (measured on the clip, game scale): coelophysis snout 2.28 m -> surface 2.15 m (was 1.6: 1.55 m, the head passed 0.7 m through her)."
     },
     "venom_ranged": {
-      "attack_range": 2.4,
+      "_attack_range_note": "# ASSUMPTION (SP-DILOPHOSAURUS): 2.4 -> 3.0. The only venom_ranged species is the dilophosaurus, whose snout is 3.2 m ahead of its origin at rest and 3.8 m at the snap; at 2.4 (contact 2.7 m) it bit the air short of her.",
+      "attack_range": 3.0,
       "weak_to": [
         "blunt"
       ],
@@ -623,6 +624,103 @@
         "bound_cd": 1.8,
         "coiled_s": 0.6,
         "chase_pounce_telegraph_s": 0.0
+      }
+    },
+    "opportunist": {
+      "attack_range": 4.2,
+      "_attack_range": "ASSUMPTION (majungasaurus): the jaws are ~4 m ahead of the body centre at its size; hits still need the named part (pipeline.hit_parts) on her at the hit frame.",
+      "weak_to": [
+        "slashing"
+      ],
+      "resists": [],
+      "chase_speed_mult": 0.75,
+      "perception_base": 12.0,
+      "tactics": {
+        "_about": "OPPORTUNIST (majungasaurus, SP-MAJUNGASAURUS 2026-10-31, owner: 'be creative with what moves you think they should do'). A scavenger's patience: it keeps to a wide ring and circles, holds and roars while the prey is healthy, testing with a rare rush; once the prey is under weak_prey.hp_frac (50%) it commits: rushes (homing charge, the run with the jaws out) far more often and sooner, cooldowns and waits cut. The rush and the point-blank bite are the CRUSHING BITE: a bite that lands GRABS (bite_pin): the prey is held Pinned low in front of the chest while pin_stab shakes it twice (x pin_mult each), then it lets go and backs off. Point blank it also HEADBUTTS with the skull knob (attack_heavy: rears back, chin tucked, paws the ground = the telegraph). Prey behind it gets the LOW TAIL SWIPE (the kick clip, hit from the tail). Getting behind and to the side of its legs, or keeping your health up, keeps it circling. Backs off at a scurry (no hop clips). Every number is an ASSUMPTION (first pass, not balanced).",
+        "sequences": [
+          {
+            "name": "rush",
+            "steps": [
+              "charge"
+            ],
+            "weight": 0.3
+          },
+          {
+            "name": "roar_rush",
+            "steps": [
+              "display",
+              "charge"
+            ],
+            "weight": 0.3
+          }
+        ],
+        "point_blank": [
+          "heavy",
+          "kick",
+          "bite"
+        ],
+        "attack_priority": [
+          "heavy",
+          "kick",
+          "bite"
+        ],
+        "ring_m": 11.0,
+        "circle_speed_frac": 0.6,
+        "circle_step_deg": 22.0,
+        "circle_min_s": 1.6,
+        "circle_max_s": 3.0,
+        "contact_after_s": 1.2,
+        "flip_chance": 0.3,
+        "bite_cd": 3.0,
+        "bite_pin": true,
+        "healthy_commit_chance": 0.25,
+        "pin": true,
+        "pin_cd": 9.0,
+        "pin_mult": 1.1,
+        "pin_reach_m": 4.0,
+        "heavy_cd": 7.0,
+        "heavy_mult": 1.6,
+        "kick_cd": 4.0,
+        "kick_mult": 1.2,
+        "charge_cd": 9.0,
+        "charge_speed_mult": 1.35,
+        "charge_max_s": 2.4,
+        "display_s": 1.4,
+        "display_charge_m": 6.0,
+        "backoff": "scurry",
+        "scurry_s": 1.0,
+        "hop_m": 4.0,
+        "hop_cd": 4.0,
+        "max_retreat_m": 16.0,
+        "w_hold": 0.8,
+        "w_strafe": 0.7,
+        "w_dodge": 0.0,
+        "w_feint": 0.2,
+        "w_hop": 0.2,
+        "hold_min_s": 1.0,
+        "hold_max_s": 2.0,
+        "feint_s": 1.0,
+        "wait_max_s": 3.0,
+        "opening_swing_cd_s": 0.2,
+        "retreat_frac": 0.25,
+        "retreat_s": 3.0,
+        "retreat_cd": 14.0,
+        "max_basic_streak": 2,
+        "max_basic_share": 0.3,
+        "weak_prey": {
+          "hp_frac": 0.5,
+          "w_charge": 8.0,
+          "cooldown_mult": 0.45,
+          "wait_mult": 0.25,
+          "beat_mult": 0.5,
+          "w_feint": 2.0
+        },
+        "enraged": {
+          "cooldown_mult": 0.6,
+          "w_charge": 2.0,
+          "beat_mult": 0.7,
+          "wait_mult": 0.5
+        }
       }
     },
     "tyrant": {

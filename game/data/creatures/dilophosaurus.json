@@ -10,7 +10,7 @@
   "archetype": "venom_ranged",
   "tameable": true,
   "capture_tier": 4,
-  "verb": "ranged venom spit",
+  "verb": "frill flare and hiss, venom spit, snapping bite, leaping slash",
   "status_applied": [
     "venom"
   ],
@@ -24,13 +24,22 @@
   "tamed_role": [
     "combat"
   ],
-  "look": "6 meter slender theropod with a pair of thin rounded crests on top of the head, notched snout, NO neck frill, long tail, short folded arms, dark teal with yellow crest markings and a pale belly,",
-  "texture_prompt": "dark teal scaly hide, yellow and red crest markings, pale cream belly, matte surface",
+  "look": "slender 7 meter crested theropod with a pair of thin rounded crests on top of the head, a wide paper-thin neck frill folded flat along the neck that flares open into a pale yellow fan veined with red, long whip tail, short clawed arms, tan/khaki hide with dark green mottling and tail bands, pale belly, red-brown feet with black claws; the alpha is olive with rust spots and a fiery orange and yellow frill",
+  "texture_prompt": "tan and khaki scaly hide with dark green mottling and tail bands, pale cream belly, red-brown scaly feet, black claws; frill membrane pale yellow cells with red veins and a dark serrated rim",
   "clips": {
-    "attack_primary": "Theropod lunges and bites",
-    "attack_heavy": "Theropod rears its head back, holds, then whips it forward spitting",
-    "knockdown": "Theropod staggers and collapses on its side",
-    "alert": "Theropod raises its head and hisses"
+    "idle": "Breathing, weight rolling foot to foot, a look round, whip tail sway, frill folded",
+    "walk": "Long-striding biped walk, tail swinging",
+    "run": "Fast run, body level and leaning, head low, frill folded",
+    "alert": "Frill snaps open and rattles, body sinks, head up swaying side to side in a long hiss (the threat display and hold pose)",
+    "attack_primary": "Quick snapping bite: a flick of the frill, the head darts forward off a short step, jaws snap shut",
+    "attack_heavy": "Flare and slash: frill flared and rattling, sinks into a hissing crouch (telegraph), then rakes the right foot forward and down claws first (also the pounce windup)",
+    "spit": "Venom spit: frill flares, the head draws back and up with jaws gaping, then whips forward and the venom glob leaves at the hit frame",
+    "pounce": "Leaping slash: crouch, leap with the legs tucked then thrown forward toes-up, lands feet first raking both sickle claws down on the prey",
+    "hit_react": "Head and chest jerk back, the frill flicks half open, a stagger step back",
+    "knockdown": "Knees buckle, the frill flares in alarm, topples onto its right side",
+    "death": "A last stagger, falls onto its side, neck and tail slack, the frill half spread",
+    "feed": "Head down on the carcass, tearing, a hard yank back",
+    "sleep": "Settles belly-down onto folded legs, chin down, tail curled round"
   },
   "taming": {
     "preferred_food": [
@@ -70,12 +79,220 @@
         "id": "countershade",
         "weight": 2.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "",
         "weight": 3.0
       }
     ]
+  },
+  "size_note": "# ASSUMPTION (SP-DILOPHOSAURUS): height_meters 3.6 (top of the crests) is unchanged: the 10.5 m long model (half of it the whip tail) is the house 1.6x of a ~6.5 m animal, hip 2.1 m; real_length_m 12 is the roster's 2x convention.",
+  "pipeline": {
+    "forward_axis": "+Z",
+    "source_height_m": 0.3418,
+    "source_length_m": 0.998,
+    "route": "rig_biped_v1 + Blender frill (tools/gait/build_dilophosaurus.sh)",
+    "mesh": "Tripo P1 multiview (front, left, back, right), task edf6ddcc-0972-4860-800b-c2bc732cab43, 50 Tripo credits (task credits_consumed 50; shared balance 2205 before, 2155 after, 2026-10-31)",
+    "mesh_source": "res://assets/creatures/dilophosaurus/work/dilophosaurus_tripo_v1.glb",
+    "mesh_views": "ref/dilophosaurus_view_{front,left,back,right}.png: Codex drew a FRILL-LESS standing left view from owner sheet 1, then front and back from it; right = left mirrored",
+    "reference_sheet": "game/assets/creatures/dilophosaurus/ref/dilophosaurus_sheet.png (owner sheet 1, regular) and dilophosaurus_alpha_sheet.png (owner sheet 2, alpha)",
+    "rig": "tools/gait/rig_biped.py with tools/gait/dilophosaurus_rig.json (joints read off ortho renders)",
+    "jaw": "tools/jaw/add_jaw.py --open --snout 0.108 --pivot 0.049 0.273 --reach 1.0",
+    "frill": "tools/gait/dilophosaurus_frill.py: the membrane built in Blender (the thin frill is a Tripo risk), 7 rib bones a side on Neck2 (Frill1-7.L/R), folded flat along the neck at rest and flared by the clips (tools/gait/dilophosaurus_frill.json holds the open rotations); painted into the bottom 20 % of the atlas; the origin moved forward to mid-torso (the snout is 3.2 m ahead of it)",
+    "gaits": "tools/gait/make_gait.py tools/gait/dilophosaurus.json: walk, run; strafe_left/right and walk_back from the walk plan (stride 0.16)",
+    "clips_from": {
+      "idle,alert,attack_primary,attack_heavy,spit,pounce,hit_react,knockdown,death,sleep,feed": "tools/gait/make_dilo_moves.py (feet IK-planted; lying clips rest on the floor; jaw and frill keyed)"
+    },
+    "grounding": "tools/gait/ground_clip.py on every clip but the pounce (the game flies it)",
+    "build": "tools/gait/build_dilophosaurus.sh; gate tools/gait/check_dilophosaurus.py --height 3.6",
+    "credits_spent": 50,
+    "hit_parts": {
+      "attack_primary": {
+        "bones": [
+          "Head",
+          "Jaw"
+        ],
+        "radius_m": 1.0
+      },
+      "attack_heavy": {
+        "bones": [
+          "Toe.R",
+          "Metatarsal.R"
+        ],
+        "radius_m": 1.1
+      },
+      "pounce": {
+        "bones": [
+          "Toe.L",
+          "Toe.R",
+          "Head"
+        ],
+        "radius_m": 1.4
+      }
+    },
+    "hit_parts_note": "SP-DILOPHOSAURUS: each hit also needs its part (Creature.part_hit, canon's stand-in until the hitbox system lands): the snap from the jaws, the rake from the right foot, the leaping slash from either foot (or the jaws); # ASSUMPTION radii (metres at size 1, plus the target's radius). The spit is a projectile (VenomSpit) and lands its own hit.",
+    "model_variants": {
+      "regular": "",
+      "alpha": "dilophosaurus_alpha_albedo.jpg"
+    },
+    "variant_note": "alpha = the owner's sheet 2 (olive with rust spots, fiery orange frill) as a recolour of the regular albedo plus a repainted frill strip (tools/gait/dilophosaurus_alpha_skin.py); Creature.spawn gives it to alphas only",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "alert",
+      "attack_primary",
+      "attack_heavy",
+      "spit",
+      "pounce",
+      "hit_react",
+      "knockdown",
+      "death",
+      "sleep",
+      "feed"
+    ]
+  },
+  "tactics": {
+    "_about": "VENOM SPITTER (SP-DILOPHOSAURUS, owner 2026-10-30: 'be creative with what moves you think they should do'). A ranged skirmisher: it holds a 7 m ring and its telegraph is the frill: it flares and hisses (alert) before every big move. From 3.5-11 m it SPITS venom (spit: the frill flares, the head draws back, then whips forward and a glob flies at where the prey stood under a ground ring; stepping or rolling out of the ring dodges it; Venom, the species' existing status, rides on the spit only). From 4-8 m it LEAPS and SLASHES with both feet (pounce, windup = attack_heavy's flared hissing crouch). Point blank it rakes with a foot (heavy, attack_heavy) or snaps (bite, attack_primary), then backsteps out to spitting range. Coming in or chasing it spits first. Every number an ASSUMPTION (first pass, not balanced).",
+    "sequences": [
+      {
+        "name": "spit",
+        "steps": [
+          "spit"
+        ],
+        "weight": 3.0
+      },
+      {
+        "name": "display_spit",
+        "steps": [
+          "display",
+          "spit"
+        ],
+        "weight": 1.5
+      },
+      {
+        "name": "backstep_spit",
+        "steps": [
+          "backstep",
+          "spit"
+        ],
+        "weight": 1.5
+      },
+      {
+        "name": "strafe_left_spit",
+        "steps": [
+          "strafe_left",
+          "spit"
+        ],
+        "weight": 1.0
+      },
+      {
+        "name": "strafe_right_spit",
+        "steps": [
+          "strafe_right",
+          "spit"
+        ],
+        "weight": 1.0
+      },
+      {
+        "name": "pounce",
+        "steps": [
+          "pounce"
+        ],
+        "weight": 1.5
+      },
+      {
+        "name": "display_pounce",
+        "steps": [
+          "display",
+          "pounce"
+        ],
+        "weight": 1.0
+      }
+    ],
+    "point_blank": [
+      "heavy",
+      "bite"
+    ],
+    "approach_spit": true,
+    "status_clips": [
+      "spit"
+    ],
+    "ring_m": 7.0,
+    "circle_speed_frac": 0.6,
+    "contact_after_s": 0.8,
+    "circle_step_deg": 30.0,
+    "circle_min_s": 0.8,
+    "circle_max_s": 1.6,
+    "flip_chance": 0.3,
+    "display_s": 0.9,
+    "spit_cd": 6.0,
+    "spit_min_m": 3.5,
+    "spit_max_m": 11.0,
+    "spit_mult": 0.6,
+    "spit_speed_mps": 16.0,
+    "spit_radius_m": 1.0,
+    "bite_cd": 2.5,
+    "lunge_speed_mult": 1.1,
+    "lunge_max_s": 1.0,
+    "feint_s": 0.7,
+    "heavy_cd": 6.0,
+    "heavy_mult": 1.4,
+    "pounce_cd": 8.0,
+    "pounce_min_m": 4.0,
+    "pounce_max_m": 8.0,
+    "chase_pounce_max_m": 7.0,
+    "pounce_telegraph_s": 0.9,
+    "pounce_leap_s": 0.5,
+    "pounce_radius_m": 1.6,
+    "pounce_recover_s": 0.7,
+    "pounce_miss_recover_s": 1.4,
+    "pounce_mult": 1.5,
+    "pounce_overshoot_chance": 0.15,
+    "pounce_overshoot_m": 2.5,
+    "leap_height_per_m": 0.2,
+    "retreat_frac": 0.3,
+    "retreat_s": 2.5,
+    "retreat_cd": 12.0,
+    "retreat_speed_frac": 1.1,
+    "wide_ring_mult": 1.4,
+    "wide_circle_s": 3.0,
+    "hop_m": 4.0,
+    "hop_s": 0.4,
+    "hop_land_s": 0.15,
+    "hop_cd": 3.5,
+    "leap_back_m": 5.0,
+    "max_retreat_m": 14.0,
+    "strafe_m": 2.5,
+    "strafe_s": 0.5,
+    "dodge_height_per_m": 0.08,
+    "w_hold": 0.8,
+    "w_strafe": 0.4,
+    "w_dodge": 0.3,
+    "w_feint": 0.1,
+    "w_hop": 0.3,
+    "hold_min_s": 0.8,
+    "hold_max_s": 1.6,
+    "wait_max_s": 2.5,
+    "opening_swing_cd_s": 0.2,
+    "max_basic_streak": 2,
+    "max_basic_share": 0.3,
+    "pack_gap_s": 0.6,
+    "enraged": {
+      "cooldown_mult": 0.6,
+      "w_spit": 1.3,
+      "w_pounce": 1.4,
+      "beat_mult": 0.6,
+      "wait_mult": 0.5
+    },
+    "alpha": {
+      "tactic_cooldown_mult": 0.7,
+      "tactic_hold_mult": 0.6,
+      "tactic_w_spit": 1.4
+    }
   }
 }

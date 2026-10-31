@@ -349,7 +349,13 @@
     "lifetime_hours": 12,
     "crater_type": "plant",
     "spawns": {
-      "gathering": [],
+      "gathering": [
+        {
+          "species": "megatherium",
+          "count": 2,
+          "groups": 1
+        }
+      ],
       "working": [
         {
           "species": "deinonychus",
@@ -432,8 +438,14 @@
       ],
       "far_shore": [
         {
-          "species": "allosaurus",
+          "species": "spinosaurus",
           "count": 1,
+          "groups": 1,
+          "chance": 0.5
+        },
+        {
+          "species": "allosaurus",
+          "count": 2,
           "groups": 1,
           "chance": 0.3
         },
@@ -466,6 +478,11 @@
       ],
       "working": [
         {
+          "species": "majungasaurus",
+          "count": 1,
+          "groups": 1
+        },
+        {
           "species": "styracosaurus",
           "count": 3,
           "groups": 1
@@ -486,6 +503,11 @@
       ],
       "far_shore": [
         {
+          "species": "majungasaurus",
+          "count": 1,
+          "groups": 1
+        },
+        {
           "species": "utahraptor",
           "count": 2,
           "groups": 1
@@ -504,7 +526,13 @@
     "lifetime_hours": 12,
     "crater_type": "animal",
     "spawns": {
-      "gathering": [],
+      "gathering": [
+        {
+          "species": "megatherium",
+          "count": 1,
+          "groups": 1
+        }
+      ],
       "working": [
         {
           "species": "therizinosaurus",
@@ -592,7 +620,7 @@
       "far_shore": [
         {
           "species": "allosaurus",
-          "count": 1,
+          "count": 2,
           "groups": 1
         }
       ]
@@ -649,6 +677,11 @@
         }
       ],
       "far_shore": [
+        {
+          "species": "spinosaurus",
+          "count": 1,
+          "groups": 1
+        },
         {
           "species": "dilophosaurus",
           "count": 3,

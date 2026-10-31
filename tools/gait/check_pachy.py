@@ -10,6 +10,7 @@ Every clip in anim/ is checked for
   is within 4 cm of the most forward point of the body; its reach ahead of the origin is printed (attack_range is set from it),
 - the stomp is the hit (attack_heavy at 0.72): the right foot is down (sole within 4 cm) and came down fast (>= 2 m/s
   over the previous 3 frames) after being at least 0.35 m up,
+- hop_back: frames inside its airborne window (AIR) are not held to the floor; bull_windup's pawing foot (PAW) may scrape,
 - the hip check is the hit (kick at 0.45): the rump and tail base swing sideways at >= 2 m/s.
 usage: Blender -b -P tools/gait/check_pachy.py -- <base.glb> <anim_dir> --height 1.8   (exit 1 on any FAIL)
 """
@@ -29,6 +30,8 @@ HIT = {"attack_primary": 0.42, "attack_heavy": 0.72, "kick": 0.45}
 GAITS = {"walk": 1, "run": 1, "charge": 1, "walk_back": -1}  # sign of the planted foot's y drift (+y = backwards)
 STRAFE = {"strafe_left": -1, "strafe_right": 1}  # sign of x drift of a planted foot (+x = the animal's left)
 LYING = {"knockdown", "death", "sleep"}
+AIR = {"hop_back": (0.2, 0.65)}  # anim_events airborne: the game lifts the body on its arc, the feet tuck (no touch/glide gate)
+PAW = {"bull_windup": "R"}  # the pawing foot scrapes back along the ground on purpose
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.render.fps = FPS
 bpy.ops.import_scene.gltf(filepath=base)
@@ -98,10 +101,12 @@ for f in sorted(os.listdir(anim_dir)):
     f0, f1 = int(act.frame_range[0]), int(act.frame_range[1])
     lows, stretch, where = [], 1.0, {}
     toe, sole, dome, hips, front = {s: [] for s in "LR"}, {s: [] for s in "LR"}, [], [], []
+    air = AIR.get(clip)
     for fr in range(f0, f1 + 1):
         sc.frame_set(fr)
         p = pts()
-        lows.append(p[:, 2].min())
+        u = (fr - f0) / max(1, f1 - f0)
+        lows.append(p[:, 2].min() if not (air and air[0] < u < air[1]) else 0.0)
         l = np.linalg.norm(p[edges[:, 0]] - p[edges[:, 1]], axis=1)
         r = np.where(ok, l / np.maximum(rl, 1e-9), 1.0)
         if r.max() > stretch:
@@ -141,6 +146,8 @@ for f in sorted(os.listdir(anim_dir)):
                 bad.append(f"moonwalk {s} {d:+.2f}")
     elif clip not in LYING:
         for s in "LR":
+            if PAW.get(clip) == s:
+                continue
             slide, start = 0.0, None
             for t in toe[s]:
                 if t[2] < 0.03:

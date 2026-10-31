@@ -111,7 +111,7 @@ func _test_tiers() -> void:
 	var cases := [
 		[&"zebraceratops", "charge_shove_m", 0.0, K.Tier.LIGHT],
 		[&"pachycephalosaurus", "charge_shove_m", 0.0, K.Tier.KNOCKDOWN],
-		[&"styracosaurus", "charge_shove_m", 0.0, K.Tier.KNOCKDOWN],
+		[&"styracosaurus", "charge_shove_m", 0.0, K.Tier.THROW],  # STYRAFIX made it bigger (size 1.5)
 		[&"triceratops", "charge_shove_m", 0.0, K.Tier.THROW],
 		[&"carnotaurus", "charge_shove_m", 0.0, K.Tier.THROW],
 		[&"woolly_rhino", "charge_shove_m", 5.5, K.Tier.THROW],

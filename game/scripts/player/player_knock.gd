@@ -25,7 +25,7 @@ const SIZE_MIN := 0.6
 const SIZE_MAX := 1.5
 ## ASSUMPTION: a throw with no lift of its own leaves the ground at 5 m/s (about 1.3 m up, 1 s in the air).
 const THROW_LIFT_MPS := 5.0
-## ASSUMPTION: a throw carries her 3..9 m.
+## ASSUMPTION: a throw carries her the move's push metres, clamped to 3..9 m.
 const THROW_MIN_M := 3.0
 const THROW_MAX_M := 9.0
 ## ASSUMPTION: seconds flat on her back before she gets up (the wind knocked out of her).
@@ -50,7 +50,11 @@ var _lie_s := LIE_S
 ## Where the last throw left the ground and came down (tests and the report read them).
 ## fall_back's start offset this fall (LAND_FROM_S after a throw, else 0).
 var _fall_from := 0.0
+## Set by CreatureAttack while a basic attack's Knockdown token is applied: that one does not lay her down.
+var token_light := false
 var launched_at := Vector3.ZERO
+## The throw's flat distance: past it she only drops (thrown from a height she would fly on further).
+var _throw_m := 0.0
 var landed_at := Vector3.ZERO
 
 func _init(player: Player) -> void:
@@ -90,15 +94,15 @@ func hit(push: Vector3, lift_mps: float, who: Creature) -> int:
 			return want
 		_end(false)
 	if want == Tier.THROW:
-		_throw(push * size_scale(who), lift_mps if lift_mps > 0.0 else THROW_LIFT_MPS, who)
+		_throw(push, lift_mps if lift_mps > 0.0 else THROW_LIFT_MPS, who)  # the move's own metres: size picks the tier only
 	else:
 		_knockdown(push, LIE_S)
 	return want
 
-## The `knockdown` status landed from anything else (a species token, the club tail's smash): she falls and lies
+## The `knockdown` status landed from anything else (a heavy hit's species token, the club tail's smash): she falls and lies
 ## out the status. Ignored while she is already down, pinned, riding or swimming.
 func on_knockdown_status() -> void:
-	if active() or not _can_react() or p.mounted_on:
+	if token_light or active() or not _can_react() or p.mounted_on:
 		return
 	var inst := p.statuses.get_instance(&"knockdown")
 	var left := inst.time_left if inst else LIE_S
@@ -129,6 +133,7 @@ func _throw(push: Vector3, lift: float, who: Creature) -> void:
 	var flight := 2.0 * lift / g
 	var dir := push.normalized() if push.length_squared() > 0.0001 else -p.visual.global_basis.z
 	var dist := clampf(push.length(), THROW_MIN_M, THROW_MAX_M)
+	_throw_m = dist
 	_vel = dir * (dist / flight)
 	p.velocity = _vel + Vector3.UP * lift
 	p.face_world(p.global_position - dir)
@@ -165,8 +170,10 @@ func tick(delta: float) -> bool:
 		p.velocity += p.get_gravity() * delta
 	match phase:
 		Phase.AIR:
-			p.velocity.x = _vel.x
-			p.velocity.z = _vel.z
+			var flown := Vector2(p.global_position.x - launched_at.x, p.global_position.z - launched_at.z).length()
+			var k := 1.0 if flown < _throw_m else 0.0
+			p.velocity.x = _vel.x * k
+			p.velocity.z = _vel.z * k
 			p.move_and_slide()
 			p.sim.shoreline_guard()
 			if p.swimming:

@@ -140,7 +140,9 @@ def toe_pivot(leg, ankle, pitch, planted):
     """Rotate the foot about its toe while the heel peels off (stance) so the toe never slides."""
     toe_vec = leg["toe0"] - leg["ankle0"]
     r = Matrix.Rotation(pitch, 4, -SIDE)  # positive pitch = toe down
-    if planted and pitch > 0:
+    # swing_toe_pivot (RAPTORFLANK): keep pivoting about the toe through the swing too, so the toe carries the planned
+    # lift; without it the heel-off pivot snapped away at toe-off and the toe dug 11 cm into the ground (raptor walk).
+    if (planted or clip.get("swing_toe_pivot", 0)) and pitch > 0:
         toe = ankle + toe_vec
         ankle = toe - (r.to_3x3() @ toe_vec)
     return ankle, r

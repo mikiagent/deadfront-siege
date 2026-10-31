@@ -1,0 +1,147 @@
+{
+  "species": "Giant ground sloth",
+  "clade": "Megatheriidae",
+  "period": "Pleistocene",
+  "real_length_m": 12.0,
+  "height_meters": 3.39,
+  "rig": "quadruped",
+  "tier": 40,
+  "climate": "temperate",
+  "archetype": "titan",
+  "tameable": true,
+  "capture_tier": 3,
+  "verb": "rears up on its tail, hooks with its claws and crushes in a bear hug",
+  "status_applied": [
+    "bleed"
+  ],
+  "stats": {
+    "hp": 5200,
+    "attack": 240,
+    "defense": 260,
+    "speed": 420,
+    "bag_slots": 100
+  },
+  "turn_rate": 1.6,
+  "tamed_role": [
+    "bag",
+    "combat"
+  ],
+  "_assumptions": "ASSUMPTION (the PRDs are silent on the giant sloth; Open Questions GS1-GS6): a temperate titan (big, defensive herbivore: it ignores you until you crowd or hit it); tier 40 between the woolly rhino (38) and the smilodon (45); stats a little above the woolly rhino (more HP and defence, slower); tamed as a pack animal and fighter (bag + combat), no saddle yet; real_length_m 12 = the roster's 2x of a 6 m animal; height 3.39 m to the top of the head on all fours = 1.75 m at the shoulder x1.6 house exaggeration (2.8 m withers), about 6 m tall reared in the tripod.",
+  "look": "giant ground sloth (Megatherium) on all fours, 2.8 meters at the shoulder and 8 meters nose to tail, shaggy rufous-brown fur with pale cream shoulder and flank bands, a long thick tail, small head with a blunt muzzle, huge forearms that knuckle-walk on long curved grey claws",
+  "texture_prompt": "shaggy rufous-brown fur with cream bands across the shoulders and flanks, darker legs, grey-ivory claws, matte",
+  "prompt": "giant ground sloth, Megatherium, shaggy rufous fur, knuckle-walking on long curved claws, thick tail",
+  "clips": {
+    "alert": "Rears up into the tripod (hind legs and tail), throws its arms wide with the claws splayed and roars: the threat display",
+    "attack_primary": "Hooking claw pull: half-rears, the right arm reaches far out, hooks her and hauls her in toward its chest",
+    "attack_heavy": "Two-arm overhead swipe: up into the tripod, both arms high and held trembling (the tell), then both claw hands come down together through the front (bleeds)",
+    "grab": "The bear hug's windup: rears up with the arms thrown wide open",
+    "pounce": "The bear hug: lurches forward out of the tripod, the arms close round her and bear her to the ground",
+    "pin_stab": "The crush: holds her down under its chest in the hug and squeezes twice",
+    "charge": "The lumbering advance: upright on its hind legs, arms out, slow heavy steps that hits do not stop",
+    "toss": "The advance's finish: topples forward onto her, both arms crashing down",
+    "feed": "Rears into a low tripod, reaches high for a branch, hooks it down to its mouth and chews",
+    "knockdown": "Forelegs buckle and it rolls onto its right side",
+    "sleep": "Lies down on its belly with the legs folded and the tail curled round"
+  },
+  "taming": {
+    "preferred_food": [
+      "berry",
+      "herb_leaf"
+    ],
+    "accepted_food": [
+      "fibre_stalk"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
+  },
+  "tactics": {
+    "base": "horned_charger",
+    "_about": "ASSUMPTION (SP-MEGATHERIUM, owner's design notes 2026-10-31): a huge, mostly peaceful browser (titan: defensive, it fights once hit; brave/stubborn/loyal/docile natures stand their ground and rear into the tripod display when crowded, timid ones only flee). In a fight: the tripod display (alert) leads into the BEAR HUG (the pounce machinery: the grab windup under the ground ring, a short forward lurch, the arms close at the hit and a landed hug PINS her under its chest while pin_stab squeezes twice, x pin_mult each) or into the LUMBERING ADVANCE (a straight charge at a walk on its hind legs with super armour: hits do not stop it; on contact it topples onto her, toss clip, a heavy shove). Point blank: the two-arm OVERHEAD SWIPE (attack_heavy, x heavy_mult, bleeds, heavy shove) or the HOOKING CLAW PULL (attack_primary: drags her primary_pull_m toward its chest). No leaping (leap_height_per_m 0), no hind kick (no kick clip). Every number is an ASSUMPTION (Open Questions GS3).",
+    "sequences": [
+      {"name": "display_hug", "steps": ["display", "pounce"], "weight": 3.0},
+      {"name": "display_advance", "steps": ["display", "charge"], "weight": 1.5},
+      {"name": "advance", "steps": ["charge"], "weight": 1.0},
+      {"name": "hug", "steps": ["pounce"], "weight": 1.0}
+    ],
+    "attack_range": 4.0,
+    "reach_m": 4.0,
+    "point_blank": ["heavy", "bite"],
+    "attack_priority": ["pounce", "bite"],
+    "ring_m": 9.0,
+    "display_s": 2.6,
+    "display_charge_m": 7.0,
+    "stand_ground_natures": ["brave", "stubborn", "loyal", "docile", "aggressive"],
+    "flee_natures": ["timid"],
+    "pounce_windup_clip": "grab",
+    "pounce_telegraph_s": 1.3,
+    "pounce_min_m": 4.5,
+    "pounce_max_m": 8.5,
+    "chase_pounce_max_m": 7.0,
+    "pounce_radius_m": 2.2,
+    "pounce_leap_s": 1.4,
+    "pounce_mult": 1.2,
+    "pounce_overshoot_chance": 0.0,
+    "pounce_recover_s": 1.0,
+    "pounce_miss_recover_s": 2.0,
+    "pounce_cd": 9.0,
+    "leap_height_per_m": 0.0,
+    "pin": true,
+    "pin_reach_m": 3.5,
+    "pin_mult": 1.3,
+    "heavy_mult": 2.0,
+    "heavy_cd": 6.0,
+    "heavy_shove_m": 2.5,
+    "heavy_shove_stagger_s": 0.8,
+    "bite_cd": 3.5,
+    "primary_pull_m": 2.0,
+    "pull_stop_m": 3.3,
+    "primary_pull_stagger_s": 0.9,
+    "charge_straight": true,
+    "charge_armor": true,
+    "charge_speed_mult": 0.65,
+    "charge_max_s": 4.5,
+    "charge_through_m": 1.0,
+    "charge_mult": 1.6,
+    "charge_shove_m": 4.5,
+    "charge_shove_stagger_s": 1.0,
+    "charge_miss_recover_s": 2.0,
+    "charge_cd": 10.0,
+    "_big_stomp": "Hook for claude/mmo-bigstomp (not on canon yet): when its shared big-animal stomp lands, opt the sloth in with that branch's tactics key and a tools/gait/big_stomp.json row (legs: FrontUpper/FrontLower + FrontCannon/FrontFoot, HindUpper/HindLower + HindCannon/BackFoot; body Body, head Head, tails Tail1-3). Not built here.",
+    "_knockdown": "claude/mmo-knockdown (not on canon yet) picks the survivor's reaction from shove metres x size (height / 3 m = 1.13): the advance's 4.5 m shove = 5.1 = throw, the overhead swipe's 2.5 m = 2.8 = knockdown, the hook pull is a light shove toward it."
+  },
+  "pipeline": {
+    "route": "tripo_multiview_v3 + hand-built mammal rig (tools/gait/megatherium/build.sh)",
+    "forward_axis": "+Z",
+    "source_height_m": 3.39,
+    "source_length_m": 7.98,
+    "tripo_task": "972a0652-726a-474d-90f6-199e99255b4f",
+    "tripo_model": "P1-20260311 multiview, texture + PBR, face_limit 15000",
+    "credits_spent": 50,
+    "inputs": "ref/megatherium_tripo_{front,left,back,right}.png: Codex views from the owner's sheet (giant_sloth_owner_sheet_1) in a neutral all-fours knuckle-walking stance, padded to one scale; right = left mirrored",
+    "mesh_source": "res://assets/creatures/megatherium/work/megatherium_tripo_v1.glb (gitignored; the task id re-downloads it)",
+    "rig_note": "deer-style leg names kept for the shared tools: FrontCannon = the hand (wrist -> knuckles), FrontFoot = knuckles -> the claws, HindCannon = ankle -> ball (plantigrade), BackFoot = the toes; Tail1-3; ClawTip.L/R mark the fore-claw tips; Jaw",
+    "hit_parts": {
+      "_about": "Where each move hits (the hitbox system is not on canon yet): at the clip's hit frame the named bones must be within radius_m of the target's body (Creature.part_hit). ClawTip.*: the fore-claw tips.",
+      "attack_primary": {"bones": ["ClawTip.R", "FrontFoot.R"], "radius_m": 1.2},
+      "attack_heavy": {"bones": ["ClawTip.L", "ClawTip.R", "FrontFoot.L", "FrontFoot.R"], "radius_m": 1.3},
+      "pounce": {"bones": ["ClawTip.L", "ClawTip.R", "FrontFoot.L", "FrontFoot.R"], "radius_m": 1.6},
+      "pin_stab": {"bones": ["ClawTip.L", "ClawTip.R"], "radius_m": 1.6},
+      "charge": {"bones": ["ClawTip.L", "ClawTip.R", "FrontFoot.L", "FrontFoot.R", "Head"], "radius_m": 1.6}
+    },
+    "status_clips": {"bleed": ["attack_heavy"]},
+    "clips": ["idle", "walk", "run", "charge", "strafe_left", "strafe_right", "walk_back", "alert", "attack_primary", "attack_heavy", "grab", "pounce", "pin_stab", "toss", "hit_react", "knockdown", "death", "sleep", "feed"],
+    "gate": "Blender -b -P tools/gait/check_megatherium.py -- megatherium.glb anim --height 3.39 (SLOTH_CHECK PASS)"
+  },
+  "coloration": {
+    "hue_deg": 8,
+    "sat": 0.12,
+    "val": 0.1,
+    "rare_chance": 0.02,
+    "rare_morphs": ["pale", "dark"],
+    "patterns": [
+      {"id": "countershade", "weight": 2.0, "scale": 1.0, "strength": 0.2},
+      {"id": "", "weight": 3.0}
+    ]
+  }
+}
