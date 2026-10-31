@@ -80,8 +80,12 @@ Left: knockdown/death are a roll onto the right side; the run is a heavy gallop 
   charge -> toss hurts and lifts her ~1 m, alpha skin on alpha spawns only, tundra tables and the lab list it).
 - t_noboxes, t_combat, t_canim, t_data, t_mounts, t_styraco, t_zebra, t_labspawn, t_alphas: PASS.
 - `run_all.gd`: `[tests] PASS`. `tools/smoke.sh --no-import`: SMOKE PASS.
-- Full `tools/all_tests.sh`: see the handback (t_colors fails on "stegosaurus uses the placeholder boxes", which is not
-  touched here).
+- After merging canon (ff7f03b8: COELOMOVES, ANKYLOAI, PINFEEL, PACHY...), rerun: RHINO_CHECK PASS, GATE PASS,
+  `all_tests.sh` t_sp_woolly_rhino t_noboxes t_combat t_canim t_data t_ai t_boneparts t_mounts t_styraco t_zebra
+  t_coelomoves t_labspawn t_alphas t_ankylo3d t_ankyloai: 15/15 PASS; `run_all.gd` [tests] PASS; SMOKE PASS.
+- A full pre-merge `all_tests.sh` sweep (stopped half way) also showed t_colors ("stegosaurus uses the placeholder
+  boxes") and t_buildspeed (built-island digests) failing; both fail the same way on a clean canon checkout.
+  t_ai and t_boneparts needed the 21st species (fixed).
 
 ## How to test (god mode)
 1. `Godot --path <this worktree>/game -- --lab=creature_lab --god --skip-charcreate` (or `tools/fight_lab.command` once merged).
@@ -95,3 +99,5 @@ Left: knockdown/death are a roll onto the right side; the run is a heavy gallop 
   Horn->HornTip for attack_heavy and charge, FrontFoot.L/R for attack_primary) and drop `Creature.part_hit`.
 - `docs/current/biome-spawns.md` is generated; rerun `tools/docs_wiki/gen_game_data.py` after merge.
 - No ragdoll profile, no eye-glow points.
+
+Report head: merge commit e3bd4f3f on `claude/mmo-sp-woolly_rhino` (pushed); this line is updated in the follow-up commit.
