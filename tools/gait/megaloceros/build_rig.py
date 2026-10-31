@@ -1,5 +1,5 @@
 """Megaloceros rig: a Tripo body + a hand-built deer skeleton (3-joint legs with real carpus/hock/fetlock, a jaw)
-and, for the stag, palmate antlers modelled here and skinned 100 % to Head.
+and, for the stag, the Tripo antler rack (antlers_tripo.glb, MEGANTLERS) seated on the skull and skinned 100 % to Head.
 
   Blender -b -P tools/gait/megaloceros/build_rig.py -- <tripo.glb> <variant.json> <out.blend> <out_base.glb>
 
@@ -9,9 +9,9 @@ centroids at the listed heights. Weights are geometric (inverse distance to bone
 body preferred over the upper legs above the belly, the lower jaw split by a line through the mouth corner):
 bone heat fails on Tripo meshes (not watertight).
 """
-import bpy, bmesh, json, math, sys
+import bpy, bmesh, json, math, os, sys
 import numpy as np
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 
 a = sys.argv[sys.argv.index("--") + 1:]
 SRC, CFG, OUT_BLEND, OUT_GLB = a[:4]
@@ -231,134 +231,97 @@ body.modifiers.new("Armature", "ARMATURE").object = arm
 print("weighted", len(V), "verts; jaw verts", sum(1 for i in range(len(V)) if ij in order[i] and Wk[i][list(order[i]).index(ij)] > 0.5))
 
 # ---------------------------------------------------------------- 5. antlers (stag)
-def antler_texture():
-    img = bpy.data.images.new("megaloceros_antler", 256, 64)
-    px = np.zeros((64, 256, 4))
-    u = np.linspace(0, 1, 256)
-    base, midc, tip = np.array([0.22, 0.15, 0.09]), np.array([0.50, 0.39, 0.26]), np.array([0.88, 0.83, 0.71])
-    col = np.where(u[:, None] < 0.45, base + (midc - base) * (u[:, None] / 0.45), midc + (tip - midc) * ((u[:, None] - 0.45) / 0.55))
-    rng = np.random.default_rng(7)
-    streak = rng.normal(0, 0.035, (64, 1)) + rng.normal(0, 0.02, (64, 256))
-    px[..., :3] = np.clip(col[None, :, :] * (1 + streak[..., None]), 0, 1)
-    px[..., 3] = 1
-    img.pixels = px.ravel(); img.pack()
-    mat = bpy.data.materials.new("Antler"); mat.use_nodes = True
-    nt = mat.node_tree; bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
-    tex = nt.nodes.new("ShaderNodeTexImage"); tex.image = img
-    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
-    bsdf.inputs["Roughness"].default_value = 0.62
-    return mat
-
-def tube(bm, uvl, pts, radii, us, ring=8, cap_start=False):
-    rings = []
-    for i, p in enumerate(pts):
-        d = (pts[min(i + 1, len(pts) - 1)] - pts[max(i - 1, 0)]).normalized()
-        a1 = d.orthogonal().normalized(); a2 = d.cross(a1)
-        rings.append([bm.verts.new(p + (a1 * math.cos(2 * math.pi * k / ring) + a2 * math.sin(2 * math.pi * k / ring)) * radii[i]) for k in range(ring)])
-    for i in range(len(rings) - 1):
-        for k in range(ring):
-            f = bm.faces.new((rings[i][k], rings[i][(k + 1) % ring], rings[i + 1][(k + 1) % ring], rings[i + 1][k]))
-            for lp, uu in zip(f.loops, (us[i], us[i], us[i + 1], us[i + 1])): lp[uvl].uv = (uu, 0.5)
-    if cap_start:  # MEGAJOUST: a tine root sunk through the palm showed an open ring on the far face
-        rootv = bm.verts.new(pts[0] - (pts[1] - pts[0]).normalized() * radii[0] * 0.6)
-        for k in range(ring):
-            f = bm.faces.new((rings[0][(k + 1) % ring], rings[0][k], rootv))
-            for lp in f.loops: lp[uvl].uv = (us[0], 0.5)
-    tipv = bm.verts.new(pts[-1] + (pts[-1] - pts[-2]).normalized() * radii[-1] * 1.5)
-    for k in range(ring):
-        f = bm.faces.new((rings[-1][k], rings[-1][(k + 1) % ring], tipv))
-        for lp in f.loops: lp[uvl].uv = (min(1.0, us[-1] + 0.02), 0.5)
-
-def bez(p0, p1, p2, n):
-    return [p0 * (1 - t) ** 2 + p1 * 2 * t * (1 - t) + p2 * t * t for t in (i / (n - 1) for i in range(n))]
-
-def build_antler(sx):
-    """One palmate antler in the animal frame (metres from its pedicle; +X out for sx=1), shaped on the owner's stag
-    sheet (MEGAJOUST): a short thick beam out and up, a brow tine curling forward over the face, then a broad fan
-    palm that spreads out, back and up and cups toward the sky and the front, its back/upper rim lined with long
-    tines that curl upward, its outer end splayed into tines that reach out and droop, two shorter tines hooking
-    forward off the front rim. Broad from the front, the side and above, as in the sheet's three views."""
-    bm = bmesh.new(); uvl = bm.loops.layers.uv.new("UVMap")
-    X = lambda x, y, z: Vector((x * sx, y, z))
-    up = Vector((0, 0, 1))
-    beam = bez(X(0, 0, -0.05), X(0.30, 0.04, 0.12), X(0.60, 0.10, 0.30), 7)
-    tube(bm, uvl, beam, [0.16, 0.15, 0.14, 0.135, 0.13, 0.13, 0.13], [0.04 * i for i in range(7)], 10)
-    brow = bez(X(0.20, -0.02, 0.10), X(0.42, -0.50, 0.16), X(0.52, -0.92, 0.46), 7)
-    tube(bm, uvl, brow, [0.085, 0.075, 0.062, 0.05, 0.036, 0.022, 0.01], [0.2, 0.35, 0.5, 0.65, 0.78, 0.9, 1.0], 8)
-    # palm frame: U out along the palm (out, a little back, up), W across it (back and up), N its face (up/forward)
-    U = X(1.0, 0.30, 0.40).normalized()
-    def frame(u):  # the palm twists along its length: upright at the root, laid back toward the end
-        Wr = Vector((0, 0.45 + 1.0 * max(0.0, u), 1.0)); W = (Wr - U * U.dot(Wr)).normalized()
-        N = U.cross(W).normalized()
-        return W, (N if N.z >= 0 else -N)
-    W, N = frame(0.5)
-    L = 2.3; nu, nv = 20, 11
-    base = beam[-1] - U * 0.12
-    def width(u): return 0.30 + 1.35 * math.sin(min(max(u, 0.0), 1.0) * math.pi * 0.5) ** 1.4
-    def thick(u): return 0.075 * (1 - 0.45 * u)
-    def pt(u, v):
-        w = width(u); W, N = frame(u)
-        c = base + U * (L * u) - up * (0.30 * u * u)  # the end droops a little, as in the front view
-        ridge = 0.025 * w * math.sin(v * math.pi * 7) * min(1.0, u * 2)  # grooves fanning out to the tines, as in the sheet
-        return c + W * ((v - 0.5) * w) - N * (0.20 * w * (2 * (v - 0.5)) ** 2 - ridge)  # cupped: both rims curl away from the face
-    top, bot = [], []
-    for side, store in ((1, top), (-1, bot)):
-        store.extend([[bm.verts.new(pt(i / (nu - 1), j / (nv - 1)) + frame(i / (nu - 1))[1] * side * thick(i / (nu - 1)) * (1 - 0.6 * (2 * (j / (nv - 1) - 0.5)) ** 2))
-                       for j in range(nv)] for i in range(nu)])
-    def quad(vs, uvs, flip):
-        f = bm.faces.new(vs[::-1] if flip else vs)
-        for lp, uu in zip(f.loops, uvs[::-1] if flip else uvs): lp[uvl].uv = (uu, 0.5)
-    uof = lambda i: 0.28 + 0.40 * i / (nu - 1)
-    for i in range(nu - 1):
-        for j in range(nv - 1):
-            us = [uof(i), uof(i), uof(i + 1), uof(i + 1)]
-            quad([top[i][j], top[i][j + 1], top[i + 1][j + 1], top[i + 1][j]], us, sx < 0)
-            quad([bot[i][j], bot[i][j + 1], bot[i + 1][j + 1], bot[i + 1][j]], us, sx > 0)
-    rim = [(i, 0) for i in range(nu)] + [(nu - 1, j) for j in range(nv)] + [(i, nv - 1) for i in range(nu - 1, -1, -1)] + [(0, j) for j in range(nv - 1, -1, -1)]
-    for (i0, j0), (i1, j1) in zip(rim, rim[1:]):
-        if (i0, j0) == (i1, j1): continue
-        quad([top[i0][j0], top[i1][j1], bot[i1][j1], bot[i0][j0]], [uof(i0)] * 4, sx < 0)
-    # tines (u, v, length, kind): fanned from a hub at the palm's root, each curling as the sheet shows
-    tines = [(0.16, 1.0, 0.95, "up"), (0.30, 1.0, 1.25, "up"), (0.44, 1.0, 1.45, "up"), (0.57, 1.0, 1.50, "up"),
-             (0.70, 1.0, 1.45, "up"), (0.82, 1.0, 1.35, "up"), (0.93, 0.92, 1.30, "end"), (1.0, 0.70, 1.30, "end"),
-             (1.0, 0.45, 1.20, "end"), (0.98, 0.20, 1.10, "droop"), (0.88, 0.0, 0.95, "fwd"), (0.70, 0.0, 0.80, "fwd")]
-    hub = pt(-0.25, 0.45)
-    for k, (u, v, ln, kind) in enumerate(tines):
-        p0 = pt(u, v); W, N = frame(u)
-        rad = p0 - hub; rad -= N * rad.dot(N); rad.normalize()
-        if kind == "up":
-            # the fan leans forward over the face near the root and back toward the end (the sheet's side view)
-            lean = Vector((0, (u - 0.45) * 3.2, 0))
-            d1 = (rad + up * 0.3 + lean * 0.8).normalized(); d2 = (rad * 0.4 + up + U * 0.2 + lean).normalized()
-        elif kind == "end":
-            d1 = (rad + U * 0.4).normalized(); d2 = (rad + U * 0.5 + up * 0.45).normalized()
-        elif kind == "droop":
-            d1 = (rad + U * 0.3).normalized(); d2 = (rad + U * 0.6 - up * 0.35).normalized()
-        else:  # off the front rim: forward, then hooking up
-            d1 = (rad + Vector((0, -1.2, 0))).normalized(); d2 = (Vector((0, -1.0, 0)) + up * 0.5 + U * 0.3).normalized()
-        ln *= 1.0 + 0.12 * math.sin(k * 2.3)
-        pts = bez(p0 - rad * 0.28, p0 + d1 * ln * 0.55, p0 + d1 * ln * 0.55 + d2 * ln * 0.5, 7)
-        r0 = 0.13 if kind != "fwd" else 0.10  # wide roots that web into the palm rim
-        tube(bm, uvl, pts, [r0, r0 * 0.82, r0 * 0.64, r0 * 0.48, r0 * 0.33, r0 * 0.2, 0.008], [0.6, 0.68, 0.76, 0.83, 0.9, 0.96, 1.0], 8, cap_start=True)
-    me = bpy.data.meshes.new("Antler" + ("L" if sx > 0 else "R")); bm.to_mesh(me); bm.free()
-    for p in me.polygons: p.use_smooth = True
-    return me
+def tripo_antlers(ac):
+    """MEGANTLERS: the Tripo rack (antler_prep.py output, cut open under each burr). Each side is bent by
+    pitch/roll about its burr along the beam, the pair scaled so the tips span span_m, each burr centre put at seat_m (x mirrored).
+    The open cut under each burr is extruded down into the skull to pedicle_m as a pedicle wearing the stag's own
+    hide (its material and a hide texel from the skull beside it), and the burr base is baked toward the hide colour
+    over fade_m above the cut, so bone grows out of fur instead of sitting on it."""
+    before = set(bpy.data.objects)
+    bpy.ops.import_scene.gltf(filepath=os.path.join(os.path.dirname(CFG), ac["mesh"]))
+    ob = next(o for o in set(bpy.data.objects) - before if o.type == "MESH")
+    burr = {1: Vector(ob["burr_l"]), -1: Vector(ob["burr_r"])}
+    for o in set(bpy.data.objects) - before - {ob}: bpy.data.objects.remove(o, do_unlink=True)
+    ob.parent = None; ob.matrix_world = Matrix.Identity(4); ob.name = "Antlers"; me = ob.data
+    seat = {sx: Vector((ac["seat_m"][0] * sx, *ac["seat_m"][1:])) for sx in (1, -1)}
+    pin = {sx: Vector((ac["pedicle_m"][0] * sx, *ac["pedicle_m"][1:])) for sx in (1, -1)}
+    turn = {sx: (Matrix.Rotation(math.radians(ac["roll_deg"][0 if sx > 0 else 1]) * sx, 3, "Y") @ Matrix.Rotation(math.radians(-ac["pitch_deg"]), 3, "X")).to_quaternion() for sx in (1, -1)}
+    side = [1 if v.co.x > 0 else -1 for v in me.vertices]
+    # the turn bends in along the beam (bend_raw: from, to; raw rack units from the burr), so the burr keeps the
+    # seat Tripo gave it on the skull while the rack leans back
+    b0, b1 = ac["bend_raw"]
+    def bent(p, sx):
+        t = min(max((p.length - b0) / (b1 - b0), 0.0), 1.0)
+        return Quaternion().slerp(turn[sx], t * t * (3 - 2 * t)) @ p
+    loc = [bent(v.co - burr[sx], sx) for v, sx in zip(me.vertices, side)]
+    reach = max(p.x for p, sx in zip(loc, side) if sx > 0) - min(p.x for p, sx in zip(loc, side) if sx < 0)
+    k = (ac["span_m"] - 2 * ac["seat_m"][0]) / reach
+    for v, p, sx in zip(me.vertices, loc, side): v.co = p * k + seat[sx]
+    # fade: 1 at the cut, 0 at fade_m along the beam (its direction: the cut centre to the points 0.5-0.8 m out)
+    fade = {}
+    for sx in (1, -1):
+        mid = [v.co for v, s_ in zip(me.vertices, side) if s_ == sx and 0.5 < (v.co - seat[sx]).length < 0.8]
+        ax = (sum(mid, Vector()) / len(mid) - seat[sx]).normalized()
+        for v, s_ in zip(me.vertices, side):
+            if s_ == sx: fade[v.index] = max(0.0, 1.0 - max(0.0, (v.co - seat[sx]).dot(ax)) / ac["fade_m"]) ** 2
+    attr_l = me.attributes.new("hide_fade", "FLOAT", "POINT")
+    for i, f in fade.items(): attr_l.data[i].value = f
+    # bake: the antler colour mixed toward the mean hide colour round the seat by that fade
+    nt = me.materials[0].node_tree
+    col = next(n for n in nt.nodes if n.type == "TEX_IMAGE" and n.image.name.startswith("Color"))
+    himg = next(n for n in body.data.materials[0].node_tree.nodes if n.type == "TEX_IMAGE" and "Color" in n.image.name).image
+    hw, hh = himg.size; hpx = np.array(himg.pixels[:], np.float32).reshape(hh, hw, 4)
+    huv = body.data.uv_layers.active.data
+    near = [li for poly in body.data.polygons if (poly.center - seat[1]).length < 0.45 for li in poly.loop_indices]
+    hide = np.mean([hpx[min(hh - 1, int(huv[li].uv[1] * hh)), min(hw - 1, int(huv[li].uv[0] * hw)), :3] for li in near], 0) ** 2.2  # sRGB texels -> linear
+    baked = bpy.data.images.new("megaloceros_antler", *col.image.size)
+    mix = nt.nodes.new("ShaderNodeMix"); mix.data_type = "RGBA"
+    attr = nt.nodes.new("ShaderNodeAttribute"); attr.attribute_name = "hide_fade"
+    emit = nt.nodes.new("ShaderNodeEmission"); out = next(n for n in nt.nodes if n.type == "OUTPUT_MATERIAL")
+    bsdf_link = out.inputs["Surface"].links[0].from_socket
+    nt.links.new(attr.outputs["Fac"], mix.inputs["Factor"]); nt.links.new(col.outputs["Color"], mix.inputs[6])
+    mix.inputs[7].default_value = (*hide, 1.0)
+    nt.links.new(mix.outputs[2], emit.inputs["Color"]); nt.links.new(emit.outputs[0], out.inputs["Surface"])
+    target = nt.nodes.new("ShaderNodeTexImage"); target.image = baked; nt.nodes.active = target
+    sc = bpy.context.scene; sc.render.engine = "CYCLES"; sc.cycles.samples = 1; sc.cycles.device = "CPU"
+    bpy.ops.object.select_all(action="DESELECT"); ob.select_set(True); bpy.context.view_layer.objects.active = ob
+    bpy.ops.object.bake(type="EMIT", margin=4)
+    baked.pack()
+    nt.links.new(bsdf_link, out.inputs["Surface"])
+    nt.links.new(target.outputs["Color"], next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED").inputs["Base Color"])
+    for n in (mix, attr, emit, col): nt.nodes.remove(n)
+    me.attributes.remove(me.attributes["hide_fade"])
+    # pedicles: each cut rim extruded to a smaller ring inside the skull, closed, in the hide material
+    me.materials.append(body.data.materials[0])
+    from mathutils.kdtree import KDTree
+    kd = KDTree(len(body.data.vertices))
+    for v in body.data.vertices: kd.insert(v.co, v.index)
+    kd.balance()
+    vuv = {}
+    for l in body.data.loops: vuv.setdefault(l.vertex_index, huv[l.index].uv.copy())
+    bm = bmesh.new(); bm.from_mesh(me); uvl = bm.loops.layers.uv.active
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)  # the glTF import splits vertices along UV seams; only the cuts stay open
+    for sx in (1, -1):
+        rim = [e for e in bm.edges if e.is_boundary and sx * e.verts[0].co.x > 0 and (e.verts[0].co - seat[sx]).length < 1.0]
+        ring = {v for e in rim for v in e.verts}; c = sum((v.co for v in ring), Vector()) / len(ring)
+        print(f"pedicle {sx:+d}: rim {len(rim)} edges, burr centre {tuple(round(x, 2) for x in c)}")
+        new = bmesh.ops.extrude_edge_only(bm, edges=rim)["geom"]
+        nv = [g for g in new if isinstance(g, bmesh.types.BMVert)]
+        for v in nv: v.co = pin[sx] + (v.co - c) * ac["pedicle_shrink"]
+        faces = [g for g in new if isinstance(g, bmesh.types.BMFace)]
+        skin = vuv[kd.find(Vector((0, pin[sx].y - 0.05, pin[sx].z + 0.3)))[1]]  # one texel of the crown's fur: per-vertex nearest UVs streak, the ears are pale
+        faces += bmesh.ops.holes_fill(bm, edges=[e for e in bm.edges if e.is_boundary and sx * e.verts[0].co.x > 0 and (e.verts[0].co - pin[sx]).length < 0.6], sides=0)["faces"]
+        for f in faces:
+            f.material_index = 1
+            for l in f.loops: l[uvl].uv = skin
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me); bm.free()
+    print(f"tripo antlers: scale {k:.2f}, hide rgb {np.round(hide, 3)}")
+    return ob
 
 if "antlers" in cfg:
-    mat = antler_texture()
-    ped = Vector(cfg["antlers"]["pedicle"]) * S
-    bm_all = bmesh.new()
-    for sx in (1, -1):
-        me = build_antler(sx)
-        if "span_m" in cfg["antlers"]:  # MEGAJOUST: sized so tip-to-tip span matches the variant json
-            half = max(abs(v.co.x) for v in me.vertices)
-            me.transform(Matrix.Scale((cfg["antlers"]["span_m"] / 2 - ped.x) / half, 4))
-        me.transform(Matrix.Translation(Vector((ped.x * sx, ped.y, ped.z))))
-        bm_all.from_mesh(me)
-    me = bpy.data.meshes.new("Antlers"); bm_all.to_mesh(me); bm_all.free()
-    me.materials.append(mat)
+    ant = tripo_antlers(cfg["antlers"]); me = ant.data
     for p in me.polygons: p.use_smooth = True
-    ant = bpy.data.objects.new("Antlers", me); bpy.context.scene.collection.objects.link(ant)
     ant.parent = arm
     g = ant.vertex_groups.new(name="Head"); g.add(list(range(len(me.vertices))), 1.0, "REPLACE")
     ant.modifiers.new("Armature", "ARMATURE").object = arm
