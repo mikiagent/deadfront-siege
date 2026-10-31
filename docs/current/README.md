@@ -25,6 +25,7 @@ trawling history. When the build changes a system, update its doc in the same co
 | Occlusion (see-through props) | [occlusion.md](occlusion.md) | **written 2026-10-28** — the between-camera-and-survivor rule, dither constants, 8 MultiMesh slots, roof fade, tests |
 | Tribe members & dock recruits | [tribe.md](tribe.md) | **written 2026-10-28** (branch `claude/mmo-tribe`) — boat arrivals waiting at the dock for Accept/Deny, housing cap, orders, one job at a time, needs, gear, Tribe tab, save row |
 | Tutorial island & new-survivor flow | [tutorial.md](tutorial.md) | **written 2026-10-28** — creation → tutorial island → 18 tutorial orders on the Orders system → Tamed Island pick → ferry home; pointer, save row, dev flags |
+| Fight lab (god mode, species verdicts) | [fight-lab.md](fight-lab.md) | **written 2026-10-30**: `tools/fight_lab.command`, GOD/NEXT controls, every modelled species with its brain, moves and fight clips, a verdict column for Milan |
 | Creature rigs and clips | [creature-clips.md](creature-clips.md) | **generated 2026-10-28** — per species: jaw, wings, and which of the 25 clips ship (bite_combo, leaps, dodges, strafes, walk_back, kick, charge...) |
 
 *(Sheets live in the canon worktree's `game/data_sheets/` — nine CSVs the owner can edit in any

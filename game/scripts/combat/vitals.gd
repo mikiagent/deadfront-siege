@@ -136,6 +136,10 @@ func grant_level_bonus(hp_gain: float, energy_gain: float) -> void:
 func take_damage(amount: float) -> void:
 	if dead:
 		return
+	if Game.god_mode:  # fight lab: the hit lands (flinch, HUD) but costs nothing
+		if amount > 0.0:
+			damaged.emit()
+		return
 	var was := health
 	health = maxf(0.0, health - amount)
 	add_fatigue(amount * 0.15, &"combat")
@@ -165,7 +169,7 @@ func eat(amount: float) -> void:
 	rest(amount * 0.25)
 
 func add_fatigue(amount: float, source: StringName = &"") -> void:
-	if amount > 0.0 and blocks_fatigue_gain:
+	if amount > 0.0 and (blocks_fatigue_gain or Game.god_mode):
 		return
 	var gap := level_gap_mult if (amount > 0.0 and source != &"time") else 1.0
 	var add := amount * fatigue_gain_mult * gap * (FATIGUE_ACCUMULATION_MULT if amount > 0.0 else 1.0)
@@ -233,6 +237,8 @@ func from_dict(d: Dictionary) -> void:
 	_sync_exhausted()
 
 func spend_energy(amount: float) -> bool:
+	if Game.god_mode:
+		return true
 	if energy < amount:
 		return false
 	energy -= amount
@@ -242,10 +248,12 @@ func spend_energy(amount: float) -> bool:
 ## Read-only affordance check (AUTO-ABILITY picker): the same gate spend_energy applies, without
 ## spending or setting the regen lock. Kept beside spend_energy so the two cannot drift apart.
 func spendable_energy(amount: float) -> bool:
-	return energy >= amount
+	return Game.god_mode or energy >= amount
 
 ## Continuous drain (running): returns false when empty so the caller drops to a walk.
 func drain_energy(per_second: float, delta: float) -> bool:
+	if Game.god_mode:
+		return true
 	if energy <= 0.0:
 		return false
 	energy = maxf(0.0, energy - per_second * delta)
