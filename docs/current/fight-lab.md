@@ -51,7 +51,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Compsognathus | TacticalBrain (swarm) | swarm nips, four to eight at once | charge, pounce, strafe, backstep | alert, attack_primary, attack_heavy, pounce | |
 | Deinonychus | TacticalBrain (pack_flanker) | pack flank, sickle-claw rake | backstep, strafe, pounce, charge, combo | alert, attack_primary, attack_heavy, bite_combo, pounce, charge | |
 | Gallimimus | CreatureBrain (runner) | charge, kick, outruns you | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
-| Megaloceros | CreatureBrain (antlered) | antler gore, flees | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
+| Megaloceros (stag, then doe on the next NEXT; SPAWN has a Body button) | TacticalBrain (antlered) | antler charge, rear-up stomp, rear kick | stag: roar + antlers lowered (display), straight antler ram, point blank rear-up stomp / rear kick / antler hook; doe: run-in forehoof strike, rear-up stomp, rear kick | alert, attack_primary, attack_heavy, kick, charge (stag) | |
 | Pachycephalosaurus | TacticalBrain (pack_mule) | dome headbutt charge | display, charge, strafe | alert, attack_primary, attack_heavy, charge | |
 | Protoceratops | TacticalBrain (pack_mule) | shoving beak, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
 | Stegosaurus | CreatureBrain (spiked_tail) | thagomizer tail sweep | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
@@ -62,7 +62,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Velociraptor | RaptorPackBrain (pack_raptor) | pounce knockdown from off-screen | pack flank, bites, heavy pounce from 4-7 m off-axis | alert, attack_primary, attack_heavy | |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
 
-CreatureBrain swings attack_primary and attack_heavy only, so the kick clips of Megaloceros and Stegosaurus do
+CreatureBrain swings attack_primary and attack_heavy only, so the kick clip of the Stegosaurus does
 not show in a fight, and verbs such as Gallimimus "kick" have no move behind them yet.
 
 Test: `game/tests/t_godlab.gd` (GOD survives a T. rex bite chain at full health, off without `--god`; NEXT

@@ -230,12 +230,16 @@ func _pick_species(id: StringName) -> void:
 	species_id = id
 	_refresh()
 
-## A species' body variants, sorted ([] for one body): megaloceros ["doe", "stag"] -> stag first.
+## A species' body variants ([] when every variant shares one body, e.g. the stegosaurus texture looks):
+## megaloceros -> ["stag", "doe"].
 static func variants_of(id: StringName) -> Array:
 	var def := Data.creature(id) if Data else null
 	if def == null:
 		return []
-	var ids: Array = CreatureView.model_variants(def).keys()
+	var rows := CreatureView.model_variants(def)
+	if not rows.values().any(func(r: Variant) -> bool: return r is Dictionary and (r as Dictionary).has("model")):
+		return []
+	var ids: Array = rows.keys()
 	ids.sort()
 	ids.reverse()
 	return ids
@@ -283,7 +287,8 @@ func spawn(sp: StringName, n: int, nat: StringName = &"", is_alpha: bool = false
 	s.global_position = player.global_position + fwd * SPAWN_AHEAD_M
 	var made := s.spawn_now()
 	s.queue_free()
-	info.text = moves_line(sp) + (" [%s]" % body if body != &"" else "")
+	var vt: Dictionary = CreatureView.variant_row(Data.creature(sp), body).get("tactics", {})
+	info.text = moves_line(sp) + (" [%s%s]" % [body, (": point blank %s, no straight ram" % ", ".join(vt.get("point_blank", []))) if not vt.get("charge_straight", true) else ""] if body != &"" else "")
 	print("[creature_lab] spawned %d %s nature=%s alpha=%s" % [made.size(), sp, nat if nat != &"" else &"random", is_alpha])
 	return made
 
