@@ -206,8 +206,8 @@ func _apply_model_variant() -> void:
 			continue
 		for i in m.mesh.get_surface_count():
 			var src := m.get_active_material(i) as StandardMaterial3D
-			if src == null:
-				continue
+			if src == null or src.albedo_texture == null:
+				continue  # SP-RAPTOR: an untextured surface (open_mouth.py's flat gum-red mouth bag) keeps its colour
 			var mat := src.duplicate() as StandardMaterial3D
 			mat.albedo_texture = tex
 			m.set_surface_override_material(i, mat)

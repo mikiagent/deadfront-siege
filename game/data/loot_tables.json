@@ -129,6 +129,10 @@
         {"id": "alpha_hide", "min": 2, "max": 3},
         {"id": "alpha_fang", "min": 2, "max": 2}
       ],
+      "megarex": [
+        {"id": "alpha_hide", "min": 3, "max": 4},
+        {"id": "alpha_fang", "min": 3, "max": 3}
+      ],
       "tarbosaurus": [
         {"id": "alpha_hide", "min": 2, "max": 2},
         {"id": "alpha_fang", "min": 1, "max": 2}
