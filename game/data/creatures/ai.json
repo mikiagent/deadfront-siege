@@ -863,7 +863,237 @@
       "resists": [
         "slashing"
       ],
-      "temperament": "defensive"
+      "temperament": "defensive",
+      "_stegospin": "STEGOSPIN (owner 2026-10-31: \"Stego needs a stronger twist attack, tackle attack, etc. it should be spinning a lot, anky and stego are similar\" / \"also needs stomp attacks\" / \"for both stegos\"; big and heavy: it strafes and pivots, never hops). ClubTailBrain, as the ankylosaurus, with the stegosaurus' own numbers. TAIL SPIN (spin_left / spin_right): a turn of turn_deg about the inner front foot's ball (pivot_gltf, glTF x/z of the stegosaurus model), done by the brain in code in step with the clip (turn_deg * smoothstep over turn [a, b] of the clip); the hit is the rear body and tail as a line from line_bone to the club, swept round; spun again at once (double) while she stays in reach. pivots: 90 deg repositioning turns on a front foot when the next tail move is badly aimed. close_zone.flank_back_m: beside the hips draws HIND STOMP. Every number is an ASSUMPTION (WildLandsMMO_Open_Questions.md SS1-SS8).",
+      "provoke_hits": 1,
+      "club_bone": "tail_07",
+      "club_along_m": 0.42,
+      "club_sequence": [
+        "spin"
+      ],
+      "front_sequence": [
+        "stomp",
+        "rear_slam"
+      ],
+      "pivot_min_deg": 75.0,
+      "pivot_cooldown_s": 0.2,
+      "pivots": {
+        "pivot_left": {
+          "clip": "pivot_left",
+          "turn_deg": 90.0,
+          "turn": [
+            0.1,
+            0.9
+          ],
+          "pivot_gltf": [
+            -0.57,
+            -1.439
+          ]
+        },
+        "pivot_right": {
+          "clip": "pivot_right",
+          "turn_deg": -90.0,
+          "turn": [
+            0.1,
+            0.9
+          ],
+          "pivot_gltf": [
+            0.557,
+            -1.697
+          ]
+        }
+      },
+      "club_moves": {
+        "spin_right": {
+          "clip": "spin_right",
+          "label": "TAIL SPIN",
+          "strike": [
+            0.3,
+            0.86
+          ],
+          "line_bone": "hips",
+          "target_bearing_deg": -120.0,
+          "aim_tol_deg": 70.0,
+          "target_dist_m": 6.0,
+          "range_tol_m": 3.5,
+          "hit_radius_m": 1.2,
+          "ring_radius_m": 9.8,
+          "damage_mult": 1.2,
+          "knockdown": true,
+          "knockback_m": 6.0,
+          "cooldown_s": 1.2,
+          "turn_deg": -220.0,
+          "turn": [
+            0.28,
+            0.86
+          ],
+          "pivot_gltf": [
+            0.557,
+            -1.697
+          ],
+          "double": true
+        },
+        "spin_left": {
+          "clip": "spin_left",
+          "label": "TAIL SPIN",
+          "strike": [
+            0.3,
+            0.86
+          ],
+          "line_bone": "hips",
+          "target_bearing_deg": 120.0,
+          "aim_tol_deg": 70.0,
+          "target_dist_m": 6.0,
+          "range_tol_m": 3.5,
+          "hit_radius_m": 1.2,
+          "ring_radius_m": 9.8,
+          "damage_mult": 1.2,
+          "knockdown": true,
+          "knockback_m": 6.0,
+          "cooldown_s": 1.2,
+          "turn_deg": 220.0,
+          "turn": [
+            0.28,
+            0.86
+          ],
+          "pivot_gltf": [
+            -0.57,
+            -1.439
+          ],
+          "double": true
+        }
+      },
+      "close_zone": {
+        "front_min_m": 2.2,
+        "front_max_m": 9.0,
+        "front_half_w_m": 2.0,
+        "side_front_m": 3.0,
+        "side_max_m": 4.6,
+        "side_back_m": -0.5,
+        "flank_back_m": -4.5
+      },
+      "close_moves": {
+        "stomp": {
+          "clip": "stomp",
+          "label": "STOMP",
+          "strike": [
+            0.5,
+            0.68
+          ],
+          "impact_bone": "front_foot_L",
+          "impact_height_m": 0.95,
+          "target_bearing_deg": -13.0,
+          "target_dist_m": 2.46,
+          "hit_radius_m": 1.0,
+          "damage_mult": 0.9,
+          "knockdown": true,
+          "knockback_m": 1.5,
+          "cooldown_s": 1.2
+        },
+        "rear_slam": {
+          "clip": "rear_slam",
+          "label": "REAR SLAM",
+          "strike": [
+            0.58,
+            0.75
+          ],
+          "impact_bone": "front_foot_L",
+          "impact_height_m": 0.95,
+          "target_bearing_deg": 0.0,
+          "target_dist_m": 2.5,
+          "hit_radius_m": 1.2,
+          "damage_mult": 1.3,
+          "knockdown": true,
+          "knockback_m": 3.0,
+          "cooldown_s": 2.0
+        },
+        "shove_left": {
+          "clip": "shove_left",
+          "label": "SHOULDER SLAM",
+          "strike": [
+            0.4,
+            0.46
+          ],
+          "target_bearing_deg": -45.0,
+          "target_dist_m": 1.96,
+          "hit_radius_m": 1.0,
+          "damage_mult": 0.6,
+          "knockdown": true,
+          "knockback_m": 3.0,
+          "cooldown_s": 1.4
+        },
+        "shove_right": {
+          "clip": "shove_right",
+          "label": "SHOULDER SLAM",
+          "strike": [
+            0.4,
+            0.46
+          ],
+          "target_bearing_deg": 45.0,
+          "target_dist_m": 1.96,
+          "hit_radius_m": 1.0,
+          "damage_mult": 0.6,
+          "knockdown": true,
+          "knockback_m": 3.0,
+          "cooldown_s": 1.4
+        },
+        "hind_stomp_left": {
+          "clip": "hind_stomp_left",
+          "label": "HIND STOMP",
+          "strike": [
+            0.5,
+            0.66
+          ],
+          "impact_bone": "hind_foot_L",
+          "impact_height_m": 0.85,
+          "target_bearing_deg": -135.0,
+          "target_dist_m": 2.6,
+          "hit_radius_m": 0.9,
+          "damage_mult": 0.9,
+          "knockdown": true,
+          "knockback_m": 3.0,
+          "cooldown_s": 1.2
+        },
+        "hind_stomp_right": {
+          "clip": "hind_stomp_right",
+          "label": "HIND STOMP",
+          "strike": [
+            0.5,
+            0.66
+          ],
+          "impact_bone": "hind_foot_R",
+          "impact_height_m": 0.85,
+          "target_bearing_deg": 135.0,
+          "target_dist_m": 2.6,
+          "hit_radius_m": 0.9,
+          "damage_mult": 0.9,
+          "knockdown": true,
+          "knockback_m": 3.0,
+          "cooldown_s": 1.2
+        },
+        "tackle": {
+          "clip": "tackle",
+          "label": "TACKLE",
+          "strike": [
+            1.0,
+            1.0
+          ],
+          "target_bearing_deg": 0.0,
+          "target_dist_m": 6.0,
+          "hit_radius_m": 2.0,
+          "lunge_m": 6.0,
+          "damage_mult": 1.1,
+          "knockdown": true,
+          "knockback_m": 3.0,
+          "cooldown_s": 1.8,
+          "run_m": 6.0,
+          "run_mps": 5.5,
+          "reach_m": 1.3,
+          "leap_clip": "tackle_lunge",
+          "leap_height_m": 0.6,
+          "aim_side_m": 0.75
+        }
+      }
     },
     "runner": {
       "is_herbivore": true,
@@ -949,7 +1179,11 @@
           "hit_radius_m": 1.1,
           "damage_mult": 0.8,
           "knockback_m": 3.0,
-          "cooldown_s": 3.5
+          "cooldown_s": 3.5,
+          "sweep_arc_deg": [
+            -110.0,
+            100.0
+          ]
         },
         "smash": {
           "clip": "attack_heavy",
@@ -992,8 +1226,9 @@
         "front_max_m": 8.0,
         "front_half_w_m": 2.4,
         "side_front_m": 3.8,
-        "side_max_m": 4.4,
-        "side_back_m": -1.0
+        "side_max_m": 6.0,
+        "side_back_m": -1.0,
+        "tail_radius_m": 4.6
       },
       "close_moves": {
         "stomp": {
@@ -1015,31 +1250,45 @@
         },
         "shove_left": {
           "clip": "shove_left",
-          "label": "SHOVE",
+          "label": "SHOULDER SLAM",
           "strike": [
-            0.48,
-            0.55
+            0.46,
+            0.5
           ],
-          "target_bearing_deg": -55.0,
-          "target_dist_m": 3.2,
-          "hit_radius_m": 2.2,
+          "target_bearing_deg": -70.0,
+          "target_dist_m": 4.0,
+          "hit_radius_m": 1.2,
           "damage_mult": 0.6,
           "knockback_m": 3.0,
-          "cooldown_s": 1.0
+          "cooldown_s": 1.4,
+          "knockdown": true,
+          "carry_m": 4.0,
+          "slam_point": [
+            -1.6,
+            -2.0
+          ],
+          "leap_height_m": 0.25
         },
         "shove_right": {
           "clip": "shove_right",
-          "label": "SHOVE",
+          "label": "SHOULDER SLAM",
           "strike": [
-            0.48,
-            0.55
+            0.46,
+            0.5
           ],
-          "target_bearing_deg": 55.0,
-          "target_dist_m": 3.2,
-          "hit_radius_m": 2.2,
+          "target_bearing_deg": 70.0,
+          "target_dist_m": 4.0,
+          "hit_radius_m": 1.2,
           "damage_mult": 0.6,
           "knockback_m": 3.0,
-          "cooldown_s": 1.0
+          "cooldown_s": 1.4,
+          "knockdown": true,
+          "carry_m": 4.0,
+          "slam_point": [
+            1.6,
+            -2.0
+          ],
+          "leap_height_m": 0.25
         },
         "tackle": {
           "clip": "tackle",
@@ -1051,16 +1300,154 @@
           "target_bearing_deg": 0.0,
           "target_dist_m": 5.6,
           "hit_radius_m": 2.0,
-          "lunge_m": 2.5,
-          "lunge_mps": 5.0,
-          "contact_dist_m": 3.9,
-          "contact_radius_m": 0.5,
+          "lunge_m": 5.0,
           "damage_mult": 1.1,
           "knockdown": true,
           "knockback_m": 2.5,
-          "cooldown_s": 1.8
+          "cooldown_s": 1.8,
+          "run_m": 6.0,
+          "run_mps": 5.0,
+          "reach_m": 2.0,
+          "leap_clip": "tackle_lunge",
+          "leap_height_m": 0.5
+        },
+        "spin_left": {
+          "clip": "spin_left",
+          "label": "TAIL SPIN",
+          "strike": [
+            0.3,
+            0.86
+          ],
+          "line_bone": "Hips",
+          "target_bearing_deg": 0.0,
+          "target_dist_m": 4.4,
+          "hit_radius_m": 1.0,
+          "ring_radius_m": 6.4,
+          "damage_mult": 1.2,
+          "knockdown": true,
+          "knockback_m": 5.0,
+          "cooldown_s": 1.6,
+          "turn_deg": 200.0,
+          "turn": [
+            0.28,
+            0.86
+          ],
+          "pivot_gltf": [
+            0.2011,
+            0.3457
+          ]
+        },
+        "spin_right": {
+          "clip": "spin_right",
+          "label": "TAIL SPIN",
+          "strike": [
+            0.3,
+            0.86
+          ],
+          "line_bone": "Hips",
+          "target_bearing_deg": 0.0,
+          "target_dist_m": 4.4,
+          "hit_radius_m": 1.0,
+          "ring_radius_m": 6.4,
+          "damage_mult": 1.2,
+          "knockdown": true,
+          "knockback_m": 5.0,
+          "cooldown_s": 1.6,
+          "turn_deg": -200.0,
+          "turn": [
+            0.28,
+            0.86
+          ],
+          "pivot_gltf": [
+            -0.2018,
+            0.3453
+          ]
+        },
+        "about_right": {
+          "clip": "about_right",
+          "label": "ABOUT-FACE",
+          "turn_deg": -180.0,
+          "turn": [
+            0.08,
+            0.9
+          ],
+          "pivot_gltf": [
+            0.0,
+            0.107
+          ],
+          "cooldown_s": 0.0
+        },
+        "about_left": {
+          "clip": "about_left",
+          "label": "ABOUT-FACE",
+          "turn_deg": 180.0,
+          "turn": [
+            0.08,
+            0.9
+          ],
+          "pivot_gltf": [
+            0.0,
+            0.107
+          ],
+          "cooldown_s": 0.0
         }
       },
+      "_stegospin": "STEGOSPIN, owner 2026-10-31 on the ankylosaurus: \"don't have the ankylosaurus back himself into me for an attack, he should also joust and be able to hit you with his tail from the front by spinning and smacking you with the tail\". No back-in: ClubTailBrain never walks backwards into her to bring the tail round (out of reach it pivots and comes head first). Front: front_sequence adds TAIL SPIN (close_moves.spin_left / spin_right): a 200 deg turn about the inner front foot (pivot_gltf, glTF x/z of the model) done in code in step with the clip, the club and tail (line Hips to the club) sweeping round through the front. pivots: 90 deg repositioning turns. joust: from min_m to max_m off, a straight charge past her by past_m, an arc round on the run gait, again (passes); a body check on contact (contact_dist_m ahead) knocks her down; clip names the CreatureAttack clip for the hit. Every number is an ASSUMPTION (WildLandsMMO_Open_Questions.md SS1-SS8).",
+      "front_sequence": [
+        "stomp",
+        "tackle",
+        "tail",
+        "spin"
+      ],
+      "pivot_min_deg": 75.0,
+      "pivot_cooldown_s": 0.2,
+      "pivots": {
+        "pivot_left": {
+          "clip": "pivot_left",
+          "turn_deg": 90.0,
+          "turn": [
+            0.1,
+            0.9
+          ],
+          "pivot_gltf": [
+            0.2011,
+            0.3457
+          ]
+        },
+        "pivot_right": {
+          "clip": "pivot_right",
+          "turn_deg": -90.0,
+          "turn": [
+            0.1,
+            0.9
+          ],
+          "pivot_gltf": [
+            -0.2018,
+            0.3453
+          ]
+        }
+      },
+      "joust": {
+        "clip": "tackle",
+        "label": "JOUST",
+        "min_m": 11.0,
+        "max_m": 30.0,
+        "face_tol_deg": 35.0,
+        "run_mps": 6.0,
+        "past_m": 10.0,
+        "passes": 2,
+        "rerun_min_m": 6.0,
+        "max_s": 16.0,
+        "contact_dist_m": 3.9,
+        "contact_radius_m": 1.0,
+        "ring_radius_m": 2.2,
+        "damage_mult": 1.0,
+        "knockdown": true,
+        "knockback_m": 4.0,
+        "cooldown_s": 7.0
+      },
+      "rush_min_m": 6.0,
+      "_stegospin_port": "STEGOSPIN port (owner 2026-10-31). TACKLE: the coil clip, then a run-up at run_mps up to run_m (the run gait) until she is within lunge_m + reach_m, then the LEAP: leap_clip, the body carried lunge_m (x size) along the line inside its airborne window, arc leap_height_m; the hit is the leap clip's hitbox parts (hitboxes.json) swept through her hurtboxes. SHOVE is the SHOULDER SLAM (step-in, the body lurched into that side, knockdown, recover). front_sequence 'tail': ABOUT-FACE (about_left / about_right, 180 deg about pivot_gltf, done in code in step with the clip) when she is within close_zone.tail_radius_m (ASSUMPTION: the club's reach behind it, about 3.1 m, plus the 1.2 m the turn moves the origin toward her, plus her body), then the tail moves take her behind it. rush_min_m: farther than this it rushes in head first at the run gait (ASSUMPTION). Every number is an ASSUMPTION (WildLandsMMO_Open_Questions.md). SHOULDER SLAM carry_m: ASSUMPTION about a body length (snout to hips, ~4 m at size 1): it throws the body up to that far at her (slam_point: where the clip drives the shoulder, body frame x/z at size 1), so close_zone.side_max_m reaches 6 m out. club_moves.whip.sweep_arc_deg: the whip's club passes from about -117 deg (behind its left) through straight behind to +95 deg (tools/gait/check_ankylo.py prints the path): she anywhere on that arc, a little inside its ends, is lined up for it.",
       "big_stomp": false
     },
     "horned_charger": {
@@ -1581,6 +1968,14 @@
           0.32
         ],
         "pin_bone": "Toe.R",
+        "pin_reach": 0.0
+      },
+      "stegosaurus": {
+        "land": [
+          -0.047,
+          0.305
+        ],
+        "pin_bone": "front_toe_L",
         "pin_reach": 0.0
       }
     }

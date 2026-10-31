@@ -102,7 +102,7 @@ part that needs the least. Shrink a radius when the clip or the AI spacing is fi
 | raptor | attack_primary Head 0.77; bite_combo Head 0.83; pounce Head 1.69; pin_stab Head 1.80 |
 | smilodon | attack_primary FrontFoot.R 1.06; attack_heavy Head 0.85; pounce Head 0.91; pin_stab Head 0.76 |
 | spinosaurus | attack_primary Jaw 1.73; attack_heavy (claw rake) Hand.R 3.22; pounce Jaw 3.03; bite_shake Head 1.70 |
-| stegosaurus | attack_primary head 1.78; attack_heavy head 1.66 |
+| stegosaurus | attack_primary head 1.78; attack_heavy head 1.66; STEGOSPIN close moves at its own hurtbox radii (no calibrated radius): stomp front_foot_L + toe; rear_slam both forefeet + toes; hind_stomp_* hind foot + toe; shove_* (shoulder slam) front_forearm + front_upperarm; tackle_lunge forearms + spine_03 |
 | styracosaurus | kick BackFoot.L 1.44; charge Head 1.13; attack_primary Head 1.17; attack_heavy Head 1.17 |
 | tarbosaurus | attack_primary Head 2.07; attack_heavy Head 1.70; pounce Head 1.96 |
 | tyrannosaurus | tail_swipe Tail5 3.75; attack_primary Head 6.47 |
