@@ -231,16 +231,15 @@ func _pick_species(id: StringName) -> void:
 	species_id = id
 	_refresh()
 
-## A species' body variants ([] when every variant shares one body, e.g. the stegosaurus texture looks):
-## megaloceros -> ["stag", "doe"].
+## A species' body variants: megaloceros -> ["stag", "doe"]. SP-RAPTOR: texture looks too (the raptor's colour
+## morphs, the stegosaurus' graded/ochre), so the owner can pick one; "alpha" stays the Alpha toggle's.
 static func variants_of(id: StringName) -> Array:
 	var def := Data.creature(id) if Data else null
 	if def == null:
 		return []
 	var rows := CreatureView.model_variants(def)
-	if not rows.values().any(func(r: Variant) -> bool: return r is Dictionary and (r as Dictionary).has("model")):
-		return []
 	var ids: Array = rows.keys()
+	ids.erase("alpha")
 	ids.sort()
 	ids.reverse()
 	return ids
