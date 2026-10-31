@@ -102,6 +102,11 @@ $GODOT_PATH --headless --path game -- --lab=ui_family_lab
 /Applications/Godot_mono.app/Contents/MacOS/Godot --path /Users/milankinzy/Documents/deadfront-siege/.claude/worktrees/mmo-overhaul/game -- --lab=creature_lab --god --skip-charcreate
 # (docs/current/fight-lab.md: NEXT/T next modelled species, GOD/G toggles god mode)
 
+# UNSTABLE ISLE (for Milan, on-screen): lands on a freshly rolled unstable isle, 40-min clock running;
+# double-click tools/unstable_isle.command or run (seed/template optional, the notice names them for replay)
+/Applications/Godot_mono.app/Contents/MacOS/Godot --path /Users/milankinzy/Documents/deadfront-siege/.claude/worktrees/mmo-overhaul/game -- --lab=unstable_isle --skip-charcreate --seed=505 --template=swamp_55
+# (docs/current/unstable-isles.md; --isleshow=<dir> shoots the 6-isle contact sheet off-screen and quits)
+
 # Other focused labs use the same --lab=<name> pattern
 # names live in game/scripts/dev/*lab.gd
 

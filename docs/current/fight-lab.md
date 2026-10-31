@@ -46,7 +46,7 @@ Verdict: approve / new animations / reject model / new moves or AI.
 
 | Species | Brain (archetype) | Verb | Moves | Fight clips | Verdict |
 |---|---|---|---|---|---|
-| Ankylosaurus | CreatureBrain (club_tail) | tail club | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
+| Ankylosaurus | ClubTailBrain (club_tail) | tail club | no rush: shuffles to turn its tail to you; TAIL WHIP (side sweep, knockback), TAIL SMASH (overhead slam behind it, knockdown + shockwave), CLUB SWEEP (long arc behind, also when two of you are close); order whip, whip, smash, whip, sweep; hits only from the club (the head is safe); a ring + the move name for the whole wind-up, roll through it | alert, attack_primary, attack_heavy, tail_swipe | reworked per owner 2026-10-31, re-test |
 | Coelophysis | CreatureBrain (flock_harass) | flock harass, darting bites | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
 | Compsognathus | TacticalBrain (swarm) | swarm nips, four to eight at once | charge, pounce, strafe, backstep | alert, attack_primary, attack_heavy, pounce | |
 | Deinonychus | TacticalBrain (pack_flanker) | pack flank, sickle-claw rake | backstep, strafe, pounce, charge, combo | alert, attack_primary, attack_heavy, bite_combo, pounce, charge | |
@@ -62,8 +62,16 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Velociraptor | RaptorPackBrain (pack_raptor) | pounce knockdown from off-screen | pack flank, bites, heavy pounce from 4-7 m off-axis | alert, attack_primary, attack_heavy | |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
 
+ClubTailBrain (ANKYLOAI, `game/scripts/creatures/brains/club_tail_brain.gd`): moves and numbers in `ai.json
+archetypes.club_tail.club_moves`; test `game/tests/t_ankyloai.gd`; review shots `--lab=ankyloai_lab --out=DIR`.
+
 CreatureBrain swings attack_primary and attack_heavy only, so the kick clips of Megaloceros and Stegosaurus do
 not show in a fight, and verbs such as Gallimimus "kick" have no move behind them yet.
 
 Test: `game/tests/t_godlab.gd` (GOD survives a T. rex bite chain at full health, off without `--god`; NEXT
 cycles every modelled species, one model each).
+
+Reach on big bodies (BIGREACH): a swing is in reach by the old centre rule or when the survivor's edge is within
+`player_melee.edge_reach_m` (0.5 m) of the creature's visible footprint (`Creature.footprint()`, mesh bounds), so
+the flank, legs, head and tail all count; auto-attack walks to the nearest point of that footprint, not the centre.
+The collision capsule is clamped to the visible half-width. Test: `game/tests/t_bigreach.gd`.
