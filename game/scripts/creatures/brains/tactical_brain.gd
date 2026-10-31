@@ -468,7 +468,7 @@ func _think(delta: float) -> void:
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
 func _roam(delta: float) -> void:
-	if not tac.get("ambush", false):
+	if not _ambushes():
 		super._roam(delta)
 		return
 	_cover_cd -= delta
@@ -484,6 +484,8 @@ func _roam(delta: float) -> void:
 ## The tree nearest home within cover_m (a HarvestNode whose family role is a tree), standing just
 ## beside its trunk on the home side; home itself when there is none.
 func _find_cover() -> Vector3:
+	if _ambushes() and str(tac.get("ambush_cover", "")) == "water":
+		return water_cover
 	var home := creature.spawn_home
 	var best := home
 	var best_d := _t("cover_m", 14.0)
@@ -502,7 +504,7 @@ func _find_cover() -> Vector3:
 ## AMBUSH: no long-range spotting. Prey is struck only inside ambush_radius_m, or inside
 ## back_radius_m while the survivor's back is turned.
 func _scan() -> void:
-	if not tac.get("ambush", false):
+	if not _ambushes():
 		super._scan()
 		return
 	if state != &"roam" or not flight.can_reacquire():
@@ -524,6 +526,39 @@ func _scan() -> void:
 	_log("[ai] %s ambush %s" % [creature.def.id, who.name])
 	_enter_circle(0.0)
 	_strike(_flat_dist(who))
+
+## WATER-EDGE AMBUSH (tactics.ambush_cover "water", SP-CERATOSAURUS, # ASSUMPTION): the lurk spot is a dry bank within
+## cover_m of home beside the river channel or the shore, and the ambush pounce is its lunge out of the shallows. With
+## no water near home (or no island, as in the lab) it does not ambush at all and hunts like any predator.
+var water_cover := Vector3.INF
+var _water_checked := false
+
+func _ambushes() -> bool:
+	if not tac.get("ambush", false):
+		return false
+	if str(tac.get("ambush_cover", "")) != "water":
+		return true
+	if not _water_checked:
+		_water_checked = true
+		water_cover = _find_water_edge()
+	return water_cover != Vector3.INF
+
+func _find_water_edge() -> Vector3:
+	var rt := World.runtime as IslandRuntime if World else null
+	if rt == null or not is_instance_valid(rt):
+		return Vector3.INF
+	var home := creature.spawn_home
+	var far := _t("cover_m", 14.0)
+	for i in 4:
+		var r := far * (i + 1) / 4.0
+		for k in 24:
+			var a := TAU * k / 24.0
+			var p := home + Vector3(cos(a), 0.0, sin(a)) * r
+			var lp := rt.to_local(p)
+			var wet := rt.river_dist_at(lp.x, lp.z) < _t("bank_river_m", 9.0) or rt.rad_at(lp.x, lp.z) > rt.land_radius() - 4.0
+			if wet and rt.is_dry(lp):
+				return Vector3(p.x, rt.global_transform.origin.y + rt.surface_y(lp.x, lp.z), p.z)
+	return Vector3.INF
 
 func _back_turned(p: Player) -> bool:
 	var fwd := -p.visual.global_basis.z
