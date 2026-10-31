@@ -1497,6 +1497,86 @@
      ]
     }
    }
+  },
+  "spinosaurus": {
+   "_note": "SP-SPINOSAURUS x HITBOXES (integrator): parts = pipeline.hit_parts bones; radii from t_hitboxes --calibrate (the part that needs the least)",
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 1.73,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Hand.L"
+      },
+      {
+       "bone": "Hand.R",
+       "radius": 3.22,
+       "calibrated": true
+      },
+      {
+       "bone": "Forearm.L"
+      },
+      {
+       "bone": "Forearm.R"
+      }
+     ]
+    },
+    "pounce": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 3.03,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "bite_shake": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 1.7,
+       "calibrated": true
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Tail4"
+      },
+      {
+       "bone": "Tail5"
+      },
+      {
+       "bone": "Tail6"
+      }
+     ]
+    }
+   }
   }
  },
  "survivor": {
