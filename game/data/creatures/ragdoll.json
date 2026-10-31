@@ -172,27 +172,230 @@
       ]
     },
     "megaloceros": {
+      "_note": "SP-MEGALOCEROS 2026-10-31: new deer skeleton (tools/gait/megaloceros/build_rig.py); the doe shares the bone names, so she uses this profile too. Radii fit the stag (ASSUMPTION).",
       "hips": "Hips",
-      "feet": ["BackFoot.L", "BackFoot.R", "FrontFoot.L", "FrontFoot.R", "BackFoot.L_end", "BackFoot.R_end", "FrontFoot.L_end", "FrontFoot.R_end"],
+      "feet": [
+        "BackFoot.L",
+        "BackFoot.R",
+        "FrontFoot.L",
+        "FrontFoot.R"
+      ],
       "mass_kg": 40.2,
-      "reparent": {"BackFoot.L": "BackLowLeg.L", "BackFoot.R": "BackLowLeg.R", "FrontFoot.L": "FrontLowLeg.L", "FrontFoot.R": "FrontLowLeg.R"},
       "hit_react_s": 0.3,
+      "rest_bones": [
+        "Jaw"
+      ],
       "bodies": [
-        {"bone": "Body", "from": "Tail2", "to": "Shoulders", "radius": 0.55, "mass_frac": 0.386, "angular_damp": 4.166, "offset": [0.0, 0.013, 0.0]},
-        {"bone": "Neck", "dir": [0.0, -0.3, 1.0], "length": 1.0, "radius": 0.6, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 15, "twist": 8, "side": 15, "axis": [1, 0, 0], "min": -20, "max": 15}},
-        {"bone": "Tail2", "to": "Tail5_end", "extend": 0.034, "radius": 0.279, "angular_damp": 4.0, "joint": {"type": "cone", "swing": 14, "twist": 10, "axis": [1, 0, 0]}},
-        {"bone": "BackUpLeg.L", "from": "BackLeg.L", "to": "BackLowLeg.L", "radius": 0.307, "joint": {"type": "cone", "swing": 15, "side": 10, "twist": 5}},
-        {"bone": "BackUpLeg.R", "from": "BackLeg.R", "to": "BackLowLeg.R", "radius": 0.31, "joint": {"type": "cone", "swing": 15, "side": 10, "twist": 5}},
-        {"bone": "BackLowLeg.L", "from": "BackLowLeg.L", "to": "BackLowLeg.L_end", "radius": 0.303, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -5, "max": 20}},
-        {"bone": "BackLowLeg.R", "from": "BackLowLeg.R", "to": "BackLowLeg.R_end", "radius": 0.223, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -5, "max": 20}},
-        {"bone": "BackFoot.L", "to": "BackFoot.L_end", "radius": 0.056, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -5, "max": 10}},
-        {"bone": "BackFoot.R", "to": "BackFoot.R_end", "radius": 0.056, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -5, "max": 10}},
-        {"bone": "FrontUpLeg.L", "from": "FrontLeg.L", "to": "FrontLowLeg.L", "radius": 0.333, "joint": {"type": "cone", "swing": 15, "side": 10, "twist": 5}},
-        {"bone": "FrontUpLeg.R", "from": "FrontLeg.R", "to": "FrontLowLeg.R", "radius": 0.33, "joint": {"type": "cone", "swing": 15, "side": 10, "twist": 5}},
-        {"bone": "FrontLowLeg.L", "from": "FrontLowLeg.L", "to": "FrontLowLeg.L_end", "radius": 0.222, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -5, "max": 20}},
-        {"bone": "FrontLowLeg.R", "from": "FrontLowLeg.R", "to": "FrontLowLeg.R_end", "radius": 0.21, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -5, "max": 20}},
-        {"bone": "FrontFoot.L", "to": "FrontFoot.L_end", "radius": 0.056, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -5, "max": 10}},
-        {"bone": "FrontFoot.R", "to": "FrontFoot.R_end", "radius": 0.056, "joint": {"type": "hinge", "axis": [1, 0, 0], "min": -5, "max": 10}}
+        {
+          "bone": "Body",
+          "from": "Tail1",
+          "to": "Neck",
+          "radius": 0.8,
+          "mass_frac": 0.45,
+          "angular_damp": 4.0
+        },
+        {
+          "bone": "Neck",
+          "to": "Head",
+          "radius": 0.35,
+          "angular_damp": 4.0,
+          "joint": {
+            "type": "cone",
+            "swing": 20,
+            "twist": 8,
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "side": 15
+          }
+        },
+        {
+          "bone": "Head",
+          "radius": 0.25,
+          "angular_damp": 4.0,
+          "joint": {
+            "type": "cone",
+            "swing": 15,
+            "twist": 8,
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "side": 12
+          }
+        },
+        {
+          "bone": "Tail1",
+          "to": "Tail2",
+          "extend": 0.3,
+          "radius": 0.15,
+          "angular_damp": 4.0,
+          "joint": {
+            "type": "cone",
+            "swing": 14,
+            "twist": 10,
+            "axis": [
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "bone": "HindUpper.L",
+          "to": "HindLower.L",
+          "radius": 0.3,
+          "joint": {
+            "type": "pin"
+          }
+        },
+        {
+          "bone": "HindLower.L",
+          "to": "HindCannon.L",
+          "radius": 0.16,
+          "joint": {
+            "type": "hinge",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "min": -45,
+            "max": 45
+          }
+        },
+        {
+          "bone": "HindCannon.L",
+          "to": "BackFoot.L",
+          "radius": 0.1,
+          "joint": {
+            "type": "hinge",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "min": -45,
+            "max": 45
+          }
+        },
+        {
+          "bone": "FrontUpper.L",
+          "to": "FrontLower.L",
+          "radius": 0.28,
+          "joint": {
+            "type": "pin"
+          }
+        },
+        {
+          "bone": "FrontLower.L",
+          "to": "FrontCannon.L",
+          "radius": 0.15,
+          "joint": {
+            "type": "hinge",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "min": -45,
+            "max": 45
+          }
+        },
+        {
+          "bone": "FrontCannon.L",
+          "to": "FrontFoot.L",
+          "radius": 0.1,
+          "joint": {
+            "type": "hinge",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "min": -45,
+            "max": 45
+          }
+        },
+        {
+          "bone": "HindUpper.R",
+          "to": "HindLower.R",
+          "radius": 0.3,
+          "joint": {
+            "type": "pin"
+          }
+        },
+        {
+          "bone": "HindLower.R",
+          "to": "HindCannon.R",
+          "radius": 0.16,
+          "joint": {
+            "type": "hinge",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "min": -45,
+            "max": 45
+          }
+        },
+        {
+          "bone": "HindCannon.R",
+          "to": "BackFoot.R",
+          "radius": 0.1,
+          "joint": {
+            "type": "hinge",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "min": -45,
+            "max": 45
+          }
+        },
+        {
+          "bone": "FrontUpper.R",
+          "to": "FrontLower.R",
+          "radius": 0.28,
+          "joint": {
+            "type": "pin"
+          }
+        },
+        {
+          "bone": "FrontLower.R",
+          "to": "FrontCannon.R",
+          "radius": 0.15,
+          "joint": {
+            "type": "hinge",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "min": -45,
+            "max": 45
+          }
+        },
+        {
+          "bone": "FrontCannon.R",
+          "to": "FrontFoot.R",
+          "radius": 0.1,
+          "joint": {
+            "type": "hinge",
+            "axis": [
+              1,
+              0,
+              0
+            ],
+            "min": -45,
+            "max": 45
+          }
+        }
       ]
     },
     "protoceratops": {

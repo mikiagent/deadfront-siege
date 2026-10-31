@@ -118,6 +118,10 @@
     },
     "charge_recover": {
       "note": "STYRAFIX: winded after a charge, head low with three decaying head shakes; the punish window (charge_recover_s)"
+    },
+    "toss": {
+      "hit_frac": 0.3,
+      "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
     }
   },
   "natural_speeds": {
@@ -194,15 +198,21 @@
       "charge": 9.999
     },
     "megaloceros": {
-      "height_m": 2.1,
-      "run_l": 5.964,
-      "run_len": 0.583,
-      "run_r": 5.943,
-      "walk_l": 1.292,
-      "walk_len": 1.167,
-      "walk_r": 1.292,
-      "walk": 1.292,
-      "run": 5.954
+      "height_m": 3.95,
+      "run_l": 10.209,
+      "run_len": 0.708,
+      "run_r": 9.987,
+      "walk_l": 2.293,
+      "walk_len": 1.292,
+      "walk_r": 2.292,
+      "walk": 2.292,
+      "run": 10.098,
+      "strafe_left": 2.292,
+      "strafe_left_len": 1.292,
+      "strafe_right": 2.292,
+      "strafe_right_len": 1.292,
+      "walk_back": 2.292,
+      "walk_back_len": 1.292
     },
     "pachycephalosaurus": {
       "height_m": 1.8,
@@ -315,6 +325,23 @@
       "strafe_right_len": 0.833,
       "walk_back": 1.027,
       "walk_back_len": 0.833
+    },
+    "woolly_rhino": {
+      "height_m": 2.95,
+      "run_l": 4.016,
+      "run_len": 0.75,
+      "run_r": 4.024,
+      "walk_l": 1.406,
+      "walk_len": 1.333,
+      "walk_r": 1.405,
+      "walk": 1.405,
+      "run": 4.02,
+      "strafe_left": 1.405,
+      "strafe_left_len": 1.333,
+      "strafe_right": 1.405,
+      "strafe_right_len": 1.333,
+      "walk_back": 1.405,
+      "walk_back_len": 1.333
     }
   }
 }
