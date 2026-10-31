@@ -1330,6 +1330,74 @@
      ]
     }
    }
+  },
+  "allosaurus": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "_note": "SP-ALLOSAURUS x HITBOXES (integrator): bite radii from t_hitboxes --calibrate; the grab and the shoulder ram use pipeline.hit_parts' bones; kick Chest 1.8 m = its old hit_parts radius (the test ram at 3.2 m)",
+   "moves": {
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw",
+       "radius": 2.07,
+       "calibrated": true
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Head",
+       "radius": 1.01,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      }
+     ]
+    },
+    "grab_bite": {
+     "parts": [
+      {
+       "bone": "Hand.L"
+      },
+      {
+       "bone": "Hand.R"
+      },
+      {
+       "bone": "Jaw",
+       "radius": 2.07
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "kick": {
+     "parts": [
+      {
+       "bone": "Chest",
+       "radius": 1.8
+      },
+      {
+       "bone": "Arm.R"
+      },
+      {
+       "bone": "Neck1"
+      }
+     ]
+    }
+   }
   }
  },
  "survivor": {
