@@ -19,6 +19,7 @@ a.add_argument("--span", type=float, default=4.5, help="ortho width in metres")
 a.add_argument("--forward", type=float, default=None, help="aim this far (m) toward the snout from mid-head")
 a.add_argument("--jaw", type=float, default=None, help="force the Jaw bone open by this many degrees (local X)")
 a.add_argument("--lock", action="store_true", help="keep the first frame's camera for all frames (to see the head move)")
+a.add_argument("--albedo", default=None, help="swap the base colour image for this one (alpha skins)")
 a.add_argument("--down", type=float, default=0.0, help="aim this far (m) below mid-head")
 a = a.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
@@ -40,6 +41,7 @@ for m in bpy.data.materials:  # Workbench shows the active image node: make it t
     bsdf = next((n for n in m.node_tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
     if bsdf and bsdf.inputs["Base Color"].links:
         m.node_tree.nodes.active = bsdf.inputs["Base Color"].links[0].from_node
+        if a.albedo: m.node_tree.nodes.active.image = bpy.data.images.load(a.albedo)
 sc = bpy.context.scene
 sc.render.engine = "BLENDER_WORKBENCH"
 sc.display.shading.light = "STUDIO"; sc.display.shading.color_type = "TEXTURE"
