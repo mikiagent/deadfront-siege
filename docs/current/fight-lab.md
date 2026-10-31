@@ -36,6 +36,8 @@ It runs the canon worktree (`mmo-overhaul`), windowed.
 | N | Enrage the nearest creature (enraged cooldowns are shorter than normal play) |
 | H (or `--hitboxes`) | Hitbox debug draw: every hurtbox green, crit spots magenta ([crit_spots.md](crit_spots.md)), each attack's swept hitbox red, yellow where it touched ([hitboxes.md](hitboxes.md)) |
 | 0 | Play bite_combo on the nearest creature that has one |
+| WEAPON / B | PARTCOMBAT: cycles the test weapons into her hands: Iron Slab Blade (one-handed), Steel Greatblade (two-handed), PRO-Class Bow (with 200 arrows) ([body_sections.md](body_sections.md)) |
+| AIM chip (under the target bar) | Pick the body section to aim at or focus; or tap the animal's body. The pick glows cyan |
 
 Buttons are 64 px tap targets; mouse, keyboard and touch all work.
 

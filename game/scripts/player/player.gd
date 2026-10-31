@@ -420,6 +420,9 @@ func notice(text: String) -> void:
 func right_hand_anchor() -> Marker3D:
 	return view.right_hand_anchor()
 
+func left_hand_anchor() -> Marker3D:
+	return view.left_hand_anchor() if view else null
+
 func hips_anchor() -> Marker3D:
 	return view.hips_anchor()
 

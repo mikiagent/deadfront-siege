@@ -692,7 +692,7 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 	var key := c.get_instance_id()
 	if not _entries.has(key):
 		return
-	if amount < 0.5 and kind != &"heal" and kind != &"xp" and not CombatAvoid.TEXT.has(kind):
+	if amount < 0.5 and kind != &"heal" and kind != &"xp" and kind != &"wound_formed" and kind != &"armor_break" and not CombatAvoid.TEXT.has(kind):
 		return  # a bleed tick under 1 HP read "-0" over the plate
 	var entry: Dictionary = _entries[key]
 	var layer := entry["floats"] as Control
@@ -735,6 +735,22 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 			col = CritSpots.BURST
 			fs = 26
 			shown = "WEAK SPOT %s!" % shown
+		&"wound":  # PARTCOMBAT: a sure crit into a Wound
+			col = Color(1.0, 0.25, 0.25)
+			fs = 26
+			shown = "WOUND %s!" % shown
+		&"armoured":  # PARTCOMBAT: unbroken armour took the hit
+			col = Color(0.7, 0.72, 0.78)
+			fs = 15
+			shown = "%s ARMOUR" % shown
+		&"wound_formed":  # PARTCOMBAT: the first time a Wound opens on a section
+			col = BodyWounds.GASH.lightened(0.35)
+			fs = 28
+			shown = "WOUND!"
+		&"armor_break":  # PARTCOMBAT: the first time armour cracks on a section
+			col = BodyWounds.CRACK
+			fs = 28
+			shown = "ARMOR BREAK!"
 	label.text = shown
 	label.position = Vector2(70 + randf_range(-16.0, 16.0), 12)
 	label.add_theme_font_size_override("font_size", fs)
@@ -743,7 +759,11 @@ func _on_creature_float(amount: float, kind: StringName, c: Creature) -> void:
 	label.add_theme_constant_override("outline_size", 4 if fs >= 20 else 3)
 	layer.add_child(label)
 	var nodes: Array = entry.get("float_nodes", [])
-	nodes.append({"node": label, "age": 0.0})
+	if kind == &"wound_formed" or kind == &"armor_break":
+		label.position.x = 20.0
+		nodes.append({"node": label, "age": -0.4, "y0": -40.0})  # above the numbers, held a moment: it reads on its own
+	else:
+		nodes.append({"node": label, "age": 0.0})
 	entry["float_nodes"] = nodes
 	_entries[key] = entry
 
