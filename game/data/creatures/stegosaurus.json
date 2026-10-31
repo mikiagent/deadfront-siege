@@ -51,7 +51,23 @@
       "hit_react",
       "knockdown",
       "death",
-      "alert"
+      "alert",
+      "kick",
+      "charge",
+      "walk_back",
+      "strafe_left",
+      "strafe_right",
+      "spin_right",
+      "spin_left",
+      "pivot_right",
+      "pivot_left",
+      "stomp",
+      "rear_slam",
+      "hind_stomp_left",
+      "hind_stomp_right",
+      "shove_left",
+      "shove_right",
+      "tackle"
     ],
     "model_variants": {
       "graded": "",
@@ -127,7 +143,8 @@
       },
       "rig_revision": 3,
       "note": "v1 glb, textures and anim moved to res://assets/creatures/stegosaurus/v1/"
-    }
+    },
+    "stegospin": "2026-10-31 STEGOSPIN: spin_*, pivot_*, stomp, rear_slam, hind_stomp_*, shove_*, tackle from Blender -b -P tools/gait/make_stego_moves.py -- stegosaurus.glb anim/idle.glb anim; gate Blender -b -P tools/gait/check_stego_moves.py -- stegosaurus.glb anim ../../../data/creatures/ai.json (STEGO_MOVES PASS). Both looks (graded, ochre) share this rig and clip set."
   },
   "taming": {
     "preferred_food": [
@@ -155,7 +172,7 @@
         "id": "saddle",
         "weight": 2.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "stripes",
@@ -167,7 +184,7 @@
         "id": "countershade",
         "weight": 3.0,
         "scale": 1.0,
-        "strength": 0.50
+        "strength": 0.5
       },
       {
         "id": "",

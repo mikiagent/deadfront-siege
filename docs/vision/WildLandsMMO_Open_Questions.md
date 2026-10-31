@@ -457,6 +457,25 @@ be able to punch it over and over up close without consequence". Numbers in `ai.
 | **AC7** | It does not hit a knocked-down survivor: it waits for her to stand. | `ClubTailBrain._position` | Without it, stomp then tackle would chain on the floor. |
 | **AC8** | The tackle is a 0.9 s coil clip, then the run gait (stride-matched, no glide) at 5 m/s on a line locked at launch (at her if within 45 deg of the snout). No dedicated impact clip. | `tackle.lunge_m`, `lunge_mps`, `_start_lunge` | A body-slam clip on contact would read better; next art pass. |
 
+### STEGOSPIN (2026-10-31) — the stegosaurus spins and stomps, the ankylosaurus jousts and spins from the front (claude/mmo-stegospin)
+
+Owner: "Stego needs a stronger twist attack, tackle attack, etc. it should be spinning a lot, anky and stego are similar" /
+"also needs stomp attacks" / "for both stegos"; on the ankylosaurus: "don't have the ankylosaurus back himself into me for
+an attack, he should also joust and be able to hit you with his tail from the front by spinning and smacking you with the
+tail". General rule: "smaller animals hop around more than they strafe, big and heavy dinosaurs strafe more than they hop".
+Numbers in `ai.json archetypes.spiked_tail` (stegosaurus) and `club_tail` (ankylosaurus). Report: `claude-stegospin.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **SS1** | The stegosaurus runs ClubTailBrain (as the ankylosaurus) instead of the plain CreatureBrain. | `Creature._make_brain` | Its old attack_primary / attack_heavy swing pattern is gone; the TAIL WHIP (attack_heavy) row was dropped for spins only. |
+| **SS2** | TAIL SPIN: a 220 deg turn (stegosaurus; 200 deg ankylosaurus) about the inner front foot over 58 % of a 4.0 s (3.6 s) clip, after a 1.1 s wind-up (tail raised, cocked, trembling). The body turn is done in code in step with the clip. | `spin_*.turn_deg`, `turn`, `pivot_gltf` | A full 360 would need ~14 steps per hind foot at this pace. |
+| **SS3** | The spin's hit is the whole rear body and tail (a line from the hips to the club, 1.2 m wide), not only the club: knockdown + 6 m knockback (5 m ankylosaurus), x1.2 damage. The ring is drawn round the pivot foot out to the club (9.8 m / 6.4 m). | `line_bone`, `hit_radius_m`, `ring_radius_m` | Standing inside the sweep is the hit; the head end near the pivot is the safe spot. |
+| **SS4** | A spin goes round again at once (double spin) when she is still within its reach and on her feet; at most two in a row. Cooldown after a spin 1.2 s (stegosaurus). | `double`, `_end_move` | "Spinning a lot" vs time to punish. |
+| **SS5** | PIVOT: a 90 deg turn about a front foot in 1.6 s when the next tail move is more than 75 deg off its aim, or to turn head first to a survivor behind it out of reach. | `pivots`, `pivot_min_deg` | Below 75 deg it sidesteps on the strafe clips as before. |
+| **SS6** | Stegosaurus close moves: STOMP (left forefoot, 2.2 m area 3.6 m ahead, knockdown), REAR SLAM (rears 25 deg, both forefeet, 3.6 m area 4.2 m ahead, x1.3, knockdown), HIND STOMP beside each flank (hips zone, 2.4 m area, knockdown, 3 m knockback), SHOVE (4 m sideways), TACKLE (3.5 m run at 5 m/s). Front order stomp, rear slam; tackle past the stomp's reach. | `close_moves`, `close_zone` | Hit sizes for a 6.4 m tall animal; balance not tuned (one-shots a fresh survivor). |
+| **SS7** | No back-in (both): out of the tail's reach it never walks backwards into her; it pivots and comes head first, so the front moves take over. A survivor closer than the move's spot is swung at, not backed away from. | `_position` | AK aims (tail toward her) now only hold in reach. |
+| **SS8** | Ankylosaurus JOUST: from 11-30 m, a straight run at 6 m/s past her by 10 m, then an arc on the run gait (60 deg/s), and again: 2 passes. Contact 3.9 m ahead (1 m sphere): knockdown, thrown 4 m to the side she stood on. Not staggered during the run. Front order now stomp, spin, tackle. | `joust`, `front_sequence`, `super_armor` | Minimal own joust; fold onto claude/mmo-megajoust's shared one when it lands. |
+
 ### COELOMOVES (2026-10-31) — coelophysis and gallimimus on the deinonychus brain, skittish-territorial grazers (claude/mmo-coelomoves)
 
 Owner: "give the coelophysis all of the same attacks as deinonychus"; "Gallimimus AI is completely braindead. Give it patched deinonychus's brain as a template and we will tune after"; megaloceros and gallimimus "should get territorial and engage the player after running away once ... run away when its weak". Report `docs/orchestration/reports/claude-coelomoves.md`.

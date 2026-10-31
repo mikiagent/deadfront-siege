@@ -1,6 +1,6 @@
 # STUNLOCK: heavy and armoured species shrug off her staggers
 
-Branch `claude/mmo-stunlock` (from `origin/claude/mmo-overhaul` 1066e9c9; canon merged back in three times, last at 91010e7f). Not merged to canon.
+Branch `claude/mmo-stunlock` (from `origin/claude/mmo-overhaul` 1066e9c9; canon merged back in four times, last at a0d9bf1d). Not merged to canon.
 
 Owner, fight lab (`tools/fight_lab.command`, `--lab=creature_lab --god`): "ankylosaurus is getting stunlocked and not fighting back"; earlier "I should not be able to punch it over and over up close without consequence".
 
@@ -26,7 +26,7 @@ Roll and Net are manual-only. There are no combos on the survivor's side.
 - `Creature.stagger(seconds)`: the one door for every stagger from her hits and Tackle. A poised body refuses it; anyone else is staggered at most once per stagger + `STAGGER_IMMUNE_S` 0.7 s. `_on_damaged` and `CombatTactics.tackle` call it; the kick's extra `stagger_left` write is gone.
 - `CombatTactics.poised(c)` = the kick cannot shove it (`kick_push == 0`): mass_proxy >= `kick.giant_mass` 40, or listed in the new `kick.armoured` (ankylosaurus, mass 36). A poised animal plays the procedural flinch instead of hit_react, so it is never busy from her hits.
 - `Creature.shove` (the kick's slide, the teleport fix) is unchanged and still always slides a kickable animal; it now also starts the immunity window.
-- `ClubTailBrain._position`: the shuffle spot sits at the animal's own height.
+- `ClubTailBrain._position`: the shuffle spot sat at her capsule height; fixed here at first, then canon's stegospin merge (ANKYLOOPEN) rewrote the same code with its own fix for the same hold deadlock, so canon's version was kept in the merge.
 - `ai.json horned_hunter.tactics.charge_min_m` 6.0: no straight charge from inside 6 m; up close the carnotaurus uses its point-blank horn ram and bite.
 
 Small and medium animals (compy, raptors, pachycephalosaurus, deer) keep the same stagger: a 0.3 s hit stagger still leaves the same 1 s window as before, and the kick still shoves them.

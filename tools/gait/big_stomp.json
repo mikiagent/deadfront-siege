@@ -262,5 +262,60 @@
         ]
       }
     ]
+  },
+  "stegosaurus": {
+    "height_m": 6.4,
+    "body": "hips",
+    "head": "head",
+    "tail": "tail_01",
+    "stomp": 0,
+    "lift": 0.5,
+    "fwd": 0.25,
+    "inward": 0.5,
+    "pitch": 6,
+    "neck": [
+      "neck_01",
+      "neck_02",
+      "head"
+    ],
+    "tails": [
+      "tail_01",
+      "tail_02",
+      "tail_03"
+    ],
+    "legs": [
+      {
+        "up": "front_upperarm_L",
+        "low": "front_forearm_L",
+        "lower": [
+          "front_foot_L",
+          "front_toe_L"
+        ]
+      },
+      {
+        "up": "front_upperarm_R",
+        "low": "front_forearm_R",
+        "lower": [
+          "front_foot_R",
+          "front_toe_R"
+        ]
+      },
+      {
+        "up": "hind_thigh_L",
+        "low": "hind_shin_L",
+        "lower": [
+          "hind_foot_L",
+          "hind_toe_L"
+        ]
+      },
+      {
+        "up": "hind_thigh_R",
+        "low": "hind_shin_R",
+        "lower": [
+          "hind_foot_R",
+          "hind_toe_R"
+        ]
+      }
+    ]
   }
 }
