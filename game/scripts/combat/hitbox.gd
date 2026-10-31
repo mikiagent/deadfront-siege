@@ -55,8 +55,13 @@ static func move_spec(attacker: Node, move: StringName, hit_index: int = 0, weap
 		var vr: Dictionary = (sp.get("variants", {}) as Dictionary).get(str((attacker as Creature).variant), {})
 		var mv_row: Variant = (vr.get("moves", {}) as Dictionary).get(str(move), (sp.get("moves", {}) as Dictionary).get(str(move), {}))
 		row = (mv_row as Dictionary).duplicate()
+		# A species with no row here uses its own pipeline.hit_parts bones (the species branches name them).
+		var hp: Dictionary = (attacker as Creature).def.pipeline.get("hit_parts", {}) if (attacker as Creature).def.pipeline.get("hit_parts") is Dictionary else {}
+		if not row.has("parts") and hp.get(str(move)) is Dictionary and not vr.has("parts"):
+			row["parts"] = _bones_as_parts((hp[str(move)] as Dictionary).get("bones", []))
 		if not row.has("parts"):
-			row["parts"] = vr.get("parts", sp.get("parts", (d.get("creature_defaults", {}) as Dictionary).get("parts", [])))
+			var fallback: Array = _bones_as_parts((hp["attack_primary"] as Dictionary).get("bones", [])) if hp.get("attack_primary") is Dictionary else (d.get("creature_defaults", {}) as Dictionary).get("parts", [])
+			row["parts"] = vr.get("parts", sp.get("parts", fallback))
 	else:
 		var sv: Dictionary = d.get("survivor", {})
 		row = ((sv.get("moves", {}) as Dictionary).get(str(move), {}) as Dictionary).duplicate()
@@ -73,6 +78,12 @@ static func move_spec(attacker: Node, move: StringName, hit_index: int = 0, weap
 		var lo := 0.0 if hit_index <= 0 or fracs.size() <= 1 else fracs[hit_index - 1]
 		row["window"] = Vector2(maxf(lo, hit - lead), hit)
 	return row
+
+static func _bones_as_parts(bones: Array) -> Array:
+	var out := []
+	for b in bones:
+		out.append({"bone": str(b)})
+	return out
 
 ## Judge one move against one target: {} when no part touched it, else {part, region, at}.
 ## preview: a reach test (the survivor's approach), not a swing: it is not drawn.
@@ -144,16 +155,17 @@ static func _strike(attacker: Node3D, move: StringName, target: Node3D, hit_inde
 	var draw := debug_draw and not preview
 	# Bounds first: most checks (a preview while she walks up, a bite at a dodging target) end here.
 	var sweep_box := AABB(xf * (samples[0][0][0] as Vector3), Vector3.ZERO)
-	var grow := 0.0
+	var part_r := 0.0
 	for row in samples:
 		for p in row as Array:
 			sweep_box = sweep_box.expand(xf * (p[0] as Vector3)).expand(xf * (p[1] as Vector3))
-			grow = maxf(grow, float(p[2]))
+			part_r = maxf(part_r, float(p[2]))
 	var hurt_box := AABB(hurt.caps[0]["wa"], Vector3.ZERO) if not hurt.caps.is_empty() else AABB()
+	var hurt_r := 0.0
 	for c in hurt.caps:
 		hurt_box = hurt_box.expand(c["wa"]).expand(c["wb"])
-		grow = maxf(grow, float(c["wr"]) * 2.0)
-	sweep_box = sweep_box.grow(grow)
+		hurt_r = maxf(hurt_r, float(c["wr"]))
+	sweep_box = sweep_box.grow(part_r + hurt_r)  # the two radii together: a touch at the bounds' edge still counts
 	for dy in _aim_offsets(move_spec(attacker, move, hit_index, weapon)):
 		if not draw and not sweep_box.intersects(AABB(hurt_box.position + Vector3(0.0, -dy, 0.0), hurt_box.size)):
 			continue

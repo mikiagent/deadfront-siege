@@ -20,6 +20,8 @@ const BONE_TOL_M := 0.05  ## the player's seek and the bake's track sampling int
 const PERF_STRIKE_MS := 1.5  ## one strike (sync + sweep) against a survivor
 const PERF_TOTAL_MS := 12.0  ## 20 creatures striking once each
 const APPROACH_S := 8.0
+## Calibrated radii reach this much past the closest pass: the idle sway of both bodies differs run to run.
+const CALIB_MARGIN_M := 0.2
 const SURVIVOR_MOVES := [[&"punch", &""], [&"swing", &"slashing"], [&"heavy", &"blunt"], [&"kick", &""], [&"tackle", &""]]
 
 var failures: Array[String] = []
@@ -200,7 +202,11 @@ func _test_species(id: StringName) -> void:
 				_place_survivor(Vector3(0, 0, side * float(dist)), c)
 				await _pose_for(mv, c)
 				var hit: Dictionary = HX.strike(c, mv, player, int(row[1]))
-				_unpose(mv)
+				if hit.is_empty() and OS.has_environment("HB_DEBUG"):
+					var dbg := {}
+					_calib_need(c, HB.skeleton_of(c), row, c.size_scale(), dbg)
+					print("[hbdebug] %s %s size %.3f need %s spec %s pos %s anim %s pclip %s" % [id, mv, c.size_scale(), dbg, HX.move_spec(c, mv, int(row[1])), player.global_position, c.anim.current_clip, player.anim.current_clip])
+				await _unpose(mv)
 				_expect(not hit.is_empty(), "%s %s[%d]: connects with a survivor %s at %.2f m (contact reach %.2f) (%s)" % [id, mv, row[1], "behind it" if row[2] else "in front", dist, reach, hit.get("part", "-")])
 			if not row[2] and mv != &"charge":
 				_place_survivor(Vector3(reach + 0.3, 0, 1.0), c)
@@ -219,8 +225,14 @@ func _pose_for(mv: StringName, c) -> void:
 	await _frames(60)
 
 func _unpose(mv: StringName) -> void:
-	if mv == &"pin_stab":
-		player.statuses.clear_id(&"pinned")
+	if mv != &"pin_stab":
+		return
+	player.statuses.clear_all()
+	for _f in 180:  # she gets back up before the next check stands her in front of something
+		await physics_frame
+		if player.anim.current_clip in [&"idle", &"walk", &"run"]:
+			break
+	await _frames(10)
 
 func _place_survivor(at: Vector3, face) -> void:
 	player.global_position = Vector3(at.x, 0.9, at.z)
@@ -432,8 +444,10 @@ func _calibrate_species(id: StringName) -> void:
 		return
 	var done := {}
 	var range_: Vector2 = load("res://scripts/creatures/creature_genetics.gd").size_range_for(data.creature(StringName(str(id).get_slice("/", 0))))
-	for size in [range_.x, range_.y]:
+	for size in [range_.x, (range_.x + range_.y) * 0.5, range_.y, 0.0]:  # 0: the size this test's own spawn rolls
 		var c = _spawn(id, Vector3.ZERO, false, size)
+		size = c.size_scale()
+		_bone_track_check(c)  # the same state the checks run in (the seeked AnimationPlayer, then the tree again)
 		await _frames(3)
 		var sk: Skeleton3D = HB.skeleton_of(c)
 		for row in _moves_of(c):
@@ -441,11 +455,11 @@ func _calibrate_species(id: StringName) -> void:
 				_place_survivor(Vector3(0, 0, (1.0 if row[2] else -1.0) * float(dist)), c)
 				await _pose_for(row[0], c)
 				_calib_need(c, sk, row, size, done)
-				_unpose(row[0])
+				await _unpose(row[0])
 		c.queue_free()
 		await _frames(1)
 	for key in done:
-		_calib.append([str(id), key, snappedf(float(done[key]), 0.01)])
+		_calib.append([str(id), "%s|%.2f" % [key, done[key][1]], snappedf(float(done[key][0]), 0.01)])
 
 ## Each part's closest pass to the survivor where she stands now, into done ("move|bone|radius" -> need, at size 1).
 func _calib_need(c, sk: Skeleton3D, row: Array, size: float, done: Dictionary) -> void:
@@ -460,5 +474,6 @@ func _calib_need(c, sk: Skeleton3D, row: Array, size: float, done: Dictionary) -
 			for cap in caps:
 				var pts := Geometry3D.get_closest_points_between_segments(pa, a, cap[0], cap[1])
 				need = minf(need, pts[0].distance_to(pts[1]) - float(cap[2]))
-		var key := "%s|%s|%.2f" % [row[0], spec["parts"][pi]["bone"], float(smp[0][pi][2]) / size]
-		done[key] = maxf(float(done.get(key, -INF)), (need + 0.08) / size)
+		var key := "%s|%s" % [row[0], spec["parts"][pi]["bone"]]
+		var was: Array = done.get(key, [-INF, 0.0])
+		done[key] = [maxf(float(was[0]), (need + CALIB_MARGIN_M) / size), maxf(float(was[1]), float(smp[0][pi][2]) / size)]
