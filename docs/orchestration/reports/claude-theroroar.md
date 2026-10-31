@@ -89,7 +89,15 @@ It exists on the same 8 rigs. The tarbosaurus was added as "T. rex style" (ASSUM
   - t_sp_megarex: phase 2 now opens with the roar, and the phase-3 roar is the `roar` clip;
   - t_rexclips: spotting plays `roar`;
   - t_sp_majungasaurus: 19 listed clips.
-- Full `tools/all_tests.sh`, `run_all.gd` and `tools/smoke.sh --no-import`: see the closing section.
+- Last canon merge was 46b329d2 (megarun). The run below is on the carnofeel merge (c8a64c14); after megarun I reran 17 tests (the gates, t_dismount, t_perfgates and the species tests): all pass.
+- `run_all.gd`: **[tests] PASS**.
+- `tools/smoke.sh --no-import`: **SMOKE PASS**.
+- Full `tools/all_tests.sh`: 199 of 218 pass. 18 of the 19 failures fail the same way on a clean canon worktree (`.claude/worktrees/theroroar-canoncheck`, detached at canon). They are:
+  - t_colors, t_buildspeed, t_kicktackle, t_levelfx, t_savefix, t_landmarks, t_ragdoll;
+  - t_noteleport, t_sp_megatherium, t_sp_trikealpha, t_stationstate, t_swarm;
+  - t_turnrate, t_uinav, t_zebra, t_cornered, t_ankyloai, t_dismount.
+- **Flaky:** t_dismount failed on canon a0d9bf1d, then passed both on canon 46b329d2 and here after the merge. t_perfgates and t_eyetrails are timing gates that flip under load and pass when rerun alone.
+- **Fixed after the full run:** the 19th failure, t_sp_spinosaurus, was mine. Spinosaurus had picked up the big stomp at the megarun merge, and its unit fights now skip the spot roar. It passes 3 of 3 runs.
 
 ## Shots (`docs/orchestration/reports/theroroar/`)
 All shots come from off-screen windowed runs of the new `theroroar_lab` (`--position 6000,3000`, self-quitting, `-- --skip-charcreate`), and I looked at each one.

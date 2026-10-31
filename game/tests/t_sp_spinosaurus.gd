@@ -189,6 +189,7 @@ func _spino(host: Node3D, at: Vector3) -> Node:
 	host.add_child(c)
 	c.global_position = at
 	c.spawn(data.creature(ID))
+	c.set_meta(&"thero_roar_at", Time.get_ticks_msec() * 0.001)  # THERO-ROAR: no spot roar; the moves under test come at once
 	c.look_at(Vector3(0, at.y, 0), Vector3.UP)
 	return c
 
@@ -203,7 +204,6 @@ func _setup_fight(dist: float, live_player: bool = false) -> Array:
 	b.attack_target = player
 	b._combat_memory_left = 30.0
 	await physics_frame
-	c.anim.release_oneshot()  # THERO-ROAR: spotting her it rears and roars first; the move under test comes after it
 	return [host, player, c, b]
 
 ## At the jaws' reach in front: the croc snap lands from the jaws.
