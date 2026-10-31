@@ -1,7 +1,7 @@
 # GALLIFIX: the gallimimus face and passive-aggressive behaviour
 
 Owner, verbatim: "gallimimus model, face looks mangled or something. give it passive aggressive behavior like the compy".
-Branch `claude/mmo-gallifix`, cut from `origin/claude/mmo-overhaul` 30e08c30. Pushed, not merged to canon.
+Branch `claude/mmo-gallifix`, cut from `origin/claude/mmo-overhaul` 30e08c30, with canon fde2d334 (dilofrill) merged in afterwards. t_sp_gallimimus, t_hitboxes, t_data, t_coelomoves and smoke were rerun after that merge and pass. Pushed, not merged to canon.
 
 **Credits: 0.** The Tripo retry was not used. The mesh was fine; the rig was the problem. Balance stays at 1675.
 
