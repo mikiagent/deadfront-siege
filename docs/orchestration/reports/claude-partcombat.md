@@ -94,15 +94,14 @@ I looked at each one.
 - Clip contact sheets: `--poses [--weapon=id]` (not committed). I looked at the drag carry, the combo, the impale, the
   chop, the slam, the sweep and the bow draw, aim and release.
 
-## Gates (final tree, after merging origin/claude/mmo-overhaul at ed28ee83c)
+## Gates (final tree, after merging origin/claude/mmo-overhaul at 30e08c309: critdebug, theroroar)
 - New: t_bodysections PASS, t_wounds PASS, t_aimedranged PASS, t_bow PASS, t_heavyblade_1h PASS, t_heavyblade_2h PASS.
   - t_aimedranged, 40 seeded arrows per case: a still raptor head spot 80 %; running across at 8 m/s 0 %; at 2 m/s the
     arrow 80 % and the stone 0 %; the T. rex head section 100 %.
 - Existing: t_critspots PASS, t_hitboxes PASS, t_combat PASS, t_knockdown PASS.
-- t_stunlock is flaky on canon too. It failed 2 of 3 runs on this branch, each time a different species (the pachy's
-  hits never landing, or the spinosaurus landing none on her). It passed once before the merge. On a clean
-  origin/claude/mmo-overhaul checkout it passed once and then failed the same pachycephalosaurus check. Not caused by
-  this branch.
+- t_stunlock PASS on the final tree. It is flaky on canon too. Earlier on this branch it failed 2 runs of 4, each time on
+  a different species (the pachy's hits never landing, or the spinosaurus landing none on her). On a clean
+  origin/claude/mmo-overhaul checkout (ed28ee83c) it passed once and then failed the same pachycephalosaurus check.
 - run_all `[tests] PASS`; `tools/smoke.sh --no-import` SMOKE PASS.
 
 ## For the next agent
