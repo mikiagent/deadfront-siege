@@ -1,6 +1,6 @@
 # SP-THERIZINOSAURUS: a new species, the Therizinosaurus
 
-Branch `claude/mmo-sp-therizinosaurus`, cut from `origin/claude/mmo-overhaul` 1bb8adec, canon merged back in. Pushed, not merged to canon.
+Branch `claude/mmo-sp-therizinosaurus` (head c6a3c665 before this line), cut from `origin/claude/mmo-overhaul` 1bb8adec, canon merged back in. Pushed, not merged to canon.
 
 Owner sheet: `therizinosaurus_owner_sheet_1` ("use this for the therezino"), copied to `game/assets/creatures/therizinosaurus/ref/therizinosaurus_sheet.png`. There was no therizinosaurus in the game before; this is a new species.
 
