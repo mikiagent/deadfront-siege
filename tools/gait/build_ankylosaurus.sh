@@ -25,7 +25,8 @@ run -P tools/gait/make_gait.py -- $D/ankylosaurus.glb $G run $T/x/run.glb
 run -P tools/gait/make_gait.py -- $D/ankylosaurus.glb $G walk $T/x/strafe_left.glb --as strafe_left --travel 1,0,0
 run -P tools/gait/make_gait.py -- $D/ankylosaurus.glb $G walk $T/x/strafe_right.glb --as strafe_right --travel -1,0,0
 run -P tools/gait/make_gait.py -- $D/ankylosaurus.glb $G walk $T/x/walk_back.glb --as walk_back --travel 0,1,0 --set stride=0.12
-# tail club attacks (whip, smash, sweep: planted feet + steps, ANKYLOAI), alert, sleep
+# tail club attacks (whip, smash, sweep: planted feet + steps, ANKYLOAI), alert, sleep, and the close moves (stomp,
+# shove_left/right, tackle coil: ANKYLOCLOSE)
 run -P tools/gait/make_tail_club.py -- $D/ankylosaurus.glb $T/x
 # jaw keys (grunt on the swing, roar on alert and the heavy telegraph, chew on feed, breathing on idle)
 run --python tools/jaw/key_jaw.py -- $D/ankylosaurus.glb $T/x $T/j --bite 14 --lunge 0 --roar 24 --heavy 26 --chew 12 --hit 0.58 --heavy-hit 0.65
