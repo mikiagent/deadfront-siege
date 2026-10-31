@@ -34,7 +34,11 @@
     "tail_swipe": "CLUB SWEEP: armored dinosaur draws its club far to the left and low, stamps, then sweeps it in one long arc behind itself to the right while pivoting on deliberate steps",
     "knockdown": "Armored dinosaur is tipped onto its side",
     "alert": "Armored dinosaur lifts its head and lowers its body, the club raised and rattling",
-    "sleep": "Armored dinosaur settles belly-down with its legs folded out and its tail curled round"
+    "sleep": "Armored dinosaur settles belly-down with its legs folded out and its tail curled round",
+    "stomp": "STOMP: armored dinosaur rears its front up off one forefoot, hauls the foot high and forward, then slams it down in front",
+    "shove_left": "SHOVE: armored dinosaur cocks away, then swings its head and spiked shoulders hard into its left side, stepping out",
+    "shove_right": "SHOVE: mirror of shove_left, into its right side",
+    "tackle": "TACKLE coil: armored dinosaur crouches, front low and head down, weight back, paws once, then lunges forward at a run"
   },
   "taming": {
     "preferred_food": [
@@ -97,6 +101,7 @@
     "gaits": "tools/gait/make_gait.py tools/gait/ankylosaurus.json: walk (lateral, 1.08 s), run (lumbering trot, 0.625 s, duty 0.55: always a foot down), strafe_left/right and walk_back (stride 0.12) from the walk plan",
     "clips_from": {
       "attack_primary,attack_heavy,tail_swipe,alert,sleep": "tools/gait/make_tail_club.py (ANKYLOAI: tail whip, overhead tail smash, club sweep, all with planted feet or deliberate steps; alert, belly-down sleep)",
+      "stomp,shove_left,shove_right,tackle": "tools/gait/make_tail_club.py (ANKYLOCLOSE: forefoot stomp, head and shoulder shove to each side, the tackle's coil; feet planted except the stepping or stomping foot)",
       "feed": "tools/gait/transfer_clips.py from styracosaurus (same donor skeleton)",
       "idle,hit_react,knockdown,death": "transplant donor clips moved onto the re-jointed legs with transfer_clips.py"
     },
@@ -113,7 +118,11 @@
       "death",
       "alert",
       "feed",
-      "sleep"
+      "sleep",
+      "stomp",
+      "shove_left",
+      "shove_right",
+      "tackle"
     ]
   }
 }

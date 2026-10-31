@@ -426,6 +426,24 @@ tail whip, tail smash"; "keeps feet planted or steps in the direction for the sw
 | **AK7** | Whip knocks the survivor 3 m back, sweep 3.5 m, the smash's club knocks her down (the `knockdown` status), its shockwave pushes 2 m. | `knockback_m`, `knockdown`, `shock_knockback_m` | Knockdown length is the shared status's. |
 | **AK8** | A tamed ankylosaurus (PetBrain) still swings by reach at the clip's global `hit_frac` (attack_primary 0.42, attack_heavy 0.72 in `anim_events.json`), which now falls in the wind-up of the longer clips. Pets were not in scope. | `anim_events.json`, `PetBrain` | A pet's hit lands visibly early until pets get the club hit too. |
 
+### ANKYLOCLOSE (2026-10-31) — the ankylosaurus fights back up close (claude/mmo-ankyloclose)
+
+Owner: "ankylosaurus is hardly fighting back. have it do a stomp attack, a shove attack, a tackle attack, etc. I should not
+be able to punch it over and over up close without consequence". Numbers in `ai.json archetypes.club_tail.close_moves` /
+`close_zone` unless noted. AK6 ("never runs, never closes under 2 m") no longer holds in front: the tackle runs up to
+2.5 m. Report: `claude-ankyloclose.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **AC1** | Close zone, metres from its centre in its own frame: front = 2.4-8.0 m ahead within 2.4 m of the midline (the head is 3.6 m out); side = from 1 m behind the centre to 3.8 m ahead, up to 4.4 m out. Behind that: the tail, as before. Scales with body size. | `close_zone` | Where the tail stops and the head and feet take over. |
+| **AC2** | Front: STOMP and TACKLE alternate; TACKLE whenever she stands past the stomp's reach (6.4 m). Side: SHOVE to her side. | `ClubTailBrain.FRONT_SEQUENCE`, `_close_move` | Which move the player sees most. |
+| **AC3** | Cooldowns: stomp 1.2 s, shove 1.0 s, tackle 1.8 s (x0.6 enraged), separate from the tail's. With her up and close it stands idle at most ~1 s (t_ankyloclose limit 2.5 s). | `cooldown_s`, `t_ankyloclose.IDLE_MAX_S` | How relentless it is up close. |
+| **AC4** | Damage = attack 420 x: stomp 0.9, shove 0.6, tackle 1.1 (each still one-shots a fresh 100 HP survivor, as AK1). Stomp and tackle knock down; shove knocks 3 m sideways, stomp 1.5 m, tackle 2.5 m. | `damage_mult`, `knockdown`, `knockback_m` | Balance (pc-balance). |
+| **AC5** | Hits: STOMP lands the frame the left forefoot is back within 0.12 m of the ground (window 0.50-0.68 of the 1.5 s clip), a 2.0 m sphere 4.4 m ahead; SHOVE at 0.48 of its 1.2 s clip, a 2.2 m sphere 55 deg to that side at 3.2 m; TACKLE on contact during the run, a 0.5 m sphere 3.9 m ahead. Roll inside the ring dodges, as for the tail. | `strike`, `impact_bone`, `target_*`, `hit_radius_m`, `contact_*` | How close a near-miss can be. |
+| **AC6** | One punch from close provokes it (was three for every grazer) and it skips the look-around (alert) when the puncher is in the close zone: it answers in ~0.4 s. | `club_tail.provoke_hits`, `ClubTailBrain.on_aggro` | The owner's "without consequence". |
+| **AC7** | It does not hit a knocked-down survivor: it waits for her to stand. | `ClubTailBrain._position` | Without it, stomp then tackle would chain on the floor. |
+| **AC8** | The tackle is a 0.9 s coil clip, then the run gait (stride-matched, no glide) at 5 m/s on a line locked at launch (at her if within 45 deg of the snout). No dedicated impact clip. | `tackle.lunge_m`, `lunge_mps`, `_start_lunge` | A body-slam clip on contact would read better; next art pass. |
+
 ### COELOMOVES (2026-10-31) — coelophysis and gallimimus on the deinonychus brain, skittish-territorial grazers (claude/mmo-coelomoves)
 
 Owner: "give the coelophysis all of the same attacks as deinonychus"; "Gallimimus AI is completely braindead. Give it patched deinonychus's brain as a template and we will tune after"; megaloceros and gallimimus "should get territorial and engage the player after running away once ... run away when its weak". Report `docs/orchestration/reports/claude-coelomoves.md`.
