@@ -71,7 +71,8 @@
       "alert",
       "feed",
       "sleep",
-      "pin_foot"
+      "pin_foot",
+      "roar"
     ],
     "provenance": "docs/orchestration/reports/claude-sp-megarex.md",
     "scale_note": "ASSUMPTION: the owner asked for a monstrosity; 1.3x the T. rex (10.4 m tall, about 21 m long on screen)"

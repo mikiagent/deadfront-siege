@@ -111,7 +111,8 @@
       "knockdown",
       "death",
       "sleep",
-      "feed"
+      "feed",
+      "roar"
     ],
     "hit_parts": {
       "attack_primary": {

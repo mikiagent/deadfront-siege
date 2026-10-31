@@ -135,7 +135,8 @@
    "knockdown",
    "death",
    "sleep",
-   "feed"
+   "feed",
+   "roar"
   ],
   "assumptions": [
    "# ASSUMPTION: the PRDs are silent on Majungasaurus. Stats between the smilodon/styracosaurus (L45) and the utahraptor: hp 5600, atk 330, def 170 (stocky), speed 500 (slower than the carnotaurus), tier 45, capture tier 4, tamed role combat only (no saddle), carnivore taming food.",

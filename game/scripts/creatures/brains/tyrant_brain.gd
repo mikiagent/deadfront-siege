@@ -143,7 +143,7 @@ func blunt_counter() -> void:
 	creature.status_float.emit(&"stagger")
 
 func opening_label() -> String:
-	if phase == &"windup": return "%s %.1fs" % [{&"attack_heavy": "STOMP", &"tail_swipe": "TAIL", &"bite_shake": "BITE & SHAKE", &"alert": "ROAR"}.get(windup_clip, "BITE"),phase_left]
+	if phase == &"windup": return "%s %.1fs" % [{&"attack_heavy": "STOMP", &"tail_swipe": "TAIL", &"bite_shake": "BITE & SHAKE", &"alert": "ROAR", &"roar": "ROAR"}.get(windup_clip, "BITE"),phase_left]
 	if phase == &"stagger": return "STAGGER %.1fs" % phase_left
 	if phase == &"recovery": return "PUNISH %.1fs  BLUNT %d/%d%s" % [phase_left,counter_hits,3 if creature.statuses.has(&"poisoned_target") else 6,"  IMMUNE" if stagger_immunity > 0 else ""]
 	return "BLUNT %d/%d%s" % [counter_hits,3 if creature.statuses.has(&"poisoned_target") else 6,"  IMMUNE %.0fs" % stagger_immunity if stagger_immunity > 0 else ""]

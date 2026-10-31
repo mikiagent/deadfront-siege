@@ -66,7 +66,8 @@
       "alert",
       "feed",
       "tail_swipe",
-      "sleep"
+      "sleep",
+      "roar"
     ],
     "provenance": "work/pipeline.json, work/REPORT.md"
   },

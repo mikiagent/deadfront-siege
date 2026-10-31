@@ -308,8 +308,12 @@ func on_aggro(who: Node) -> void:
 			BrainRest.keep_awake(self)  # hurt animals do not doze off at the leash edge
 		# Do not downgrade combat states (retreat/flee/approach/attack) back to alert.
 		if state == &"roam" or state == &"sleep" or state == &"disengage" or state == &"downed":
+			var woke := state == &"roam" or state == &"sleep"
 			_set_state(&"alert")
 			_alert_left = 0.6
+			if woke and TheroRoar.try_roar(creature):  # THERO-ROAR: a big theropod answers its first hit with the roar
+				creature.stop_move()
+				_alert_left = TheroRoar.duration(creature)
 			_propagate_alert(who as Node3D)
 		elif state == &"alert":
 			_alert_left = maxf(_alert_left, 0.35)
@@ -469,7 +473,9 @@ func _spot(who: Node3D) -> void:
 	_alert_left = maxf(_alert_left, look)
 	creature.mark_aggro_now()
 	creature.stop_move()  # it stops to look: the pose one-shot must not glide along the roam path
-	if look >= 0.3:
+	if TheroRoar.try_roar(creature):
+		_alert_left = maxf(_alert_left, TheroRoar.duration(creature))  # THERO-ROAR: it rears and roars, then comes
+	elif look >= 0.3:
 		creature.anim.play_clip(&"sniff" if creature.anim.has_state(&"sniff") else &"alert")
 	_propagate_alert(who)
 
