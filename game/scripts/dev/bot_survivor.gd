@@ -318,9 +318,13 @@ func _craft(rec: Dictionary) -> bool:
 		if st == null:
 			_event("craft-blocked", "%s needs a %s and none is built" % [rid, station])
 			return false
-		player.nav_to(player._closest_nav_point(st.global_position))
-		var walk := _t + 25.0
+		var walk := _t + 45.0  # from the river to the town bench is ~200 m: 25 s fell short and burnt a retry
 		while _t < walk and player.global_position.distance_to(st.global_position) > Crafting.STATION_RANGE:
+			# Walk as a ground order (a click outranks the auto-fight) and click again whenever a bite or a
+			# tackle stopped the route: a compsognathus on the way used to end the walk for good.
+			if not player.nav_active:
+				player.nav_to(player._closest_nav_point(st.global_position))
+				player.move_order = true
 			if not await _beat(0.25):
 				break
 		if player.global_position.distance_to(st.global_position) > Crafting.STATION_RANGE:

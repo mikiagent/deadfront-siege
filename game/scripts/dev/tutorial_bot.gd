@@ -313,6 +313,11 @@ func _reachable_compy(skip: Array) -> Creature:
 
 func _loot_corpse() -> String:
 	var corpse := get_tree().get_first_node_in_group("corpse") as Corpse
+	if corpse == null:  # the hunt order was met by an earlier kill whose carcass is gone: hunt another
+		var h := await _hunt_weak()
+		if h != "":
+			return h
+		corpse = get_tree().get_first_node_in_group("corpse") as Corpse
 	if corpse == null:
 		return "no carcass"
 	var w := await _walk_to(corpse.global_position, 2.2)
