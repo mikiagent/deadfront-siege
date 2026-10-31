@@ -11,7 +11,7 @@
       "windup": true,
       "windup_hold": 0.6,
       "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
-      "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (tactics.status_heavy_only)"
+      "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (pipeline.status_clips)"
     },
     "hit_react": {
       "speed": 2.0

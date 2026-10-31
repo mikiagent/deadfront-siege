@@ -208,7 +208,7 @@ func _test_fight() -> void:
 	var shove: Vector3 = player.sim._shove
 	_expect(&"attack_primary" in r["hits"] and player.vitals.health < r["hp0"], "the claw sweep lands (hits %s, hp %.0f -> %.0f)" % [r["hits"], r["hp0"], player.vitals.health])
 	_expect(&"sweep_shove" in r["kinds"] and shove.z > 0.5, "the sweep shoves her back, away from it (%s)" % shove)
-	_expect(not player.statuses.has(&"bleed"), "the sweep does not bleed (status_heavy_only)")
+	_expect(not player.statuses.has(&"bleed"), "the sweep does not bleed (pipeline.status_clips)")
 	c.queue_free()
 	await physics_frame
 	# 3. The hook from the ring: it dashes in, the hook lands on hit 0 and drags her toward it.

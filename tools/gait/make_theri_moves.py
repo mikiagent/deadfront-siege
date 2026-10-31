@@ -10,7 +10,7 @@ brutally. # ASSUMPTION: the moves (the PRDs are silent on the therizinosaurus):
                   so it keeps a pest at claw's length.
   attack_heavy    two-arm overhead rake, 1.6 s, hit 0.72 (windup_hold 0.6): rears up hissing with both arms raised
                   high and the claws fanned (held and trembling: the telegraph), then drives both down through the
-                  prey and rakes them back to its chest. The bleed move (tactics.status_heavy_only + bleed_2).
+                  prey and rakes them back to its chest. The bleed move (bleed_2, pipeline.status_clips).
   bite_combo      hook-and-rake, 3.0 s, hits 0.092 / 0.338 / 0.815, tell 0.5-0.667 (anim_events bite_combo):
                   the right claws reach out and HOOK her, dragging back to its chest (the pull,
                   tactics.hook_pull_m), a left backhand slash, then it rears with both arms cocked at the shoulders

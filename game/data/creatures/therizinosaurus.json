@@ -140,6 +140,12 @@
       "# ASSUMPTION: the PRDs are silent on the Therizinosaurus. Stats beside the stegosaurus (L45) and triceratops (L55): hp 9000, atk 400, def 220, speed 380 (slow), tier 50, capture tier 4. Tameable, tamed role combat only (no saddle built, so not rideable), herbivore taming food, pen-only.",
       "# ASSUMPTION: size: 10 m real -> about 13 m on screen with the tail, standing 8 m to the head top (5 m real x 1.6); real_length_m 20 (the roster's 2x convention).",
       "# ASSUMPTION: archetype claw_guardian (ai.json, new): a territorial herbivore (territory_m) that never flees on sight; turn_rate 2.4; climate temperate."
-    ]
+    ],
+    "status_clips": {
+      "bleed": [
+        "attack_heavy"
+      ]
+    },
+    "_status_clips": "canon's per-clip status filter (CreatureAttack._apply_token): only the telegraphed overhead rake bleeds, never the sweep or the hook"
   }
 }

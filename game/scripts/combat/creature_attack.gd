@@ -38,9 +38,6 @@ static func _apply_token(tok: StringName, clip: StringName, target: Node, source
 	# Velociraptor: pounce (heavy) applies knockdown + bleed x2; primary is just contact damage.
 	if source.def.id == &"velociraptor" and clip != &"attack_heavy" and (id == &"knockdown" or id == &"bleed"):
 		return
-	# THERIZINOSAURUS (tactics.status_heavy_only): only the telegraphed overhead rake bleeds, never the sweep.
-	if clip != &"attack_heavy" and source.brain is TacticalBrain and (source.brain as TacticalBrain).tac.get("status_heavy_only", false):
-		return
 	# PINFEEL fairness: a predator that pins with its foot (pin_foot) pins only with its telegraphed heavy (the
 	# T. rex stomp: the foot hauled up and held through a 1.2 s STOMP windup), never off a bite.
 	var foot_pin := id == &"pinned" and source.anim != null and source.anim.has_state(&"pin_foot")

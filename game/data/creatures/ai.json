@@ -1093,7 +1093,7 @@
       "perception_base": 12.0,
       "tactics": {
         "base": "horned_charger",
-        "_about": "CLAW GUARDIAN (therizinosaurus, SP-THERIZINOSAURUS; owner 2026-10-31, design notes: two-arm overhead claw rake that bleeds, a forward claw sweep that keeps you at range, a threat display rearing up with the claws spread, a claw-hook pull). A slow territorial herbivore that fights standing, never charges: it squares up on a ring (circle/hold), rears into its threat display (alert) and HOOKS (the bite_combo clip: right claws hook her at 0.092 and drag her hook_pull_m in toward its chest, a left backhand at 0.338, then a rear-up tell and a double claw thrust at 0.815); from the ring it dashes in for the hook if she stands off. Point blank: the overhead rake (attack_heavy: rears with both arms high and trembling, the 0.6 windup hold is the telegraph, x heavy_mult, and the only move that bleeds: status_heavy_only), the hook combo, or the claw sweep (attack_primary) whose landed hit shoves her primary_shove_m back to claw's length. The claws sit ~5.5 m ahead of its centre (reach_m); every hit also needs a claw bone on her (pipeline.hit_parts), so under the belly or behind it she is safe, and it turns slowly (turn_rate 2.4). Flees when badly hurt (retreat_frac). Every number is an ASSUMPTION (TZ1-TZ6).",
+        "_about": "CLAW GUARDIAN (therizinosaurus, SP-THERIZINOSAURUS; owner 2026-10-31, design notes: two-arm overhead claw rake that bleeds, a forward claw sweep that keeps you at range, a threat display rearing up with the claws spread, a claw-hook pull). A slow territorial herbivore that fights standing, never charges: it squares up on a ring (circle/hold), rears into its threat display (alert) and HOOKS (the bite_combo clip: right claws hook her at 0.092 and drag her hook_pull_m in toward its chest, a left backhand at 0.338, then a rear-up tell and a double claw thrust at 0.815); from the ring it dashes in for the hook if she stands off. Point blank: the overhead rake (attack_heavy: rears with both arms high and trembling, the 0.6 windup hold is the telegraph, x heavy_mult, and the only move that bleeds: pipeline.status_clips in therizinosaurus.json), the hook combo, or the claw sweep (attack_primary) whose landed hit shoves her primary_shove_m back to claw's length. The claws sit ~5.5 m ahead of its centre (reach_m); every hit also needs a claw bone on her (pipeline.hit_parts), so under the belly or behind it she is safe, and it turns slowly (turn_rate 2.4). Flees when badly hurt (retreat_frac). Every number is an ASSUMPTION (TZ1-TZ6).",
         "reach_m": 5.6,
         "sequences": [
           {
@@ -1149,7 +1149,6 @@
           1.0,
           1.6
         ],
-        "status_heavy_only": true,
         "primary_shove_m": 3.0,
         "primary_shove_stagger_s": 0.5,
         "hook_pull_m": 3.5,
