@@ -30,11 +30,12 @@ ap.add_argument("--split", type=float, default=None, help="with --pivot: the jaw
 ap.add_argument("--close", type=float, default=None, help="with --open: close the mouth by this many degrees instead of the measured gape minus --part")
 ap.add_argument("--blend", type=float, default=0.0, help="jaw skin fades in over +/- this many mesh units around the mouth corner instead of switching there (stops a crack behind the corner when --close is large)")
 ap.add_argument("--x-side", action="store_true", help="roll the new Jaw so its local X is the animal's left (+X): positive X opens on every rig. Without it a jaw that points level or up (carnotaurus) came out with X flipped, so --open closed the mouth the wrong way and key_jaw's positive angles shut it")
+ap.add_argument("--weld", action="store_true", help="weld the glTF's UV-seam vertex copies on import, so the rigid tooth/lip islands are real islands and coincident copies get the same weights (a split mesh cracks open along every seam at the lips)")
 ap.add_argument("--debug", action="store_true")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
-bpy.ops.import_scene.gltf(filepath=a.inp)
+bpy.ops.import_scene.gltf(filepath=a.inp, merge_vertices=a.weld)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
 ob = max((o for o in bpy.data.objects if o.type == "MESH" and o.find_armature() == arm), key=lambda o: len(o.data.vertices))
 mw, aw = ob.matrix_world, arm.matrix_world
@@ -129,6 +130,9 @@ eb.roll = 0
 if a.x_side:
     from mathutils import Vector as _V
     eb.align_roll(inv.to_3x3() @ _V((0, 0, -1)))  # Z down, so X = Y x Z = +X (the side axis) for a forward jaw
+else:
+    if eb.x_axis.dot(inv.to_3x3() @ side) > 0:
+        eb.roll = 3.141592653589793  # a +X turn opens the jaw on every rig: local X must point to the animal's left (-side); +Y-facing rigs need the flip
 bpy.ops.object.mode_set(mode="OBJECT")
 
 jaw_g = ob.vertex_groups.get("Jaw") or ob.vertex_groups.new(name="Jaw")
