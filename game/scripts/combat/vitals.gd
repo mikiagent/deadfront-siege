@@ -8,6 +8,8 @@ extends Node
 signal exhausted_changed(on: bool)
 signal damaged
 signal died
+## Stamina just hit empty (running or a costly move drained the last of it): the survivor gets Winded.
+signal ran_out_of_energy
 
 var max_health: float = 100.0
 ## Max HP from Pioneer levels (pioneer_levels.json per_level.max_health each). Saved: it is the
@@ -245,6 +247,8 @@ func spend_energy(amount: float) -> bool:
 		return false
 	energy -= amount
 	_stamina_lock = STAMINA_LOCK_S
+	if energy < 1.0:
+		ran_out_of_energy.emit()
 	return true
 
 ## Read-only affordance check (AUTO-ABILITY picker): the same gate spend_energy applies, without
@@ -260,4 +264,6 @@ func drain_energy(per_second: float, delta: float) -> bool:
 		return false
 	energy = maxf(0.0, energy - per_second * delta)
 	_stamina_lock = STAMINA_LOCK_S
+	if energy <= 0.0:
+		ran_out_of_energy.emit()
 	return energy > 0.0

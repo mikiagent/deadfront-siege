@@ -28,6 +28,7 @@ func _process(_delta: float) -> bool:
 	_test_starter_island_levels_and_resource_stacks()
 	_test_hud_event_state()
 	_test_ui_tokens()
+	_test_ability_cooldown_hex()
 	_test_hide_strap_no_self_input()
 	_test_json_attribute_merging()
 	_test_storage_transfer()
@@ -510,6 +511,28 @@ func _test_creature_genetics() -> void:
 	_expect(genes.tier_for_iv(31) == &"S+", "highest IV is S+")
 	var copy := CreatureGenetics.from_dict(genes.to_dict())
 	_expect(copy.ivs == genes.ivs and copy.evs == genes.evs and copy.level_gains == genes.level_gains, "genetics save roundtrip")
+
+## Combat ability hexes (owner 2026-10-31): the clockwise recharge pie and the seconds in the middle follow
+## Hunt.cooldown_left; a lock reason greys the hex and takes the caption.
+func _test_ability_cooldown_hex() -> void:
+	var hunt: Node = (load("res://scripts/combat/hunt.gd") as GDScript).new()
+	var h: Control = (load("res://scripts/ui/hex_button.gd") as GDScript).new(72.0)
+	h.caption = "KICK"
+	hunt.commit_tactic(&"kick", 6.0, 0.0)
+	h.set_ability(hunt.cooldown_left(&"kick"), 6.0)
+	_expect(is_equal_approx(h.cooldown, 1.0) and h.cooldown_text == "6" and h.disabled, "kick hex right after use: full sweep, 6, disabled")
+	hunt._kick_cd = 2.3
+	h.set_ability(hunt.cooldown_left(&"kick"), 6.0)
+	_expect(is_equal_approx(h.cooldown, 2.3 / 6.0) and h.cooldown_text == "3", "kick hex mid-cooldown: sweep 2.3/6 left, seconds rounded up to 3")
+	_expect(UiTokens.pie_points(Vector2.ZERO, 30.0, 1.0 - h.cooldown, false)[2].x > 0.0, "the recharge pie runs clockwise from the top")
+	hunt._kick_cd = 0.0
+	h.set_ability(hunt.cooldown_left(&"kick"), 6.0)
+	_expect(h.cooldown == 0.0 and h.cooldown_text == "" and not h.disabled, "kick hex ready: no sweep, no number, enabled")
+	h.set_ability(0.0, 6.0, "WINDED")
+	_expect(h.disabled and h.badge_icon != null and h._caption_text(ThemeDB.fallback_font) == "WINDED", "a locked hex is disabled with a lock badge and its reason as caption")
+	print("[tests] ability hex: sweep and seconds follow cooldown_left, lock caption=%s" % h._caption_text(ThemeDB.fallback_font))
+	h.free()
+	hunt.free()
 
 func _test_ui_tokens() -> void:
 	var font := ThemeDB.fallback_font
