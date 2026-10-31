@@ -454,6 +454,19 @@ Owner: "i like the isometric look better ... north changes and the perspective i
 | **IC6** | Town streaming (owner: "only load a certain radius around the player"): the town's batches stay in their 120 m chunks; a chunk is in the tree only while the player is within 140 m of it (the widest game zoom's half-view plus one chunk), checked every 0.5 s. t_tutorial's 220-batch budget counts the loaded batches. Island props (VegBatch, PropCards, ground cover) already cull per cell by visibility range and are unchanged. | `TownDress.STREAM_R`, `stream()` | With 120 m chunks the whole tutorial town is still loaded from the square; smaller chunks would load less but cost more draw calls. |
 
 
+### SP-SMILODON (2026-10-30) — the smilodon gets a model, pounce-and-pin and an alpha skin (claude/mmo-sp-smilodon)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight". Report `docs/orchestration/reports/claude-sp-smilodon.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **SM1** | Size: `height_meters` 2.0 (top of mane and ears; shoulder ~1.6 m, 3.5 m long on screen, the house 1.6x of a ~2.2 m long-tailed cat); `real_length_m` 2.5 -> 4.4 (the roster's 2x). | `smilodon.json` | The owner's sheet draws it about twice the survivor's height at the shoulder; that would be `height_meters` ~3.4. |
+| **SM2** | Pin: a landed pounce puts Pinned + Knockdown on the prey (survivor or a creature no bigger than itself) and holds it 1.5 m in front while `pin_stab` stabs twice (x1.2 each), then lets go. Nothing breaks the pin early (statuses.json's "struggle" and "pet_aggro" are not implemented); claude/mmo-pinfeel's pinned pose had not landed, so the pin now uses PINFEEL's pinned pose (merged), and a struggle that clears Pinned ends the pin. | `TacticalBrain._start_pin`, `ai.json` saber_cat | Pin length, damage and whether the survivor can struggle out are balance/design calls. |
+| **SM3** | Hits land from the body part (pipeline.hit_bones: swipe from FrontFoot.R, stab/pounce/pin from Head) with radii 0.9-1.4 m; claude/mmo-hitboxes had not landed. | `Creature.part_reaches` | Swap for the hitbox system when it lands. |
+| **SM4** | One-shot: a fresh 100 HP survivor dies to the pounce alone (attack 360 x pounce_mult 1.6). The stat block is the old one. | `smilodon.json` stats | Balance pass. |
+| **SM5** | Alpha skin = the brown sheet as a recolour of the regular texture (same mesh, mane shape unchanged); the alpha's eyeshine stays blue (the eyes block has one colour). | `smilodon_alpha_albedo.jpg`, `Creature.spawn` | A separate alpha mesh or amber alpha eyes would need more work. |
+| **SM6** | Saddle: the shared builder, no neck strap (the mane lets its rays out), seat behind the mane. Rideable (back 1.6 m clears the 1.78/1.6 rule). | `saddles.json`, `mount/` | Riding a sabre cat was in its data (`tamed_role` mount); the owner may prefer combat-only. |
+
 ### SP-CARNOTAURUS (2026-10-30) — new species (claude/mmo-sp-carnotaurus)
 
 Owner: "fast bull-like predator: horn ram that knocks the target back, sprint charge with a sharp turn, snap bite". The PRDs say nothing about the Carnotaurus. Report `docs/orchestration/reports/claude-sp-carnotaurus.md`.

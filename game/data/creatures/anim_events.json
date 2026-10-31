@@ -63,7 +63,8 @@
       "hit_frac": 0.7,
       "note": "ambush pounce, 0.96 s: crouch, long high forward leap nose-down, wings fully flared; the game sets the distance (owner: larger leaps, ~8-10 m from cover)",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)"
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing",
@@ -111,6 +112,15 @@
     "toss": {
       "hit_frac": 0.3,
       "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
+    },
+    "pin_stab": {
+      "hit_frac": 0.38,
+      "hit_fracs": [
+        0.38,
+        0.74
+      ],
+      "windup": false,
+      "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)"
     },
     "charge_turn": {
       "airborne": [
@@ -357,6 +367,22 @@
       "strafe_right_len": 1.333,
       "walk_back": 1.405,
       "walk_back_len": 1.333
+    },
+    "smilodon": {
+      "height_m": 2.0,
+      "run_l": 6.096,
+      "run_len": 0.458,
+      "run_r": 6.142,
+      "walk_l": 1.182,
+      "walk_len": 1.25,
+      "walk_r": 1.182,
+      "walk": 1.182,
+      "run": 6.119,
+      "stalk": 0.551,
+      "strafe_left": 0.845,
+      "strafe_right": 0.845,
+      "walk_back": 0.845,
+      "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684)"
     }
   }
 }

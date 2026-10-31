@@ -1,0 +1,159 @@
+{
+  "_about": "SP-SMILODON gait plan (make_gait.py), mesh units of the Tripo body (0.568 tall). Cat legs: the Foot bone runs hock/wrist -> toe tips (smilodon_rig.py), so the planted point is the toe tip and the heel peels off it. walk: lateral-sequence cat walk; run: rotary gallop with a strong back flex; stalk: the low hunting creep (body dropped, head low and level, tiny lifts, long slow cycle). Every number an ASSUMPTION tuned by eye on strips.",
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Body",
+  "view_size": 1.2,
+  "view_centre": [
+    0.0,
+    0.3
+  ],
+  "legs": {
+    "LH": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind"
+    },
+    "RH": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind"
+    },
+    "LF": {
+      "up": "FrontUpLeg.L",
+      "low": "FrontLowLeg.L",
+      "foot": "FrontFoot.L",
+      "root": "FrontLeg.L",
+      "end": "front"
+    },
+    "RF": {
+      "up": "FrontUpLeg.R",
+      "low": "FrontLowLeg.R",
+      "foot": "FrontFoot.R",
+      "root": "FrontLeg.R",
+      "end": "front"
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Shoulders": {
+      "key": "shoulder",
+      "axis": "roll",
+      "phase": 0.0
+    },
+    "Tail1": {
+      "key": "tail",
+      "axis": "yaw",
+      "phase": 0.25
+    },
+    "Tail3": {
+      "key": "tail2",
+      "axis": "yaw",
+      "phase": 0.1
+    }
+  },
+  "clips": {
+    "walk": {
+      "cycle_s": 1.25,
+      "duty": 0.62,
+      "stride": 0.42,
+      "phases": {
+        "LH": 0.0,
+        "LF": 0.25,
+        "RH": 0.5,
+        "RF": 0.75
+      },
+      "lift_hind": 0.06,
+      "lift_front": 0.07,
+      "swing_curl_hind": 12,
+      "swing_curl_front": 20,
+      "toe_roll": 18,
+      "legroot_front": 0.25,
+      "legroot_hind": 0.0,
+      "bob": 0.004,
+      "bob_harmonic": 2,
+      "roll_deg": 1.5,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_shoulder": 2.5,
+      "wiggle_tail": 5.0,
+      "wiggle_tail2": 7.0
+    },
+    "stalk": {
+      "cycle_s": 1.9,
+      "duty": 0.7,
+      "stride": 0.3,
+      "phases": {
+        "LH": 0.0,
+        "LF": 0.25,
+        "RH": 0.5,
+        "RF": 0.75
+      },
+      "lift_hind": 0.05,
+      "lift_front": 0.055,
+      "swing_curl_hind": 6,
+      "swing_curl_front": 12,
+      "toe_roll": 12,
+      "legroot_front": 0.3,
+      "legroot_hind": 0.0,
+      "crouch": 0.075,
+      "bob": 0.002,
+      "bob_harmonic": 2,
+      "roll_deg": 1.0,
+      "hold": {
+        "Neck": [
+          "pitch",
+          14
+        ],
+        "Head": [
+          "pitch",
+          -12
+        ],
+        "Tail1": [
+          "pitch",
+          8
+        ]
+      },
+      "wiggle_shoulder": 3.0,
+      "wiggle_tail2": 4.0
+    },
+    "run": {
+      "cycle_s": 0.46,
+      "duty": 0.32,
+      "stride": 0.8,
+      "phases": {
+        "LH": 0.0,
+        "RH": 0.1,
+        "LF": 0.5,
+        "RF": 0.6
+      },
+      "lift_hind": 0.09,
+      "lift_front": 0.11,
+      "swing_curl_hind": 20,
+      "swing_curl_front": 35,
+      "toe_roll": 16,
+      "legroot_front": 0.25,
+      "legroot_hind": 0.15,
+      "crouch": 0.01,
+      "bob": 0.0,
+      "rock_front": 0.014,
+      "rock_phase_front": 0.0,
+      "rock_hind": 0.014,
+      "rock_phase_hind": 0.5,
+      "wiggle_head": 4.0,
+      "wiggle_harmonic_head": 1,
+      "wiggle_tail": 6.0,
+      "pitch_gain": 0.5
+    }
+  }
+}
