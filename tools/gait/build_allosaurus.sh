@@ -23,7 +23,7 @@ run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/strafe_left.glb
 run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/strafe_right.glb --as strafe_right --travel -1,0,0 --set stride=0.16
 run -P tools/gait/make_gait.py -- $D/allosaurus.glb $G walk $T/x/walk_back.glb --as walk_back --travel 0,1,0 --set stride=0.16
 pids=()
-for c in idle alert attack_primary attack_heavy grab_bite kick hit_react knockdown death sleep feed claw_rake slash_bite check_left check_right; do
+for c in idle alert attack_primary attack_heavy grab_bite kick hit_react knockdown death sleep feed claw_rake slash_bite check_left check_right bite_combo; do
   run -P tools/gait/make_allo_moves.py -- $D/allosaurus.glb $c $T/x/$c.glb & pids+=($!)
 done
 for p in "${pids[@]}"; do wait $p; done

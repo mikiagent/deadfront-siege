@@ -7,11 +7,12 @@ extends Node3D
 
 const CLIPS: Array[StringName] = [&"idle", &"walk", &"run", &"walk_back", &"strafe_left", &"strafe_right",
 	&"attack_primary", &"attack_heavy", &"grab_bite", &"kick", &"hit_react", &"alert", &"feed", &"sleep", &"knockdown", &"death",
-	&"claw_rake", &"slash_bite", &"check_left", &"check_right"]
+	&"claw_rake", &"slash_bite", &"check_left", &"check_right", &"bite_combo"]
 ## anim_events.json hit fractions: the snap bite, the hatchet chop (and its held gape at 50), the grab's clamp and two
 ## bites, the shoulder ram.
 const HIT := {&"attack_primary": [42], &"attack_heavy": [50, 72], &"grab_bite": [30, 55, 80], &"kick": [45],
-	&"claw_rake": [27, 50], &"slash_bite": [23, 42], &"check_left": [25, 45], &"check_right": [25, 45]}  # ALLOFEEL: the held tell, then the hit
+	&"claw_rake": [27, 50], &"slash_bite": [23, 42], &"check_left": [25, 45], &"check_right": [25, 45],
+	&"bite_combo": [9, 34, 62, 82]}  # CARNOFEEL kit: the chomps at 0.092 / 0.338 / 0.815 and the rear-up tell  # ALLOFEEL: the held tell, then the hit
 
 var _out := ""
 var _caption: Label

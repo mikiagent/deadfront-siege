@@ -33,7 +33,7 @@ STRETCH = float(a[a.index("--stretch") + 1]) if "--stretch" in a else 10.0
 ONLY = a[a.index("--only") + 1].split(",") if "--only" in a else None
 FPS = 24
 HIT = {"attack_primary": 0.42, "attack_heavy": 0.72, "kick": 0.45, "grab_bite": 0.3,
-       "claw_rake": 0.5, "slash_bite": 0.42, "check_left": 0.45, "check_right": 0.45}
+       "bite_combo": 0.815, "claw_rake": 0.5, "slash_bite": 0.42, "check_left": 0.45, "check_right": 0.45}
 ARMS = list(HIT)  # every attack moves its arms
 GAITS = {"walk": 1, "run": 1, "walk_back": -1}  # sign of the planted foot's y drift (+y = backwards)
 STRAFE = {"strafe_left": -1, "strafe_right": 1}  # sign of x drift of a planted foot (+x = the animal's left)
@@ -198,6 +198,11 @@ for f in sorted(os.listdir(anim_dir)):
             extra = f" hands@grab reach={-hands[i][1]:.2f} m height={hands[i][2]:.2f} m (+{fwd:.2f}); bites jaw at ({-b1[1]:.2f}, {b1[2]:.2f}) ({-b2[1]:.2f}, {b2[2]:.2f})"
             if fwd < 0.8 or b1[2] > 1.2 or b2[2] > 1.2:
                 bad.append("grab does not reach or bites do not come down")
+        elif clip == "bite_combo":  # ALLOFEEL x CARNOFEEL: each chomp's jaw tip forward and down, the jaws shut on it
+            hs = [at(f) for f in (0.092, 0.338, 0.815)]
+            extra = " chomps jaw at " + " ".join(f"({-jaw[k][1]:.2f}, {jaw[k][2]:.2f})" for k in hs)
+            if any(jaw[k][2] > jaw[0][2] - 1.5 or jaw[0][1] - jaw[k][1] < -0.3 for k in hs):  # down >= 1.5 m, never pulled back
+                bad.append("a chomp does not drive the jaws forward and down")
         elif clip == "claw_rake":
             hd = (hands[i - 2][2] - hands[i][2]) / (2.0 / FPS)
             extra = f" hands@hit reach={-hands[i][1]:.2f} m height={hands[i][2]:.2f} m (rest {hands[0][2]:.2f}) down-speed={hd:.1f} m/s"

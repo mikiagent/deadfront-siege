@@ -24,6 +24,10 @@ static func apply_for(attacker: Creature, clip: StringName, target: Node, mult: 
 static func _carries_status(attacker: Creature, clip: StringName) -> bool:
 	var only: Variant = (attacker.brain as TacticalBrain).tac.get("status_clips") if attacker.brain is TacticalBrain else null
 	if only is Array:
+		# ALLOFEEL: a straight charge's impact rolls as attack_heavy (TacticalBrain._charge_impact); it carries the statuses
+		# only when status_clips lists "charge" (the allosaurus' Bleed rides on its hatchet and slash, not its charge)
+		if (attacker.brain as TacticalBrain).state == &"charge":
+			return "charge" in only
 		return str(clip) in only
 	# tactics.statuses_heavy_only (allosaurus): the species statuses ride on the telegraphed heavy only (the hatchet bite's Bleed)
 	if bool(attacker.def.tactics.get("statuses_heavy_only", false)):

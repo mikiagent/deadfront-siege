@@ -19,7 +19,7 @@ grab_bite [0.3, 0.55, 0.8]). The Jaw opens with +X (add_jaw.py --x-side), so jaw
 
 usage: Blender -b -P tools/gait/make_allo_moves.py -- <base.glb> <clip> <out.glb>
   clip: idle | alert | attack_primary | attack_heavy | grab_bite | kick | hit_react | knockdown | death | sleep | feed |
-        claw_rake | slash_bite | check_left | check_right (ALLOFEEL)
+        claw_rake | slash_bite | check_left | check_right | bite_combo (ALLOFEEL)
 """
 import math
 import sys
@@ -478,6 +478,40 @@ def check(u, sgn):
     }
 
 
+def bite_combo(u):
+    """ALLOFEEL x CARNOFEEL chomp combo, 2.75 s on the shared bite_combo timing (anim_events hits 0.092 / 0.338 / 0.815,
+    tell 0.5-0.667): coils with the jaws gaping, chomps down to its left with the left arm raking, chomps to its right
+    with the right arm, rears up with the jaws wide and trembling and both arms raised, claws spread (the tell, held to
+    0.76), then slams a MEGA chomp down through the middle with both arms raking and shakes its head. Feet planted."""
+    lunge = track(u, [(0, 0), (0.06, -0.3), (0.092, 1), (0.16, 0.3), (0.27, -0.2), (0.338, 1), (0.42, 0.3), (0.5, 0),
+                      (0.667, -0.4), (0.76, -0.4), (0.815, 1.15), (0.88, 0.8), (1, 0)])
+    yaw = track(u, [(0, 0), (0.06, 10), (0.092, 18), (0.16, 10), (0.27, -10), (0.338, -18), (0.42, -10), (0.5, 0), (1, 0)])  # + its left
+    rear = track(u, [(0, 0), (0.5, 0), (0.6, 1), (0.76, 1), (0.815, 0), (1, 0)])
+    trem = wave(u, 14) * track(u, [(0, 0), (0.58, 0), (0.6, 1), (0.74, 1), (0.76, 0), (1, 0)])
+    shake = wave(u, 4) * track(u, [(0, 0), (0.815, 0), (0.84, 1), (0.92, 1), (0.95, 0), (1, 0)])
+    ln = max(lunge, 0.0)
+    return {
+        "body": {"dy": 0.28 * lunge - 0.06 * rear, "dz": -0.13 * ln + 0.02 * rear, "pitch": -16 * lunge + 10 * rear,
+                 "yaw": 0.3 * yaw, "roll": -0.15 * yaw + 2 * shake},
+        "turns": merge({
+            "Chest": (-0.3 * (-16 * lunge + 10 * rear), 0.2 * yaw, 0),
+            "Neck1": (-22 * lunge + 14 * rear + 1.5 * trem, 0.7 * yaw + 8 * shake, 0), "Neck2": (-10 * lunge + 6 * rear, 0.4 * yaw, 0),
+            "Head": (-12 * lunge - 4 * rear, 0.3 * yaw, 8 * shake),
+        }, arm_keys(u,
+                    up_L=[(0, 0), (0.06, -12), (0.092, 64), (0.16, 22), (0.338, 10), (0.5, 0), (0.6, 60), (0.76, 64), (0.815, 50), (0.88, 14), (1, 0)],
+                    up_R=[(0, 0), (0.092, 10), (0.27, -12), (0.338, 64), (0.42, 22), (0.5, 0), (0.6, 60), (0.76, 64), (0.83, 48), (0.9, 14), (1, 0)],
+                    out=[(0, 0), (0.6, 20), (0.76, 22), (0.815, 6), (1, 0)],
+                    elbow_L=[(0, 0), (0.06, 24), (0.092, -40), (0.16, 20), (0.5, 0), (0.6, -26), (0.76, -30), (0.815, -40), (0.88, 24), (1, 0)],
+                    elbow_R=[(0, 0), (0.27, 24), (0.338, -40), (0.42, 20), (0.5, 0), (0.6, -26), (0.76, -30), (0.83, -40), (0.9, 24), (1, 0)],
+                    wrist_L=[(0, 0), (0.06, 30), (0.092, -20), (0.14, -46), (0.3, -10), (0.5, 0), (0.6, 44), (0.76, 48), (0.815, -16), (0.87, -50), (1, 0)],
+                    wrist_R=[(0, 0), (0.27, 30), (0.338, -20), (0.39, -46), (0.5, 0), (0.6, 44), (0.76, 48), (0.83, -16), (0.89, -50), (1, 0)]),
+            tail_set(3 * ln - 2 * rear, -0.5 * yaw)),
+        "jaw": track(u, [(0, 2), (0.06, 38), (0.092, 0), (0.14, 8), (0.27, 40), (0.338, 0), (0.4, 8), (0.5, 14), (0.6, 46),
+                         (0.76, 46), (0.8, 40), (0.815, 0), (0.88, 4), (1, 2)]),
+        "feet": PLANT,
+    }
+
+
 def hit_react(u):
     """0.6 s: the head and chest jerk back and up from the blow, a stagger step back with the left foot."""
     j = track(u, [(0, 0), (0.15, 1), (0.45, 0.7), (1, 0)])
@@ -560,7 +594,7 @@ CLIPS = {"idle": (idle, 60, True), "alert": (alert, 38, False), "attack_primary"
          "attack_heavy": (attack_heavy, 38, False), "grab_bite": (grab_bite, 53, False), "kick": (kick, 26, False),
          "hit_react": (hit_react, 14, False), "knockdown": (knockdown, 50, False), "death": (death, 43, False),
          "sleep": (sleep, 48, False), "feed": (feed, 48, True),
-         "claw_rake": (claw_rake, 26, False), "slash_bite": (slash_bite, 31, False),
+         "bite_combo": (bite_combo, 66, False), "claw_rake": (claw_rake, 26, False), "slash_bite": (slash_bite, 31, False),
          "check_left": (lambda u: check(u, -1.0), 24, False), "check_right": (lambda u: check(u, 1.0), 24, False)}
 if CLIP == "pose":  # debugging: one static pose from $POSE (the apply() dict as JSON), 2 frames
     import json, os

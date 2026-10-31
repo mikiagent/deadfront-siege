@@ -186,7 +186,8 @@ func _moves_of(c) -> Array:
 	if tac.get("pin", false) and ap.has_animation(&"pin_stab"):
 		for i in 2:  # the sabres stab twice into prey held pin_reach_m in front (TacticalBrain._pin)
 			out.append([&"pin_stab", i, false, [float(tac.get("pin_reach_m", 1.5)) * c.size_scale()]])
-	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)):
+	# (a forward shoulder ram, tactics.kick_max_m: the allosaurus, never kicks behind)
+	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)) and not tac.has("kick_max_m"):
 		out.append([&"kick", 0, true, [reach]])  # the hind kick at prey behind it (after a charge, or point blank)
 	# ALLOFEEL: tactics.moves rows (the allosaurus' arm rake, hatchet slash, shoulder-checks). A front move at the middle and
 	# the far end of its min_m..max_m; a side move with her beside its flank, 60 and 90 deg off its facing, at 0.8 max_m.

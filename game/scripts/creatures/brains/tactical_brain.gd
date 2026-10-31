@@ -846,8 +846,9 @@ func attack_available(move: StringName, d: float) -> bool:
 				and d <= _t("spit_max_m", 10.0) + _size_excess(attack_target) and MeleeQuery.blocker(creature, attack_target) == null
 		&"kick":
 			# tactics.kick_max_m (allosaurus shoulder ram): also prey pressed in under its chin, closer than the jaws work
-			var close := tac.has("kick_max_m") and d <= _t("kick_max_m", 0.0) + _size_excess(attack_target)
-			return creature.anim.has_state(&"kick") and in_reach and (_prey_behind() or close)
+			# ALLOFEEL: a shoulder ram (kick_max_m) drives forward, so it is never the after-charge hind kick at prey behind it
+			var close := tac.has("kick_max_m") and d <= _t("kick_max_m", 0.0) + _size_excess(attack_target) and not _prey_behind()
+			return creature.anim.has_state(&"kick") and in_reach and ((_prey_behind() and not tac.has("kick_max_m")) or close)
 		&"grab":
 			# tactics.grab, point blank in front. SP-ALLOSAURUS (a grab_bite clip): the hands-then-jaws grab at jaw range
 			# (not under the chin), on prey it can hold. SP-SPINOSAURUS (bite_shake): the snap-and-shake, on prey its jaws can

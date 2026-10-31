@@ -1,6 +1,6 @@
-# ALLOFEEL: allosaurus arms in every attack, three new moves (carno kit waiting on canon)
+# ALLOFEEL: allosaurus arms in every attack, three new moves, the carnotaurus kit
 
-Branch `claude/mmo-allofeel`, from `origin/claude/mmo-overhaul`, with canon merged back in (bigstomp 2eecfc3e, then megajoust f1b73788; every gate rerun after the last merge). Pushed, not merged to canon.
+Branch `claude/mmo-allofeel`, from `origin/claude/mmo-overhaul`, with canon merged back in (bigstomp 2eecfc3e, megajoust f1b73788, then carnofeel c8a64c14; every gate rerun after the last merge). Pushed, not merged to canon.
 Credits: Tripo 0, Meshy 0, Higgsfield 0. The model and rig (`allosaurus.glb`) are untouched; only clips, data and code changed.
 
 What the owner said: "Alosaurus model turned out great! the arms should be moving as part of the attack animation and add more attacks generally. Carnotaurus attacks are welcome on this".
@@ -44,10 +44,27 @@ What the owner said: "Alosaurus model turned out great! the arms should be movin
   - `Telegraph.show_for` reads `tactics.rings`.
   - The new clips are added to the ONESHOT/ATTACKS/OPTIONAL/FIGHT_CLIPS lists.
 
-## 3. Carnotaurus kit: NOT DONE (not on canon)
-`git log origin/claude/mmo-overhaul --oneline | grep -i carnofeel` is empty as of the final merge. `claude/mmo-carnofeel` (fb8d6988) is finished but unmerged. Send me back when it lands.
-- The plan: turn on its charge knockdown and pass-through, its 3-bite chomp combo (an allosaurus `bite_combo` clip with arm rakes) and its wide post-charge turning arc. All through the allosaurus' tactics and its own clips.
-- Then extend `t_sp_allosaurus` to cover them.
+## 3. Carnotaurus kit: ON (after carnofeel landed, c8a64c14)
+Enabled through the allosaurus' own tactics and clips. No carnotaurus code was copied.
+- **Charge** (`charge_straight`): the run-in is now a straight charge on a locked line.
+  - Pass-through: it runs through her, using carnofeel's `_tick_pass` with `charge_pass_s` 0.6.
+  - Contact knocks her down even when the damage roll misses: `charge_shove_m` 3.5, `charge_toss_deg` 60, the throw tier.
+  - It still plays the run clip, because the allosaurus has no `charge` clip. The charge contact parts in `hitboxes.json` are Head, Jaw (calibrated to 2.17 m) and Chest, plus carnofeel's body-over contact.
+  - The charge's impact no longer carries Bleed. `CreatureAttack._carries_status` with `status_clips` now treats a charge impact as "charge", not as the `attack_heavy` it rolls as.
+- **Wide arc** (`charge_arc_r_m` 6 m): after every charge it wheels round on the arc, then makes one return pass (`charge_turn`, max 22 m).
+  - `charge_arc_aim_deg` is 95, against the carnotaurus' 15. Measured: with her knocked down in the middle, the allosaurus settled into an orbit about 12.5 m out with her 90 deg off its nose. It never came within 15 deg and timed out, so there was no return pass.
+  - At 95 deg it breaks off there and charges back. `charge_arc_max_s` is 7.
+  - **Shared-logic note for the carnofeel owner:** carnofeel's arc runs straight while she is inside its circle, and that rule can lock into this orbit. The carnotaurus' own test passes, but the orbit is possible for any long-reach charger.
+- **3-chomp combo:** the allosaurus' own `bite_combo` clip (`make_allo_moves.py`, 2.75 s on the shared hit fractions 0.092 / 0.338 / 0.815).
+  - Chomp left with the left arm raking, chomp right with the right arm.
+  - The rear-up tell (0.5-0.667) with the jaws wide and both arms raised, claws spread.
+  - Then a MEGA chomp through the middle with both arms raking, and a head shake.
+  - Wiring: `point_blank` is now kick, check, grab, combo, rake, slash, heavy, bite. `charge_follow ["combo"]` closes in after landed charges.
+  - Tell: `combo_tell_scale` 0.3, with the ring at its jaws (`combo_ring_ahead_m` 6.4). The first chomp lands 1.1 s after the combo starts.
+  - Hits through `hitboxes.json` `bite_combo`: Jaw, Head and both claw tips. The right claw tip is calibrated to 1.32 m.
+- **Shoulder ram:** the ram (`kick`) is now front-only (`kick_max_m` and not behind). It was also firing as the after-charge "hind kick" at prey behind it, which a forward ram can't reach.
+- The turn_rate stays 2.0. The owner's turning complaint was about the carnotaurus. The arc sets its own pace: yaw about 1.0-1.2 rad/s, radius at least 6.2 m.
+- The numbers are first guesses scaled from the carnotaurus (CF1-CF4), logged as AL10.
 
 ## 4. Not touched
 No roar and no spacing stomp (claude/mmo-theroroar owns those).
@@ -66,7 +83,17 @@ No roar and no spacing stomp (claude/mmo-theroroar owns those).
   - its ring covers her before the hit;
   - it lands; the slash bleeds and the rake doesn't; the check throws her > 1.5 m sideways.
 - `t_hitboxes`: **PASS**. It now also covers `tactics.moves` rows: front moves at the middle and far end of their range, the checks at 60 and 90 deg on each flank. Calibrated radii are in AL8.
-- t_knockdown, t_combat, t_sp_carnotaurus, t_tactical, t_canim, t_raptorflank: PASS.
+- **Carno kit in `t_sp_allosaurus`** (seeded, like t_sp_carnotaurus):
+  - the kit is on in its tactics;
+  - the combo plays its own clip and opens with its tell (ring, no chomp yet), then 3 chomps land;
+  - for a landed hit and for a damage-roll miss: the charge knocks her down, runs on through her (pass-through on, still above 60 % speed), arcs round wide (yaw <= speed / radius and <= turn_rate, slip under 2 deg) and charges back;
+  - the charge doesn't bleed;
+  - after its charges land it closes in for the combo;
+  - the pass-through exception is gone afterwards.
+- t_sp_carnotaurus: PASS. t_styraco: PASS.
+- `check_allo.py` also gates `bite_combo`: each chomp is at least 1.5 m down and never pulled back, and the arms move.
+- Shots: `carnokit_chomp_combo_sheet.jpg` shows chomp left, chomp right, the rear-up tell and the MEGA chomp; the frames are in `hit_frames/bite_combo_*`.
+- t_knockdown, t_combat, t_tactical, t_canim, t_raptorflank: PASS.
 - `run_all.gd`: **[tests] PASS**. `tools/audit_gaits.py --gate`: **GATE PASS**. `tools/smoke.sh --no-import`: **SMOKE PASS**.
 
 ## Shots (`docs/orchestration/reports/allofeel/`)
@@ -83,4 +110,5 @@ I built these clips from the committed `allosaurus.glb` with the same poser and 
 - **AL7:** the new moves' numbers are first guesses.
 - **AL8:** the ClawTip offset rows and the calibrated radii.
 - **AL9:** the "shoulder" check lands through the leg at survivor height.
+- **AL10:** the carnotaurus kit numbers on the allosaurus (arc 6 m / aim 95 deg, charge shove 3.5 m, combo cd 7 s).
 - The check rings sit beside the flank, but an attack on her side doesn't turn the camera; the owner should feel-test it in the fight lab.
