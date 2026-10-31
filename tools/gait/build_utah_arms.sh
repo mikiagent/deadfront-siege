@@ -11,7 +11,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 BL=${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}
-U=game/assets/creatures/utahraptor; DE=game/assets/creatures/deinonychus
+U=game/assets/creatures/utahraptor; DE=game/assets/creatures/deinonychus/work/v3  # the v3 deinonychus rig and clips (SP-DEINONYCHUS kept them as the source)
 T=$(mktemp -d)
 run() { "$BL" -b "$@" > "$T/log_$RANDOM.txt" 2>&1 || { echo "FAILED: $*"; exit 1; }; }
 mkdir -p $T/x
