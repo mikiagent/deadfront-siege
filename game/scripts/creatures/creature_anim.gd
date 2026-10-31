@@ -11,7 +11,7 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover"]
 const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab"]
 ## One-shots during which a brain moves the body itself on an arc (TacticalBrain._arc_step), not by walking.
 const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn"]
@@ -380,7 +380,12 @@ func _build_tree() -> void:
 		for hub in HUBS:
 			if _param.has(hub):
 				_trans(sm, hub, clip, xf)
-		_trans(sm, clip, &"idle", xf)
+				_trans(sm, clip, hub, xf)  # STYRAFIX: out to walk/run directly too, not through idle
+		# STYRAFIX: straight from any other non-hub clip too (strafe -> walk_back, charge -> impale, windup ->
+		# charge). Without it travel() routed through idle and the idle pose blinked in between.
+		for other in _param:
+			if other != clip and not other in HUBS:
+				_trans(sm, other, clip, xf)
 	if _param.has(&"pin_foot"):
 		for a in ATTACKS:  # the stomp (or any swing) lands and the foot goes straight onto the victim
 			if _param.has(a):
@@ -401,6 +406,8 @@ func _clip_node(clip: StringName) -> AnimationNodeBlendTree:
 	return bt
 
 func _trans(sm: AnimationNodeStateMachine, a: StringName, b: StringName, xfade: float) -> void:
+	if sm.has_transition(a, b):
+		return  # STYRAFIX's all-pairs links may already hold it (the pin_foot links below)
 	var t := AnimationNodeStateMachineTransition.new()
 	t.xfade_time = xfade
 	sm.add_transition(a, b, t)
