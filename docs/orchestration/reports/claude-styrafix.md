@@ -54,8 +54,10 @@ After the fix, the same fight: worst 3 brain-state changes in any second, no A->
 `# ASSUMPTION`: 3x on height only. I did not use real_length_m 33 (3 x 11): that would give an 8 m wide hitbox and the
 largest gameplay body in the roster. Logged as SF1 in `docs/vision/WildLandsMMO_Open_Questions.md`.
 
-Its distance knobs now scale with it in a new per-species `tactics` block. `CreatureDef.tactics` is merged over the
-archetype's by `TacticalBrain.setup`; `attack_range` there sets the reach. The triceratops keeps the old horned_charger
+Its distance knobs now scale with it in its species `tactics` block. After the canon merge this uses COELOMOVES'
+mechanism: `"base": "horned_charger"`, resolved by `TacticalBrain.resolve` / `tactics_for_def`, with explicit
+overrides. STYRAFIX's own merge hook was dropped. The one addition kept: an `attack_range` in a species tactics
+block sets that creature's reach (`profile.attack_range`). The triceratops keeps the old horned_charger
 numbers. Values: ring 16 m, reach 6 m (the horns, not the barrel), display 9 m, charge through 6 m, strafe and hop
 3 m, guard 45 m, retreat room 24 m. The horn swipe now needs her in front (not behind).
 
@@ -142,6 +144,21 @@ the survivor. In the lab the horn tip was 1.27 m from her centre at the hit fram
   the compsognathus surround depends on the pose holding a member in place.
 - I did **not** add a "play a run clip whenever the body moves" rule. That is claude/mmo-compyfeel's. The styracosaurus
   charge plays its own stride-matched `charge` clip.
+
+## Canon merge (2026-10-31)
+
+I merged origin/claude/mmo-overhaul 4d460989 (COELOMOVES, ANKYLOAI, PINFEEL, BIGREACH, ZEBRAWALK). Conflicts:
+- **tactics**: canon's resolve was kept and the styracosaurus block now names its base.
+- **heavy reach**: canon's `heavy_reach_m` and my front-only rule are both in.
+- **clip lists**: `pin_foot` and my three clips are both in.
+- **anim_events**: both notes are kept.
+- **animation tree**: my all-pairs clip links are kept with canon's pin_foot links. `_trans` now skips a link that
+  already exists.
+
+After the merge, all of these pass:
+- t_styrafix, 3 runs;
+- t_styraco, t_coelomoves, t_combat, t_canim, t_mounts, t_saddles, t_godlab, t_swarm;
+- run_all `[tests] PASS` and SMOKE PASS.
 
 ## Gates
 
