@@ -189,5 +189,18 @@
         "weight": 3.0
       }
     ]
+  },
+  "tactics": {
+    "base": "horned_charger",
+    "joust": {
+      "_about": "MEGAJOUST (owner 2026-10-31: 'the jousting brain is good for many of the four legged animals'): JoustBrain, charge through, wheel wide, charge again; no strafe or hop. ASSUMPTION numbers (Open Questions MJ3). The biggest and slowest: the widest wheel; no charge clip, so its pass runs on the run.",
+      "turn_radius_m": 10.0,
+      "overshoot_m": 7.0,
+      "min_run_m": 10.0,
+      "align_deg": 25.0,
+      "wheel_max_s": 12.0,
+      "charge_max_s": 4.0,
+      "display": true
+    }
   }
 }

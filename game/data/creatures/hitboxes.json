@@ -437,9 +437,12 @@
          "bone": "BackFoot.L"
         },
         {
-         "bone": "BackFoot.R"
+         "bone": "BackFoot.R",
+         "radius": 1.0,
+         "calibrated": true
         }
-       ]
+       ],
+       "_note": "MEGAJOUST x HITBOXES (integrator): the doe's joust-era hind kick, calibrated"
       }
      }
     }
