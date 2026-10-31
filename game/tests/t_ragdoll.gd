@@ -524,11 +524,11 @@ func _test_corpse_after_ragdoll() -> void:
 			_expect(taken2 != null and corpse.loot.used_slots() == mid - 1, "a second take moves another stack out after settling")
 	await _free_all([c])
 
-## The in-game stegosaurus is a box placeholder with no skeleton: death clip, then the body's lowest
+## A model-less species (allosaurus; the stegosaurus has a model now) is a box placeholder with no skeleton: death clip, then the body's lowest
 ## box sits on the ground and the corpse is placed (no ragdoll, no crash).
 func _test_placeholder_body() -> void:
-	var c = _spawn(&"stegosaurus", Vector3(60.0, 0.05, -60.0))
-	_expect(not c.view.using_glb, "stegosaurus is the placeholder in game")
+	var c = _spawn(&"allosaurus", Vector3(60.0, 0.05, -60.0))
+	_expect(not c.view.using_glb, "allosaurus is the placeholder in game")
 	await _wait(0.3)
 	_kill(c)
 	await _wait_frozen([c])
