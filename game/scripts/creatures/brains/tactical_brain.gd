@@ -112,6 +112,7 @@ var _terr_fled_s := 0.0
 var _terr_threat: Node3D
 ## PIN (tactics.pin, SP-SMILODON): the prey held down under the forepaws after a landed pounce.
 var _pin_victim: Node3D
+var _pin_clip: StringName = &"pin_stab"  ## the clip the hold lasts for: pin_stab (smilodon) or grab_bite (allosaurus)
 ## BURST CHASER (tactics.burst / tactics.bound, SMILORUN, owner 2026-10-31: "jumping, leaping, bounding movement abilities
 ## that make it very hard to escape ... the ultimate burst chaser"). On prey running away it sprints in short bursts
 ## (burst.mps for burst.s, burst_cd between, energy costs.burst), bounds bound.min_m-max_m at it in one leap (the leap clip),
@@ -401,6 +402,8 @@ func hit_damage_mult(clip: StringName, hit_index: int) -> float:
 		mult = _t("kick_mult", 1.0)
 	elif clip == &"pin_stab":
 		mult = _t("pin_mult", 1.0)
+	elif clip == &"grab_bite" and tac.get("grab", false):
+		mult = _t("grab_mult", 0.5) if hit_index == 0 else _t("pin_mult", 1.0)  # the hands' clamp, then the bites
 	elif clip == &"attack_heavy":
 		# ASSUMPTION (horned_charger): the sweeping horn swipe, x heavy_mult (2.2). Only the
 		# anim-driven attack_heavy reads this (the charge and the pounce pass their own mult).
@@ -721,7 +724,13 @@ func attack_available(move: StringName, d: float) -> bool:
 		&"charge":
 			return creature.can_sprint() and d >= _t("charge_min_m", 0.0)
 		&"kick":
-			return creature.anim.has_state(&"kick") and in_reach and _prey_behind()
+			# tactics.kick_max_m (allosaurus shoulder ram): also prey pressed in under its chin, closer than the jaws work
+			var close := tac.has("kick_max_m") and d <= _t("kick_max_m", 0.0) + _size_excess(attack_target)
+			return creature.anim.has_state(&"kick") and in_reach and (_prey_behind() or close)
+		&"grab":
+			# SP-ALLOSAURUS: the hands-then-jaws grab, in front at jaw range (not under the chin), on prey it can hold
+			return tac.get("grab", false) and creature.anim.has_state(&"grab_bite") and in_reach and not _prey_behind() \
+				and d > _t("kick_max_m", 0.0) + _size_excess(attack_target) and _pinnable(attack_target) != null
 		&"heavy":
 			# The sweeping horn swipe (the attack_heavy clip, a CONTRACT clip): point blank only,
 			# in front (the horns sweep the head's arc). ASSUMPTION: heavy_mult, heavy_cd.
@@ -771,6 +780,8 @@ func _strike(d: float, only: Array = []) -> bool:
 				_kick()
 			&"heavy":
 				_heavy()
+			&"grab":
+				_grab()
 		return true
 	return false
 
@@ -1236,10 +1247,16 @@ func _charge(delta: float) -> void:
 		_enter_circle()
 
 ## A contact hit of this brain's animal landed (Creature._on_hit). tactics.heavy_shove_m: the horn ram
-## (attack_heavy) throws the survivor back along the line from the animal to her, like the charge's shove.
-## THERIZINOSAURUS: tactics.primary_shove_m, the claw sweep (attack_primary) pushes her back to claw's length;
-## tactics.hook_pull_m, the combo's first hit (the claw hook) drags her in toward it, never closer than hook_stop_m.
+## (attack_heavy) throws the survivor back along the line from the animal to her, like the charge's shove (the allosaurus'
+## shoulder ram); tactics.kick_shove_m the same for its kick. THERIZINOSAURUS: tactics.primary_shove_m, the claw sweep
+## (attack_primary) pushes her back to claw's length; tactics.hook_pull_m, the combo's first hit (the claw hook) drags her
+## in toward it, never closer than hook_stop_m. SP-ALLOSAURUS (tactics.grab): the grab_bite's first hit (the hands' clamp)
+## pins her for the bites that follow (the utahraptor's bite with arms is its own clip, arm_bite).
 func landed(clip: StringName, target: Node) -> void:
+	if clip == &"grab_bite" and tac.get("grab", false) and creature.anim.hit_index == 0:
+		if _hold_victim(target as Node3D, &"grab_bite"):
+			tactic.emit(&"grabbed")
+		return
 	if not target is Player:
 		return
 	var pl := target as Player
@@ -1250,6 +1267,9 @@ func landed(clip: StringName, target: Node) -> void:
 	if clip == &"attack_heavy" and _t("heavy_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("heavy_shove_m", 0.0), _t("heavy_shove_stagger_s", 0.6), 0.0, creature)
 		tactic.emit(&"heavy_shove")
+	elif clip == &"kick" and _t("kick_shove_m", 0.0) > 0.0:
+		pl.sim.shove(away.normalized() * _t("kick_shove_m", 0.0), _t("kick_shove_stagger_s", 0.6), 0.0, creature)
+		tactic.emit(&"kick_shove")
 	elif clip == &"attack_primary" and _t("primary_shove_m", 0.0) > 0.0:
 		pl.sim.shove(away.normalized() * _t("primary_shove_m", 0.0), _t("primary_shove_stagger_s", 0.5))
 		tactic.emit(&"sweep_shove")
@@ -1258,6 +1278,19 @@ func landed(clip: StringName, target: Node) -> void:
 		if pull > 0.05:
 			pl.sim.shove(-away.normalized() * pull, _t("hook_pull_stagger_s", 0.45))
 			tactic.emit(&"hook_pull")
+
+## SP-ALLOSAURUS grab (tactics.grab): the grab_bite clip in place; its first hit clamps the hands on the prey (landed ->
+## _hold_victim: Pinned, held pin_reach_m ahead), the next two are bites (x pin_mult). A missed clamp is just a miss.
+func _grab() -> void:
+	_just_disengaged = false
+	_basic_streak = 0
+	creature.stop_move()
+	creature.anim.play_clip(&"grab_bite")
+	_start_cd(&"grab")
+	_set_state(&"attack")
+	_mark_pack()
+	tactic.emit(&"grab")
+	_log("[ai] %s grab" % creature.def.id)
 
 func _charge_impact() -> void:
 	# HITBOXES: the ram lands when the head and horns (the charge part) reach her body, not at the reach ring.
@@ -1985,21 +2018,30 @@ func _end_pounce() -> void:
 ## sabres in (anim_events pin_stab hit_fracs, x pin_mult each, from the Head part). It lets go when the clip ends, the
 ## prey is no longer Pinned, or either dies. Prey bigger than itself is not pinned.
 func _start_pin() -> bool:
-	var tgt := attack_target
-	if not tac.get("pin", false) or not creature.anim.has_state(&"pin_stab"):
+	if not tac.get("pin", false) or not creature.anim.has_state(&"pin_stab") or _pinnable(attack_target) == null:
 		return false
-	var st: StatusEffects = null
+	_hold_victim(attack_target, &"pin_stab")  # the state change first: leaving the pounce ends its timed clip
+	creature.anim.play_clip(&"pin_stab")
+	return true
+
+## The statuses of prey this animal can hold down: a live survivor, or a live creature no bigger than itself.
+func _pinnable(tgt: Node3D) -> StatusEffects:
 	if tgt is Player and not (tgt as Player).dead:
-		st = (tgt as Player).statuses
-	elif tgt is Creature and not (tgt as Creature).health.dead and (tgt as Creature).body_radius() <= creature.body_radius():
-		st = (tgt as Creature).statuses
+		return (tgt as Player).statuses
+	if tgt is Creature and not (tgt as Creature).health.dead and (tgt as Creature).body_radius() <= creature.body_radius():
+		return (tgt as Creature).statuses
+	return null
+
+## Pin the prey for as long as `clip` (already playing or just started) runs: Pinned, the pin state, the hold.
+func _hold_victim(tgt: Node3D, clip: StringName) -> bool:
+	var st := _pinnable(tgt)
 	if st == null:
 		return false
 	_set_state(&"pin")
 	_pin_victim = tgt
+	_pin_clip = clip
 	st.apply(&"pinned", creature, 1)
 	creature.stop_move()
-	creature.anim.play_clip(&"pin_stab")
 	tactic.emit(&"pin")
 	_log("[ai] %s pins %s" % [creature.def.id, tgt.name])
 	return true
@@ -2008,7 +2050,7 @@ func _pin(delta: float) -> void:
 	var v := _pin_victim
 	var gone := not is_instance_valid(v) or (v is Player and ((v as Player).dead or not (v as Player).statuses.has(&"pinned"))) \
 		or (v is Creature and ((v as Creature).health.dead or not (v as Creature).statuses.has(&"pinned")))
-	if gone or creature.anim.current_clip != &"pin_stab":
+	if gone or creature.anim.current_clip != _pin_clip:
 		_end_pin()
 		if _valid_target():
 			_back_off()

@@ -523,7 +523,18 @@ Owner: "build some of the models ... Be creative with what moves you think they 
 | **TB4** | Pin: the burst and the point-blank lunge are attack_heavy hits, so (PINFEEL rule) they apply Pinned and it plants its right foot on the victim (`pin_foot`); the bite never pins. Pinned length and damage are the status data. | `tarbosaurus.json` status_applied, PINFEEL | Pin frequency is a balance call. |
 | **TB5** | Tail whip uses the TacticalBrain's `kick` slot (point blank, prey behind); the clip is named `kick` and its hit part radius is 2.0 m (the tail sweeps metres between frames). | `tarbosaurus.json` hit_parts | Swap for the hitbox system's swept volumes when it lands. |
 | **TB6** | No alpha skin: no alpha sheet was given, so alphas get the genetics recolour only (`model_variants.alpha` not set). No eye glow block (eyes not measured). No saddle (`tamed_role` is combat only). | `tarbosaurus.json` | Give an alpha sheet to get a skin. |
+### SP-ALLOSAURUS (2026-10-31)
 
+Owner: "yes allosaurus" (build it, be creative with its fight moves). Report `docs/orchestration/reports/claude-sp-allosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **AL1** | Size: `height_meters` 6.5 (top of the head), 14.3 m long = 9 m real x the house 1.6; `real_length_m` 18 kept (the roster's 2x). | `allosaurus.json` | The owner's sheet draws it about twice the survivor's height at the hips (~3.5 m tall); the house scale makes it far bigger. |
+| **AL2** | Moves: hatchet bite (`attack_heavy`, x1.8, the only hit that applies Bleed: `deep_bleed`, via `tactics.statuses_heavy_only`), grab-then-bite (`grab_bite`: the hands' clamp x0.5 pins her, two bites x1.3), shoulder ram (`kick`, x1.0, shoves 4 m) for prey under its chin (`kick_max_m` 4), snap bite. Fracture was dropped from `status_applied`. | `allosaurus.json` tactics, `TacticalBrain` | Damage, Bleed strength and the pin length are balance calls; fracture may belong on the ram. |
+| **AL3** | Pack hunting in pairs: both spawn rows now spawn 2 (`count` 1 -> 2); the pair runs `surround` (opposite ring slots). No ambush, no pounce or leaps (a 3 t animal); it opens with run-in bites (charge sequences). | `islands.json`, tactics | Two 9000 HP apexes at once on tropical_40 / desert_50 is a lot; the old rows had one. |
+| **AL4** | Reach: `tactics.reach_m` 7.0 (the jaws are ~7 m ahead of its centre at the bite; the same hook as SP-TARBOSAURUS). Each hit also needs its part (`pipeline.hit_parts`). | tactics, `TacticalBrain.contact_reach` | Move to the hitbox system when it lands. |
+| **AL5** | The grab pins with PINFEEL's pinned pose (she lies on the ground and the bites come down to her), not a lift in the hands. | `grab_bite` clip | A held-aloft pose would need survivor clips. |
+| **AL6** | Not tameable (as before); no saddle, no alpha skin (no alpha sheet: genetics recolour only), no eye glow. | `allosaurus.json` | Owner's call. |
 
 ### SP-CERATOSAURUS (2026-10-31) — a new species: Ceratosaurus, with gore, slashing bite, tail swipe and a water-edge lunge (claude/mmo-sp-ceratosaurus)
 

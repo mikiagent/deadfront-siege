@@ -7,7 +7,7 @@
       "note_therizinosaurus": "therizinosaurus (SP-THERIZINOSAURUS, tools/gait/make_theri_moves.py): claw sweep, 1.0 s: the right arm cocks out to its right, the sickle claws sweep low across its front on 0.42 (hit from Claw.R); a landed sweep shoves her back (tactics.primary_shove_m)",
       "note_raptorflank": "raptor (RAPTORFLANK): tools/gait/raptor_overlay.py on the transferred clip: the hands grab forward with the claws spread and rake down clenched on each hit, the tail is keyed level (it flicked straight up); same timing and events"
     },
-    "grab_bite": {
+    "arm_bite": {
       "hit_frac": 0.42,
       "windup": false,
       "note": "utahraptor (UTAHARMS 2026-10-31): its attack_primary with the hands reaching forward, claws spread, and raking down clenched on the bite (tools/gait/raptor_overlay.py --keep); same timing as attack_primary; TacticalBrain plays it for tactics.bite_alt_chance of the bites"
@@ -124,11 +124,6 @@
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
-    "bite_shake": {
-      "hit_frac": 0.3,
-      "windup": true,
-      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
-    },
     "toss": {
       "hit_frac": 0.3,
       "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
@@ -157,6 +152,22 @@
         0.78
       ],
       "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
+    },
+    "grab_bite": {
+      "hit_frac": 0.3,
+      "hit_fracs": [
+        0.3,
+        0.55,
+        0.8
+      ],
+      "windup": true,
+      "windup_hold": 0.25,
+      "note": "SP-ALLOSAURUS: the hands clamp at 0.3 (TacticalBrain.landed pins the prey), bites at 0.55 and 0.8 (tools/gait/make_allo_moves.py)"
+    },
+    "bite_shake": {
+      "hit_frac": 0.3,
+      "windup": true,
+      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
     },
     "charge_windup": {
       "note": "STYRAFIX telegraph before a horned charge (styracosaurus): horns lowered, a fore-foot paws twice, a snort; the body stands still (tools/jaw/make_styra_impale.py)"
@@ -235,23 +246,6 @@
       "strafe_right_len": 1.083,
       "walk_back": 0.793,
       "walk_back_len": 1.083
-    },
-    "ceratosaurus": {
-      "height_m": 4.0,
-      "run_l": 11.242,
-      "run_len": 0.542,
-      "run_r": 11.051,
-      "walk_l": 2.912,
-      "walk_len": 1.0,
-      "walk_r": 2.912,
-      "walk": 2.912,
-      "run": 11.146,
-      "strafe_left": 1.941,
-      "strafe_left_len": 1.0,
-      "strafe_right": 1.941,
-      "strafe_right_len": 1.0,
-      "walk_back": 1.941,
-      "walk_back_len": 1.0
     },
     "coelophysis": {
       "height_m": 2.0,
@@ -379,23 +373,6 @@
       "strafe_right": 1.329,
       "strafe_right_len": 0.917
     },
-    "megarex": {
-      "height_m": 10.4,
-      "run_l": 5.957,
-      "run_len": 0.917,
-      "run_r": 5.956,
-      "walk_l": 2.018,
-      "walk_len": 1.417,
-      "walk_r": 2.018,
-      "walk": 2.018,
-      "run": 5.957,
-      "strafe_left": 2.018,
-      "strafe_left_len": 1.417,
-      "strafe_right": 2.018,
-      "strafe_right_len": 1.417,
-      "walk_back": 2.018,
-      "walk_back_len": 1.417
-    },
     "tyrannosaurus": {
       "height_m": 8.0,
       "run_l": 4.581,
@@ -510,6 +487,54 @@
       "walk_back": 1.711,
       "walk_back_len": 1.292,
       "_note": "SP-TARBOSAURUS: walk/run from tools/bake_clip_speeds.py --dry-run; stalk = make_gait stride / cycle (1.6 / 2.2 rig m/s) x 6.8 / 8; strafes and walk_back reuse the walk plan"
+    },
+    "allosaurus": {
+      "height_m": 6.5,
+      "walk": 2.621,
+      "walk_len": 1.417,
+      "run": 5.921,
+      "run_len": 0.917,
+      "strafe_left": 1.613,
+      "strafe_left_len": 1.417,
+      "strafe_right": 1.613,
+      "strafe_right_len": 1.417,
+      "walk_back": 1.613,
+      "walk_back_len": 1.417,
+      "_note": "SP-ALLOSAURUS: make_gait stride / clip length x height_meters / source height (0.455), not a Godot bake; tuned so the run (5.9 m/s) and walk (2.6 m/s) sit at the stats' 5.2 / 2.6 m/s"
+    },
+    "ceratosaurus": {
+      "height_m": 4.0,
+      "run_l": 11.242,
+      "run_len": 0.542,
+      "run_r": 11.051,
+      "walk_l": 2.912,
+      "walk_len": 1.0,
+      "walk_r": 2.912,
+      "walk": 2.912,
+      "run": 11.146,
+      "strafe_left": 1.941,
+      "strafe_left_len": 1.0,
+      "strafe_right": 1.941,
+      "strafe_right_len": 1.0,
+      "walk_back": 1.941,
+      "walk_back_len": 1.0
+    },
+    "megarex": {
+      "height_m": 10.4,
+      "run_l": 5.957,
+      "run_len": 0.917,
+      "run_r": 5.956,
+      "walk_l": 2.018,
+      "walk_len": 1.417,
+      "walk_r": 2.018,
+      "walk": 2.018,
+      "run": 5.957,
+      "strafe_left": 2.018,
+      "strafe_left_len": 1.417,
+      "strafe_right": 2.018,
+      "strafe_right_len": 1.417,
+      "walk_back": 2.018,
+      "walk_back_len": 1.417
     },
     "raptor": {
       "height_m": 3.5,

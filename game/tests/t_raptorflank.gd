@@ -17,7 +17,7 @@ extends SceneTree
 const ARM_MIN_DEG := 45.0
 const ARMS := ["FrontUpLeg.L", "FrontLowLeg.L", "FrontFoot.L", "FrontUpLeg.R", "FrontLowLeg.R", "FrontFoot.R"]
 const RAPTOR_ATTACKS: Array[StringName] = [&"attack_primary", &"bite_combo", &"attack_heavy", &"pounce", &"pin_stab", &"flank_rake"]
-const UTAH_ATTACKS: Array[StringName] = [&"grab_bite", &"bite_combo"]
+const UTAH_ATTACKS: Array[StringName] = [&"arm_bite", &"bite_combo"]
 const BEHIND_MIN := 120.0
 
 var failures: Array[String] = []
@@ -117,7 +117,7 @@ func _test_utah_bites() -> void:
 	for _i in 40:
 		c.anim.release_oneshot()
 		b._bite()
-		grabs += int(c.anim.current_clip == &"grab_bite")
+		grabs += int(c.anim.current_clip == &"arm_bite")
 	_expect(grabs >= 12 and grabs <= 28, "about half the utahraptor's bites grab with the arms (%d of 40)" % grabs)
 	host.free()
 

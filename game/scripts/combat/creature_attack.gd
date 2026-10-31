@@ -14,7 +14,10 @@ static func apply_for(attacker: Creature, clip: StringName, target: Node, mult: 
 		return false
 	if not _deal_damage(attacker, target, clip, mult):
 		return false
-	if (clip == &"attack_heavy" or clip == &"attack_primary" or clip == &"grab_bite") and not _target_dead(target):  # grab_bite: the bite with arms (UTAHARMS)
+	# tactics.statuses_heavy_only (allosaurus): the species statuses ride on the telegraphed heavy only (the hatchet bite's Bleed)
+	var heavy_only := clip != &"attack_heavy" and bool(attacker.def.tactics.get("statuses_heavy_only", false))
+	# arm_bite: the utahraptor's bite with arms (UTAHARMS)
+	if (clip == &"attack_heavy" or clip == &"attack_primary" or clip == &"arm_bite") and not heavy_only and not _target_dead(target):
 		for tok in attacker.def.status_applied:
 			_apply_token(tok, clip, target, attacker)
 	return true
