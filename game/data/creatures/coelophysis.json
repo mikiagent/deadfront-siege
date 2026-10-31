@@ -72,6 +72,7 @@
     ]
   },
   "pipeline": {
+    "coelomoves": "COELOMOVES 2026-10-31: attack_primary, attack_heavy, bite_combo, pounce, charge, hop_back, leap_back, dodge_left, dodge_right are the deinonychus clips moved onto this rig (tools/gait/transfer_clips.py --floor-feet --pin-toes; leg ratio 0.83); check_leap.py --ref-clip (+ --grounded --stance for attacks) PASS",
     "route": "skeleton_transplant_v3",
     "forward_axis": "+Z",
     "version": 1,
@@ -163,6 +164,17 @@
       1.0,
       0.35,
       0.15
+    ]
+  },
+  "tactics": {
+    "base": "pack_flanker",
+    "_about": "COELOMOVES (owner 2026-10-31: 'give the coelophysis all of the same attacks as deinonychus'): the deinonychus brain (ai.json pack_flanker tactics) as one shared profile: TacticalBrain.resolve starts from 'base', multiplies its distances by 'scale', then applies these overrides. ASSUMPTION, a lighter animal: pounce x2.0, combo x0.8, pounce_radius_m 1.2. Open Questions CM1.",
+    "pounce_radius_m": 1.2,
+    "pounce_mult": 2.0,
+    "combo_mults": [
+      0.8,
+      1.04,
+      1.44
     ]
   }
 }

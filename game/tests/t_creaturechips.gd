@@ -66,7 +66,7 @@ func _run() -> void:
 	var c: Node = (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate()
 	c.position = Vector3(3.5, 0, 0)
 	host.add_child(c)
-	c.spawn(data.creature(&"protoceratops"))
+	c.spawn(data.creature(&"zebraceratops"))
 	c.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	await _frames(3)
 	c.statuses.apply(&"bleed_3")

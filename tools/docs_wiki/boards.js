@@ -20,7 +20,6 @@
       { title: "Deinonychus model input sheet", type: "Model input sheet", path: "game/assets/creatures/deinonychus/sheet.png" },
       { title: "Gallimimus model input sheet", type: "Model input sheet", path: "game/assets/creatures/gallimimus/sheet.png" },
       { title: "Megaloceros model input sheet", type: "Model input sheet", path: "game/assets/creatures/megaloceros/sheet.png" },
-      { title: "Protoceratops model input sheet", type: "Model input sheet", path: "game/assets/creatures/protoceratops/sheet.png" },
       { title: "Stegosaurus model input sheet", type: "Model input sheet", path: "game/assets/creatures/stegosaurus/sheet.png" },
       { title: "Stegosaurus (v1) model input sheet", type: "Model input sheet", path: "game/assets/creatures/stegosaurus/v1/sheet.png" },
       { title: "Tyrannosaurus model input sheet", type: "Model input sheet", path: "game/assets/creatures/tyrannosaurus/sheet.png" },

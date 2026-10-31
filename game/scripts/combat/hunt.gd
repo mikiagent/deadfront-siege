@@ -140,7 +140,20 @@ func _process(delta: float) -> void:
 static func melee_reach(creature: Creature) -> float:
 	if creature == null or creature.def == null:
 		return 2.1
-	return maxf(2.1, maxf(0.18, creature.def.real_length_m * 0.12) + 0.65)
+	return maxf(2.1, creature.body_radius() + 0.65)  # body_radius carries the genome size
+
+## BIGREACH: in swing reach by the centre rule (small bodies), or her body edge within edge_reach_m
+## of the target's visible body (big ones: the flank, legs, head or tail she stands against).
+func in_reach(t: Creature, slack: float = 0.0) -> bool:
+	var off := t.global_position - player.global_position
+	if Vector2(off.x, off.z).length() <= melee_reach(t) + slack:
+		return true
+	return MeleeQuery.surface_gap(player, t) <= CombatTuning.num("player_melee", "edge_reach_m", 0.5) + slack
+
+## Where she walks to and swings at: the nearest point of its visible body (its centre once she is inside).
+func aim_point(t: Creature) -> Vector3:
+	var p := MeleeQuery.footprint_point(t, player.global_position)
+	return p if Vector2(p.x - player.global_position.x, p.z - player.global_position.z).length() > 0.3 else t.global_position
 
 func _auto_attack() -> void:
 	# A click-to-move order outranks the auto-attack: she keeps her own path to the clicked point.
@@ -161,11 +174,9 @@ func _auto_attack() -> void:
 		else:
 			fire_ranged()
 		return
-	var offset := player.global_position - target.global_position
-	var dist := Vector2(offset.x, offset.z).length()
-	if dist > melee_reach(target):
+	if not in_reach(target):
 		if not hold:
-			player.nav_to(target.global_position)
+			player.nav_to(aim_point(target))  # its body edge: its centre sits inside its collider
 		return
 	player.clear_nav()
 	if _swing_cd > 0.0 or _swing_pending:
@@ -185,11 +196,10 @@ func swing_now() -> bool:
 	var w := _weapon()
 	if w and w.def() and w.def().range_m > 0.0:
 		return fire_ranged()
-	var offset := player.global_position - target.global_position
-	if Vector2(offset.x, offset.z).length() > melee_reach(target) or not MeleeQuery.clear(player, target):
+	if not in_reach(target) or not MeleeQuery.clear(player, target):
 		return false
 	player.clear_nav()
-	player.face_world(target.global_position)
+	player.face_world(aim_point(target))
 	begin_swing()
 	return true
 
@@ -205,7 +215,7 @@ func begin_swing() -> void:
 		player.play_attack(def != null and def.damage_type == &"blunt" and _swing_damage(w) > CombatTuning.num("player_melee", "heavy_swing_min_damage", 10.0))
 	# Basic attack cooldown (owner: no basic spam): the weapon's cadence, never under basic_cooldown_s.
 	_swing_cd = maxf(1.0 / maxf(0.2, rate), CombatTuning.num("player_melee", "basic_cooldown_s", 0.8))
-	var forward := target.global_position - player.global_position
+	var forward := aim_point(target) - player.global_position
 	forward.y = 0.0
 	_swing_pending = true
 	swing_started.emit()
@@ -227,10 +237,10 @@ func _on_swing_hit(ref: WeakRef, w: ItemStack, forward: Vector3) -> void:
 		return  # hunt stopped or retargeted mid-swing: the swing is lost, not landed on the old target
 	if player.rolling or player.statuses.has_flag(&"cannot_act"):
 		return  # knocked down or rolled out mid-swing: the swing is lost
-	var offset := t.global_position - player.global_position
+	var offset := aim_point(t) - player.global_position
 	offset.y = 0.0
 	var tune := CombatTuning.section("player_melee")
-	if offset.length() > melee_reach(t) + float(tune.get("hit_reach_slack_m", 0.3)):
+	if not in_reach(t, float(tune.get("hit_reach_slack_m", 0.3))):
 		CombatAvoid.avoided(t, player, &"miss")
 		return  # it stepped out of the swing
 	if forward != Vector3.ZERO and offset.normalized().dot(forward) < float(tune.get("hit_arc_min_dot", 0.0)):

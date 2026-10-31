@@ -8,7 +8,7 @@ extends Node3D
 ## restores the rig. Species in data/mounts_skip.json stay on the hips-socket fallback.
 ##
 ##   godot --path game -- --lab=equip_mount_lab                      (armor + every mount, /tmp shots)
-##   godot --path game -- --lab=equip_mount_lab --species=protoceratops
+##   godot --path game -- --lab=equip_mount_lab --species=zebraceratops
 ##   godot --path game -- --lab=equip_mount_lab --all-mounts --shot-dir=/tmp/mountlab
 ## Prints "[mountlab] PASS species=<id>" per saddled species, "[equiplab] PASS" at the end.
 var player: Player

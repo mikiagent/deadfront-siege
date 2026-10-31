@@ -26,6 +26,9 @@ extends Resource
 @export var variants: Array[StringName] = []
 @export var clips: Dictionary = {}
 @export var pipeline: Dictionary = {}
+## Species tactics (TacticalBrain.tactics_for_def): {"base": <archetype whose tactics it starts from>, "scale": k,
+## any tactics key to override}. Empty = the archetype's own tactics.
+@export var tactics: Dictionary = {}
 ## Species' natural colour ranges for wild individuals: {"hue_deg": 14, "sat": 0.18, "val": 0.12}
 ## and optionally "morphs": [{"id": "dark", "weight": 1, ...}]. Empty = CreatureColoration defaults.
 @export var coloration: Dictionary = {}
@@ -39,9 +42,9 @@ extends Resource
 @export var energy: Dictionary = {}
 ## GENETICS: optional per-species genome block {"size_range": [lo, hi]}; empty = ai.json "genetics".
 @export var genetics: Dictionary = {}
-## Optional per-species override of its archetype's ai.json tactics (TacticalBrain.setup merges it on top;
-## "attack_range" there sets the reach). Empty = the archetype's.
-@export var tactics: Dictionary = {}
+## RETIREPROTO: a species the owner removed (its model is gone, so it never spawns); tamed ones in
+## old saves and pens become this species instead. &"" = a live species.
+@export var retired_to: StringName = &""
 
 ## ASSUMPTION: Durango-scale speed 400–700 maps to metres per second as speed / 100.
 var move_speed_mps: float:
@@ -111,6 +114,7 @@ static func from_dict(d: Dictionary, file_id: StringName) -> CreatureDef:
 	c.energy = en if en is Dictionary else {}
 	var gen: Variant = d.get("genetics", {})
 	c.genetics = gen if gen is Dictionary else {}
+	c.retired_to = StringName(str(d.get("retired_to", "")))
 	c._apply_taming(d)
 	return c
 

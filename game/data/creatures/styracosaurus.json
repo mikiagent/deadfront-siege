@@ -23,7 +23,8 @@
   },
   "turn_rate": 1.4,
   "tactics": {
-    "_about": "STYRAFIX (owner 2026-10-31: 'make styracosaurus bigger by like 3x'): the horned_charger knobs that are distances, scaled to the 15 m body (its horn tip is ~6.8 m ahead of its centre), plus the impale charge. Every number an ASSUMPTION.",
+    "base": "horned_charger",
+    "_about": "STYRAFIX (owner 2026-10-31: 'make styracosaurus bigger by like 3x'): the horned_charger profile (base, TacticalBrain.resolve) with its distances set for the 15 m body (its horn tip is ~6.8 m ahead of its centre), plus the impale charge. Every number an ASSUMPTION.",
     "attack_range": 6.0,
     "ring_m": 16.0,
     "display_charge_m": 9.0,

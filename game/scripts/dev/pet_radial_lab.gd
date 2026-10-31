@@ -222,7 +222,7 @@ func _run() -> void:
 	# Mid-fight: the ring opens on the pet, the hunt goes on, and creature plates keep off the ring.
 	var wild := (load("res://scenes/creatures/creature.tscn") as PackedScene).instantiate() as Creature
 	add_child(wild)
-	wild.spawn(Data.creature(&"protoceratops"))
+	wild.spawn(Data.creature(&"zebraceratops"))
 	wild.global_position = _player.global_position + Vector3(-2.5, 0.0, 1.5)
 	wild.brain.process_mode = Node.PROCESS_MODE_DISABLED
 	await _frames(5)
