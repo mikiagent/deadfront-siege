@@ -1,6 +1,6 @@
 # MEGARUN: the megaloceros gallop re-authored, stride match scaled by body size, legs that bend the right way
 
-Branch `claude/mmo-megarun` (from `origin/claude/mmo-overhaul` f54eb43f; canon a3fa0f45 merged back in). Not merged to canon.
+Branch `claude/mmo-megarun` (from `origin/claude/mmo-overhaul` f54eb43f; canon a0cc474d merged back in, gates rerun after it). Not merged to canon.
 
 Owner, verbatim, from the god-mode fight lab:
 - "megaloceros doe strafe left animation is cursed... strafe right too"
