@@ -9,8 +9,13 @@ extends CreatureBrain
 ## Moves (sequence in club_moves order, CLUB SWEEP when two threats are close): TAIL WHIP (attack_primary, knockback),
 ## TAIL SMASH (attack_heavy, overhead slam: knockdown on the club, a shockwave round it), CLUB SWEEP (tail_swipe, a
 ## long arc through straight behind). Each shows a ring where the club will pass and its name for the whole wind-up.
+## ANKYLOCLOSE (owner 2026-10-31: "hardly fighting back ... a stomp attack, a shove attack, a tackle attack ... I should not
+## be able to punch it over and over up close without consequence"): a target in front or beside it at close range
+## (ai.json club_tail.close_zone) draws a close move instead of the tail, on its own short cooldown: STOMP (a forefoot
+## slammed down, an area in front, knockdown) and TACKLE (a coil, then a 2-3 m run into her, knockdown) in front, SHOVE
+## (head and shoulders swung into her, knockback sideways) on her side. Behind it or out of reach, the tail as before.
 
-signal club_hit(move: StringName, target: Node3D, kind: StringName)  ## kind: &"club" or &"shock"
+signal club_hit(move: StringName, target: Node3D, kind: StringName)  ## kind: &"club", &"shock" or &"close" (stomp, shove, tackle)
 
 ## ASSUMPTION: how close to the move's spot is close enough to swing (the club sphere covers the rest).
 const AIM_TOL_DEG := 18.0
@@ -21,6 +26,8 @@ const SURROUND_M := 6.0
 const SEQUENCE: Array[StringName] = [&"whip", &"whip", &"smash", &"whip", &"sweep"]
 ## The club: Tail5's tip (Tail5_end, or this far along Tail5 when the rig has no end bone), in skeleton units.
 const CLUB_ALONG := 1.0
+## ASSUMPTION: the front-arc order (owner: "a stomp attack, a shove attack, a tackle attack, etc").
+const FRONT_SEQUENCE: Array[StringName] = [&"stomp", &"tackle"]
 
 var moves: Dictionary = {}
 var move_id: StringName = &""
@@ -35,10 +42,19 @@ var _near: Dictionary = {}  ## target -> club distance last frame (the strike la
 var _slammed := false
 var _aim: Node3D
 var telegraph: Telegraph
+var close_moves: Dictionary = {}
+var close_zone: Dictionary = {}
+var _close_cd := 0.0
+var _front_n := 0
+var _lunge_left := -1.0  ## >= 0 while the tackle's run is on (metres still to go)
+var _lunge_from := Vector3.ZERO
+var _lunge_dir := Vector3.ZERO
 
 func setup(c: Creature) -> void:
 	super.setup(c)
-	moves = profile.get("club_moves", {})
+	close_moves = profile.get("close_moves", {})
+	close_zone = profile.get("close_zone", {})
+	moves = (profile.get("club_moves", {}) as Dictionary).merged(close_moves)
 	_aim = Node3D.new()
 	_aim.name = "TailAim"
 	add_child(_aim)  # the brain is a plain Node, so the marker's position is global
@@ -72,7 +88,41 @@ func strike_spot(id: StringName) -> Vector3:
 	var f := -creature.global_basis.z
 	f.y = 0.0
 	var dir := f.normalized().rotated(Vector3.UP, -deg_to_rad(float(mv.get("target_bearing_deg", 180.0))))
-	return creature.global_position + dir * float(mv.get("target_dist_m", 3.0))
+	return creature.global_position + dir * float(mv.get("target_dist_m", 3.0)) * _close_scale(id)
+
+## Close moves scale with the animal (an alpha's head is further out); the club moves follow the live club.
+func _close_scale(id: StringName) -> float:
+	return creature.size_scale() if close_moves.has(id) else 1.0
+
+## Where t stands round the body for a close move: &"front", &"left", &"right", or &"" (behind it or out of reach).
+func close_side(t: Node3D) -> StringName:
+	if close_zone.is_empty() or t == null:
+		return &""
+	var k := creature.size_scale()
+	var to := t.global_position - creature.global_position
+	var f := -creature.global_basis.z
+	f.y = 0.0
+	f = f.normalized()
+	var fwd := to.dot(f) / k
+	var right := to.dot(f.cross(Vector3.UP)) / k
+	var z := close_zone
+	if fwd >= float(z.get("front_min_m", 2.4)) and fwd <= float(z.get("front_max_m", 6.0)) and absf(right) <= float(z.get("front_half_w_m", 2.0)):
+		return &"front"
+	if fwd >= float(z.get("side_back_m", -1.0)) and fwd <= float(z.get("side_front_m", 3.8)) and absf(right) <= float(z.get("side_max_m", 4.4)):
+		return &"right" if right > 0.0 else &"left"
+	return &""
+
+## The close move for where t stands, or &"" (then the tail).
+func _close_move(t: Node3D) -> StringName:
+	var side := close_side(t)
+	if side == &"":
+		return &""
+	var id: StringName = FRONT_SEQUENCE[_front_n % FRONT_SEQUENCE.size()] if side == &"front" else StringName("shove_%s" % side)
+	# Out past the stomp's reach (knocked back, or stepping off): the tackle runs her down.
+	var st: Dictionary = close_moves.get(&"stomp", {})
+	if side == &"front" and close_moves.has(&"tackle") and _flat_dist(t) > (float(st.get("target_dist_m", 4.4)) + float(st.get("hit_radius_m", 2.0))) * creature.size_scale():
+		id = &"tackle"
+	return id if close_moves.has(id) else &""
 
 func _full_rate() -> bool:
 	return move_id != &""
@@ -89,6 +139,7 @@ func _pre_think(dt: float) -> bool:
 	return handled
 
 func _think(delta: float) -> void:
+	_close_cd = maxf(0.0, _close_cd - delta)
 	if move_id != &"":
 		_tick_move(delta)
 		return
@@ -133,6 +184,18 @@ func _position() -> void:
 		_disengage()  # a calm grazer that was not provoked does not start a fight
 		return
 	_combat_memory_left = 4.0
+	# Close in front or beside it: stomp, tackle or shove, on their own short cooldown (they cut an alert or a flinch).
+	var close := _close_move(attack_target)
+	if close != &"":
+		creature.stop_move()
+		strafe_face = null
+		speed_override = -1.0
+		_set_state(&"attack")
+		# ASSUMPTION: it lets a knocked-down survivor get up before the next one (no hits on the floor).
+		var down := attack_target is Player and (attack_target as Player).statuses.has(&"knockdown")
+		if _close_cd <= 0.0 and not down and creature.stagger_left <= 0.0 and not creature.anim.current_clip in CreatureAnim.ATTACKS:
+			_start(close)
+		return
 	if moves.is_empty():
 		return
 	var id := _next_move()
@@ -168,7 +231,8 @@ func _position() -> void:
 func _start(id: StringName) -> void:
 	move_id = id
 	move = moves[id]
-	_planned = &""
+	if not close_moves.has(id):
+		_planned = &""
 	move_t = 0.0
 	_struck.clear()
 	_near.clear()
@@ -183,19 +247,40 @@ func _start(id: StringName) -> void:
 	move_len = length / maxf(0.01, creature.anim.cadence(clip))
 	var strike: Array = move.get("strike", [0.5, 0.6])
 	var shock := float(move.get("shock_radius_m", 0.0))
-	telegraph = Telegraph.show_club(creature, strike_spot(id), maxf(float(move.get("hit_radius_m", 1.1)), shock),
-		float(strike[1]) * move_len, "%s - ROLL OR GET TO ITS HEAD" % str(move.get("label", id)).to_upper())
+	var ring_s := float(strike[1]) * move_len + float(move.get("lunge_m", 0.0)) / maxf(0.1, float(move.get("lunge_mps", 1.0)))
+	var hint := "ROLL AWAY" if close_moves.has(id) else "ROLL OR GET TO ITS HEAD"
+	telegraph = Telegraph.show_club(creature, strike_spot(id), maxf(float(move.get("hit_radius_m", 1.1)), shock) * _close_scale(id),
+		ring_s, "%s - %s" % [str(move.get("label", id)).to_upper(), hint])
 	_log("[ai] ankylo %s (wind-up %.1fs)" % [id, float(strike[0]) * move_len])
 
 func _tick_move(delta: float) -> void:
 	move_t += delta
+	if _lunge_left >= 0.0:
+		_tick_lunge(delta)
+		return
 	creature.stop_move()  # no slide and no turn in code while the clip's feet carry the body
 	var clip := StringName(str(move.get("clip", "")))
-	if creature.anim.current_clip != clip or creature.health.dead:
+	var u := move_t / maxf(0.01, move_len)
+	# (the last frames: the clip may hand back to idle a frame before move_t gets there)
+	if (creature.anim.current_clip != clip and u < 0.97) or creature.health.dead:
 		_end_move()  # knocked down, killed or otherwise cut off
 		return
-	var u := move_t / maxf(0.01, move_len)
 	var strike: Array = move.get("strike", [0.5, 0.6])
+	if close_moves.has(move_id):
+		if move.has("lunge_m"):
+			if u >= 1.0:
+				_start_lunge()
+			return
+		# impact_bone (the stomping foot): on the frame it is back down (the tree's crossfade can land it a few frames off
+		# the authored fraction), else at the window's start; the window's end at the latest.
+		var bone := str(move.get("impact_bone", ""))
+		var down := bone == "" or _bone_height(bone) <= float(move.get("impact_height_m", 0.12))
+		if not _slammed and u >= float(strike[0]) and (down or u + delta / maxf(0.01, move_len) > float(strike[1])):
+			_slammed = true
+			_impact()
+		if u >= 1.0:
+			_end_move()
+		return
 	if u >= float(strike[0]) and u <= float(strike[1]) + 0.0001:
 		var club := club_position()
 		if bool(move.get("slam", false)):
@@ -219,6 +304,57 @@ func _tick_move(delta: float) -> void:
 				if d <= r and (d >= was or d <= r * 0.5 or last):
 					_strike(t, float(move.get("damage_mult", 1.0)), float(move.get("knockback_m", 0.0)), false, &"club")
 	if u >= 1.0:
+		_end_move()
+
+## Height of a bone above the animal's feet (world metres); 0 without a rig or that bone.
+func _bone_height(bone: String) -> float:
+	var sk: Skeleton3D = creature.view.rig.skeleton if creature.view and creature.view.rig else null
+	var i := sk.find_bone(bone) if sk else -1
+	return (sk.global_transform * sk.get_bone_global_pose(i).origin).y - creature.global_position.y if i >= 0 else 0.0
+
+## STOMP / SHOVE impact: everyone in the sphere round the move's spot (body frame, at this frame) is hit once.
+func _impact() -> void:
+	if bool(move.get("knockdown", false)):
+		IsoCamera.shake(PlayerRegistry.local(), CombatTuning.num("camera", "heavy_hit", 0.6))
+	var spot := strike_spot(move_id)
+	for t in _threats():
+		if _in_sphere(spot, t, float(move.get("hit_radius_m", 2.0)) * _close_scale(move_id)):
+			_strike(t, float(move.get("damage_mult", 1.0)), float(move.get("knockback_m", 0.0)), bool(move.get("knockdown", false)), &"close")
+
+## TACKLE: after the coil, a run (the stride-matched gait, no glide) on a line locked now, up to lunge_m.
+func _start_lunge() -> void:
+	var k := _close_scale(move_id)
+	_lunge_left = float(move.get("lunge_m", 2.5)) * k
+	# ASSUMPTION (KNOCKDOWN merge): the stomp now slides her back as it lays her down, so the tackle runs on to her,
+	# up to half again its lunge_m (it still runs its full lunge_m when she is closer).
+	if _valid_target():
+		_lunge_left = clampf(_flat_dist(attack_target) - float(move.get("contact_dist_m", 4.0)) * k, _lunge_left, _lunge_left * 1.5)
+	_lunge_from = creature.global_position
+	var f := -creature.global_basis.z
+	f.y = 0.0
+	f = f.normalized()
+	var to := attack_target.global_position - creature.global_position if _valid_target() else f
+	to.y = 0.0
+	# ASSUMPTION: it runs at her when she is within 45 deg of its snout, else straight ahead.
+	_lunge_dir = to.normalized() if to.length() > 0.1 and f.dot(to.normalized()) > cos(deg_to_rad(45.0)) else f
+
+func _tick_lunge(_delta: float) -> void:
+	var k := _close_scale(move_id)
+	speed_override = float(move.get("lunge_mps", 5.0))
+	creature.move_to(_lunge_from + _lunge_dir * (_lunge_left + 2.0))  # aim past the end: no slowing into her
+	var f := -creature.global_basis.z
+	f.y = 0.0
+	var at := creature.global_position + f.normalized() * float(move.get("contact_dist_m", 4.0)) * k
+	var hit := false
+	for t in _threats():
+		if not _struck.has(t) and _in_sphere(at, t, float(move.get("contact_radius_m", 1.3)) * k):
+			IsoCamera.shake(PlayerRegistry.local(), CombatTuning.num("camera", "heavy_hit", 0.6))
+			_strike(t, float(move.get("damage_mult", 1.0)), float(move.get("knockback_m", 0.0)), bool(move.get("knockdown", false)), &"close")
+			hit = true
+	var ran := Vector2(creature.global_position.x - _lunge_from.x, creature.global_position.z - _lunge_from.z).length()
+	var limit_s := _lunge_left / k / maxf(0.1, float(move.get("lunge_mps", 5.0))) + 0.8
+	if hit or ran >= _lunge_left or move_t - move_len > limit_s or creature.health.dead:
+		creature.stop_move()
 		_end_move()
 
 func _in_sphere(club: Vector3, t: Node3D, radius: float) -> bool:
@@ -260,12 +396,25 @@ func _strike(t: Node3D, mult: float, knock_m: float, knockdown: bool, kind: Stri
 func _end_move() -> void:
 	if move_id == &"":
 		return
-	_attack_cd = float(move.get("cooldown_s", 4.0)) * _rage_cd()
-	_move_n += 1
+	if close_moves.has(move_id):
+		_close_cd = float(move.get("cooldown_s", 1.2)) * _rage_cd()
+		if move_id in FRONT_SEQUENCE:
+			_front_n += 1
+		_lunge_left = -1.0
+		speed_override = -1.0
+	else:
+		_attack_cd = float(move.get("cooldown_s", 4.0)) * _rage_cd()
+		_move_n += 1
 	move_id = &""
 	if is_instance_valid(telegraph):
 		telegraph.queue_free()
 	telegraph = null
+
+## Hit from close in front or beside it: no look-around first (the alert pause), it answers at once.
+func on_aggro(who: Node) -> void:
+	super.on_aggro(who)
+	if state == &"alert" and who == attack_target and _provoked() and _close_move(attack_target) != &"":
+		_set_state(&"approach")
 
 func opening_label() -> String:
 	if move_id == &"":

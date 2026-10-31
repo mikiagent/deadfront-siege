@@ -3,13 +3,15 @@
   "clips": {
     "attack_primary": {
       "hit_frac": 0.42,
-      "windup": false
+      "windup": false,
+      "note_therizinosaurus": "therizinosaurus (SP-THERIZINOSAURUS, tools/gait/make_theri_moves.py): claw sweep, 1.0 s: the right arm cocks out to its right, the sickle claws sweep low across its front on 0.42 (hit from Claw.R); a landed sweep shoves her back (tactics.primary_shove_m)"
     },
     "attack_heavy": {
       "hit_frac": 0.72,
       "windup": true,
       "windup_hold": 0.6,
-      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R"
+      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R",
+      "note_therizinosaurus": "therizinosaurus: two-arm overhead rake, 1.58 s: rears hissing with both arms high and trembling (held through windup_hold 0.6), drives both claw sets down on 0.72 and rakes back; the only move that bleeds (pipeline.status_clips)"
     },
     "hit_react": {
       "speed": 2.0
@@ -30,7 +32,8 @@
       ],
       "windup": true,
       "note": "chomp left, chomp right, MEGA chomp: the front rears up for 12 frames (frames 33-44 of 66, the tell), then the whole body tips down from the hips like an animal drinking and bites at ground level. Exaggerated on purpose (owner: big by default, tune after). tools/jaw/make_combo.py.",
-      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
+      "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
+      "note_therizinosaurus": "therizinosaurus: hook and rake, 3.0 s on the same fracs: the right claws hook on 0.092 and drag her in (tactics.hook_pull_m), a left backhand on 0.338, rears with both arms cocked (the tell, 0.5-0.667), double claw thrust on 0.815"
     },
     "hop_back": {
       "airborne": [
@@ -137,6 +140,44 @@
         0.6
       ],
       "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn"
+    },
+    "leap": {
+      "airborne": [
+        0.12,
+        0.78
+      ],
+      "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
+    },
+    "charge_windup": {
+      "note": "STYRAFIX telegraph before a horned charge (styracosaurus): horns lowered, a fore-foot paws twice, a snort; the body stands still (tools/jaw/make_styra_impale.py)"
+    },
+    "impale": {
+      "hit_frac": 0.26,
+      "release_frac": 0.46,
+      "note": "STYRAFIX: horns dip to the ground and scoop up hard. The survivor is caught on the horn tip at hit_frac, carried up with it and flung at release_frac (TacticalBrain impale phase); feet planted"
+    },
+    "charge_recover": {
+      "note": "STYRAFIX: winded after a charge, head low with three decaying head shakes; the punish window (charge_recover_s)"
+    },
+    "stomp": {
+      "hit_frac": 0.56,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, tools/gait/make_tail_club.py stomp), 1.5 s: the front rears off the left forefoot, the foot hauled high and forward, held, then slammed down in front (impact 0.56); ClubTailBrain lands the hit (ai.json club_tail.close_moves.stomp: an area in front, knockdown)"
+    },
+    "shove_left": {
+      "hit_frac": 0.48,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 1.2 s: cocks away, then head and shoulders swing hard to its left while the body lurches over and the left forefoot steps out (impact 0.48); ClubTailBrain lands the hit (close_moves.shove_left, knockback sideways)"
+    },
+    "shove_right": {
+      "hit_frac": 0.48,
+      "windup": true,
+      "note": "mirror of shove_left, to its right"
+    },
+    "tackle": {
+      "hit_frac": 1.0,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up to close_moves.tackle.lunge_m into her and lands the hit on contact (knockdown)"
     }
   },
   "natural_speeds": {
@@ -175,6 +216,23 @@
       "strafe_right_len": 1.083,
       "walk_back": 0.793,
       "walk_back_len": 1.083
+    },
+    "ceratosaurus": {
+      "height_m": 4.0,
+      "run_l": 11.242,
+      "run_len": 0.542,
+      "run_r": 11.051,
+      "walk_l": 2.912,
+      "walk_len": 1.0,
+      "walk_r": 2.912,
+      "walk": 2.912,
+      "run": 11.146,
+      "strafe_left": 1.941,
+      "strafe_left_len": 1.0,
+      "strafe_right": 1.941,
+      "strafe_right_len": 1.0,
+      "walk_back": 1.941,
+      "walk_back_len": 1.0
     },
     "coelophysis": {
       "height_m": 2.0,
@@ -396,19 +454,23 @@
     },
     "smilodon": {
       "height_m": 2.0,
-      "run_l": 6.096,
-      "run_len": 0.458,
-      "run_r": 6.142,
+      "run_l": 6.213,
+      "run_len": 0.583,
+      "run_r": 6.213,
       "walk_l": 1.182,
       "walk_len": 1.25,
       "walk_r": 1.182,
       "walk": 1.182,
-      "run": 6.119,
+      "run": 6.213,
       "stalk": 0.551,
       "strafe_left": 0.845,
       "strafe_right": 0.845,
       "walk_back": 0.845,
-      "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684)"
+      "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684); SMILORUN: run re-baked (bake_clip_speeds.py --dry-run) on the rotary bound; lope and sprint = make_gait stride / cycle x 2.0/0.5684 (0.77/0.75, 1.8/0.5 mesh units/s)",
+      "lope": 3.612,
+      "lope_len": 0.75,
+      "sprint": 12.667,
+      "sprint_len": 0.5
     },
     "tarbosaurus": {
       "height_m": 6.8,
@@ -442,6 +504,23 @@
       "run": 5.515,
       "charge": 8.21,
       "_note": "SP-RAPTOR: walk/run from tools/bake_clip_speeds.py --dry-run (the deinonychus gaits moved onto the raptor); charge = run x the deinonychus charge/run ratio (6.6/4.432)"
+    },
+    "therizinosaurus": {
+      "height_m": 8.0,
+      "walk": 3.729,
+      "walk_l": 3.729,
+      "walk_r": 3.729,
+      "walk_len": 1.208,
+      "run": 10.018,
+      "run_l": 10.028,
+      "run_r": 10.009,
+      "run_len": 0.667,
+      "strafe_left": 2.194,
+      "strafe_left_len": 1.208,
+      "strafe_right": 2.194,
+      "strafe_right_len": 1.208,
+      "walk_back": 2.194,
+      "walk_back_len": 1.208
     }
   }
 }
