@@ -19,7 +19,7 @@ grab_bite [0.3, 0.55, 0.8]). The Jaw opens with +X (add_jaw.py --x-side), so jaw
 
 usage: Blender -b -P tools/gait/make_allo_moves.py -- <base.glb> <clip> <out.glb>
   clip: idle | alert | attack_primary | attack_heavy | grab_bite | kick | hit_react | knockdown | death | sleep | feed |
-        claw_rake | slash_bite | check_left | check_right | bite_combo (ALLOFEEL)
+        claw_rake | slash_bite | check_left | check_right | bite_combo (ALLOFEEL) | bull_huff | charge_leap (ALLOCHARGE)
 """
 import math
 import sys
@@ -512,6 +512,72 @@ def bite_combo(u):
     }
 
 
+def bull_huff(u):
+    """ALLOCHARGE bull windup (owner 2026-10-31: "stomp throw back, huff huff, charge"), 1.6 s, the display before the
+    charge: it plants and lowers its centre of gravity, head down and level at her, then huffs twice (0.3 and 0.6: the
+    chest heaves, the head bobs up and snaps down, the jaws puff open), and paws the ground with the right foot (lift,
+    reach, scrape back low, set down on its print). The left foot never moves; the right only in the paw."""
+    low = track(u, [(0, 0), (0.18, 1), (0.92, 1), (1, 0.8)])
+    huff = max(track(u, [(0, 0), (0.22, 0), (0.3, 1), (0.4, 0), (1, 0)]), track(u, [(0, 0), (0.52, 0), (0.6, 1), (0.7, 0), (1, 0)]))
+    pre = max(track(u, [(0, 0), (0.16, 0), (0.24, 1), (0.3, 0), (1, 0)]), track(u, [(0, 0), (0.46, 0), (0.54, 1), (0.6, 0), (1, 0)]))  # the breath in
+    paw_lift = max(0.0, track(u, [(0, 0), (0.68, 0), (0.74, 0.09), (0.8, 0.025), (0.86, 0.025), (0.9, 0.05), (0.95, 0), (1, 0)]))
+    paw_fwd = track(u, [(0, 0), (0.68, 0), (0.74, 0.1), (0.8, 0.04), (0.86, -0.06), (0.9, -0.02), (0.95, 0), (1, 0)])
+    return {
+        "body": {"dz": -0.09 * low + 0.015 * pre - 0.01 * huff, "pitch": -9 * low + 2 * pre - 2 * huff, "dy": 0.02 * huff},
+        "turns": merge({
+            "Chest": (3 * pre - 4 * huff, 0, 0),
+            "Neck1": (-12 * low + 6 * pre - 8 * huff, 0, 0), "Neck2": (-4 * low + 2 * pre - 3 * huff, 0, 0),
+            "Head": (12 * low + 3 * pre - 4 * huff, 0, 0),
+        }, arm_keys(u, up=[(0, 0), (0.18, 14), (1, 10)], elbow=[(0, 0), (0.18, 16), (0.3, 6), (0.4, 16), (0.6, 6), (0.7, 16), (1, 12)],
+                    wrist=[(0, 0), (0.3, 20), (0.4, -10), (0.6, 20), (0.7, -10), (1, 0)]),
+            tail_set(1.5 * low + 2 * huff, 0), tail_wave(u, 2.0, 0.0, cycles=1)),
+        "jaw": 3 + 22 * huff + 4 * pre,
+        "feet": {"L": (0, 0, 0, 0), "R": (paw_lift, paw_fwd, 0, 6 * min(1.0, paw_lift / 0.05))},
+    }
+
+
+LEAP_TUCK = {"L": (30, -60, 50, 18), "R": (34, -66, 54, 20)}  # thigh, shin, metatarsal, toe: legs folded under in the air
+LEAP_REACH = {"L": (-6, -10, 8, 4), "R": (-4, -8, 6, 4)}  # reaching down for the landing
+
+
+def charge_leap(u):
+    """ALLOCHARGE jump-bite at the end of the charge, 0.8 s: a coil (0-0.1), the push (0.1-0.16), a low lunge-jump with
+    both feet off the ground (0.16-0.68; airborne in anim_events), the jaws gaping, arms thrown forward with the claws
+    spread, the head driving down; it lands at 0.68 and bites at 0.75 (the hit: TacticalBrain lands the charge contact on
+    it), the arms raking, and runs on. In place: the brain carries the body on the charge line at charge speed."""
+    H = 0.75
+    coil = track(u, [(0, 0), (0.08, 1), (0.14, 0), (1, 0)])
+    air = track(u, [(0, 0), (0.14, 0), (0.4, 1), (0.68, 0), (1, 0)])  # height of the arc
+    land = track(u, [(0, 0), (0.68, 0), (H, 1), (0.88, 0.4), (1, 0)])
+    tuck = track(u, [(0, 0), (0.16, 0), (0.3, 1), (0.5, 1), (0.64, 0), (1, 0)])
+    reach = track(u, [(0, 0), (0.5, 0), (0.6, 1), (0.68, 0), (1, 0)])
+    airborne = 0.16 <= u < 0.68
+    p = {
+        "body": {"dz": -0.08 * coil + 0.11 * air - 0.12 * land, "pitch": -12 * coil - 6 * air - 20 * land, "dy": 0.12 * land},
+        "turns": merge({
+            "Chest": (-4 * coil - 4 * land, 0, 0),
+            "Neck1": (-14 * coil + 6 * air * (1 - land) - 28 * land, 0, 0), "Neck2": (-6 * coil - 12 * land, 0, 0),
+            "Head": (10 * coil + 4 * air - 14 * land, 0, 0),
+        }, arm_keys(u, up=[(0, 0), (0.1, -10), (0.3, 60), (0.66, 64), (H, 30), (0.88, 8), (1, 0)],
+                    out=[(0, 0), (0.3, 20), (0.66, 20), (H, 6), (1, 0)],
+                    elbow=[(0, 0), (0.1, 24), (0.3, -40), (0.66, -42), (H, -10), (0.88, 18), (1, 0)],
+                    wrist=[(0, 0), (0.1, -20), (0.3, 44), (0.66, 48), (H, -36), (0.86, -20), (1, 0)]),
+            tail_set(-4 * coil + 3 * air + 6 * land)),
+        "jaw": track(u, [(0, 2), (0.1, 16), (0.3, 48), (0.66, 50), (0.72, 40), (H, 0), (0.85, 6), (1, 2)]),
+    }
+    if airborne:
+        p["feet"] = {"L": None, "R": None}
+        p["legs"] = {sd: tuple(a * tuck + b * reach for a, b in zip(LEAP_TUCK[sd], LEAP_REACH[sd])) for sd in "LR"}
+    else:
+        # on the ground the body is running at charge speed (the brain carries it): a planted foot slides back under it
+        # at that speed so it stays on its print in the world (2.4 hip heights/s = 9.4 m/s at hip 3.9 m; 0.79 s clip).
+        # The brain hands back to the charge gait at 0.82, so the landing foot only travels 0.68 -> 0.82.
+        back = 2.39 * 0.79 * (u if u < 0.5 else u - 0.68)
+        f = (0.15 if u < 0.5 else 0.12) - back
+        p["feet"] = {"L": (0, f, 0, 0), "R": (0, f + 0.03, 0, 0)}
+    return p
+
+
 def hit_react(u):
     """0.6 s: the head and chest jerk back and up from the blow, a stagger step back with the left foot."""
     j = track(u, [(0, 0), (0.15, 1), (0.45, 0.7), (1, 0)])
@@ -594,6 +660,7 @@ CLIPS = {"idle": (idle, 60, True), "alert": (alert, 38, False), "attack_primary"
          "attack_heavy": (attack_heavy, 38, False), "grab_bite": (grab_bite, 53, False), "kick": (kick, 26, False),
          "hit_react": (hit_react, 14, False), "knockdown": (knockdown, 50, False), "death": (death, 43, False),
          "sleep": (sleep, 48, False), "feed": (feed, 48, True),
+         "bull_huff": (bull_huff, 38, False), "charge_leap": (charge_leap, 19, False),
          "bite_combo": (bite_combo, 66, False), "claw_rake": (claw_rake, 26, False), "slash_bite": (slash_bite, 31, False),
          "check_left": (lambda u: check(u, -1.0), 24, False), "check_right": (lambda u: check(u, 1.0), 24, False)}
 if CLIP == "pose":  # debugging: one static pose from $POSE (the apply() dict as JSON), 2 frames

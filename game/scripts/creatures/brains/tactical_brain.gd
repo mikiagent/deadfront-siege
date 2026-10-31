@@ -129,6 +129,12 @@ var _arc_v := 0.0
 var _arced := false
 var _combo_tell := false  ## CARNOFEEL: the chomp combo's coil is playing slowed (tactics.combo_tell_scale)
 var _tossing := false  ## WOOLLY RHINO: standing at the impact point while the toss clip plays
+## ALLOCHARGE (tactics.charge_leap_m): the jump-bite that ends the charge: playing, its time, its bite judged
+var _leap := false
+var _leap_t := 0.0
+var _leap_struck := false
+var _leap_v := 1.0  ## the body's share of its charge speed through the leap: the jump is as long as it takes to put the jaws on her
+var _run_t := 0.0  ## seconds this charge line has run
 var _crouch := false  ## coiling in charge_crouch before the run
 ## BULL RESET (tactics.charge_reset "bull", pachycephalosaurus): back-hops left before the windup and the next charge.
 var _bull_hops := 0
@@ -1149,6 +1155,8 @@ func _start_charge(return_pass: bool = false) -> void:
 	_seq = []
 	_charge_hit = false
 	_tossing = false
+	_leap = false
+	_run_t = 0.0
 	_charge_dir = -_to_me()
 	_charge_to = attack_target.global_position + _charge_dir * _ck("charge_through_m", 2.5)
 	if tac.get("charge_impale", false):
@@ -1429,10 +1437,13 @@ func _charge(delta: float) -> void:
 		line_dir = _charge_dir
 		var to := attack_target.global_position - creature.global_position
 		to.y = 0.0
-		if not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
+		if _t("charge_leap_m", 0.0) > 0.0:
+			_charge_leap(delta, to)  # ALLOCHARGE: the contact is the jump-bite's
+		elif not _charge_hit and to.length() <= reach_to(attack_target) and to.normalized().dot(_charge_dir) > 0.2 \
 				and (Hitbox.applies(creature, attack_target) or creature.part_hit(&"charge", attack_target)):
 			_charge_impact()
-		if not _charge_hit and _body_over(attack_target):
+		# (ALLOCHARGE: not while the jump-bite is in the air: her centre is under its long snout's footprint before the jaws shut)
+		if not _charge_hit and _body_over(attack_target) and not (_leap and not _leap_struck):
 			_charge_impact(true)  # the horns passed over her, the body runs her down
 		if _flat_dist_to(_charge_to) <= 1.0 or (creature.global_position - _charge_to).dot(_charge_dir) >= 0.0 or _left <= 0.0:
 			_charge_end()
@@ -1510,14 +1521,17 @@ func _grab_hands() -> void:
 	_log("[ai] %s grab" % creature.def.id)
 
 ## body: CARNOFEEL contact of the charging body itself (_body_over), not the horns' hitbox.
-func _charge_impact(body: bool = false) -> void:
+func _charge_impact(body: bool = false, move: StringName = &"charge") -> void:
 	# HITBOXES: the ram lands when the head and horns (the charge part) reach her body, not at the reach ring.
+	# move: the hitbox move judged (ALLOCHARGE: charge_leap, the jump-bite's jaws and claws, once at its bite).
 	var hit := {}
 	if not body and Hitbox.applies(creature, attack_target):
-		hit = Hitbox.strike(creature, &"charge", attack_target)
+		hit = Hitbox.strike(creature, move, attack_target)
 		if hit.is_empty():
 			return  # still closing: the next frame tries again
 		Hitbox.mark(attack_target, hit)
+		if move == &"charge_leap":
+			tactic.emit(&"leap_bite")  # ALLOCHARGE: the jaws (not the body running her down) landed the jump-bite
 	_charge_hit = true
 	var mult := _t("charge_mult", 1.8)
 	tactic_hit.emit(&"charge", 0, mult)
@@ -1553,6 +1567,47 @@ func _charge_impact(body: bool = false) -> void:
 			# SP-TRIKEALPHA: a toss with toss_side_m throws her sideways, to the animal's right (the clip's twist).
 			var throw := Vector3(-_charge_dir.z, 0.0, _charge_dir.x) * (_t("toss_side_m", 0.0) if tossing else 0.0)
 			pl.sim.shove(push * _t("charge_shove_m", 0.0) + throw, _t("charge_shove_stagger_s", 0.6), _t("toss_lift_mps", 0.0) if tossing else 0.0, creature)
+
+## ALLOCHARGE (owner 2026-10-31: "charge (low center of gravity jump with a bite attack) charge jump and bite"): with her
+## within charge_leap_m ahead on the line it plays charge_leap (a low lunge-jump, both feet off the ground in its anim_events
+## airborne window, jaws wide, arms forward) while the body runs on along the line at charge speed. At the clip's hit frac
+## (the landing bite) the charge contact is judged once from the move charge_leap's hitbox (the jaws and claws); a body
+## that runs her down later still counts (_body_over). The line, pass-through and knockdown are the charge's own.
+func _charge_leap(delta: float, to: Vector3) -> void:
+	# charge_leap_m: how far ahead of its centre the jaws shut at the bite. It takes off that far plus the ground the body
+	# covers at charge speed before the bite (charge_leap_lag_s: the clip starting a few frames late), after at least
+	# charge_leap_min_run_s of run; already closer, the jump is shorter (the body slows to put the jaws on her, not past).
+	_run_t += delta
+	var reach := _t("charge_leap_m", 0.0) * creature.size_scale()
+	var to_bite := _clip_len(&"charge_leap", 0.8) * CreatureClips._hit_frac(&"charge_leap") + _t("charge_leap_lag_s", 0.1)
+	var v_now := maxf(1.0, Vector2(creature.velocity.x, creature.velocity.z).length())  # its real speed (a sprint's run mult on top)
+	if not _leap and not _charge_hit and to.length() <= reach + v_now * to_bite and _run_t >= _t("charge_leap_min_run_s", 0.3) \
+			and to.normalized().dot(_charge_dir) > 0.3 and creature.anim.has_state(&"charge_leap"):
+		_leap_v = clampf((to.length() - reach) / (to_bite * v_now), 0.4, 1.0)  # share of its charge speed
+		_leap = true
+		_leap_t = 0.0
+		_leap_struck = false
+		creature.anim.play_clip(&"charge_leap")
+		tactic.emit(&"charge_leap")
+		_log("[ai] %s charge leap" % creature.def.id)
+	if not _leap:
+		return
+	if not _leap_struck:
+		speed_override *= _leap_v
+	# the clip's own clock (its one-shot time / its length): the bite is judged on the frame the jaws shut
+	_leap_t += delta
+	var u := _leap_t / maxf(0.01, _clip_len(&"charge_leap", 0.8))
+	if creature.anim.current_clip == &"charge_leap":
+		u = creature.anim._os_t / maxf(0.01, creature.anim.player.get_animation(&"charge_leap").length)
+	if not _leap_struck and u >= CreatureClips._hit_frac(&"charge_leap"):
+		_leap_struck = true
+		_charge_impact(false, &"charge_leap")
+	# ALLOCHARGE: back to the charge gait just after the bite (charge_leap.release_frac): the clip's grounded feet only
+	# keep their prints at charge speed for so long
+	if u >= _t("charge_leap_release_frac", 0.82):
+		_leap = false
+		if creature.anim.current_clip == &"charge_leap":
+			creature.anim.release_oneshot()
 
 ## End of the line: after a hit, a hind kick when the prey ended up behind it, else the one back-off;
 ## after a miss it stands staggered for charge_miss_recover_s (the punish window).

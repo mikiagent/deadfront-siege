@@ -2,8 +2,8 @@
   "species": "Dilophosaurus",
   "clade": "Neotheropoda",
   "period": "Early Jurassic",
-  "real_length_m": 12.0,
-  "height_meters": 3.6,
+  "real_length_m": 10.5,
+  "height_meters": 3.15,
   "rig": "biped",
   "tier": 40,
   "climate": "tropical",
@@ -87,9 +87,10 @@
       }
     ]
   },
-  "size_note": "# ASSUMPTION (SP-DILOPHOSAURUS): height_meters 3.6 (top of the crests) is unchanged: the 10.5 m long model (half of it the whip tail) is the house 1.6x of a ~6.5 m animal, hip 2.1 m; real_length_m 12 is the roster's 2x convention.",
+  "size_note": "# ASSUMPTION (DILOFRILL, owner 2026-10-31 \"make it slightly smaller\"): height_meters 3.6 -> 3.15 and real_length_m 12.0 -> 10.5 (12.5 % smaller; the model is now ~9.2 m long, hip ~1.84 m). Was: # ASSUMPTION (SP-DILOPHOSAURUS): height_meters 3.6 (top of the crests) is unchanged: the 10.5 m long model (half of it the whip tail) is the house 1.6x of a ~6.5 m animal, hip 2.1 m; real_length_m 12 is the roster's 2x convention.",
   "pipeline": {
     "forward_axis": "+Z",
+    "display_flare": {"bone_prefix": "Frill", "open_clip": "alert", "open_at": 0.5, "_note": "DILOFRILL: DisplayFlare holds the frill open from combat state over every clip (scripts/creatures/display_flare.gd); the open pose is the alert clip at mid-hiss"},
     "source_height_m": 0.3418,
     "source_length_m": 0.998,
     "route": "rig_biped_v1 + Blender frill (tools/gait/build_dilophosaurus.sh)",

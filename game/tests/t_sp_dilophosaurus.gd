@@ -5,13 +5,19 @@ extends SceneTree
 ## the brain spits venom from range (a glob that hits a survivor who stands still and poisons her with Venom, and misses
 ## one who steps out of the ring), opens with the spit on the approach, leaps and slashes, snaps without venom, an
 ## alpha wears the olive skin, and the spawn tables put it on tropical/swamp islands with nothing falling through.
+## DILOFRILL: 3.15 m tall (12.5 % under SP-DILOPHOSAURUS' 3.6), and DisplayFlare holds the frill open through a 20 s
+## fight (snapping fully open on every strike) and folds it when the animal is calm.
 ## Run: Godot --headless --path game --script res://tests/t_sp_dilophosaurus.gd  -> "[t_sp_dilophosaurus] PASS", exit 0.
 
 const ID := &"dilophosaurus"
 const TOES := ["Toe.L", "Toe.R"]
+const HEIGHT_M := 3.15  ## DILOFRILL: owner "make it slightly smaller" (3.6 -> 3.15)
+const FLARED_SHARE := 0.7  ## ASSUMPTION: the frill is flared on at least this share of a fight's combat frames
+const FLARED_M := 0.7  ## ASSUMPTION: flared = the rib tips spread this much wider than folded (fully open ~ +1.2 m)
 const GROUND_TOL := 0.08  ## m: the lowest toe stays this close to its rest height in standing clips
 ## clip -> [hit frac, bone, metres ahead of the origin at least]: anim_events hit fracs and pipeline.hit_parts
-const HITS := {&"attack_primary": [0.42, "Head", 2.0], &"attack_heavy": [0.72, "Toe.R", 1.2], &"pounce": [0.7, "Toe.L", 0.8]}
+## DILOFRILL: the SP-DILOPHOSAURUS distances (2.0 / 1.2 / 0.8 m) x 0.875 with the body.
+const HITS := {&"attack_primary": [0.42, "Head", 1.75], &"attack_heavy": [0.72, "Toe.R", 1.05], &"pounce": [0.7, "Toe.L", 0.7]}
 
 var failures: Array[String] = []
 var _started := false
@@ -36,6 +42,7 @@ func _expect(ok: bool, what: String) -> void:
 func _run() -> void:
 	_test_view()
 	_test_spawns()
+	await _test_frill_fight()
 	await _test_spit_hits()
 	await _test_spit_dodged()
 	await _test_bite_no_venom()
@@ -109,6 +116,7 @@ func _test_view() -> void:
 		aabb = box if first else aabb.merge(box)
 		first = false
 	var long_side := maxf(aabb.size.x, aabb.size.z)
+	_expect(absf(def.height_meters - HEIGHT_M) < 0.01, "data height_meters %.2f (DILOFRILL %.2f)" % [def.height_meters, HEIGHT_M])
 	_expect(absf(aabb.size.y - def.height_meters) < 0.2, "height %.2f m (data %.2f)" % [aabb.size.y, def.height_meters])
 	_expect(long_side > 2.4 * aabb.size.y and long_side < 3.4 * aabb.size.y, "a long-tailed theropod: %.1f m long, %.1f m tall" % [long_side, aabb.size.y])
 	var ap: AnimationPlayer = view.rig.anim_player
@@ -148,6 +156,79 @@ func _test_view() -> void:
 		var ahead: float = (p - origin).dot(fwd)
 		_expect(ahead > float(HITS[clip][2]), "%s: %s %.2f m ahead of the body centre at the hit frame" % [clip, HITS[clip][1], ahead])
 	view.free()
+
+## DILOFRILL: calm (out of sight of her), it roams with the frill folded; then a 20 s fight against a survivor who
+## stands still (GOD keeps her up): the frill is flared on most combat frames, fully open a moment into every strike,
+## and never pops; she walks off and it calms down and folds it. The span is read on skeleton_updated: the final pose,
+## with the DisplayFlare modifier applied (get_bone_global_pose in _physics_process is the clip's pose only).
+func _test_frill_fight() -> void:
+	var a := await _arena()
+	var host: Node3D = a[0]
+	var player = a[1]
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	player.global_position = Vector3(0, 0.9, 55.0)
+	var c = _dilo(host, Vector3(0, 0.1, -50.0))
+	var b = c.brain
+	var fl = c.view.flare  # untyped: naming the class here compiles Creature before the autoloads exist
+	_expect(fl != null, "the dilophosaurus has a DisplayFlare on its skeleton")
+	if fl == null:
+		host.free()
+		return
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var live := {"span": 0.0}
+	sk.skeleton_updated.connect(func() -> void: live["span"] = _frill_span(sk))
+	var shut := INF
+	var calm_frames := 0
+	var calm_open := 0
+	for _f in 120:
+		await process_frame
+		if b.state in fl.CALM:
+			calm_frames += 1
+			shut = minf(shut, float(live["span"]))
+			calm_open += int(fl.weight > 0.0)
+	_expect(calm_frames > 60 and calm_open == 0, "calm (%d frames, %s), the frill stays folded (%.2f m; open on %d)" % [calm_frames, b.state, shut, calm_open])
+	c.global_position = Vector3(0, 0.1, 45.0)  # 10 m from her
+	root.get_node("Game").god_mode = true
+	b.attack_target = player
+	b._combat_memory_left = 30.0
+	b._set_state(&"approach")
+	var fight := 0
+	var flared := 0
+	var widest := 0.0
+	var jump := 0.0
+	var last_w: float = fl.weight
+	var strikes := {}  # clip -> the flare weight at each of its hit frames
+	c.anim.attack_hit.connect(func(clip: StringName) -> void:
+		if clip in fl.SNAP_CLIPS:
+			strikes[clip] = strikes.get(clip, []) + [snappedf(fl.weight, 0.01)])
+	var t := 0.0
+	while t < 20.0:
+		await process_frame
+		var dt := root.get_process_delta_time()
+		t += dt
+		jump = maxf(jump, absf(fl.weight - last_w))
+		last_w = fl.weight
+		if not b.state in fl.CALM:
+			fight += 1
+			widest = maxf(widest, float(live["span"]))
+			flared += int(float(live["span"]) > shut + FLARED_M)
+	var share := float(flared) / maxf(1.0, float(fight))
+	_expect(fight > 300, "it fought the whole 20 s (%d combat frames)" % fight)
+	_expect(share >= FLARED_SHARE, "the frill is flared on %.0f %% of combat frames (>= %.0f %%; folded %.2f m, widest %.2f m)" % [share * 100.0, FLARED_SHARE * 100.0, shut, widest])
+	var short := 0
+	for k in strikes:
+		short += (strikes[k] as Array).filter(func(w: float) -> bool: return w < 0.99).size()
+	_expect(strikes.size() >= 2 and short == 0, "it is fully open at every strike's hit frame (%s)" % strikes)
+	_expect(jump <= 0.25, "the flare eases, no pop (largest step %.3f a frame)" % jump)
+	player.global_position = Vector3(0, 0.9, -55.0)  # she is gone
+	b.attack_target = null
+	b._combat_memory_left = 0.0
+	b._set_state(&"roam")
+	for _f in 90:
+		await process_frame
+	_expect(b.state in fl.CALM and fl.weight == 0.0, "calm again (%s), it folds it (weight %.2f)" % [b.state, fl.weight])
+	root.get_node("Game").god_mode = false
+	host.free()
 
 ## The species' rows in islands.json: tropical/swamp islands, and the model means nothing falls through.
 func _test_spawns() -> void:
