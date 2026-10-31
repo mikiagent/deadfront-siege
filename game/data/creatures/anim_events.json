@@ -132,6 +132,26 @@
         0.6
       ],
       "note": "carnotaurus: the sharp turn at the end of a straight charge, 0.71 s: plant and crouch, hop with the body banked into a LEFT turn and the tail flung wide, land squashed. In place; TacticalBrain (tactics.charge_turn) carries it on along the old line and yaws it round to the prey only inside the airborne window, so the planted feet never skid. tools/gait/make_carno_moves.py charge_turn"
+    },
+    "stomp": {
+      "hit_frac": 0.56,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, tools/gait/make_tail_club.py stomp), 1.5 s: the front rears off the left forefoot, the foot hauled high and forward, held, then slammed down in front (impact 0.56); ClubTailBrain lands the hit (ai.json club_tail.close_moves.stomp: an area in front, knockdown)"
+    },
+    "shove_left": {
+      "hit_frac": 0.48,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 1.2 s: cocks away, then head and shoulders swing hard to its left while the body lurches over and the left forefoot steps out (impact 0.48); ClubTailBrain lands the hit (close_moves.shove_left, knockback sideways)"
+    },
+    "shove_right": {
+      "hit_frac": 0.48,
+      "windup": true,
+      "note": "mirror of shove_left, to its right"
+    },
+    "tackle": {
+      "hit_frac": 1.0,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up to close_moves.tackle.lunge_m into her and lands the hit on contact (knockdown)"
     }
   },
   "natural_speeds": {
