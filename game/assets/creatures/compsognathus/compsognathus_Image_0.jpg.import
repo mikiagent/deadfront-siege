@@ -2,19 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bp7paqfphwues"
-path="res://.godot/imported/compsognathus_NormalGL_e9f3b219-7fdb-4812-b2ab-b27b830a84f4.png-cca4a6c43d5f538b51ed9cb65245a955.ctex"
+uid="uid://dkk81g36mgsgr"
+path="res://.godot/imported/compsognathus_Image_0.jpg-f5a1c4b5f68b699d06ebeef383144f7f.ctex"
 metadata={
 "vram_texture": false
 }
 generator_parameters={
-"md5": "8f5654f6fa8c207d806b889d2936b803"
+"md5": "d25c25eff6ef8e08b05b21f7a72cf4e9"
 }
 
 [deps]
 
-source_file="res://assets/creatures/compsognathus/compsognathus_NormalGL_e9f3b219-7fdb-4812-b2ab-b27b830a84f4.png"
-dest_files=["res://.godot/imported/compsognathus_NormalGL_e9f3b219-7fdb-4812-b2ab-b27b830a84f4.png-cca4a6c43d5f538b51ed9cb65245a955.ctex"]
+source_file="res://assets/creatures/compsognathus/compsognathus_Image_0.jpg"
+dest_files=["res://.godot/imported/compsognathus_Image_0.jpg-f5a1c4b5f68b699d06ebeef383144f7f.ctex"]
 
 [params]
 

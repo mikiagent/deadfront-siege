@@ -5,10 +5,10 @@
     0
   ],
   "body": "Body",
-  "view_size": 1.2,
+  "view_size": 1.944,
   "view_centre": [
     0.0,
-    0.28
+    0.454
   ],
   "legs": {
     "L": {
@@ -46,6 +46,100 @@
     "strafe": {
       "cycle_s": 0.5,
       "duty": 0.5,
+      "stride": 0.4212,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.081,
+      "lift_shape": 0.4,
+      "swing_curl_hind": 10,
+      "toe_roll": 0.0,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "spread_hind": 0.0324,
+      "crouch": 0.0,
+      "bob": 0.0097,
+      "bob_harmonic": 2,
+      "roll_deg": 4.0,
+      "sway": 0.013,
+      "wiggle_head": 0.0,
+      "wiggle_tail": 8.0,
+      "hold": {
+        "Neck": [
+          "pitch",
+          4
+        ]
+      }
+    },
+    "strafe_v1": {
+      "cycle_s": 0.62,
+      "duty": 0.58,
+      "stride": 0.243,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.065,
+      "swing_curl_hind": 5,
+      "toe_roll": 10,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "bob": 0.0081,
+      "bob_harmonic": 2,
+      "roll_deg": 3.0,
+      "sway": 0.0097,
+      "wiggle_head": 3.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 4.0
+    },
+    "charge": {
+      "cycle_s": 0.333,
+      "duty": 0.38,
+      "stride": 1.0044,
+      "phases": {
+        "L": 0.0,
+        "R": 0.5
+      },
+      "lift_hind": 0.1458,
+      "lift_shape": 0.8,
+      "swing_curl_hind": 20,
+      "toe_roll": 10.0,
+      "legroot_hind": 0.15,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.0243,
+      "lean_deg": 18.0,
+      "bob": 0.0194,
+      "bob_harmonic": 2,
+      "bob_phase": 0.0,
+      "roll_deg": 2.0,
+      "sway": 0.0065,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 5.0,
+      "hold": {
+        "Neck": [
+          "pitch",
+          4
+        ],
+        "Tail1": [
+          "pitch",
+          8
+        ],
+        "FrontUpLeg.L": [
+          "pitch",
+          25
+        ],
+        "FrontUpLeg.R": [
+          "pitch",
+          25
+        ]
+      },
+      "reach_roll": 20.0
+    },
+    "strafe_green_v2": {
+      "cycle_s": 0.5,
+      "duty": 0.5,
       "stride": 0.26,
       "phases": {
         "L": 0.0,
@@ -72,7 +166,7 @@
         ]
       }
     },
-    "strafe_v1": {
+    "strafe_v1_green_v2": {
       "cycle_s": 0.62,
       "duty": 0.58,
       "stride": 0.15,
@@ -93,7 +187,7 @@
       "wiggle_harmonic_head": 2,
       "wiggle_tail": 4.0
     },
-    "charge": {
+    "charge_green_v2": {
       "cycle_s": 0.333,
       "duty": 0.38,
       "stride": 0.62,
@@ -138,5 +232,5 @@
       "reach_roll": 20.0
     }
   },
-  "note": "compsognathus (Tripo remodel 2026-10-28): sidestep loops and the charge sprint (walk/run are the transferred clips). make_gait.py ... compsognathus.json strafe --as strafe_left --travel 1,0,0 (strafe_right: -1,0,0); charge: make_gait.py ... charge. COMPYFEEL 2026-10-31: strafe rebuilt wider and lower (spread_hind, 0.30 stride, 5 cm lift) so it reads as real side-steps; strafe_v1 is the old plan."
+  "note": "compsognathus, v1 Meshy mesh again (COMPYREVERT 2026-10-31, owner: the green remodel looked worse). strafe/strafe_v1/charge are the COMPYFEEL plans with every length (stride, lift, spread, offset, crouch, bob, sway) x1.62, the v1/v2 hind-leg length ratio (0.350/0.216 m upper+lower leg), so the steps look the same on the bigger rig; cycles and angles unchanged. *_green_v2 are the plans as built for work/compsognathus_green_v2.glb. make_gait.py ... compsognathus.json strafe --as strafe_left --travel 1,0,0 (strafe_right: -1,0,0); strafe_v1 --as walk_back --travel 0,1,0; charge. On v1's long feet a 30/20 deg swing curl dragged the toes (2 / 1 cm peak at game scale), so strafe curls 10 deg with lift_shape 0.4 (toe peak 9 cm, toe clears the ground at once at lift-off: planted slip 1.6 cm per step instead of 3.2) and strafe_v1 (walk_back) curls 5 deg with lift 0.065 (6 cm)."
 }
