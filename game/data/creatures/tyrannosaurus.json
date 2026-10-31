@@ -48,6 +48,7 @@
     "requires_pen": true
   },
   "pipeline": {
+    "head_look": {"yaw_deg": 45, "pitch_deg": 25, "_note": "HEADLOOK: # ASSUMPTION clamp (massive skull, stiff neck); default 60/30. {\"enabled\": false} opts out, \"off_clips\" adds clips the look fades out on (scripts/creatures/head_look.gd)"},
     "forward_axis": "-Z",
     "source_height_m": 8.0,
     "mesh": "Tripo P1 multiview, task c7aea80d-714b-49f6-b59b-645c87f8a6c9, 50 Tripo credits",

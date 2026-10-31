@@ -97,6 +97,7 @@
     "note": "ray-cast onto the painted amber eye of the v2 mesh (symmetric), glTF Head-bone space"
   },
   "pipeline": {
+    "head_look": {"yaw_deg": 45, "pitch_deg": 25, "_note": "HEADLOOK: # ASSUMPTION clamp (domed skull); default 60/30. {\"enabled\": false} opts out, \"off_clips\" adds clips the look fades out on (scripts/creatures/head_look.gd)"},
     "forward_axis": "+Z",
     "source_height_m": 0.49,
     "source_length_m": 0.998,

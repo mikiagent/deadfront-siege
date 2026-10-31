@@ -81,6 +81,7 @@
     "toss_lift_mps": 5.5
   },
   "pipeline": {
+    "head_look": {"yaw_deg": 35, "pitch_deg": 20, "_note": "HEADLOOK: # ASSUMPTION clamp (heavy horned skull on a short neck); default 60/30. {\"enabled\": false} opts out, \"off_clips\" adds clips the look fades out on (scripts/creatures/head_look.gd)"},
     "route": "tripo_multiview_v3 + hand-built mammal rig (tools/gait/woolly_rhino/build.sh)",
     "forward_axis": "+Z",
     "source_height_m": 2.95,

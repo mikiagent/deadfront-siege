@@ -36,6 +36,7 @@
     "hop_back": "quick spring back, feet tucked, squash landing"
   },
   "pipeline": {
+    "head_look": {"yaw_deg": 45, "pitch_deg": 25, "_note": "HEADLOOK: # ASSUMPTION clamp (long neck: the share per bone is small, the clamp keeps the whole neck from snaking); default 60/30. {\"enabled\": false} opts out, \"off_clips\" adds clips the look fades out on (scripts/creatures/head_look.gd)"},
     "forward_axis": "+Z",
     "source_height_m": 0.646,
     "source_length_m": 0.998,

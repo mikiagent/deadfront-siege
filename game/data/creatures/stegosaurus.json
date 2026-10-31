@@ -35,6 +35,7 @@
     "alert": "Plated dinosaur raises its head and stiffens its plates"
   },
   "pipeline": {
+    "head_look": {"yaw_deg": 40, "pitch_deg": 20, "_note": "HEADLOOK: # ASSUMPTION clamp (small low head on a stiff neck); default 60/30. {\"enabled\": false} opts out, \"off_clips\" adds clips the look fades out on (scripts/creatures/head_look.gd)"},
     "route": "tripo_mesh_opus_rig",
     "version": 2,
     "forward_axis": "-Z",

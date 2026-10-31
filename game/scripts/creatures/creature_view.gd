@@ -96,6 +96,8 @@ var _flash_col := Color(1.0, 0.2, 0.2)  ## red; gold for a weak-spot crit
 var _flinch_tw: Tween
 ## Keeps the feet on the ground through a hit (procedural rattle or an authored hit_react); null without a rig.
 var planted: PlantedFlinch
+## Turns the neck and head toward the animal's target after the clip (HeadLook); null when opted out or headless.
+var head_look: HeadLook
 ## Holds a display structure (the dilophosaurus frill) open from combat state; null unless pipeline.display_flare.
 var flare: DisplayFlare
 ## Per-individual natural coloration (null = neutral, the species texture as authored).
@@ -165,6 +167,15 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 				planted.view = self
 				planted.height_m = def.height_meters
 				rig.skeleton.add_child(planted)
+				head_look = HeadLook.new()
+				head_look.name = "HeadLook"
+				head_look.creature = get_parent() as Creature
+				head_look.view = self
+				rig.skeleton.add_child(head_look)
+				var hl: Variant = def.pipeline.get("head_look", {})
+				if not head_look.setup(hl if hl is Dictionary else {}):
+					head_look.free()
+					head_look = null
 				if def.pipeline.has("display_flare"):
 					flare = DisplayFlare.new()
 					flare.name = "DisplayFlare"

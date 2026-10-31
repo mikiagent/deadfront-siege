@@ -39,6 +39,7 @@
     "alert": "Triceratops raises its head and paws the ground"
   },
   "pipeline": {
+    "head_look": {"yaw_deg": 35, "pitch_deg": 20, "_note": "HEADLOOK: # ASSUMPTION clamp (frilled skull, heavy and stiff); default 60/30. {\"enabled\": false} opts out, \"off_clips\" adds clips the look fades out on (scripts/creatures/head_look.gd)"},
     "route": "tripo_mesh_opus_rig",
     "version": 1,
     "forward_axis": "-Z",
