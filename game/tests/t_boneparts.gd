@@ -26,6 +26,7 @@ const PARTS := {
 	"brachiosaurus": ["large_leg_bone", "dense_bone", "armor_scute"],
 	"tarbosaurus": ["large_leg_bone", "dense_bone", "skull_plate"],
 	"tyrannosaurus": ["large_leg_bone", "dense_bone", "skull_plate"],
+	"megarex": ["large_leg_bone", "dense_bone", "skull_plate"],
 }
 ## Recipe categories a bone part may fill; a part keeps the ones of the generic id it replaced.
 const BONE_CATS := ["bone", "dense_bone", "talon", "scute", "tier_bone"]
