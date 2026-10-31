@@ -1,6 +1,6 @@
 # ANKYNOTELEPORT: no 4 m body jump after an ankylosaurus or stegosaurus turn
 
-Branch `claude/mmo-ankynoteleport`, from canon 03592b15f. No credits spent.
+Branch `claude/mmo-ankynoteleport`, from canon 03592b15f, merged up to c324c21fc (all gates rerun after it). No credits spent.
 
 ## Cause
 t_noteleport failed on the ankylosaurus with "worst frame step 3.88 m at approach/pivot_left": the frame a pivot ended.
