@@ -968,7 +968,7 @@
         "front_max_m": 9.0,
         "front_half_w_m": 2.0,
         "side_front_m": 3.0,
-        "side_max_m": 4.6,
+        "side_max_m": 6.0,
         "side_back_m": -0.5,
         "flank_back_m": -4.5
       },
@@ -999,8 +999,8 @@
           ],
           "impact_bone": "front_foot_L",
           "impact_height_m": 0.95,
-          "target_bearing_deg": 0.0,
-          "target_dist_m": 2.5,
+          "target_bearing_deg": 15.0,
+          "target_dist_m": 2.4,
           "hit_radius_m": 1.2,
           "damage_mult": 1.3,
           "knockdown": true,
@@ -1011,8 +1011,8 @@
           "clip": "shove_left",
           "label": "SHOULDER SLAM",
           "strike": [
-            0.4,
-            0.46
+            0.46,
+            0.5
           ],
           "target_bearing_deg": -45.0,
           "target_dist_m": 1.96,
@@ -1020,14 +1020,20 @@
           "damage_mult": 0.6,
           "knockdown": true,
           "knockback_m": 3.0,
-          "cooldown_s": 1.4
+          "cooldown_s": 1.4,
+          "carry_m": 4.0,
+          "slam_point": [
+            -1.3,
+            -1.4
+          ],
+          "leap_height_m": 0.3
         },
         "shove_right": {
           "clip": "shove_right",
           "label": "SHOULDER SLAM",
           "strike": [
-            0.4,
-            0.46
+            0.46,
+            0.5
           ],
           "target_bearing_deg": 45.0,
           "target_dist_m": 1.96,
@@ -1035,7 +1041,13 @@
           "damage_mult": 0.6,
           "knockdown": true,
           "knockback_m": 3.0,
-          "cooldown_s": 1.4
+          "cooldown_s": 1.4,
+          "carry_m": 4.0,
+          "slam_point": [
+            1.3,
+            -1.4
+          ],
+          "leap_height_m": 0.3
         },
         "hind_stomp_left": {
           "clip": "hind_stomp_left",
@@ -1093,7 +1105,8 @@
           "leap_height_m": 0.6,
           "aim_side_m": 0.75
         }
-      }
+      },
+      "_stegoslam": "STEGOSLAM (owner 2026-10-31: \"give stego that body weight slam you have to ankylo\"): SHOVE is the ankylosaurus' SHOULDER SLAM: cocked off, a bound in which ClubTailBrain throws the body up to carry_m (ASSUMPTION: about a body length, 4 m x size) so the slamming foreleg (slam_point: body-frame x/z at size 1 where the clip drives it) ends at her, then it lands shoulder-down (knockdown), rocks back, re-plants and steadies. close_zone.side_max_m 6 so it starts from its flank range."
     },
     "runner": {
       "is_herbivore": true,
