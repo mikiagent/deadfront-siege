@@ -2,7 +2,8 @@ extends Node3D
 ## MEGARUN review shots, self-quitting: the megaloceros stag, doe and an alpha stag gallop in a straight line at their
 ## run speed through the game's own stride match (CreatureAnim.set_move_speed), filmed side-on by a camera that
 ## follows the body. Every frame a planted hoof (within 3 cm of its lowest) drops a small disc on the ground where it
-## stands, so a slipping hoof smears its discs into a streak. Saves DIR/run_<variant>.png (six frames over one stride).
+## stands, so a slipping hoof smears its discs into a streak. Saves DIR/run_<variant>.png (six frames over one stride)
+## and DIR/legs_<variant>.png (the same instants, close on the legs).
 ## Run windowed off-screen: Godot --path game --position 6000,3000 -- --skip-charcreate --lab=megarun_lab --out=DIR
 
 const TOES := ["FrontFoot.L", "FrontFoot.R", "BackFoot.L", "BackFoot.R"]
@@ -87,6 +88,7 @@ func _film(v: StringName, alpha: bool, at: Vector3) -> void:
 	var cycle: float = c.anim.player.get_animation(&"run").length / maxf(0.01, c.anim.cadence(&"run"))
 	var warm := 150
 	var frames: Array[Image] = []
+	var legs: Array[Image] = []
 	var shots := 6
 	var next_shot := 0
 	var t := 0.0
@@ -112,16 +114,24 @@ func _film(v: StringName, alpha: bool, at: Vector3) -> void:
 			if t >= next_shot * cycle / shots:
 				await RenderingServer.frame_post_draw
 				frames.append(get_viewport().get_texture().get_image())
+				# the same instant close on the legs (owner: "the legs are getting mangled"), nothing advanced
+				_cam.look_at_from_position(c.global_position + Vector3(h * 1.5, h * 0.22, -h * 0.1), c.global_position + Vector3(0, h * 0.3, -h * 0.1))
+				await RenderingServer.frame_post_draw
+				legs.append(get_viewport().get_texture().get_image())
 				next_shot += 1
 				k += 1
 				continue
 		await get_tree().process_frame
 		k += 1
+	_save_sheet(frames, "run_%s%s.png" % [v, "_alpha" if alpha else ""])
+	_save_sheet(legs, "legs_%s%s.png" % [v, "_alpha" if alpha else ""])
+	print("[megarun_lab] saved run_%s%s.png (%d frames over one %.2f s stride)" % [v, "_alpha" if alpha else "", frames.size(), cycle])
+	c.queue_free()
+
+func _save_sheet(frames: Array[Image], file: String) -> void:
 	var w := frames[0].get_width()
 	var hh := frames[0].get_height()
 	var sheet := Image.create(w * 3, hh * 2, false, frames[0].get_format())
 	for i in frames.size():
 		sheet.blit_rect(frames[i], Rect2i(0, 0, w, hh), Vector2i(w * (i % 3), hh * (i / 3)))
-	sheet.save_png("%s/run_%s%s.png" % [_out, v, "_alpha" if alpha else ""])
-	print("[megarun_lab] saved run_%s%s.png (%d frames over one %.2f s stride)" % [v, "_alpha" if alpha else "", frames.size(), cycle])
-	c.queue_free()
+	sheet.save_png("%s/%s" % [_out, file])

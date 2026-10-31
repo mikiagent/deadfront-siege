@@ -88,9 +88,11 @@
         "model": "doe/megaloceros_doe.glb",
         "anim": "doe/anim",
         "natural_speeds": {
-          "run": 8.539
+          "run": 8.539,
+          "walk": 2.452,
+          "walk_back": 2.452
         },
-        "natural_speeds_note": "MEGARUN: her run strides 0.85x the stag's (tools/gait/megaloceros/clips.py DOE_STRIDE), and the game draws her GLB 1.069x (fitted to height_meters), so 0.85 x 1.069 x anim_events natural_speeds.megaloceros.run (9.406 -> 8.539; t_megarun checks it). Rebake both together.",
+        "natural_speeds_note": "MEGARUN: her run strides 0.85x the stag's (tools/gait/megaloceros/clips.py DOE_STRIDE), and the game draws her GLB 1.069x (fitted to height_meters), so 0.85 x 1.069 x anim_events natural_speeds.megaloceros.run (9.406 -> 8.539; t_megarun checks it). Her walk is in stag metres, so only the 1.069: 2.295 -> 2.452. Rebake both together.",
         "tactics": {
           "_about": "ASSUMPTION: the doe has no antlers, so no ram: she runs in to a forehoof strike (a homing charge into attack_primary) and at point blank rears up and stomps or kicks.",
           "charge_straight": false,

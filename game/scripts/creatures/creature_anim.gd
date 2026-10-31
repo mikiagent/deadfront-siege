@@ -146,8 +146,8 @@ func set_move_velocity(vel: Vector3, basis: Basis, side_dot: float = SIDE_DOT) -
 	if not _can_move():
 		return
 	# Sidesteps and walk_back (the walk reversed) stride like the walk: natural_speeds.<id>.<clip> when
-	# baked, else the walk's natural speed (ASSUMPTION for the strafes).
-	var nat := CreatureClips.natural_speed(_def, clip)
+	# baked, else the walk's natural speed (ASSUMPTION for the strafes). A variant's own speed for the clip wins.
+	var nat: float = float(_natural[clip]) if _natural.has(clip) else CreatureClips.natural_speed(_def, clip)
 	if nat <= 0.0:
 		nat = float(_natural.get(&"walk", 0.0))
 	nat *= _size()

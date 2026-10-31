@@ -96,6 +96,19 @@ def two_bone(A, B, l1, l2, pole):
     return A + u * (l1 * ca) + w * (l1 * math.sqrt(1 - ca * ca)), A + u * dl
 
 
+HOCK_MARGIN = 3.0  # deg: the least bend the hock / carpus keeps in its own direction
+
+
+def signed_bend(knee, top, fet, side):
+    """Bend (deg) at top between knee->top and top->fet, signed about side."""
+    d1 = (top - knee).normalized(); d2 = (fet - top).normalized()
+    return math.degrees(math.atan2(side.dot(d1.cross(d2)), d1.dot(d2)))
+
+
+for _k, _L in LEGS.items():  # each leg's rest bend direction at the hock / carpus (+1 or -1)
+    _L["bend"] = 1.0 if signed_bend(HEAD[_L["low"]], HEAD[_L["can"]], HEAD[_L["foot"]], X) >= 0 else -1.0
+
+
 def apply(s):
     for pb in PB: pb.matrix_basis.identity()
     bpy.context.view_layer.update()
@@ -129,6 +142,15 @@ def apply(s):
             A = PB[L["up"]].matrix.translation.copy()
             pole = -(rot.to_3x3() @ Y)  # stifle points forward
         knee, top2 = two_bone(A, top, LEN[L["up"]], LEN[L["low"]], pole)
+        # MEGARUN (owner: "the legs are getting mangled"): the hock and the carpus never bend past straight the wrong
+        # way. A reaching or tucked leg could put the fetlock where the set cannon tilt overextended the joint; turn the
+        # cannon about the fetlock until the joint bends its rest way again (HOCK_MARGIN past straight).
+        for _ in range(6):
+            ang = signed_bend(knee, top2, fet, side)
+            if ang * L["bend"] >= HOCK_MARGIN: break
+            cdir = (R(side, -(ang - L["bend"] * HOCK_MARGIN) * 0.9).to_3x3() @ cdir).normalized()
+            top = fet + cdir * LEN[L["can"]]
+            knee, top2 = two_bone(A, top, LEN[L["up"]], LEN[L["low"]], pole)
         set_dir(PB[L["up"]], A, knee - A)
         set_dir(PB[L["low"]], knee, top2 - knee)
         fet2 = top2 + (fet - top)  # unreachable target: the cannon keeps its angle, the hoof lifts

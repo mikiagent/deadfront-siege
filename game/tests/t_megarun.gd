@@ -36,7 +36,11 @@ func _run() -> void:
 	for row in [[&"stag", 1.0, false], [&"doe", 1.0, false], [&"stag", 0.0, true], [&"doe", 0.0, true],
 			[&"stag", 0.85, false], [&"stag", 1.15, false], [&"doe", 0.85, false]]:
 		_test_run(row[0], row[1], row[2])
+	for row in [[&"stag", 1.0, false], [&"doe", 1.0, false], [&"stag", 0.0, true]]:
+		_test_run(row[0], row[1], row[2], &"walk")
 	_test_no_strafe()
+	for v in [&"stag", &"doe"]:
+		_test_legs(v)
 	if failures.is_empty():
 		print("[t_megarun] PASS")
 		quit(0)
@@ -104,13 +108,13 @@ static func _worst_per_hoof(frames: Array) -> Array[float]:
 	out.append_array(share)
 	return out
 
-func _test_run(v: StringName, size: float, alpha: bool) -> void:
+func _test_run(v: StringName, size: float, alpha: bool, gait: StringName = &"run") -> void:
 	var c = _spawn(v, size, alpha)
-	var mps: float = c.move_speed_mps() * c.run_speed_mult()
+	var mps: float = c.move_speed_mps() * c.run_speed_mult() if gait == &"run" else 2.0 * c.size_scale()
 	var label := "%s%s size %.2f" % [v, " ALPHA" if alpha else "", c.size_scale()]
 	c.rotation = Vector3.ZERO
 	c.anim.set_move_speed(mps)
-	_expect(c.anim.current_clip == &"run", "%s at %.1f m/s plays the run (%s)" % [label, mps, c.anim.current_clip])
+	_expect(c.anim.current_clip == gait, "%s at %.1f m/s plays the %s (%s)" % [label, mps, gait, c.anim.current_clip])
 	var dt := 1.0 / 60.0
 	var frames: Array = []
 	var p0: Vector3 = c.global_position
@@ -125,11 +129,11 @@ func _test_run(v: StringName, size: float, alpha: bool) -> void:
 	for j in 4:
 		worst = maxf(worst, w[j])
 		least = minf(least, w[4 + j])
-	_expect(worst <= MAX_SLIP, "%s run at %.1f m/s (cadence %.2f): worst slip per stance FL %.1f FR %.1f HL %.1f HR %.1f cm (max %.0f)"
-		% [label, mps, c.anim.cadence(&"run"), w[0] * 100.0, w[1] * 100.0, w[2] * 100.0, w[3] * 100.0, MAX_SLIP * 100.0])
-	# the gallop plants each hoof for 34 % of the cycle, the last fifth of it rolling up off the heel: the band must see
-	# at least 20 % (a hoof that bobbed in stance would fall out of it and slip unmeasured)
-	_expect(least >= 0.20, "%s: every hoof planted at least 20 %% of the run (least %.0f %%)" % [label, least * 100.0])
+	_expect(worst <= MAX_SLIP, "%s %s at %.1f m/s (cadence %.2f): worst slip per stance FL %.1f FR %.1f HL %.1f HR %.1f cm (max %.0f)"
+		% [label, gait, mps, c.anim.cadence(gait), w[0] * 100.0, w[1] * 100.0, w[2] * 100.0, w[3] * 100.0, MAX_SLIP * 100.0])
+	# the gallop plants each hoof for 34 % of the cycle, the last fifth of it rolling up off the heel (the walk 66 %): the
+	# band must see at least 20 % (a hoof that bobbed in stance would fall out of it and slip unmeasured)
+	_expect(least >= 0.20, "%s: every hoof planted at least 20 %% of the %s (least %.0f %%)" % [label, gait, least * 100.0])
 	c.queue_free()
 
 ## Outside the joust nothing may play a megaloceros strafe (the owner: "strafe left animation is cursed"): a sideways
@@ -141,3 +145,86 @@ func _test_no_strafe() -> void:
 			c.anim.set_move_velocity(Vector3(sgn * 2.0, 0, 0), Basis.IDENTITY)
 			_expect(c.anim.current_clip == &"walk", "%s sideways at 2 m/s plays %s (the walk, no strafe)" % [v, c.anim.current_clip])
 		c.queue_free()
+
+## LEGS (owner 2026-10-31 on the canon lab: "the motion is right but the legs are getting mangled"): every locomotion
+## clip, sampled at 60 Hz, per leg bone:
+##  - twist about the bone's own axis relative to its parent (the candy wrapper), at most MAX_TWIST from rest, and at
+##    most MAX_TWIST_STEP between samples (a roll flip);
+##  - the stifle bends forward and the hock back (hind), the elbow back (front), the carpus folds forward; a joint
+##    straighter than STRAIGHT_DEG is not judged.
+## Bones are built with local X = the body's left on every leg bone (build_rig.py), so Y is the bone axis.
+const LOCO_CLIPS: Array[StringName] = [&"walk", &"run", &"charge", &"walk_back", &"run_turn_left", &"run_turn_right"]
+const LEG_BONES := ["Scapula", "Upper", "Lower", "Cannon", "Foot"]
+const MAX_TWIST := 30.0
+const MAX_TWIST_STEP := 30.0
+const STRAIGHT_DEG := 8.0
+
+static func _leg_bone(front: bool, part: String, side: String) -> String:
+	if part == "Foot":
+		return ("FrontFoot." if front else "BackFoot.") + side
+	return ("Front" if front else "Hind") + part + "." + side
+
+## Twist (deg) of a rotation about axis.
+static func _twist_deg(q: Quaternion, axis: Vector3) -> float:
+	var p := Vector3(q.x, q.y, q.z).dot(axis)
+	var t := 2.0 * atan2(p, q.w)
+	return rad_to_deg(wrapf(t, -PI, PI))
+
+func _test_legs(v: StringName) -> void:
+	var c = _spawn(v, 1.0, false)
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var ap: AnimationPlayer = c.view.rig.anim_player
+	var inv: Basis = c.global_basis.inverse()
+	for clip in LOCO_CLIPS:
+		if not ap.has_animation(clip):
+			continue
+		var a := ap.get_animation(clip)
+		sk.reset_bone_poses()
+		ap.play(clip)
+		var worst_twist := 0.0
+		var worst_step := 0.0
+		var where := ""
+		var bends := 0
+		var bend_where := ""
+		var prev := {}
+		var n := int(ceil(a.length * 60.0))
+		for i in n + 1:
+			ap.seek(a.length * float(i) / float(n), true)
+			for front in [true, false]:
+				for side in ["L", "R"]:
+					var pts: Array[Vector3] = []
+					for part in LEG_BONES:
+						var name := _leg_bone(front, part, side)
+						var b := sk.find_bone(name)
+						if b < 0:
+							continue
+						var local := sk.get_bone_rest(b).basis.get_rotation_quaternion().inverse() * sk.get_bone_pose_rotation(b)
+						var tw := _twist_deg(local, Vector3.UP)
+						if absf(tw) > worst_twist:
+							worst_twist = absf(tw)
+							where = "%s %.0f%%" % [name, 100.0 * i / n]
+						if prev.has(name):
+							var step := absf(wrapf(tw - float(prev[name]), -180.0, 180.0))
+							if step > worst_step:
+								worst_step = step
+						prev[name] = tw
+						if part != "Scapula" and part != "Foot":
+							pts.append(inv * (sk.global_transform * sk.get_bone_global_pose(b).origin))
+					pts.append(inv * (sk.global_transform * sk.get_bone_global_pose(sk.find_bone(_leg_bone(front, "Foot", side))).origin))
+					# pts: upper top, knee/elbow, hock/carpus, fetlock. Forward is -Z, left +X: bend sign about +X.
+					for j in 2:
+						var d1: Vector3 = pts[j + 1] - pts[j]
+						var d2: Vector3 = pts[j + 2] - pts[j + 1]
+						var ang := rad_to_deg(Vector2(d1.z, d1.y).angle_to(Vector2(d2.z, d2.y)))
+						if absf(ang) < STRAIGHT_DEG:
+							continue
+						# hind: stifle apex forward, hock apex back; front: elbow apex back, carpus apex forward
+						var want := (1.0 if j == 0 else -1.0) * (-1.0 if front else 1.0)
+						if signf(ang) != want:
+							bends += 1
+							if bend_where == "":
+								bend_where = "%s %s %s %.0f deg at %.0f%%" % ["front" if front else "hind", side, ["upper joint", "lower joint"][j], ang, 100.0 * i / n]
+		_expect(worst_twist <= MAX_TWIST and worst_step <= MAX_TWIST_STEP,
+			"%s %s: leg bones twist at most %.0f deg about their axis (worst %.1f at %s), %.1f deg between 60 Hz samples" % [v, clip, MAX_TWIST, worst_twist, where, worst_step])
+		_expect(bends == 0, "%s %s: knees, hocks, elbows and carpi bend the right way (%d wrong samples%s)" % [v, clip, bends, ", first " + bend_where if bends else ""])
+	c.queue_free()
