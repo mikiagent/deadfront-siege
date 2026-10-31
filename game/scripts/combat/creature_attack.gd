@@ -14,10 +14,18 @@ static func apply_for(attacker: Creature, clip: StringName, target: Node, mult: 
 		return false
 	if not _deal_damage(attacker, target, clip, mult):
 		return false
-	if (clip == &"attack_heavy" or clip == &"attack_primary") and not _target_dead(target):
+	if _carries_status(attacker, clip) and not _target_dead(target):
 		for tok in attacker.def.status_applied:
 			_apply_token(tok, clip, target, attacker)
 	return true
+
+## The hits that carry the species' statuses: its tactics.status_clips when it lists them (SP-DILOPHOSAURUS: Venom rides
+## on the spit only, not the bite or the rake), else both attacks.
+static func _carries_status(attacker: Creature, clip: StringName) -> bool:
+	var only: Variant = (attacker.brain as TacticalBrain).tac.get("status_clips") if attacker.brain is TacticalBrain else null
+	if only is Array:
+		return str(clip) in only
+	return clip == &"attack_heavy" or clip == &"attack_primary"
 
 static func _target_dead(target: Node) -> bool:
 	if target is Player:

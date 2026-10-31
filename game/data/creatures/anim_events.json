@@ -64,7 +64,8 @@
       "note": "ambush pounce, 0.96 s: crouch, long high forward leap nose-down, wings fully flared; the game sets the distance (owner: larger leaps, ~8-10 m from cover)",
       "note_compsognathus": "compsognathus: tools/gait/make_leap.py pounce, 0.75 s, jaws wide (28 deg) in the air, snapping shut on hit_frac 0.7, arms thrown forward",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)",
-      "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)"
+      "note_smilodon": "smilodon: tools/gait/make_cat_moves.py pounce, 1.0 s: launch from the crouch, forelegs reaching, both forepaws slam down on the prey and the sabres stab at hit_frac 0.7; a landed pounce turns into the pin (pin_stab)",
+      "note_dilophosaurus": "dilophosaurus: tools/gait/make_dilo_moves.py pounce (the leaping slash), 1.0 s: crouch, legs tucked then thrown forward toes-up in the air, lands feet first ahead of itself and both sickle claws rake down at hit_frac 0.7; the windup is attack_heavy's flared, hissing crouch"
     },
     "walk_back": {
       "note": "backing up: the species' own walk time-reversed (tools/reverse_clip.py), so its natural speed is the walk's; play when velocity is against facing",
@@ -121,6 +122,11 @@
       ],
       "windup": false,
       "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)"
+    },
+    "spit": {
+      "hit_frac": 0.62,
+      "windup": false,
+      "note": "dilophosaurus venom spit (SP-DILOPHOSAURUS, tools/gait/make_dilo_moves.py), 1.4 s: the frill flares and the head draws back and up, jaws gaping (held, quivering, to 0.55), then the neck whips forward; at 0.62 TacticalBrain.launch_spit fires the VenomSpit glob at where the prey stood (the brain's ground ring is the telegraph)"
     }
   },
   "natural_speeds": {
@@ -357,6 +363,24 @@
       "strafe_right": 0.845,
       "walk_back": 0.845,
       "_note": "SP-SMILODON: walk/run from tools/bake_clip_speeds.py --dry-run; stalk, strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.3/1.917, 0.3/1.25 mesh units/s x 2.0/0.5684)"
+    },
+    "dilophosaurus": {
+      "height_m": 3.6,
+      "run_l": 10.63,
+      "run_len": 0.5,
+      "run_r": 10.612,
+      "walk_l": 2.758,
+      "walk_len": 0.917,
+      "walk_r": 2.756,
+      "walk": 2.757,
+      "run": 10.621,
+      "strafe_left": 1.838,
+      "strafe_left_len": 0.917,
+      "strafe_right": 1.838,
+      "strafe_right_len": 0.917,
+      "walk_back": 1.838,
+      "walk_back_len": 0.917,
+      "_note": "SP-DILOPHOSAURUS: walk/run from tools/bake_clip_speeds.py --dry-run; strafes and walk_back = make_gait stride / cycle x height_meters / source height (0.16/0.917 mesh units/s x 3.6/0.3418)"
     }
   }
 }

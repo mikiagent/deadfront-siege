@@ -26,7 +26,7 @@ signal sequence_step(step: StringName)
 ## The cooling filler picked: hold, strafe (strafe-walk), dodge (power strafe), feint or hop.
 signal filler(kind: StringName)
 
-const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin"]
+const MOVES: Array[StringName] = [&"circle", &"feint", &"lunge", &"pounce", &"combo", &"attack", &"retreat", &"approach", &"hop", &"hold", &"dodge", &"charge", &"display", &"pin", &"spit"]
 
 var tac: Dictionary = {}
 ## This brain's own dice (picks, timings, overshoot), so a seeded test replays exactly whatever else
@@ -93,6 +93,8 @@ var _terr_fled_s := 0.0
 var _terr_threat: Node3D
 ## PIN (tactics.pin, SP-SMILODON): the prey held down under the forepaws after a landed pounce.
 var _pin_victim: Node3D
+## SPIT (tactics spit_*, SP-DILOPHOSAURUS): the venom spit's glob has left the mouth (VenomSpit flies it).
+var _spit_fired := false
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -412,7 +414,7 @@ func _think(delta: float) -> void:
 	# or backing off while it leaves (owner 2026-10-28).
 	if state in [&"circle", &"hold", &"feint", &"approach"] and _prey_leaving():
 		var d := _flat_dist(attack_target)
-		var pounce_ok := d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])  # a short pounce only: a long one lets her walk off
+		var pounce_ok: bool = (d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])) or (tac.get("approach_spit", false) and _strike(d, ["spit"]))  # a short pounce only: a long one lets her walk off
 		if not pounce_ok and d > reach_to(attack_target) and state != &"approach":
 			_set_state(&"approach")
 			_just_disengaged = false  # chasing is a real action between back-jumps
@@ -431,6 +433,7 @@ func _think(delta: float) -> void:
 		&"charge": _charge(delta)
 		&"display": _display(delta)
 		&"pin": _pin(delta)
+		&"spit": _spit(delta)
 
 ## AMBUSH: roam is lurking at cover (crouched by a tree near home), not wandering.
 func _roam(delta: float) -> void:
@@ -517,6 +520,8 @@ func _approach_ring() -> void:
 		# A quick bite (or the pounce) on the run; the long combo would only let her walk off.
 		if (d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])) or (d <= reach_to(attack_target) and _strike(d, ["bite"])):
 			return
+		if tac.get("approach_spit", false) and _strike(d, ["spit"]):
+			return  # SP-DILOPHOSAURUS: venom after her as she runs
 		# tactics.chase_hop (swarm): at her heels with the bite not allowed yet (cooling, or no beat since the
 		# last one) it hops back out instead of trotting glued to her forever; the hop is the beat, the chase
 		# picks up again after it.
@@ -528,6 +533,9 @@ func _approach_ring() -> void:
 	# tactics.approach_pounce (swarm): coming in, it opens with a pounce as soon as one is in range (not a
 	# lone one: timid alone).
 	if tac.get("approach_pounce", false) and not "alone" in _active_mods() and _strike(_flat_dist(attack_target), ["pounce"]):
+		return
+	# tactics.approach_spit (dilophosaurus): coming in, it opens with the venom spit as soon as she is in spit range.
+	if tac.get("approach_spit", false) and _strike(_flat_dist(attack_target), ["spit"]):
 		return
 	# The nav agent stops target_desired_distance (0.9 m) short of its goal: count that as arrived.
 	if _flat_dist(attack_target) <= ring_m() + 0.6 + creature.agent.target_desired_distance:
@@ -617,6 +625,10 @@ func attack_available(move: StringName, d: float) -> bool:
 				and d >= _t("pounce_min_m", 4.0) and at_hit <= far + _size_excess(attack_target)
 		&"charge":
 			return creature.can_sprint()
+		&"spit":
+			# SP-DILOPHOSAURUS: from spit_min_m to spit_max_m, with a clear line (the glob flies straight at her).
+			return creature.anim.has_state(&"spit") and d >= _t("spit_min_m", 3.0) \
+				and d <= _t("spit_max_m", 10.0) + _size_excess(attack_target) and MeleeQuery.blocker(creature, attack_target) == null
 		&"kick":
 			return creature.anim.has_state(&"kick") and in_reach and _prey_behind()
 		&"heavy":
@@ -663,6 +675,8 @@ func _strike(d: float, only: Array = []) -> bool:
 					_start_lunge(&"attack_primary")
 			&"charge":
 				_start_charge()
+			&"spit":
+				_start_spit()
 			&"kick":
 				_kick()
 			&"heavy":
@@ -710,6 +724,8 @@ func _terminal_ready(last: StringName, d: float) -> bool:
 			return creature.anim.has_state(&"bite_combo") and creature.can_use_special(creature.special_cost(&"bite_combo")) and creature.can_sprint()
 		&"charge":
 			return creature.can_sprint() and (tac.get("charge_straight", false) or _ready_to(&"bite"))  # a homing charge ends in a bite
+		&"spit":
+			return creature.anim.has_state(&"spit")
 	return false
 
 ## The offensive pick from the ring or a hold: the ambush opener while it waits for its pounce, point
@@ -784,6 +800,15 @@ func _seq_next() -> void:
 				_enter_circle()
 		&"charge":
 			_start_charge()
+		&"spit":
+			var d := _flat_dist(attack_target)
+			if d >= _t("spit_min_m", 3.0) and d <= _t("spit_max_m", 10.0) + _size_excess(attack_target):
+				_start_spit()
+			elif d < _t("spit_min_m", 3.0) and _ready_to(&"bite"):
+				_bite()  # she closed in during the reposition: snap at her instead
+			else:
+				_seq = []
+				_enter_circle()
 		&"display":
 			_start_display()
 		&"combo":
@@ -1273,6 +1298,54 @@ func _pounce_land() -> void:
 	if CreatureAttack.apply_for(creature, &"attack_heavy", tgt, mult) and tgt is Player:
 		(tgt as Player).receive_creature_hit(creature, &"attack_heavy")
 
+## SP-DILOPHOSAURUS venom spit: it stops and faces the prey, the frill flares and the head draws back (the spit clip's
+## windup) under a ground ring on the prey that follows her until the glob leaves; then the glob flies at where she
+## stood (launch_spit), so stepping or rolling out of the ring dodges it. Not a basic: no anti-spam beat needed.
+func _start_spit() -> void:
+	_set_state(&"spit")
+	_just_disengaged = false
+	_basic_streak = 0
+	_spit_fired = false
+	creature.stop_move()
+	creature.anim.play_clip(&"spit")
+	_start_cd(&"spit")
+	var wind := _clip_len(&"spit", 1.4) * CreatureClips._hit_frac(&"spit")
+	if is_instance_valid(_telegraph):
+		_telegraph.queue_free()
+	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("spit_radius_m", 1.0) + _size_excess(attack_target), wind + 1.0, "SPIT - DODGE!")
+	_mark_pack()
+	tactic.emit(&"spit")
+	_log("[ai] %s venom spit windup" % creature.def.id)
+
+func _spit(delta: float) -> void:
+	creature.stop_move()
+	if not _spit_fired:
+		creature.face_towards(attack_target.global_position, delta)
+		if is_instance_valid(_telegraph):
+			_telegraph.global_position = attack_target.global_position
+	if not creature.anim._busy:
+		_back_off()
+
+## The spit clip's hit frame (Creature._on_hit): the glob leaves the jaws for the prey's chest where she stands now,
+## at spit_speed_mps; it lands spit_mult x attack within spit_radius_m of that point (VenomSpit), Venom riding on it.
+func launch_spit() -> VenomSpit:
+	if state != &"spit" or _spit_fired or not _valid_target():
+		return null
+	_spit_fired = true
+	var from := creature.global_position + Vector3.UP * creature.def.height_meters * creature.size_scale() * 0.7
+	var sk: Skeleton3D = creature.view.rig.skeleton if creature.view and creature.view.rig else null
+	var jaw := sk.find_bone("Jaw") if sk else -1
+	if jaw >= 0:
+		from = sk.global_transform * sk.get_bone_global_pose(jaw).origin
+	var aim := attack_target.global_position
+	aim.y = MeleeQuery.feet_y(attack_target) + minf(1.1, MeleeQuery.body_height(attack_target) * 0.6)
+	var shot := VenomSpit.fire(creature, attack_target, from, aim, _t("spit_speed_mps", 16.0), _t("spit_mult", 0.8), _t("spit_radius_m", 1.0))
+	if is_instance_valid(_telegraph):
+		_telegraph.global_position = attack_target.global_position
+		_telegraph._life = shot.flight_s() + Telegraph.LINGER
+	tactic.emit(&"spit_launch")
+	return shot
+
 ## Seconds a clip plays at its cadence, or fallback without the clip.
 func _clip_len(clip: StringName, fallback: float) -> float:
 	if not creature.anim.has_state(clip):
@@ -1482,6 +1555,8 @@ func _start_flee(seconds: float) -> void:
 	tactic.emit(&"flee")
 
 func _on_state_changed(prev: StringName, _next: StringName) -> void:
+	if prev == &"spit" and not _spit_fired and is_instance_valid(_telegraph):
+		_telegraph.queue_free()  # cut off before the glob left (hit, knocked down): no ring for a spit that never comes
 	if prev == &"pin":
 		_end_pin()
 	if prev == &"pounce":
