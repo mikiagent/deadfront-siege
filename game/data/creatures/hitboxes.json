@@ -71,7 +71,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.96,
+       "radius": 0.95,
        "calibrated": true
       },
       {
@@ -418,7 +418,7 @@
      "parts": [
       {
        "bone": "Tail2",
-       "radius": 2.18,
+       "radius": 2.17,
        "calibrated": true
       },
       {
@@ -434,7 +434,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 0.63,
+       "radius": 0.61,
        "calibrated": true
       },
       {
@@ -449,7 +449,7 @@
       },
       {
        "bone": "Jaw",
-       "radius": 0.66,
+       "radius": 0.64,
        "calibrated": true
       }
      ]
@@ -664,7 +664,7 @@
       },
       {
        "bone": "Head",
-       "radius": 5.62,
+       "radius": 6.47,
        "calibrated": true
       }
      ]
@@ -718,7 +718,7 @@
       },
       {
        "bone": "Head",
-       "radius": 2.31,
+       "radius": 2.3,
        "calibrated": true
       }
      ]
@@ -751,7 +751,7 @@
      "parts": [
       {
        "bone": "Jaw",
-       "radius": 0.63,
+       "radius": 0.64,
        "calibrated": true
       },
       {
@@ -1061,7 +1061,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 0.79,
+       "radius": 0.77,
        "calibrated": true
       },
       {
@@ -1073,7 +1073,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 0.86,
+       "radius": 0.83,
        "calibrated": true
       },
       {
@@ -1106,6 +1106,76 @@
      ]
     }
    }
+  },
+  "megarex": {
+   "parts": [
+    {
+     "bone": "Jaw"
+    },
+    {
+     "bone": "Head"
+    }
+   ],
+   "moves": {
+    "attack_heavy": {
+     "parts": [
+      {
+       "bone": "Toe.L"
+      },
+      {
+       "bone": "Toe.R",
+       "radius": 2.67,
+       "calibrated": true
+      },
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head"
+      }
+     ]
+    },
+    "tail_swipe": {
+     "parts": [
+      {
+       "bone": "Tail7"
+      },
+      {
+       "bone": "Tail6"
+      },
+      {
+       "bone": "Tail5",
+       "radius": 4.59,
+       "calibrated": true
+      }
+     ]
+    },
+    "attack_primary": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 7.2,
+       "calibrated": true
+      }
+     ]
+    },
+    "bite_shake": {
+     "parts": [
+      {
+       "bone": "Jaw"
+      },
+      {
+       "bone": "Head",
+       "radius": 7.0,
+       "calibrated": true
+      }
+     ]
+    }
+   },
+   "_note": "MegaRexBrain (TyrantBrain): bite, stomp (pins), tail whip, bite and shake"
   }
  },
  "survivor": {

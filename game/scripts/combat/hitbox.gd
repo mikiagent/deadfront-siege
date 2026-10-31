@@ -210,9 +210,13 @@ static func _sweep(samples: Array, xf: Transform3D, hurt: Hurtboxes, draw: bool)
 static func _touch(a: Vector3, b: Vector3, r: float, hurt: Hurtboxes) -> Dictionary:
 	var best := {}
 	var best_d := INF
+	var seg := AABB(a, Vector3.ZERO).expand(b)
 	for c in hurt.caps:
+		var wr := float(c["wr"])
+		if not seg.grow(r + wr).intersects(AABB(c["wa"], Vector3.ZERO).expand(c["wb"])):
+			continue  # boxes apart: no closest-point solve
 		var pts := Geometry3D.get_closest_points_between_segments(a, b, c["wa"], c["wb"])
-		var d := pts[0].distance_to(pts[1]) - r - float(c["wr"])
+		var d := pts[0].distance_to(pts[1]) - r - wr
 		if d <= 0.0 and d < best_d:
 			best_d = d
 			best = {"part": c["part"], "region": c["region"], "at": pts[1]}

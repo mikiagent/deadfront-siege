@@ -54,7 +54,7 @@ attacking part touching a hit-able part. Code: `game/scripts/combat/hurtboxes.gd
 | Gallimimus rake, pachycephalosaurus hip check | attack_heavy, kick | `Creature._on_hit` | hind feet + head; Tail2, Tail1, Hips |
 | Smilodon, woolly rhino, tarbosaurus, carnotaurus, raptor (any species with `pipeline.hit_parts`) | their moves | `Creature._on_hit`, pounce, charge | a move with no row in `hitboxes.json` takes that species' `pipeline.hit_parts.<move>` bones; `Creature.part_hit` still judges hits on bodies without hurtboxes |
 | Megaloceros doe | attack_primary / heavy / kick | `Creature._on_hit` | `species.megaloceros.variants.doe`: forehooves, hind feet (a model variant overrides the species row) |
-| TyrantBrain | attack_primary (bite), attack_heavy (stomp), tail_swipe | `TyrantBrain._impact` | jaw / head; toes + jaw; tail 5-7 |
+| TyrantBrain, MegaRexBrain | attack_primary (bite), attack_heavy (stomp), tail_swipe, bite_shake (MegaRex) | `TyrantBrain._impact`, `MegaRexBrain._impact_special` | jaw / head; toes + jaw; tail 5-7; jaw / head. Calibrated at 0.6x and 1x of its reach: a tyrant swings at anything inside it |
 | ClubTailBrain (ankylosaurus) | its club_moves | `ClubTailBrain._tick_move`: the club's live path each physics frame (`Hitbox.touch`), landing at its closest pass | Tail5_end, radius 0.6 m |
 | Survivor swing | punch (bare hands, attack_primary clip), swing, heavy (heavy blunt weapon) | `Hunt._on_swing_hit` | fist 0.3 m; plus `weapons.<tool_class or damage_type>`: knife 0.45 m, slashing 0.7 m, blunt 0.7 m capsules out of the thumb side |
 | Survivor kick | kick | `CombatTactics.kick` after a step-in up to `kick.lunge_max_m` (0.8 m) | both feet 0.35 m |
@@ -87,21 +87,22 @@ part that needs the least. Shrink a radius when the clip or the AI spacing is fi
 | Species | Move, part, radius (m at size 1.0) |
 |---|---|
 | carnotaurus | attack_heavy Head 2.27; charge Head 1.75; attack_primary Jaw 2.17 |
-| coelophysis | attack_primary Jaw 0.91; attack_heavy Jaw 0.96; bite_combo Jaw 0.90; pounce Head 1.17 |
+| coelophysis | attack_primary Jaw 0.91; attack_heavy Jaw 0.95; bite_combo Jaw 0.90; pounce Head 1.17 |
 | compsognathus | pounce Jaw 0.97; attack_primary Jaw 0.85; attack_heavy Jaw 0.62 |
 | deinonychus | pounce Head 0.97; attack_primary Head 0.78; attack_heavy Jaw 0.82; bite_combo Jaw 0.70 |
 | gallimimus | attack_heavy BackFoot.R 1.27; attack_primary Head 1.04; bite_combo Head 1.10 |
 | megaloceros | kick BackFoot.R 0.89; charge Head 2.01; attack_primary Head 2.01; attack_heavy Head 2.02 |
 | megaloceros (doe) | attack_primary FrontFoot.R 3.09; attack_heavy Head 2.36 |
-| pachycephalosaurus | charge Jaw 0.87; kick Tail2 2.18; attack_primary Head 0.63; attack_heavy Jaw 0.66 |
-| raptor | attack_primary Head 0.79; bite_combo Head 0.86; pounce Head 1.69; pin_stab Head 1.80 |
+| megarex | attack_heavy Toe.R 2.67; tail_swipe Tail5 4.59; attack_primary Head 7.20; bite_shake Head 7.00 |
+| pachycephalosaurus | charge Jaw 0.87; kick Tail2 2.17; attack_primary Head 0.61; attack_heavy Jaw 0.64 |
+| raptor | attack_primary Head 0.77; bite_combo Head 0.83; pounce Head 1.69; pin_stab Head 1.80 |
 | smilodon | attack_primary FrontFoot.R 1.06; attack_heavy Head 0.85; pounce Head 0.91; pin_stab Head 0.76 |
 | stegosaurus | attack_primary head 1.78; attack_heavy head 1.66 |
 | styracosaurus | kick BackFoot.L 1.44; charge Head 1.13; attack_primary Head 1.17; attack_heavy Head 1.17 |
 | tarbosaurus | attack_primary Head 2.07; attack_heavy Head 1.70; pounce Head 1.96 |
-| tyrannosaurus | tail_swipe Tail5 3.75; attack_primary Head 5.62 |
-| utahraptor | pounce Head 2.84; attack_primary Head 1.97; attack_heavy Head 2.31; bite_combo Head 2.09 |
-| velociraptor | pounce Jaw 0.63; attack_primary Jaw 0.58; attack_heavy Jaw 0.65; bite_combo Jaw 0.65 |
+| tyrannosaurus | tail_swipe Tail5 3.75; attack_primary Head 6.47 |
+| utahraptor | pounce Head 2.84; attack_primary Head 1.97; attack_heavy Head 2.30; bite_combo Head 2.09 |
+| velociraptor | pounce Jaw 0.64; attack_primary Jaw 0.58; attack_heavy Jaw 0.65; bite_combo Jaw 0.65 |
 | woolly_rhino | attack_primary FrontFoot.R 1.42; charge Horn 0.66 |
 | zebraceratops | kick BackFoot.L 1.01; charge Head 1.37; attack_primary Head 1.47; attack_heavy Head 1.45 |
 

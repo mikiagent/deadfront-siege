@@ -17,7 +17,7 @@ extends SceneTree
 
 const COVER_MIN := 0.85  ## share of sampled skinned vertices inside a hurtbox
 const BONE_TOL_M := 0.05  ## the player's seek and the bake's track sampling interpolate a hair apart
-const PERF_STRIKE_MS := 1.5  ## one strike (sync + sweep) against a survivor
+const PERF_STRIKE_MS := 3.0  ## one strike (sync + sweep) against a survivor; a MegaRex sweep with its widened parts, on a busy machine, ran 1.7 ms
 const PERF_TOTAL_MS := 12.0  ## 20 creatures striking once each
 const APPROACH_S := 8.0
 ## Calibrated radii reach this much past the closest pass: the idle sway of both bodies differs run to run.
@@ -159,7 +159,10 @@ func _moves_of(c) -> Array:
 	var ap: AnimationPlayer = c.view.rig.anim_player
 	var reach: float = c.brain.contact_reach()
 	var tac: Dictionary = c.brain.get(&"tac") if c.brain.get(&"tac") is Dictionary else {}
-	out.append([&"attack_primary", 0, false, [reach]])
+	# A TyrantBrain swings at anything inside its reach, so its timed moves must also land well inside it.
+	var tyrant: bool = c.brain.get_script().get_global_name() in [&"TyrantBrain", &"MegaRexBrain"]
+	var near: Array = [reach * 0.6, reach] if tyrant else [reach]
+	out.append([&"attack_primary", 0, false, near])
 	# tactics.heavy_reach_m: an in-place kick fires only that close (the gallimimus rake).
 	out.append([&"attack_heavy", 0, false, [minf(reach, float(tac.get("heavy_reach_m", 1e9)))]])
 	if ap.has_animation(&"bite_combo"):
@@ -180,6 +183,8 @@ func _moves_of(c) -> Array:
 			out.append([&"pin_stab", i, false, [float(tac.get("pin_reach_m", 1.5)) * c.size_scale()]])
 	if ap.has_animation(&"kick") and (steps.has("kick") or tac.get("charge_straight", false)):
 		out.append([&"kick", 0, true, [reach]])  # the hind kick at prey behind it (after a charge, or point blank)
+	if ap.has_animation(&"bite_shake"):
+		out.append([&"bite_shake", 0, false, near])  # MegaRexBrain's grab
 	if ap.has_animation(&"tail_swipe"):
 		out.append([&"tail_swipe", 0, true, [reach]])
 	return out

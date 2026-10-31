@@ -120,3 +120,14 @@ overhaul twice more (sp-tarbosaurus, megaloceros stag and doe, compyfeel, sp-car
   tarbosaurus head.
 - New calibrated outliers: megaloceros doe forehoof about 3 m (her strike barely leaves the body), tarbosaurus pounce,
   carnotaurus jaw about 2 m. The full table is in `docs/current/hitboxes.md`.
+
+## MegaRex (2026-10-31, canon 1bb8adec)
+- MegaRex moves are judged on hitboxes: bite, stomp, tail whip, and the bite and shake (`MegaRexBrain._impact_special`
+  now strikes with its jaws). `hitboxes.json` megarex gets the tyrannosaurus layout.
+- TyrantBrain moves are calibrated at 0.6x and 1x of the contact reach, because a tyrant swings at anything inside its
+  reach (t_sp_megarex bites from 3 m).
+- MegaRex radii are the largest: bite and shake about 7 m, bite about 6 m, tail about 6 m. Its jaws sit high and far
+  ahead of its body.
+- Each hurtbox capsule now gets a cheap bounding-box test before the exact distance check. The per-strike perf gate is
+  3 ms; under load one MegaRex sweep ran 1.7 ms, and 20 creatures take 1.7-5 ms in all.
+- I checked every merged .gd file for duplicate function names: none.
