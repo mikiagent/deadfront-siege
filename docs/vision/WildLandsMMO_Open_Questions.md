@@ -505,3 +505,27 @@ Owner: "whatever happened to that bulky triceratops with the bull horns, is that
 | **TA4** | Signature: a landed charge ends in the bull-horn toss: head driven low, then a twist to its right that throws the survivor 5 m sideways (toss_side_m), 1.5 m along the line, lifted 4.5 m/s, 1.2 s stagger; charge cooldown 6 s (regular 8). | `model_variants.alpha.tactics`, `TacticalBrain._charge_impact` | Balance and feel. |
 | **TA5** | The Alpha's horn hits are judged at the Head bone with 2.4-2.6 m radii (no horn bones on the regular's rig layout; hitboxes not on canon). | `model_variants.alpha.hit_parts`, `Creature.part_hit` | Move to the hitbox system when it lands. |
 | **TA6** | A ridden mount never plays its strafe clips (it turns into its heading); the slow-turning Alpha played strafes under the rider. | `PlayerPets.mounted_move` | Affects every mount with strafe clips (megaloceros, rhino, smilodon...). |
+
+### SP-RAPTOR (2026-10-31) — the Raptor, a new rideable dromaeosaur with colour morphs (claude/mmo-sp-raptor)
+
+Owner: "black and gold is the original raptor (idk just call it Raptor)", "raptor is big enough though" (to ride), "it comes in different colors including green and different feathers". Report `docs/orchestration/reports/claude-sp-raptor.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **RP1** | Size: `height_meters` 3.5 (back over the hips ~2.4 m, 7.5 m long on screen = 4.7 m true at the house 1.6x, between deinonychus 4.8 m and utahraptor 11.2 m on screen); `real_length_m` 9.4 (the roster's 2x). | `raptor.json` | Size sets reach, pen tier, mount height. |
+| **RP2** | Stats between deinonychus and utahraptor: hp 2400, attack 230, defense 90, speed 650; tier 42, capture tier 4, 4 feeds in a pen; `deep_bleed`. A landed sickle slash (x2.0) or pounce (x2.5) kills a fresh 100 HP survivor. | `raptor.json` | Balance pass. |
+| **RP3** | AI: the deinonychus pack_flanker profile x1.25 distances, plus a pin (a landed pounce pins prey no bigger than itself under the right foot; two pin bites x1.0, held 3.2 m out), a point-blank sickle slash (heavy, cd 6 s, x2.0, from the right foot) and a crest-flare display that leads into a pounce. `attack_range` 2.9 (a species override, new in CreatureBrain.setup) so the bite meets her. | `raptor.json` tactics | Move mix, damage and the pin length are design calls. |
+| **RP4** | Colour morphs: five textures on one mesh with equal odds per wild spawn: black_gold (the sheet), black_crimson (the feather morph), green (olive hide, amber feathers), rust (rust hide, cream feathers), slate (blue-grey hide, ice-blue feathers). Recoloured from the Tripo albedo, so every morph has the same crest and quill shapes; no crest on/off. Alphas wear their rolled morph. | `pipeline.model_variants`, `tools/gait/raptor_palettes.py` | Which morphs exist, their odds, and whether colour ties to island/biome are the owner's. |
+| **RP5** | Spawns: a pair (chance 0.7) on the far shore of `temperate_35` and `tropical_40`; home climate tropical. | `islands.json` | Where it lives. |
+| **RP6** | Clips: the deinonychus set moved onto its body (bites step in with a short hop, both feet up to 0.18 m for a frame), the velociraptor's feed; pin_stab, the sickle slash, the crest-flare alert and sleep are new. Its arm feathers are part of the arm skin (no separate wing fans like the deinonychus), so the arm spread reads small. | `anim/`, `tools/gait/make_raptor_moves.py` | Clip asks go to the owner's review. |
+### MEGAREX (2026-10-31) — the v2 open-mouth rex as a boss species (claude/mmo-sp-tyrannosaurus)
+
+Owner: "call that monstrosity MegaRex ... make it a boss fight". Report `docs/orchestration/reports/claude-sp-megarex.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **MR1** | Size 1.3x the T. rex (10.4 m tall, ~21.5 m long on screen); hp 400000, attack 1400, defense 500, tier 60 like the rex. | `megarex.json` | Boss tuning is a first pass. |
+| **MR2** | Phases by health: 1 (> 66 %) bite, bite, stomp-pin, no tail whip; 2 (<= 66 %) adds the bite and shake (every third bite on a survivor or a creature <= 3 m: 1.5x damage, knocked down; Pinned stays the stomp's) and the tail whip, windups x0.8, recoveries x0.9; 3 (<= 33 %) enraged (the Enraged status, kept on), a roar on entering it and then every 14 s in melee (Groggy + flinch on survivors and creatures <= 3 m within 22 m), windups x0.65, recoveries x0.7. | `mega_rex_brain.gd` | Every cut-off and scale is a guess for the owner to tune. |
+| **MR3** | Rare: a `crater` row of one MegaRex, chance 0.5, on swamp_55, tundra_55 and volcanic_60 (at most one per island). | `world/islands.json` | Which islands and how rare. |
+| **MR4** | Loot: every MegaRex carcass rolls as an alpha's (the guaranteed rare rows, the trophy, the alpha pool: alpha_hide 3-4, alpha_fang 3); butchering = the T. rex rows x~1.5. Not tameable. | `corpse.gd`, `loot_tables.json`, `butchering.json` | Boss rewards. |
+| **MR5** | Look: the olive v2 hide the owner saw. The armoured slate recolour from the Alpha sheet (`megarex/ref/megarex_armoured_albedo.jpg`, `tools/gait/rex_alpha_skin.py`) is not used; the sheet's horns and spike row would need another Tripo mesh. Lying clips go down on the belly (side-lying tore the thigh skin on this rig). The mesh is its left half mirrored (Tripo modelled a mid-stride pose). The plate shows "Mega Rex" (the game capitalises species names). | `megarex.json`, `make_rex_moves.py --v2` | Cosmetic choices the owner may want changed. |

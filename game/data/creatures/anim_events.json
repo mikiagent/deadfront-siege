@@ -8,7 +8,8 @@
     "attack_heavy": {
       "hit_frac": 0.72,
       "windup": true,
-      "windup_hold": 0.6
+      "windup_hold": 0.6,
+      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R"
     },
     "hit_react": {
       "speed": 2.0
@@ -111,6 +112,11 @@
       "note": "charge loop, stride-matched like run. Herbivores: the run with the head dropped low, horns/frill first (make_charge_kick.py). Deinonychus: its own low sprint (tools/gait deinonychus.json clip charge, body near horizontal, wings swept back), natural ground speed 6.6 m/s = 1.49x its run",
       "note_coelomoves": "coelophysis, utahraptor, velociraptor, gallimimus: the deinonychus clip moved onto its rig with tools/gait/transfer_clips.py --floor-feet --pin-toes (same timing and events)"
     },
+    "bite_shake": {
+      "hit_frac": 0.3,
+      "windup": true,
+      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
+    },
     "toss": {
       "hit_frac": 0.3,
       "note": "woolly rhino horn toss, 1.0 s: starts in the charge's head-low pose and hooks the horn up through the target at 0.3; played by TacticalBrain on a charge impact (the hit is the impact, the clip is cosmetic). tools/gait/woolly_rhino/clips.py"
@@ -122,7 +128,8 @@
         0.74
       ],
       "windup": false,
-      "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)"
+      "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)",
+      "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)"
     },
     "charge_turn": {
       "airborne": [
@@ -295,6 +302,23 @@
       "strafe_right": 1.329,
       "strafe_right_len": 0.917
     },
+    "megarex": {
+      "height_m": 10.4,
+      "run_l": 5.957,
+      "run_len": 0.917,
+      "run_r": 5.956,
+      "walk_l": 2.018,
+      "walk_len": 1.417,
+      "walk_r": 2.018,
+      "walk": 2.018,
+      "run": 5.957,
+      "strafe_left": 2.018,
+      "strafe_left_len": 1.417,
+      "strafe_right": 2.018,
+      "strafe_right_len": 1.417,
+      "walk_back": 2.018,
+      "walk_back_len": 1.417
+    },
     "tyrannosaurus": {
       "height_m": 8.0,
       "run_l": 4.581,
@@ -405,6 +429,19 @@
       "walk_back": 1.711,
       "walk_back_len": 1.292,
       "_note": "SP-TARBOSAURUS: walk/run from tools/bake_clip_speeds.py --dry-run; stalk = make_gait stride / cycle (1.6 / 2.2 rig m/s) x 6.8 / 8; strafes and walk_back reuse the walk plan"
+    },
+    "raptor": {
+      "height_m": 3.5,
+      "run_l": 5.515,
+      "run_len": 0.5,
+      "run_r": 5.515,
+      "walk_l": 1.17,
+      "walk_len": 1.0,
+      "walk_r": 1.17,
+      "walk": 1.17,
+      "run": 5.515,
+      "charge": 8.21,
+      "_note": "SP-RAPTOR: walk/run from tools/bake_clip_speeds.py --dry-run (the deinonychus gaits moved onto the raptor); charge = run x the deinonychus charge/run ratio (6.6/4.432)"
     }
   }
 }

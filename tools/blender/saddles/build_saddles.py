@@ -451,22 +451,25 @@ cyl("cantle_roll", (0, CANTLE_Y + 0.008 * SCALE, SEAT_TOP + 0.07 * SCALE), 0.022
     SEAT_HALF_W * 2.0, BONE, SOCKET, rot=(0, math.radians(90), 0), verts=14, bevel=0.007 * SCALE)
 
 # ------------------------------------------------------------------ girth
-GSEL = [v for v in VERTS if abs(v.y - SEAT_Y) < (MX.y - MN.y) * 0.02]
+# girth_frac (SP-RAPTOR): the girth this far from the hips toward the shoulders instead of under the seat; a biped
+# seated over its hips has the thighs in that section, and the strap hooped round both legs to the feet.
+GIRTH_Y = HIPS_Y + (SHO_Y - HIPS_Y) * float(CFG["girth_frac"]) if "girth_frac" in CFG else SEAT_Y
+GSEL = [v for v in VERTS if abs(v.y - GIRTH_Y) < (MX.y - MN.y) * 0.02]
 if GSEL:
     gzmin, gzmax = max(MN.z, min(v.z for v in GSEL)), max(v.z for v in GSEL)
 else:
     gzmin, gzmax = MN.z, BACK_Z
-GCZ = barrel_cz(SEAT_Y, (gzmin + gzmax) * 0.5)
+GCZ = barrel_cz(GIRTH_Y, (gzmin + gzmax) * 0.5)
 GW = float(CFG.get("girth_width_m", 0.08)) * SCALE
-strap_ring("girth", SEAT_Y, GW, float(CFG.get("girth_thick_m", 0.025)) * SCALE, LEATHER_D, SOCKET)
-GSEC = section(SEAT_Y)
+strap_ring("girth", GIRTH_Y, GW, float(CFG.get("girth_thick_m", 0.025)) * SCALE, LEATHER_D, SOCKET)
+GSEC = section(GIRTH_Y)
 for sgn, nm in ((1, "L"), (-1, "R")):
     # on the strap itself (its radius at the side), not on the widest hide at that height: folded wing
     # feathers stick out past the girth and left the buckles floating beside the body
-    bx = (GSEC[0][1] if sgn > 0 else GSEC[len(GSEC) // 2][1]) if GSEC else strap_outer_x(SEAT_Y, GCZ, sgn)
+    bx = (GSEC[0][1] if sgn > 0 else GSEC[len(GSEC) // 2][1]) if GSEC else strap_outer_x(GIRTH_Y, GCZ, sgn)
     if bx is None:
         bx = body_hw
-    box("buckle_%s" % nm, (sgn * (bx + 0.012 * SCALE), SEAT_Y, GSEC[0][2] if GSEC else GCZ),
+    box("buckle_%s" % nm, (sgn * (bx + 0.012 * SCALE), GIRTH_Y, GSEC[0][2] if GSEC else GCZ),
         (0.03 * SCALE, 0.055 * SCALE, 0.07 * SCALE), IRON, SOCKET, bevel=0.007 * SCALE)
 
 # ------------------------------------------------------------------ stirrups

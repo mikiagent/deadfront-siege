@@ -643,6 +643,80 @@
       ],
       "rare": [],
       "_generated": "size-class default (12.0 m); tune per species"
+    },
+    "raptor": {
+      "base": [
+        {
+          "id": "raptor_meat",
+          "min": 3,
+          "max": 5
+        },
+        {
+          "id": "raptor_bone",
+          "min": 1,
+          "max": 3,
+          "attributes": {
+            "hardness": 3,
+            "tint": "#cbb892"
+          }
+        },
+        {
+          "id": "raptor_hide",
+          "min": 1,
+          "max": 2,
+          "attributes": {
+            "feathered": 1,
+            "tint": "#1d1a16"
+          }
+        },
+        {
+          "id": "predator_tendon",
+          "min": 1,
+          "max": 2
+        }
+      ],
+      "rare": [
+        {
+          "id": "raptor_talon",
+          "min": 1,
+          "max": 1,
+          "skill": 2,
+          "attributes": {
+            "hardness": 4
+          }
+        }
+      ]
+    },
+    "megarex": {
+      "base": [
+        {
+          "id": "raw_meat",
+          "min": 12,
+          "max": 20
+        },
+        {
+          "id": "large_leg_bone",
+          "min": 4,
+          "max": 7
+        },
+        {
+          "id": "raw_hide",
+          "min": 3,
+          "max": 6
+        },
+        {
+          "id": "dense_bone",
+          "min": 2,
+          "max": 3
+        },
+        {
+          "id": "skull_plate",
+          "min": 1,
+          "max": 1
+        }
+      ],
+      "rare": [],
+      "_generated": "MEGAREX: the T. rex rows, about 1.5x (a 1.3x bigger animal). ASSUMPTION"
     }
   }
 }
