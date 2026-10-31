@@ -34,6 +34,7 @@ var info: Label
 const BRAIN_MOVES := {
 	"TyrantBrain": "telegraphed bite, stomp every 3rd attack, tail whip if you are behind, roar on spotting",
 	"RaptorPackBrain": "pack flank, bites, heavy pounce from 4-7 m off-axis",
+	"ClubTailBrain": "turns its tail to you, no rush: whip, whip, smash, whip, sweep: TAIL WHIP (knockback), TAIL SMASH (knockdown + shockwave), CLUB SWEEP (also when surrounded); hits only from the club, the head is safe",
 	"CreatureBrain": "attack_primary, attack_heavy after 3 primaries",
 }
 const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge"]
@@ -62,7 +63,7 @@ static func moves_line(id: StringName) -> String:
 	var def := Data.creature(id)
 	if def == null:
 		return ""
-	var brain := "TyrantBrain" if id == &"tyrannosaurus" else ("TacticalBrain" if TacticalBrain.has_tactics(def) else ("RaptorPackBrain" if def.mapped_archetype() == &"raptor_pack" else "CreatureBrain"))  # mirrors Creature._make_brain
+	var brain := "TyrantBrain" if id == &"tyrannosaurus" else ("ClubTailBrain" if def.archetype == &"club_tail" else ("TacticalBrain" if TacticalBrain.has_tactics(def) else ("RaptorPackBrain" if def.mapped_archetype() == &"raptor_pack" else "CreatureBrain")))  # mirrors Creature._make_brain
 	var seqs: Array[String] = []  # the distinct steps of its tactics sequences (strafe_left/right -> strafe)
 	for q in TacticalBrain.tactics_for(def.archetype).get("sequences", []):
 		for step in (q as Dictionary).get("steps", []):
