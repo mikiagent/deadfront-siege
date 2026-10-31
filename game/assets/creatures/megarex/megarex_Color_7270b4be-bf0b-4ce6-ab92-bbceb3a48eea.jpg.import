@@ -2,16 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bis0vsniafv83"
-path="res://.godot/imported/tyrannosaurus_alpha_albedo.jpg-93c4a8fc2c0d85c95098b56c6efebff4.ctex"
+uid="uid://b7d3ftpkvugu7"
+path="res://.godot/imported/megarex_Color_7270b4be-bf0b-4ce6-ab92-bbceb3a48eea.jpg-1cdecf3787607b303d627f8f0a095c19.ctex"
 metadata={
 "vram_texture": false
+}
+generator_parameters={
+"md5": "f2f61a703eac5bd910f5df4cc10595f1"
 }
 
 [deps]
 
-source_file="res://assets/creatures/tyrannosaurus/tyrannosaurus_alpha_albedo.jpg"
-dest_files=["res://.godot/imported/tyrannosaurus_alpha_albedo.jpg-93c4a8fc2c0d85c95098b56c6efebff4.ctex"]
+source_file="res://assets/creatures/megarex/megarex_Color_7270b4be-bf0b-4ce6-ab92-bbceb3a48eea.jpg"
+dest_files=["res://.godot/imported/megarex_Color_7270b4be-bf0b-4ce6-ab92-bbceb3a48eea.jpg-1cdecf3787607b303d627f8f0a095c19.ctex"]
 
 [params]
 
@@ -23,7 +26,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

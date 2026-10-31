@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://vy203eg0un5t"
-path="res://.godot/imported/bite_shake.glb-d06ad06e03bb002c7eb5068573c3cc12.scn"
+uid="uid://cyelk8xo4f66v"
+path="res://.godot/imported/walk.glb-1f2318cc22787eb52bbf876d4d949b23.scn"
 
 [deps]
 
-source_file="res://assets/creatures/tyrannosaurus/anim/bite_shake.glb"
-dest_files=["res://.godot/imported/bite_shake.glb-d06ad06e03bb002c7eb5068573c3cc12.scn"]
+source_file="res://assets/creatures/megarex/anim/walk.glb"
+dest_files=["res://.godot/imported/walk.glb-1f2318cc22787eb52bbf876d4d949b23.scn"]
 
 [params]
 

@@ -128,12 +128,17 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	using_glb = false
 	_tint = TINTS.get(str(def.id), Color(0.55, 0.5, 0.4))
 	var glb := CreatureDef.model_path(def.id)
+	var anim_dir := "res://assets/creatures/%s/anim" % def.id
+	# A variant with its own body (megaloceros doe): its own GLB and clip folder on the same bone layout.
+	var vrow: Variant = model_variants(def).get(str(variant), "")
+	if vrow is Dictionary and (vrow as Dictionary).has("model"):
+		glb = "res://assets/creatures/%s/%s" % [def.id, (vrow as Dictionary)["model"]]
+		anim_dir = "res://assets/creatures/%s/%s" % [def.id, (vrow as Dictionary).get("anim", "anim")]
 	if ResourceLoader.exists(glb):
 		rotation = Vector3.ZERO
 		rig = RiggedModel.new()
 		rig.name = "Rig"
 		add_child(rig)
-		var anim_dir := "res://assets/creatures/%s/anim" % def.id
 		var axis := str(def.pipeline.get("forward_axis", "-Z"))
 		if rig.setup(glb, anim_dir, axis, def.height_meters, "creature", false, float(def.pipeline.get("source_height_m", 0.0))):
 			# Explicit posed-height scale for imported standins with transformed skin bounds.
@@ -163,42 +168,30 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 		_mount.position = Vector3(0.0, def.height_meters * 0.85, 0.0)
 		add_child(_mount)
 
-## Model variants (pipeline.model_variants in the species JSON: variant id -> albedo texture next to the GLB).
-## The variants share one mesh, rig and clip set, so a variant only swaps the base colour map; "" or an
-## unknown id keeps the GLB as authored.
+## Model variants (pipeline.model_variants in the species JSON: variant id -> albedo texture next to the GLB, or a
+## row {"model": GLB, "anim": clip folder, "tactics": {...}} for a variant with its own body on the same bone layout,
+## e.g. the megaloceros stag and doe). A texture variant only swaps the base colour map; "" or an unknown id keeps
+## the GLB as authored.
 static func model_variants(p_def: CreatureDef) -> Dictionary:
 	var raw: Variant = p_def.pipeline.get("model_variants", {}) if p_def else {}
 	return raw if raw is Dictionary else {}
 
+## A variant row's extra data ({} for a plain texture variant): e.g. its "tactics" overrides.
+static func variant_row(p_def: CreatureDef, p_variant: StringName) -> Dictionary:
+	var row: Variant = model_variants(p_def).get(str(p_variant), "")
+	return row if row is Dictionary else {}
+
 ## ASSUMPTION: a wild spawn picks its variant deterministically from its identity key (50/50 for two).
 static func pick_variant(p_def: CreatureDef, key: String) -> StringName:
 	var ids := model_variants(p_def).keys()
-	ids.erase("alpha")  # ALPHA SKIN: only an alpha wears it (Creature.spawn)
 	if ids.is_empty():
 		return &""
 	ids.sort()
 	return StringName(str(ids[absi(hash(key)) % ids.size()]))
 
-## ALPHA SKIN: a species whose model_variants has an "alpha" texture dresses its alphas in it (the T. rex's
-## armoured slate). Called after the alpha roll, before the coloration rebind copies the albedo.
-func use_variant(p_variant: StringName) -> void:
-	if variant == p_variant or not model_variants(def).has(str(p_variant)) or not (using_glb and rig):
-		return
-	variant = p_variant
-	# setup() already coloured the surfaces from the authored albedo: drop those and the cached originals so the
-	# variant's albedo is what the coloration copies.
-	_originals.clear()
-	for mi in rig.mesh_root.find_children("*", "MeshInstance3D", true, false):
-		var m := mi as MeshInstance3D
-		if m.mesh == null or m.has_meta(&"creature_eyeshine") or m.has_meta(&"creature_gear"):
-			continue
-		for i in m.mesh.get_surface_count():
-			m.set_surface_override_material(i, null)
-	_apply_model_variant()
-	apply_coloration(coloration)
-
 func _apply_model_variant() -> void:
-	var tex_name := str(model_variants(def).get(str(variant), ""))
+	var row: Variant = model_variants(def).get(str(variant), "")
+	var tex_name := str((row as Dictionary).get("texture", "")) if row is Dictionary else str(row)
 	if tex_name.is_empty():
 		return
 	var tex := load("res://assets/creatures/%s/%s" % [def.id, tex_name]) as Texture2D
@@ -290,9 +283,14 @@ func begin_ride() -> bool:
 func end_ride() -> void:
 	pass
 
+## The saddle folder: mount/, or a body variant's own ({"mount": "doe/mount"}: its back is elsewhere).
+func _mount_dir() -> String:
+	var row := variant_row(def, variant) if def else {}
+	return "res://assets/creatures/%s/%s" % [def.id, str(row.get("mount", "mount"))] if def else ""
+
 ## This species' mount.json, {} when it has none (or no rigged model to put a saddle on).
 func _mount_json() -> Dictionary:
-	var path := "res://assets/creatures/%s/mount/mount.json" % def.id
+	var path := "%s/mount.json" % _mount_dir()
 	if not (def and using_glb and rig and rig.skeleton and FileAccess.file_exists(path)):
 		return {}
 	var mj: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
@@ -308,7 +306,7 @@ func show_saddle(stack: ItemStack) -> void:
 	var mj := _mount_json()
 	if stack == null or mj.is_empty():
 		return
-	var path := "res://assets/creatures/%s/mount/%s" % [def.id, str(mj.get("saddle", "saddle.glb"))]
+	var path := "%s/%s" % [_mount_dir(), str(mj.get("saddle", "saddle.glb"))]
 	_saddle = RiggedModel.attach_skinned(rig.skeleton, path)
 	var tint := stack.tint_color()
 	for mi in _saddle:

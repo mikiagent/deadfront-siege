@@ -1,0 +1,135 @@
+{
+  "species": "MegaRex",
+  "clade": "Tyrannosauridae",
+  "period": "Late Cretaceous",
+  "real_length_m": 31.0,
+  "height_meters": 10.4,
+  "rig": "biped",
+  "tier": 60,
+  "climate": "volcanic",
+  "archetype": "tyrant",
+  "tameable": false,
+  "capture_tier": 0,
+  "verb": "boss: bite, stomp-pin; then bite and shake, tail whip; then an enraged roar",
+  "status_applied": [
+    "deafened",
+    "fracture",
+    "pinned"
+  ],
+  "stats": {
+    "hp": 400000,
+    "attack": 1400,
+    "defense": 500,
+    "speed": 450
+  },
+  "turn_rate": 1.3,
+  "tamed_role": [],
+  "look": "16 meter monstrous Tyrannosaurus (the MegaRex boss): a giant deep skull with heavy brow ridges and almost no neck, jaws modelled open with big teeth, tiny arms, huge legs, thick tail, olive-khaki mottled crocodile scales with dark bands, pyramid scutes down the spine and tail, pale cracked belly,",
+  "texture_prompt": "olive-khaki mottled crocodile hide with dark dorsal banding and pyramid scutes, pale cracked belly, matte surface",
+  "clips": {
+    "attack_primary": "MegaRex lunges low and snaps its jaws",
+    "attack_heavy": "MegaRex hauls a foot up, holds, stomps and pins",
+    "bite_shake": "Phase 2+: clamps its jaws on the prey, thrashes its head and flings it",
+    "tail_swipe": "Phase 2+: whips its tail across a target behind it",
+    "alert": "Phase 3: rears and roars; survivors and small creatures nearby stagger",
+    "knockdown": "crashes onto its belly and heaves itself back up"
+  },
+  "taming": {
+    "preferred_food": [
+      "raw_meat"
+    ],
+    "accepted_food": [
+      "fish",
+      "raptor_meat"
+    ],
+    "feeds_needed": 6,
+    "window_seconds": 45,
+    "requires_pen": true
+  },
+  "pipeline": {
+    "forward_axis": "-Z",
+    "source_height_m": 8.0,
+    "mesh": "Tripo P1 multiview, task 7270b4be-bf0b-4ce6-ab92-bbceb3a48eea, 50 Tripo credits (made as the T. rex v2 with the mouth modelled open; the owner made it its own boss)",
+    "mesh_views": "crops of the owner's sheet (ref/trex_owner_sheet_1.png): side panel as left, mirrored as right, front and back panels",
+    "reference_sheet": "ref/trex_owner_sheet_1.png (owner); ref/trex_owner_sheet_3_armoured.png and ref/megarex_armoured_albedo.jpg are an unused armoured look",
+    "rig_and_animation": "tools/gait/build_megarex.sh: fit_rex_rig.py (the T. rex's 30-bone rig fitted to the left half mirrored, distance weights), add_jaw.py --open (real Jaw, bound shut), make_rex_moves.py --v2 + make_gait.py clips, ground_clip.py, check_rex_clips.py",
+    "accepted_mesh": "tyrannosaurus.glb",
+    "clips": [
+      "idle",
+      "walk",
+      "run",
+      "strafe_left",
+      "strafe_right",
+      "walk_back",
+      "attack_primary",
+      "attack_heavy",
+      "bite_shake",
+      "tail_swipe",
+      "hit_react",
+      "knockdown",
+      "death",
+      "alert",
+      "feed",
+      "sleep",
+      "pin_foot"
+    ],
+    "provenance": "docs/orchestration/reports/claude-sp-tyrannosaurus.md",
+    "scale_note": "ASSUMPTION: the owner asked for a monstrosity; 1.3x the T. rex (10.4 m tall, about 21 m long on screen)"
+  },
+  "coloration": {
+    "hue_deg": 10,
+    "sat": 0.14,
+    "val": 0.12,
+    "rare_chance": 0.02,
+    "rare_morphs": [
+      "dark",
+      "pale"
+    ],
+    "patterns": [
+      {
+        "id": "stripes",
+        "weight": 3.0,
+        "scale": 0.85,
+        "strength": 0.26
+      },
+      {
+        "id": "spots",
+        "weight": 1.0,
+        "scale": 0.9,
+        "strength": 0.48
+      },
+      {
+        "id": "countershade",
+        "weight": 3.0,
+        "scale": 1.0,
+        "strength": 0.5
+      },
+      {
+        "id": "",
+        "weight": 3.0
+      }
+    ]
+  },
+  "eyes": {
+    "bone": "Head",
+    "points": [
+      [
+        0.58,
+        1.5624,
+        0.3122
+      ],
+      [
+        -0.58,
+        1.5624,
+        0.3122
+      ]
+    ],
+    "radius": 0.065,
+    "color": [
+      1.0,
+      0.55,
+      0.1
+    ]
+  },
+  "boss_note": "MEGAREX boss (owner 2026-10-31): MegaRexBrain phases, boss bar while engaged, alpha loot on every kill, not tameable, at most one per island on the top-tier islands"
+}

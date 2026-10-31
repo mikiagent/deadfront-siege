@@ -1914,6 +1914,9 @@ func _draw_hud() -> void:
 		plate_t = player.controls.selection.current()  # a tap selects: its plate shows before any fight (a phone keeps the quest card)
 	if plate_t == null and _last_target and is_instance_valid(_last_target) and not _last_target.health.dead and player.global_position.distance_to(_last_target.global_position) < 40.0:
 		plate_t = _last_target
+	var boss := MegaRexBrain.engaged_boss(player)
+	if boss != null and (plate_t == null or not plate_t.brain is MegaRexBrain):
+		plate_t = boss  # MEGAREX: the boss bar holds the top of the screen while she fights you
 	# HUDRULES (owner 2026-10-28): in combat the card hides unless the fight serves the shown order.
 	# Collapsed (the default, OrdersSheet.hud_expanded) it is a badge in the minimap's corner.
 	var fight_order := _in_combat and quest_served_by_fight()

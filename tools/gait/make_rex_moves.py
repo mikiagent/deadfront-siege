@@ -10,13 +10,13 @@ Every clip starts and ends on STALK, the same carriage the walk/run hold (tools/
 of (u, value) keys eased with smoothstep between keys (holds at keys, snaps where keys sit close). Hit frames match
 game/data/creatures/anim_events.json: attack_primary 0.42, attack_heavy 0.72, tail_swipe the default 0.55.
 
-usage: Blender -b -P tools/gait/make_rex_moves.py -- <base.glb> <clip> <out.glb>
+usage: Blender -b -P tools/gait/make_rex_moves.py -- <base.glb> <clip> <out.glb> [--v2]
   clip: idle | alert | attack_primary | attack_heavy | tail_swipe | bite_shake | hit_react | feed | knockdown | death | sleep | pin_foot
 
-SP-TYRANNOSAURUS (v2 open-mouth mesh): bite_shake (signature), hit_react, feed and the lying clips (knockdown, death,
+--v2: the MegaRex (SP-TYRANNOSAURUS v2 open-mouth mesh; the regular T. rex keeps the v1 numbers). bite_shake (signature), hit_react, feed and the lying clips (knockdown, death,
 sleep) are authored here too. Lying clips go down on the belly with the feet planted and "settle" the skin onto the
 floor every frame (the lowest evaluated vertex is put at z 0), so nothing sinks or hovers. The v2 mesh is bound with
-the jaw shut and was modelled ~24 deg open, so every jaw key is scaled by JAW (0.7): the widest roar stays inside
+the jaw shut and was modelled ~24 deg open, so with --v2 every jaw key is scaled by JAW (0.7): the widest roar stays inside
 the modelled gape instead of stretching the lips.
 """
 import math
@@ -35,7 +35,8 @@ TAILS = ["Tail%d" % i for i in range(1, 8)]
 # The stalking carriage (degrees; pitch + = nose up / tail down). Mirrored in tyrannosaurus.json walk/run "hold".
 LEAN = 5.0  # whole body tipped nose-down about the hips
 STALK = {"Chest": -2.0, "Neck1": -12.0, "Neck2": -5.0, "Head": 10.0, "Tail1": 3.0, "Tail2": 2.0}
-JAW = 0.7
+V2 = "--v2" in sys.argv
+JAW = 0.7 if V2 else 1.0
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=BASE)
@@ -201,9 +202,11 @@ def idle(u):
 def alert(u):
     """Roar, 2.4 s: drop the head and load the chest, then heave up and throw the head skyward with the jaws wide,
     hold the bellow with the head shaking, tail lashing, then settle back to the stalk."""
-    dz = track(u, [(0, 0), (0.12, -0.5), (0.30, -0.58), (0.40, 0.25), (0.78, 0.15), (1, 0)])
+    dz = track(u, [(0, 0), (0.12, -0.5), (0.30, -0.58), (0.40, 0.25), (0.78, 0.15), (1, 0)]) if V2 else \
+        track(u, [(0, 0), (0.12, -0.55), (0.30, -0.65), (0.40, 0.25), (0.78, 0.15), (1, 0)])
     pitch = track(u, [(0, 0), (0.12, -6), (0.30, -8), (0.40, 9), (0.78, 7), (1, 0)])
-    n1 = track(u, [(0, 0), (0.12, -15), (0.30, -18), (0.42, 26), (0.78, 22), (1, 0)])  # v2 skull: the chin hangs lower
+    n1 = track(u, [(0, 0), (0.12, -15), (0.30, -18), (0.42, 26), (0.78, 22), (1, 0)]) if V2 else \
+        track(u, [(0, 0), (0.12, -18), (0.30, -22), (0.42, 26), (0.78, 22), (1, 0)])  # v2 skull: the chin hangs lower
     n2 = track(u, [(0, 0), (0.12, -8), (0.30, -10), (0.42, 14), (0.78, 12), (1, 0)])
     hd = track(u, [(0, 0), (0.12, -6), (0.30, -10), (0.42, 12), (0.78, 8), (1, 0)])
     jaw = track(u, [(0, 2), (0.30, 4), (0.40, 46), (0.78, 44), (0.92, 4), (1, 2)])
@@ -457,12 +460,12 @@ def pin_foot(u):
         return a + (b - a) * smooth(u / E)
     body = {"dx": mix(b0["dx"], 0.0), "dy": mix(b0["dy"], 0.55), "dz": mix(b0["dz"], -0.7) - 0.07 * br,
             "pitch": mix(b0["pitch"], -9.0) - 1.5 * br, "roll": mix(b0["roll"], 3.0), "yaw": 2.0 * wave(u, 1) * hold}
-    n1 = mix(t0["Neck1"][0], -13.0)  # v2: the bigger skull reached the floor at -22
+    n1 = mix(t0["Neck1"][0], -13.0 if V2 else -22.0)  # v2: the bigger skull reached the floor at -22
     tl = mix(-14.0, -10.0)
     turns = {
         "Chest": (mix(t0["Chest"][0], 3.0) + 2.0 * br, 0, 0),
         "Neck1": (n1 + 2.0 * br, 4.0 * wave(u, 1, 0.2) * hold, 0),
-        "Neck2": (mix(t0["Neck2"][0], -9.0), 3.0 * shake, 0),
+        "Neck2": (mix(t0["Neck2"][0], -9.0 if V2 else -16.0), 3.0 * shake, 0),
         "Head": (mix(t0["Head"][0], 4.0), 2.0 * shake, 4.0 * shake),
         "Arm.L": (mix(-10.0, 18.0), 0, 0), "Arm.R": (mix(-10.0, 18.0), 0, 0),
         **{t: (tl * (0.45 if i < 3 else 0.25), 0, 0) for i, t in enumerate(TAILS)},
@@ -477,7 +480,7 @@ def pin_foot(u):
 
 # The pinning foot's hold, metres in the rig (FWD / SIDE / UP from the right foot's print). PIN_LIFT puts the sole
 # on a lying survivor's chest (~0.3 m); PinHold moves the victim, never the foot, so these only shape the pose.
-PIN_LIFT, PIN_FWD, PIN_SIDE = 0.45, 1.8, -0.55  # v2: 0.45 (the v2 toes hang lower than the v1 toes)
+PIN_LIFT, PIN_FWD, PIN_SIDE = (0.45 if V2 else 0.30), 1.8, -0.55  # v2: 0.45 (the v2 toes hang lower than the v1 toes)
 
 
 CLIPS = {"idle": (idle, 96), "alert": (alert, 58), "attack_primary": (attack_primary, 40),
