@@ -199,6 +199,19 @@ After this merge, all of these pass:
 - **After both**: t_saddles, t_mounts, run_all `[tests] PASS` and SMOKE PASS.
 - **t_styrafix**: passed 7 of 8 runs. The failed run printed only the failure count, and 6 more runs all passed.
 
+### Fifth merge: 4e69a701 (carnotaurus charge_turn and landed(), raptor)
+
+Conflicts, both sides kept:
+- **charge state**: my impale vars sit beside the carnotaurus `_charge_return` / `_turn_from`.
+- **`_start_charge(return_pass)`**: it keeps the styracosaurus minimum-distance guard and the carnotaurus return
+  flag.
+- **clip lists**: `charge_turn` and my three clips are in ONESHOT and OPTIONAL. The constants are checked intact.
+
+After this merge, all of these pass:
+- t_styrafix, t_styraco, t_sp_carnotaurus, t_sp_raptor, t_sp_woolly_rhino;
+- t_saddles, t_mounts, t_combat, t_canim;
+- run_all `[tests] PASS` and SMOKE PASS.
+
 ## Gates
 
 - t_styrafix PASS (5 runs in a row on the final code). Earlier runs failed on 2 frames at the start of the run: a
