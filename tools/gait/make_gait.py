@@ -91,7 +91,10 @@ for leg in LEGS.values():
     leg["l1"] = bones[up].length
     leg["l2"] = (bones[low].head_local - bones[leg["foot"]].head_local).length if leg.get("ankle_is_foot_head", True) else bones[low].length
     leg["ankle0"] = bones[leg["foot"]].head_local.copy()
-    leg["toe0"] = bones[leg["foot"]].tail_local.copy()
+    # pivot on the real toe tip (the *_end bone) when the rig has one: rolling about the foot bone's tail pushed the
+    # toe tip below the ground at push-off (deinonychus charge -22 cm, COMPYFEEL 2026-10-31)
+    tip = bones.get(leg["foot"] + "_end")
+    leg["toe0"] = (tip.tail_local if tip else bones[leg["foot"]].tail_local).copy()
     leg["hip0"] = bones[up].head_local.copy()
     if "pole" not in leg:  # bend the way the rest pose already bends
         h, k, an = leg["hip0"], bones[low].head_local, leg["ankle0"]
@@ -110,6 +113,9 @@ def foot_plan(name, t):
     u = leg_phase(name, t)
     centre = clip.get("foot_offset_" + leg["end"], 0.0)  # + moves this end's footprint forward
     a0 = leg["ankle0"] + TRAVEL * centre
+    # spread_<end>: plant this end's feet wider (outward from the midline) for a low, braced stance
+    side_sign = 1.0 if leg["ankle0"].dot(SIDE) >= 0 else -1.0
+    a0 = a0 + SIDE * side_sign * clip.get("spread_" + leg["end"], 0.0)
     lift = clip["lift_" + leg["end"]]
     roll = math.radians(clip.get("toe_roll", 25.0))
     curl = math.radians(clip.get("swing_curl_" + leg["end"], 50.0))
@@ -118,7 +124,10 @@ def foot_plan(name, t):
         pos = a0 + TRAVEL * (STANCE * (0.5 - s))
         # heel lifts over the last part of the stance while the toe stays put
         heel = max(0.0, (s - 0.75) / 0.25)
-        return pos, roll * smoothstep(heel), True
+        # reach_roll: roll onto the toes as the planted foot reaches out from under the hip, so the heel pad
+        # never sinks into the ground on a long or splayed step (the ankle rises about the toe tip)
+        reach = math.radians(clip.get("reach_roll", 0.0)) * abs(2 * s - 1) ** 1.5
+        return pos, max(roll * smoothstep(heel), reach), True
     s = (u - DUTY) / (1 - DUTY)  # swing: lift and carry forward
     pos = a0 + TRAVEL * (STANCE * (smoothstep(s) - 0.5))
     pos = pos + UP * (lift * math.sin(math.pi * s) ** clip.get("lift_shape", 0.8))

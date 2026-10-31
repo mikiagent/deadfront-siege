@@ -48,8 +48,8 @@ Verdict: approve / new animations / reject model / new moves or AI.
 |---|---|---|---|---|---|
 | Ankylosaurus | CreatureBrain (club_tail) | tail club | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
 | Coelophysis | CreatureBrain (flock_harass) | flock harass, darting bites | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
-| Compsognathus | TacticalBrain (swarm) | swarm nips, four to eight at once | charge, pounce, strafe, backstep | alert, attack_primary, attack_heavy, pounce | |
-| Deinonychus | TacticalBrain (pack_flanker) | pack flank, sickle-claw rake | backstep, strafe, pounce, charge, combo | alert, attack_primary, attack_heavy, bite_combo, pounce, charge | |
+| Compsognathus | TacticalBrain (swarm) | swarm nips, four to eight at once | crouch-then-charge (charge_crouch coil, then a low charge sprint into the bite), pounce, strafe walk and strafe jumps, backstep; twitchy combat idle while aggro | alert, attack_primary, attack_heavy, pounce, charge_crouch, charge, strafe_left, strafe_right, investigate (combat idle) | reworked per owner 2026-10-31, re-test |
+| Deinonychus | TacticalBrain (pack_flanker) | pack flank, sickle-claw rake | backstep, strafe, pounce, charge, combo | alert, attack_primary, attack_heavy, bite_combo, pounce, charge | run and charge re-stepped (glide) per owner 2026-10-31, re-test |
 | Gallimimus | CreatureBrain (runner) | charge, kick, outruns you | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy | |
 | Megaloceros | CreatureBrain (antlered) | antler gore, flees | primary, heavy after 3 primaries | alert, attack_primary, attack_heavy, kick, charge | |
 | Pachycephalosaurus | TacticalBrain (pack_mule) | dome headbutt charge | display, charge, strafe | alert, attack_primary, attack_heavy, charge | |
@@ -61,6 +61,10 @@ Verdict: approve / new animations / reject model / new moves or AI.
 | Utahraptor | RaptorPackBrain (apex_raptor) | one devastating claw strike | pack flank, bites, heavy pounce from 4-7 m off-axis | alert, attack_primary, attack_heavy | |
 | Velociraptor | RaptorPackBrain (pack_raptor) | pounce knockdown from off-screen | pack flank, bites, heavy pounce from 4-7 m off-axis | alert, attack_primary, attack_heavy | |
 | Zebraceratops | TacticalBrain (pack_mule) | head shove, herd solidarity | display, charge, strafe | alert, attack_primary, attack_heavy, kick, charge | |
+
+No glide (owner 2026-10-31): a body never moves under a one-shot. Attacks play in place; alert, sniff and hit_react
+give way to the stride-matched gait when the brain moves the body; leaps move on their own arc. Test:
+`game/tests/t_compyfeel.gd` (planted-toe slide per step, live fights for compsognathus, deinonychus, ankylosaurus).
 
 CreatureBrain swings attack_primary and attack_heavy only, so the kick clips of Megaloceros and Stegosaurus do
 not show in a fight, and verbs such as Gallimimus "kick" have no move behind them yet.
