@@ -36,7 +36,7 @@ const BRAIN_MOVES := {
 	"RaptorPackBrain": "pack flank, bites, heavy pounce from 4-7 m off-axis",
 	"CreatureBrain": "attack_primary, attack_heavy after 3 primaries",
 }
-const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge"]
+const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge", &"charge_turn"]
 
 ## Every species in the data, sorted (owner 2026-10-28: "put all of the animals in the creature lab").
 static func all_species() -> Array[StringName]:

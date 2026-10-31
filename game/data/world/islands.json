@@ -321,6 +321,11 @@
       ],
       "far_shore": [
         {
+          "species": "carnotaurus",
+          "count": 1,
+          "groups": 1
+        },
+        {
           "species": "utahraptor",
           "count": 1,
           "groups": 1
@@ -519,6 +524,11 @@
         }
       ],
       "working": [
+        {
+          "species": "carnotaurus",
+          "count": 1,
+          "groups": 1
+        },
         {
           "species": "utahraptor",
           "count": 3,
