@@ -150,8 +150,7 @@
       ],
       "windup": false,
       "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)",
-      "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)",
-      "note_deinonychus": "deinonychus (SP-DEINONYCHUS): the Raptor's pin_stab on the v4 rig (make_raptor_moves.py): right foot stamps onto the pinned prey, the wings flap for balance, two bites at 0.38 and 0.74 from the jaws"
+      "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)"
     },
     "charge_turn": {
       "airborne": [

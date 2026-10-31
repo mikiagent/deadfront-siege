@@ -4,7 +4,7 @@ extends SceneTree
 ## 2.87 m tall and about 6 m long, its feet stay on the floor in the standing clips, each hit comes from its part at
 ## the hit frame (the jaws, the hand claws, the sickle foot), the arms (and the folded wings on them) swing in every
 ## attack, the kept moves (3-hit chomp combo, pounce, leap_back) are still there, the sickle slash lands through the
-## hitboxes in front and misses beside the rump, a landed pounce pins a survivor and bites twice, the colour-morph hook
+## hitboxes in front and misses beside the rump, the pounce lands through the hitboxes (no pin: that stays the Raptor's), the colour-morph hook
 ## is in place, and its spawn rows still spawn it.
 ## Run: Godot --headless --path game --script res://tests/t_sp_deinonychus.gd  -> "[t_sp_deinonychus] PASS", exit 0.
 
@@ -12,7 +12,7 @@ const ID := &"deinonychus"
 const FEET := ["BackFoot.L", "BackFoot.R", "BackFoot.L_end", "BackFoot.R_end"]
 const GROUND_TOL := 0.08  ## m: the lowest foot point stays this close to its rest height in standing clips
 ## clip -> [hit fracs, bone]: anim_events hit fracs and pipeline.hit_parts
-const HITS := {&"attack_primary": [[0.42], "Head"], &"attack_heavy": [[0.72], "BackFoot.R"], &"pounce": [[0.7], "Head"], &"pin_stab": [[0.38, 0.74], "Head"]}
+const HITS := {&"attack_primary": [[0.42], "Head"], &"attack_heavy": [[0.72], "BackFoot.R"], &"pounce": [[0.7], "Head"]}
 
 var failures: Array[String] = []
 var _started := false
@@ -38,7 +38,7 @@ func _run() -> void:
 	_test_view()
 	_test_spawns()
 	await _test_slash_part()
-	await _test_pounce_pin()
+	await _test_pounce()
 	_test_kept_moves()
 	_test_hook()
 	if failures.is_empty():
@@ -74,7 +74,7 @@ func _test_view() -> void:
 		view.free()
 		return
 	var clips: Array = def.pipeline.get("clips", [])
-	_expect(clips.size() >= 22, "species lists its clips (%d)" % clips.size())
+	_expect(clips.size() >= 21, "species lists its clips (%d)" % clips.size())
 	for clip in clips:
 		var authored := ResourceLoader.exists("res://assets/creatures/deinonychus/anim/%s.glb" % clip)
 		_expect(authored and view.rig.has_clip(StringName(clip)), "clip %s authored and loaded" % clip)
@@ -98,9 +98,9 @@ func _test_view() -> void:
 	var rest := INF
 	for b in FEET:
 		rest = minf(rest, _bone_pos(sk, b, true).y)
-	# Standing clips: some foot point stays on the floor every sampled frame (the slash and the pin stand on one leg).
+	# Standing clips: some foot point stays on the floor every sampled frame (the slash stands on one leg).
 	# (walk/walk_back lift the heel and toe bones mid-stride; their skin contact is gated by tools/gait/check_raptor.py)
-	for clip in [&"idle", &"strafe_left", &"strafe_right", &"attack_heavy", &"pin_stab", &"hit_react", &"alert", &"feed"]:
+	for clip in [&"idle", &"strafe_left", &"strafe_right", &"attack_heavy", &"hit_react", &"alert", &"feed"]:
 		sk.reset_bone_poses()
 		ap.play(clip)
 		var a := ap.get_animation(clip)
@@ -127,8 +127,6 @@ func _test_view() -> void:
 			var p := _bone_pos(sk, str(HITS[clip][1]))
 			var ahead: float = (p - origin).dot(fwd)
 			_expect(ahead > 1.5, "%s@%.2f: %s %.2f m ahead of the body centre" % [clip, frac, HITS[clip][1], ahead])
-			if clip == &"pin_stab":
-				_expect(p.y < head_rest.y - 0.5, "pin_stab@%.2f: the jaws come down on the pinned prey (head %.2f m, rest %.2f m)" % [frac, p.y, head_rest.y])
 			if clip == &"attack_heavy":
 				_expect((p - foot_rest).dot(fwd) > 1.0, "the slash drives the sickle foot %.2f m forward of its print" % (p - foot_rest).dot(fwd))
 	# Arms in the attacks (owner: raptor-type species use their arms): the hand claws reach out ahead at the bite.
@@ -152,6 +150,11 @@ func _test_kept_moves() -> void:
 	for clip in ["bite_combo", "pounce", "leap_back", "hop_back", "charge"]:
 		_expect(ResourceLoader.exists("res://assets/creatures/deinonychus/anim/%s.glb" % clip), "%s kept" % clip)
 	var def = data.creature(ID)
+	# HOPSTRAFE: it keeps its strafe (mixed), and the strafe step is a stride, not twinkle toes.
+	_expect(load("res://scripts/creatures/brains/tactical_brain.gd").reposition_style(def) == &"mixed", "still a hop/strafe mix")
+	var ns: Dictionary = ev["natural_speeds"][str(ID)]
+	var step := float(ns["strafe_left"]) * float(ns["strafe_left_len"])
+	_expect(step >= 1.1, "a strafe cycle carries it %.2f m (>= 1.1 m: big steps)" % step)
 	var hb: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/creatures/hitboxes.json"))["species"][str(ID)]
 	for mv in ["attack_primary", "bite_combo", "pounce"]:
 		var bones: Array = (hb["moves"][mv]["parts"] as Array).map(func(p: Dictionary) -> String: return str(p["bone"]))
@@ -228,7 +231,7 @@ func _test_slash_part() -> void:
 	player.process_mode = Node.PROCESS_MODE_DISABLED
 	var c = _dino(host, Vector3(0, 0.1, -3.0))
 	_expect(c.brain != null and str(c.brain.get_script().resource_path).ends_with("tactical_brain.gd"), "it runs the TacticalBrain (pack_flanker)")
-	_expect(c.brain.tac.get("point_blank", []).has("heavy") and c.brain.tac.get("pin", false), "its tactics add the slash and the pin")
+	_expect(c.brain.tac.get("point_blank", []).has("heavy") and not c.brain.tac.get("pin", false), "its tactics add the slash (no pin)")
 	c.brain.attack_target = player
 	c.brain.process_mode = Node.PROCESS_MODE_DISABLED  # no turning toward her during the held windup: the foot strikes where it faces
 	var parts: Array = []
@@ -256,8 +259,8 @@ func _test_slash_part() -> void:
 	_expect(parts == [true] and player.vitals.health < hp0, "the sickle slash lands in front (hp %.0f -> %.0f, foot %s)" % [hp0, player.vitals.health, parts])
 	host.free()
 
-## Pounce from 9 m: it leaps, lands, pins her under the foot (Pinned, laid down, held in front), bites twice, lets go.
-func _test_pounce_pin() -> void:
+## Pounce from 9 m: it leaps, lands and the pounce lands once from its jaws and hand claws (hitboxes); no pin.
+func _test_pounce() -> void:
 	var a := await _arena()
 	var host: Node3D = a[0]
 	var player = a[1]
@@ -269,34 +272,18 @@ func _test_pounce_pin() -> void:
 	b._combat_memory_left = 30.0
 	var seen := {}
 	b.tactic.connect(func(k: StringName) -> void: seen[k] = true)
-	var bites := [0]
-	var pinned_seen := [false]
-	var held_d := [99.0]
-	var down := [false]
-	c.anim.attack_hit.connect(func(clip: StringName) -> void:
-		if clip == &"pin_stab":
-			bites[0] += 1
-			held_d[0] = Vector2(player.global_position.x - c.global_position.x, player.global_position.z - c.global_position.z).length())
 	var landed := {}
 	b.tactic_hit.connect(func(clip: StringName, _i: int, _m: float) -> void: landed[clip] = int(landed.get(clip, 0)) + 1)
-	root.get_node("Game").god_mode = true  # the pounce alone can kill a fresh survivor; the pin needs her alive
+	root.get_node("Game").god_mode = true
 	b._start_pounce()
 	_expect(b.state == &"pounce", "the pounce starts (state %s)" % b.state)
-	for _f in 480:
+	for _f in 240:
 		await physics_frame
-		if player.statuses.has(&"pinned"):
-			pinned_seen[0] = true
-			down[0] = down[0] or player.anim.current_clip in [&"knockdown", &"pinned"]
-		if seen.has(&"pin") and b.state != &"pin" and bites[0] >= 2:
+		if landed.has(&"pounce") and b.state != &"pounce":
 			break
 	_expect(seen.has(&"leap"), "it leaps")
-	_expect(seen.has(&"pin"), "a landed pounce pins the survivor")
-	_expect(pinned_seen[0], "the survivor is Pinned")
-	_expect(down[0], "she goes down into the pinned pose (PINFEEL)")
-	_expect(held_d[0] > 2.0 and held_d[0] < 4.5, "she is held under the foot and the jaws at the bites (%.2f m from its centre)" % held_d[0])
-	_expect(bites[0] == 2, "pin_stab bites twice (%d)" % bites[0])
-	_expect(int(landed.get(&"pounce", 0)) == 1 and int(landed.get(&"pin_stab", 0)) == 2, "the pounce and both pin bites land from the jaws (%s)" % landed)
-	_expect(not player.statuses.has(&"pinned") and b.state != &"pin", "it lets go when the bites are done (state %s)" % b.state)
+	_expect(int(landed.get(&"pounce", 0)) == 1, "the pounce lands once (%s)" % landed)
+	_expect(not seen.has(&"pin") and not player.statuses.has(&"pinned"), "no pin")
 	root.get_node("Game").god_mode = false
 	host.free()
 

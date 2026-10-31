@@ -320,18 +320,6 @@
        "calibrated": true
       }
      ]
-    },
-    "pin_stab": {
-     "parts": [
-      {
-       "bone": "Jaw",
-       "radius": 1.34,
-       "calibrated": true
-      },
-      {
-       "bone": "Head"
-      }
-     ]
     }
    }
   },

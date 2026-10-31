@@ -707,3 +707,15 @@ Owner: "are we even using hitboxes for attacks? We should have hitboxes and it s
 | **HB5** | The survivor's swings, kick and tackle may bend down by up to 1.2 m, or up by 0.3 m (the kick 0.9 m), to reach a body over or under the clip's arc: a compy at her knees, a leg under a high belly. Her fist is a 0.3 m sphere. Blades are 0.45 m (knife) or 0.7 m (slashing, blunt) capsules. | `survivor.moves.*.aim_down_m / aim_up_m`, `survivor.weapons` | Without it the bare-hand thrust at chest height never touches a raptor. |
 | **HB6** | The kick now steps in up to 0.8 m before it kicks, as the tackle's 1 m lunge does. A kick or tackle whose part misses still costs its stamina and cooldown. | `combat_tuning.json` `kick.lunge_max_m`, `CombatTactics._step_and_strike` | A whiff that costs nothing would make auto-ability spam it. |
 | **HB7** | The stegosaurus's attack_primary and attack_heavy (CreatureBrain) are judged on its tail tip, plus a calibrated head sphere, because the brain swings at prey in front. | `hitboxes.json` stegosaurus | Needs a tail-toward-the-threat brain like ClubTailBrain to be honest. |
+
+### SP-DEINONYCHUS (2026-10-31) — the v4 deinonychus from the owner's sheet (claude/mmo-sp-deinonychus)
+
+Owner: "this is deinonychus, fix" and "dude turn this into a new deinonychus model. The current one is messed up". Report `docs/orchestration/reports/claude-sp-deinonychus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **DN1** | `height_meters` stays 2.87 (the data is kept), which makes the v4 body 6.0 m long on screen with its tail fan (v3 was 4.8 m). Bulk 17.2 keeps it a hop/strafe mix. | `deinonychus.json` | At 2.3 m it would be 4.8 m long again but bulk 13.7 would make it a hopper (HOPSTRAFE). |
+| **DN2** | Added to the kept pack_flanker profile: the sickle slash point blank (heavy, cd 7 s, x1.8) and `attack_range` 2.6 (the snout is 2.7 m ahead at the bite). No pounce pin: every landed pounce became a 2.4 s hold and the pack fight lost its repositioning; the Raptor keeps the pin. | `deinonychus.json` tactics | Balance and feel; the pin could come back with a cooldown or a chance. |
+| **DN3** | ClawTip.L/R markers sit at the hand bones' ends (the hands are folded inside the wing on this mesh), 0.25 m spheres, calibrated to 0.74-0.97 m in the bite and the pounce. | `hitboxes.json` deinonychus | Big claw spheres; tighter once the arm reach is tuned. |
+| **DN4** | The strafe takes 1.3 m steps (stride 0.21, 0.79 s cycle) instead of the Raptor's 0.97 m. | `tools/gait/deinonychus.json` | Owner's "twinkle toes" verdict. |
+| **DN5** | Colour morph: only the authored brown is built; `pipeline.model_variants` holds it as `brown` so a red-orange body / blue wings albedo can be added as a second row once the owner's screenshot arrives. | `deinonychus.json` | Waiting on the owner. |

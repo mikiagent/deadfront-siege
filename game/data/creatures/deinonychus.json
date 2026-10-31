@@ -146,13 +146,6 @@
           "ClawTip.R"
         ],
         "radius_m": 1.5
-      },
-      "pin_stab": {
-        "bones": [
-          "Jaw",
-          "Head"
-        ],
-        "radius_m": 1.2
       }
     },
     "clips": [
@@ -170,7 +163,6 @@
       "idle",
       "knockdown",
       "leap_back",
-      "pin_stab",
       "pounce",
       "run",
       "sleep",
@@ -182,7 +174,7 @@
     "authored_clips": {
       "from_v3": "idle, attack_primary, bite_combo (the 3-hit chomp), pounce, hop_back, leap_back, dodge_left/right, hit_react, knockdown, death: the v3 clips moved onto the v4 rig (transfer_clips.py --floor-feet, --pin-toes on the one-shots), then raptor_overlay.py: arms (and with them the wings) grab, rake and flare; the tail turns re-keyed as counter-balance",
       "gaits": "walk, run, charge, strafe_left/right, walk_back: make_gait.py on tools/gait/deinonychus.json (the Raptor's gaits; the strafe takes 1.3 m steps)",
-      "new": "pin_stab, attack_heavy (sickle slash), alert (wing-and-fan display), sleep: make_raptor_moves.py; feed: the velociraptor's",
+      "new": "attack_heavy (sickle slash), alert (wing-and-fan display), sleep: make_raptor_moves.py; feed: the velociraptor's",
       "grounded": "sleep, knockdown, death: ground_clip.py"
     },
     "gate": "Blender -b -P tools/gait/check_deinonychus.py -- deinonychus.glb anim --height 2.87",
@@ -226,7 +218,7 @@
   },
   "tactics": {
     "base": "pack_flanker",
-    "_about": "SP-DEINONYCHUS v4: the deinonychus keeps its pack_flanker profile exactly (ai.json: the same sequences, ring, ambush, 3-hit chomp combo, pounce and leap-backs). Added on top, # ASSUMPTION every number (DN2): PIN (RPR, 'raptor prey restraint', how Deinonychus is thought to have killed): a landed pounce pins prey no bigger than itself under the right foot while it flaps the wings for balance and bites twice (pin_stab, x pin_mult each, from the jaws). SICKLE SLASH: point blank it may cock the foot under the windup ring and slash (heavy, attack_heavy, from BackFoot.R, x heavy_mult). Arms: every bite, combo bite, pounce and the pin rake with the hand claws (ClawTip.L/R hit parts).",
+    "_about": "SP-DEINONYCHUS v4: the deinonychus keeps its pack_flanker profile exactly (ai.json: the same sequences, ring, ambush, 3-hit chomp combo, pounce and leap-backs). Added on top, # ASSUMPTION every number (DN2): SICKLE SLASH: point blank it may cock the right foot under the windup ring and slash (heavy, attack_heavy, from BackFoot.R, x heavy_mult). ARMS: every bite, combo bite and the pounce rake with the hand claws (raptor_overlay.py; ClawTip.L/R hit parts). No pounce pin: with the Raptor's RPR pin every landed pounce became a 2.4 s hold and the pack fight lost its repositioning (t_tactical); the Raptor keeps the pin.",
     "attack_range": 2.6,
     "_attack_range": "ASSUMPTION (COELOMOVES rule): the v4 model is 6.0 m long at the same 2.87 m height (the old one was 4.8 m), so the snout reaches 2.7 m ahead at the bite's hit frame (check_deinonychus.py); pack_flanker's 2.0 left the bites snapping short.",
     "point_blank": [
@@ -235,9 +227,6 @@
       "bite"
     ],
     "heavy_cd": 7.0,
-    "heavy_mult": 1.8,
-    "pin": true,
-    "pin_mult": 1.0,
-    "pin_reach_m": 2.8
+    "heavy_mult": 1.8
   }
 }

@@ -9,7 +9,7 @@
 #     moved onto the new rig from work/v3/ (the v3 rig and clips, kept as the source) with transfer_clips.py
 #   4 gaits on the new rig: make_gait.py + tools/gait/deinonychus.json (raptor gaits, bigger strafe steps)
 #   5 raptor_overlay.py: the arms (and so the wings) grab, rake and flare in every attack and leap; tail counter-balance
-#   6 make_raptor_moves.py: pin_stab (pounce-pin-and-bite), attack_heavy (sickle slash), alert (wing-and-fan display), sleep
+#   6 make_raptor_moves.py: attack_heavy (sickle slash), alert (wing-and-fan display), sleep (no pin_stab: the pin stays the Raptor's)
 #   7 velociraptor feed; ground_clip.py on the loops
 # Gate: Blender -b -P tools/gait/check_deinonychus.py -- $D/deinonychus.glb $D/anim --height 2.87
 set -euo pipefail
@@ -41,7 +41,7 @@ run -P tools/gait/make_gait.py -- $D/deinonychus.glb tools/gait/deinonychus.json
 run -P tools/gait/make_gait.py -- $D/deinonychus.glb tools/gait/deinonychus.json walk $T/x/walk_back.glb --as walk_back --travel 0,1,0
 for c in idle attack_primary bite_combo pounce hop_back leap_back dodge_left dodge_right hit_react knockdown death; do
   run -P tools/gait/raptor_overlay.py -- $D/deinonychus.glb $T/x/$c.glb $T/o/$c.glb; cp $T/o/$c.glb $T/x/; done
-for c in pin_stab attack_heavy alert sleep; do run -P tools/gait/make_raptor_moves.py -- $D/deinonychus.glb $c $T/x/$c.glb; done
+for c in attack_heavy alert sleep; do run -P tools/gait/make_raptor_moves.py -- $D/deinonychus.glb $c $T/x/$c.glb; done
 for c in sleep knockdown death; do run -P tools/gait/ground_clip.py -- $D/deinonychus.glb $T/x/$c.glb $T/g/$c.glb; cp $T/g/$c.glb $T/x/; done  # the v3 fall put a foot 10 cm under
 rm -f $D/anim/*.glb; cp $T/x/*.glb $D/anim/
 ls $D/anim/*.glb | wc -l
