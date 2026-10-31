@@ -370,6 +370,12 @@
           "species": "stegosaurus",
           "count": 1,
           "groups": 1
+        },
+        {
+          "species": "raptor",
+          "count": 2,
+          "groups": 1,
+          "chance": 0.7
         }
       ]
     },
@@ -393,6 +399,12 @@
         }
       ],
       "working": [
+        {
+          "species": "ceratosaurus",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.6
+        },
         {
           "species": "dilophosaurus",
           "count": 2,
@@ -418,6 +430,12 @@
           "count": 2,
           "groups": 1,
           "chance": 0.3
+        },
+        {
+          "species": "raptor",
+          "count": 2,
+          "groups": 1,
+          "chance": 0.7
         }
       ]
     },
@@ -588,6 +606,11 @@
       ],
       "working": [
         {
+          "species": "ceratosaurus",
+          "count": 1,
+          "groups": 1
+        },
+        {
           "species": "triceratops",
           "count": 3,
           "groups": 1
@@ -604,6 +627,13 @@
           "count": 3,
           "groups": 1,
           "tier_offset": 3
+        },
+        {
+          "species": "megarex",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.5,
+          "_note": "MEGAREX boss: at most one per island, half the islands of this tier roll one (ASSUMPTION)"
         }
       ],
       "far_shore": [
@@ -656,6 +686,13 @@
           "count": 3,
           "groups": 1,
           "tier_offset": 3
+        },
+        {
+          "species": "megarex",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.5,
+          "_note": "MEGAREX boss: at most one per island, half the islands of this tier roll one (ASSUMPTION)"
         }
       ],
       "far_shore": [
@@ -693,6 +730,13 @@
           "count": 3,
           "groups": 1,
           "tier_offset": 3
+        },
+        {
+          "species": "megarex",
+          "count": 1,
+          "groups": 1,
+          "chance": 0.5,
+          "_note": "MEGAREX boss: at most one per island, half the islands of this tier roll one (ASSUMPTION)"
         }
       ],
       "far_shore": [

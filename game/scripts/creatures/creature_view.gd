@@ -93,6 +93,8 @@ var _rider_bone: int = -1
 var _rider_offset: Transform3D = Transform3D.IDENTITY
 var _hit_flash_left: float = 0.0
 var _flinch_tw: Tween
+## Keeps the feet on the ground through a hit (procedural rattle or an authored hit_react); null without a rig.
+var planted: PlantedFlinch
 ## Per-individual natural coloration (null = neutral, the species texture as authored).
 var coloration: CreatureColoration
 ## One shared shader for every individual; each individual gets its own ShaderMaterial per surface.
@@ -106,11 +108,14 @@ var _rest_of: Dictionary = {}
 ## resource and shared by every individual of that species. Patterns read it, so they never slide.
 static var _rest_meshes: Dictionary = {}
 
-## Procedural hurt: a quick shove back and a nod, then settle. Used instead of the synthesised
-## hit_react clip ("death 0-35 % reversed") that made transplanted species start collapsing on
-## every hit. Works on the rig node (GLB) or the placeholder body.
+## Procedural hurt. Used instead of the synthesised hit_react clip ("death 0-35 % reversed") that made transplanted
+## species start collapsing on every hit. A rigged body rattles its head chain and tail with the feet planted
+## (PlantedFlinch); the placeholder body still gets the old shove + nod.
 func flinch(strength: float = 1.0) -> void:
-	var node: Node3D = rig if (using_glb and rig) else _body
+	if planted:
+		planted.shake(strength)
+		return
+	var node: Node3D = _body
 	if node == null or def == null:
 		return
 	if _flinch_tw and _flinch_tw.is_valid():
@@ -121,6 +126,11 @@ func flinch(strength: float = 1.0) -> void:
 	_flinch_tw.parallel().tween_property(node, "rotation:x", -0.16 * strength, 0.07)
 	_flinch_tw.tween_property(node, "position:z", 0.0, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_flinch_tw.parallel().tween_property(node, "rotation:x", 0.0, 0.2)
+
+## The head bone: every modelled species names it "Head" (stegosaurus "head"). -1 = none.
+static func head_bone(sk: Skeleton3D) -> int:
+	var i := sk.find_bone("Head")
+	return i if i >= 0 else sk.find_bone("head")
 
 func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 	def = p_def
@@ -146,6 +156,12 @@ func setup(p_def: CreatureDef, p_variant: StringName = &"") -> void:
 				rig.mesh_root.scale = Vector3.ONE * float(def.pipeline["stand_in_model_scale"])
 			using_glb = true
 			rig.fill_missing(CreatureClips.CONTRACT)
+			if rig.skeleton:
+				planted = PlantedFlinch.new()
+				planted.name = "PlantedFlinch"
+				planted.view = self
+				planted.height_m = def.height_meters
+				rig.skeleton.add_child(planted)
 			_apply_model_variant()
 		else:
 			push_error("CreatureView: %s has a model but it failed to load" % glb)
@@ -206,8 +222,8 @@ func _apply_model_variant() -> void:
 			continue
 		for i in m.mesh.get_surface_count():
 			var src := m.get_active_material(i) as StandardMaterial3D
-			if src == null:
-				continue
+			if src == null or src.albedo_texture == null:
+				continue  # SP-RAPTOR: an untextured surface (open_mouth.py's flat gum-red mouth bag) keeps its colour
 			var mat := src.duplicate() as StandardMaterial3D
 			mat.albedo_texture = tex
 			m.set_surface_override_material(i, mat)

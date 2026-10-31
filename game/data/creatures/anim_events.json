@@ -8,7 +8,8 @@
     "attack_heavy": {
       "hit_frac": 0.72,
       "windup": true,
-      "windup_hold": 0.6
+      "windup_hold": 0.6,
+      "note_raptor": "raptor (SP-RAPTOR, make_raptor_moves.py): sickle slash, 1.42 s: rocks onto the left leg with the right foot hauled high and the claw cocked (held at windup_hold 0.6), drives the foot forward and down at 0.72 and rakes it back; hits from BackFoot.R"
     },
     "hit_react": {
       "speed": 2.0
@@ -122,7 +123,8 @@
         0.74
       ],
       "windup": false,
-      "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)"
+      "note": "smilodon (SP-SMILODON, tools/gait/make_cat_moves.py): 2.4 s held over pinned prey under both forepaws; the head rears with the jaws wide, then the sabres drive down at 0.38 and again at 0.74 (TacticalBrain pin, x pin_mult each, hit from the Head bone)",
+      "note_raptor": "raptor (SP-RAPTOR, tools/gait/make_raptor_moves.py): the same 2.4 s and hits: after a landed pounce the right foot stamps onto the prey and holds it (RPR), the feathered arms flap for balance, the head rears jaws-wide and bites down at 0.38 and 0.74 (TacticalBrain pin, from the Head part)"
     },
     "charge_turn": {
       "airborne": [
@@ -141,6 +143,42 @@
       "windup": true,
       "windup_hold": 0.25,
       "note": "SP-ALLOSAURUS: the hands clamp at 0.3 (TacticalBrain.landed pins the prey), bites at 0.55 and 0.8 (tools/gait/make_allo_moves.py)"
+    },
+    "bite_shake": {
+      "hit_frac": 0.3,
+      "windup": true,
+      "note": "T. rex signature (SP-TYRANNOSAURUS): short lunge, the jaws clamp on the hit (0.30), four head thrashes, then a fling to her left with the jaws opening; 2.5 s. tools/gait/make_rex_moves.py bite_shake. MegaRexBrain plays it from phase 2 on a target small enough to grab."
+    },
+    "charge_windup": {
+      "note": "STYRAFIX telegraph before a horned charge (styracosaurus): horns lowered, a fore-foot paws twice, a snort; the body stands still (tools/jaw/make_styra_impale.py)"
+    },
+    "impale": {
+      "hit_frac": 0.26,
+      "release_frac": 0.46,
+      "note": "STYRAFIX: horns dip to the ground and scoop up hard. The survivor is caught on the horn tip at hit_frac, carried up with it and flung at release_frac (TacticalBrain impale phase); feet planted"
+    },
+    "charge_recover": {
+      "note": "STYRAFIX: winded after a charge, head low with three decaying head shakes; the punish window (charge_recover_s)"
+    },
+    "stomp": {
+      "hit_frac": 0.56,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, tools/gait/make_tail_club.py stomp), 1.5 s: the front rears off the left forefoot, the foot hauled high and forward, held, then slammed down in front (impact 0.56); ClubTailBrain lands the hit (ai.json club_tail.close_moves.stomp: an area in front, knockdown)"
+    },
+    "shove_left": {
+      "hit_frac": 0.48,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 1.2 s: cocks away, then head and shoulders swing hard to its left while the body lurches over and the left forefoot steps out (impact 0.48); ClubTailBrain lands the hit (close_moves.shove_left, knockback sideways)"
+    },
+    "shove_right": {
+      "hit_frac": 0.48,
+      "windup": true,
+      "note": "mirror of shove_left, to its right"
+    },
+    "tackle": {
+      "hit_frac": 1.0,
+      "windup": true,
+      "note": "ankylosaurus (ANKYLOCLOSE, make_tail_club.py), 0.9 s: the coil before the body check (crouch, front low, head down, a forefoot paws); ClubTailBrain then runs it up to close_moves.tackle.lunge_m into her and lands the hit on contact (knockdown)"
     }
   },
   "natural_speeds": {
@@ -430,6 +468,53 @@
       "walk_back": 1.613,
       "walk_back_len": 1.417,
       "_note": "SP-ALLOSAURUS: make_gait stride / clip length x height_meters / source height (0.455), not a Godot bake; tuned so the run (5.9 m/s) and walk (2.6 m/s) sit at the stats' 5.2 / 2.6 m/s"
+    },
+    "ceratosaurus": {
+      "height_m": 4.0,
+      "run_l": 11.242,
+      "run_len": 0.542,
+      "run_r": 11.051,
+      "walk_l": 2.912,
+      "walk_len": 1.0,
+      "walk_r": 2.912,
+      "walk": 2.912,
+      "run": 11.146,
+      "strafe_left": 1.941,
+      "strafe_left_len": 1.0,
+      "strafe_right": 1.941,
+      "strafe_right_len": 1.0,
+      "walk_back": 1.941,
+      "walk_back_len": 1.0
+    },
+    "megarex": {
+      "height_m": 10.4,
+      "run_l": 5.957,
+      "run_len": 0.917,
+      "run_r": 5.956,
+      "walk_l": 2.018,
+      "walk_len": 1.417,
+      "walk_r": 2.018,
+      "walk": 2.018,
+      "run": 5.957,
+      "strafe_left": 2.018,
+      "strafe_left_len": 1.417,
+      "strafe_right": 2.018,
+      "strafe_right_len": 1.417,
+      "walk_back": 2.018,
+      "walk_back_len": 1.417
+    },
+    "raptor": {
+      "height_m": 3.5,
+      "run_l": 5.515,
+      "run_len": 0.5,
+      "run_r": 5.515,
+      "walk_l": 1.17,
+      "walk_len": 1.0,
+      "walk_r": 1.17,
+      "walk": 1.17,
+      "run": 5.515,
+      "charge": 8.21,
+      "_note": "SP-RAPTOR: walk/run from tools/bake_clip_speeds.py --dry-run (the deinonychus gaits moved onto the raptor); charge = run x the deinonychus charge/run ratio (6.6/4.432)"
     }
   }
 }

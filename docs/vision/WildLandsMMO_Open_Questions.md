@@ -316,6 +316,16 @@ Source: branch `claude/mmo-styratactics`, report `docs/orchestration/reports/dsc
 | **S3** | Point blank it sweeps the horns: the `heavy` move (attack_heavy clip) x 2.2, 7 s cooldown, before kick/bite in `point_blank`. | `heavy_cd`, `heavy_mult`, `point_blank`, `TacticalBrain` heavy move | Gives the big head a finisher that is not a bite. |
 | **S4** | It fights to 25 % HP, then flees 4 s; guard 20 m around its home; herd defence as pack_mule. | `retreat_frac`, `guard_m`, `herd_defend` | Braver than the zebra; still capturable when weak. |
 
+### STYRAFIX (2026-10-31) — styracosaurus 3x and the impale charge (claude/mmo-styrafix)
+
+Owner, from the fight lab: "make styracosaurus bigger by like 3x ... i see you attempted to make some cool charge attacks and impale? we have to fix it". Report `docs/orchestration/reports/claude-styrafix.md`. Numbers in `game/data/creatures/styracosaurus.json` (`tactics` block), every one an ASSUMPTION.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **SF1** | height_meters 2.25 -> 6.75 (15.2 m long on screen, longer than the triceratops at 9.2 m); real_length_m 11 -> 19 by the roster rule (RS2) rather than 33 (3 x 11), so the capsule radius (2.3 m) matches the 4.7 m wide body. It now needs the Apex pen (over 18 m) and a large saddle; turn rate 2.5 -> 1.4. | `height_meters`, `real_length_m`, `turn_rate` | 33 would make an 8 m wide hitbox and the biggest gameplay body in the roster. |
+| **SF2** | Its distances scale with it: ring 16 m, reach 6 m (the horns, not the barrel), display 9 m, charge through 6 m, strafe and hop 3 m, guard 45 m. It charges only from 10 m. | `tactics` block | Without the scaling it hugged the survivor with its chest and charged from 3 m. |
+| **SF3** | Charge = paw (about 1.3 s, until aimed within 12 deg) -> straight run (0.5 s ramp to about 9 m/s) -> impale (caught at the horn tip, carried, flung 4 m/s up and 4 m ahead) or miss (brakes 0.6 s, stands 2 s: the punish window). It cannot be flinched while it paws, runs or impales. | `charge_*`, `impale_*`, `toss_up_mps` | The read the owner asked for: telegraph, commit, punish. |
+
 ### TOOLSDOC (2026-10-30) — tools, durability, repair and gear traits
 
 Source: `docs/design/tools-durability-crafting.md` (PROPOSED; packages P1-P4 on the roadmap), from Milan's research
@@ -416,6 +426,24 @@ tail whip, tail smash"; "keeps feet planted or steps in the direction for the sw
 | **AK7** | Whip knocks the survivor 3 m back, sweep 3.5 m, the smash's club knocks her down (the `knockdown` status), its shockwave pushes 2 m. | `knockback_m`, `knockdown`, `shock_knockback_m` | Knockdown length is the shared status's. |
 | **AK8** | A tamed ankylosaurus (PetBrain) still swings by reach at the clip's global `hit_frac` (attack_primary 0.42, attack_heavy 0.72 in `anim_events.json`), which now falls in the wind-up of the longer clips. Pets were not in scope. | `anim_events.json`, `PetBrain` | A pet's hit lands visibly early until pets get the club hit too. |
 
+### ANKYLOCLOSE (2026-10-31) — the ankylosaurus fights back up close (claude/mmo-ankyloclose)
+
+Owner: "ankylosaurus is hardly fighting back. have it do a stomp attack, a shove attack, a tackle attack, etc. I should not
+be able to punch it over and over up close without consequence". Numbers in `ai.json archetypes.club_tail.close_moves` /
+`close_zone` unless noted. AK6 ("never runs, never closes under 2 m") no longer holds in front: the tackle runs up to
+2.5 m. Report: `claude-ankyloclose.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **AC1** | Close zone, metres from its centre in its own frame: front = 2.4-8.0 m ahead within 2.4 m of the midline (the head is 3.6 m out); side = from 1 m behind the centre to 3.8 m ahead, up to 4.4 m out. Behind that: the tail, as before. Scales with body size. | `close_zone` | Where the tail stops and the head and feet take over. |
+| **AC2** | Front: STOMP and TACKLE alternate; TACKLE whenever she stands past the stomp's reach (6.4 m). Side: SHOVE to her side. | `ClubTailBrain.FRONT_SEQUENCE`, `_close_move` | Which move the player sees most. |
+| **AC3** | Cooldowns: stomp 1.2 s, shove 1.0 s, tackle 1.8 s (x0.6 enraged), separate from the tail's. With her up and close it stands idle at most ~1 s (t_ankyloclose limit 2.5 s). | `cooldown_s`, `t_ankyloclose.IDLE_MAX_S` | How relentless it is up close. |
+| **AC4** | Damage = attack 420 x: stomp 0.9, shove 0.6, tackle 1.1 (each still one-shots a fresh 100 HP survivor, as AK1). Stomp and tackle knock down; shove knocks 3 m sideways, stomp 1.5 m, tackle 2.5 m. | `damage_mult`, `knockdown`, `knockback_m` | Balance (pc-balance). |
+| **AC5** | Hits: STOMP lands the frame the left forefoot is back within 0.12 m of the ground (window 0.50-0.68 of the 1.5 s clip), a 2.0 m sphere 4.4 m ahead; SHOVE at 0.48 of its 1.2 s clip, a 2.2 m sphere 55 deg to that side at 3.2 m; TACKLE on contact during the run, a 0.5 m sphere 3.9 m ahead. Roll inside the ring dodges, as for the tail. | `strike`, `impact_bone`, `target_*`, `hit_radius_m`, `contact_*` | How close a near-miss can be. |
+| **AC6** | One punch from close provokes it (was three for every grazer) and it skips the look-around (alert) when the puncher is in the close zone: it answers in ~0.4 s. | `club_tail.provoke_hits`, `ClubTailBrain.on_aggro` | The owner's "without consequence". |
+| **AC7** | It does not hit a knocked-down survivor: it waits for her to stand. | `ClubTailBrain._position` | Without it, stomp then tackle would chain on the floor. |
+| **AC8** | The tackle is a 0.9 s coil clip, then the run gait (stride-matched, no glide) at 5 m/s on a line locked at launch (at her if within 45 deg of the snout). No dedicated impact clip. | `tackle.lunge_m`, `lunge_mps`, `_start_lunge` | A body-slam clip on contact would read better; next art pass. |
+
 ### COELOMOVES (2026-10-31) — coelophysis and gallimimus on the deinonychus brain, skittish-territorial grazers (claude/mmo-coelomoves)
 
 Owner: "give the coelophysis all of the same attacks as deinonychus"; "Gallimimus AI is completely braindead. Give it patched deinonychus's brain as a template and we will tune after"; megaloceros and gallimimus "should get territorial and engage the player after running away once ... run away when its weak". Report `docs/orchestration/reports/claude-coelomoves.md`.
@@ -504,3 +532,65 @@ Owner: "yes allosaurus" (build it, be creative with its fight moves). Report `do
 | **AL4** | Reach: `tactics.reach_m` 7.0 (the jaws are ~7 m ahead of its centre at the bite; the same hook as SP-TARBOSAURUS). Each hit also needs its part (`pipeline.hit_parts`). | tactics, `TacticalBrain.contact_reach` | Move to the hitbox system when it lands. |
 | **AL5** | The grab pins with PINFEEL's pinned pose (she lies on the ground and the bites come down to her), not a lift in the hands. | `grab_bite` clip | A held-aloft pose would need survivor clips. |
 | **AL6** | Not tameable (as before); no saddle, no alpha skin (no alpha sheet: genetics recolour only), no eye glow. | `allosaurus.json` | Owner's call. |
+
+### SP-CERATOSAURUS (2026-10-31) — a new species: Ceratosaurus, with gore, slashing bite, tail swipe and a water-edge lunge (claude/mmo-sp-ceratosaurus)
+
+Owner: "build some of the models ... Be creative with what moves you think they should do when they fight"; owner sheets "I made it look more like a ceratosaurus". Report `docs/orchestration/reports/claude-sp-ceratosaurus.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **CE1** | Size: ~6 m real at the house 1.6x = 9.7 m nose to tail, `height_meters` 4.0 (top of the brow horns, hips 2.3 m); `real_length_m` 12 (the roster's 2x). | `ceratosaurus.json` | The sheet has no scale figure; a bigger or smaller animal is one number. |
+| **CE2** | Stats between the utahraptor and the allosaurus: tier 45, 5200 HP, attack 360, defense 150, speed 560; tameable in a pen (6 raw-meat feeds), combat role only (no saddle). A fresh 100 HP survivor dies to one gore (x1.8) or one tail swipe (x1.3). | `ceratosaurus.json` | Balance pass; whether it should be rideable. |
+| **CE3** | Moves: slashing bite (attack_primary) applies Bleed x2 and is the only move that bleeds (`pipeline.status_clips`); nose-horn gore (attack_heavy, x1.8, held head-down telegraph); tail swipe in the brain's kick slot (prey behind it, x1.3); lunge = the pounce (x1.5, low surge, telegraphed by the gore crouch under the ground ring). Base profile saber_cat without stalk and pin. | `ceratosaurus.json` tactics, `CreatureAttack._apply_token` | Move set, multipliers and cooldowns are first-pass. |
+| **CE4** | Water-edge ambush: when a dry bank beside the river (within 9 m of its centre line) or the shore is within 40 m of home it lurks there and opens with the lunge (ambush radius 10 m, 15 m for a turned back); with no water near home, or in the lab, it hunts in the open. Spawns: swamp_55 working ring (1) and tropical_40 working ring (1, 60 %). | `TacticalBrain._find_water_edge`, `islands.json` | Where it lives and how sneaky it is. |
+| **CE5** | Alpha = the owner's sheet 2 (camo olive/dark brown/cream, orange throat and belly) as a recolour of the regular texture: same mesh, so the alpha's bigger blocky nasal crest and taller brow horns are not there (no second generation). | `ceratosaurus_alpha_albedo.jpg` | A separate alpha mesh would cost one Tripo generation. |
+
+### SP-TRIKEALPHA (2026-10-31) — the Alpha triceratops gets its own bull-horned body (claude/mmo-sp-trikealpha)
+
+Owner: "whatever happened to that bulky triceratops with the bull horns, is that in?". Report `docs/orchestration/reports/claude-sp-trikealpha.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **TA1** | The Alpha body is a separate model (`model_variants.alpha`) worn by every alpha triceratops (wild rolled alphas, the lab's Alpha toggle, tamed alphas); regular triceratops keep the regular body. | `triceratops.json`, `Creature.spawn` | The owner may want it as its own rarer morph instead of every alpha. |
+| **TA2** | Tripo views were made with the beak closed (the sheet's open mouth would bake an open jaw into the rest pose); the jaw bone opens it in the roar, attacks and feed. | `alpha/ref/` | If the gaping mouth is the look he wants, the idle needs a held jaw-open pose. |
+| **TA3** | Same 4.645 m height as the regular, so the Alpha is 10.9 m beak to tail (longer, lower, wider); alpha genetics then scale it up 1.1-1.3x like any alpha. | `prep.py` scale, `height_meters` | Could be made taller. |
+| **TA4** | Signature: a landed charge ends in the bull-horn toss: head driven low, then a twist to its right that throws the survivor 5 m sideways (toss_side_m), 1.5 m along the line, lifted 4.5 m/s, 1.2 s stagger; charge cooldown 6 s (regular 8). | `model_variants.alpha.tactics`, `TacticalBrain._charge_impact` | Balance and feel. |
+| **TA5** | The Alpha's horn hits are judged at the Head bone with 2.4-2.6 m radii (no horn bones on the regular's rig layout; hitboxes not on canon). | `model_variants.alpha.hit_parts`, `Creature.part_hit` | Move to the hitbox system when it lands. |
+| **TA6** | A ridden mount never plays its strafe clips (it turns into its heading); the slow-turning Alpha played strafes under the rider. | `PlayerPets.mounted_move` | Affects every mount with strafe clips (megaloceros, rhino, smilodon...). |
+
+### SP-RAPTOR (2026-10-31) — the Raptor, a new rideable dromaeosaur with colour morphs (claude/mmo-sp-raptor)
+
+Owner: "black and gold is the original raptor (idk just call it Raptor)", "raptor is big enough though" (to ride), "it comes in different colors including green and different feathers". Report `docs/orchestration/reports/claude-sp-raptor.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **RP1** | Size: `height_meters` 3.5 (back over the hips ~2.4 m, 7.5 m long on screen = 4.7 m true at the house 1.6x, between deinonychus 4.8 m and utahraptor 11.2 m on screen); `real_length_m` 9.4 (the roster's 2x). | `raptor.json` | Size sets reach, pen tier, mount height. |
+| **RP2** | Stats between deinonychus and utahraptor: hp 2400, attack 230, defense 90, speed 650; tier 42, capture tier 4, 4 feeds in a pen; `deep_bleed`. A landed sickle slash (x2.0) or pounce (x2.5) kills a fresh 100 HP survivor. | `raptor.json` | Balance pass. |
+| **RP3** | AI: the deinonychus pack_flanker profile x1.25 distances, plus a pin (a landed pounce pins prey no bigger than itself under the right foot; two pin bites x1.0, held 3.2 m out), a point-blank sickle slash (heavy, cd 6 s, x2.0, from the right foot) and a crest-flare display that leads into a pounce. `attack_range` 2.9 (a species override, new in CreatureBrain.setup) so the bite meets her. | `raptor.json` tactics | Move mix, damage and the pin length are design calls. |
+| **RP4** | Colour morphs: five textures on one mesh with equal odds per wild spawn: black_gold (the sheet), black_crimson (the feather morph), green (olive hide, amber feathers), rust (rust hide, cream feathers), slate (blue-grey hide, ice-blue feathers). Recoloured from the Tripo albedo, so every morph has the same crest and quill shapes; no crest on/off. Alphas wear their rolled morph. | `pipeline.model_variants`, `tools/gait/raptor_palettes.py` | Which morphs exist, their odds, and whether colour ties to island/biome are the owner's. |
+| **RP5** | Spawns: a pair (chance 0.7) on the far shore of `temperate_35` and `tropical_40`; home climate tropical. | `islands.json` | Where it lives. |
+| **RP6** | Clips: the deinonychus set moved onto its body (bites step in with a short hop, both feet up to 0.18 m for a frame), the velociraptor's feed; pin_stab, the sickle slash, the crest-flare alert and sleep are new. Its arm feathers are part of the arm skin (no separate wing fans like the deinonychus), so the arm spread reads small. | `anim/`, `tools/gait/make_raptor_moves.py` | Clip asks go to the owner's review. |
+### MEGAREX (2026-10-31) — the v2 open-mouth rex as a boss species (claude/mmo-sp-tyrannosaurus)
+
+Owner: "call that monstrosity MegaRex ... make it a boss fight". Report `docs/orchestration/reports/claude-sp-megarex.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **MR1** | Size 1.3x the T. rex (10.4 m tall, ~21.5 m long on screen); hp 400000, attack 1400, defense 500, tier 60 like the rex. | `megarex.json` | Boss tuning is a first pass. |
+| **MR2** | Phases by health: 1 (> 66 %) bite, bite, stomp-pin, no tail whip; 2 (<= 66 %) adds the bite and shake (every third bite on a survivor or a creature <= 3 m: 1.5x damage, knocked down; Pinned stays the stomp's) and the tail whip, windups x0.8, recoveries x0.9; 3 (<= 33 %) enraged (the Enraged status, kept on), a roar on entering it and then every 14 s in melee (Groggy + flinch on survivors and creatures <= 3 m within 22 m), windups x0.65, recoveries x0.7. | `mega_rex_brain.gd` | Every cut-off and scale is a guess for the owner to tune. |
+| **MR3** | Rare: a `crater` row of one MegaRex, chance 0.5, on swamp_55, tundra_55 and volcanic_60 (at most one per island). | `world/islands.json` | Which islands and how rare. |
+| **MR4** | Loot: every MegaRex carcass rolls as an alpha's (the guaranteed rare rows, the trophy, the alpha pool: alpha_hide 3-4, alpha_fang 3); butchering = the T. rex rows x~1.5. Not tameable. | `corpse.gd`, `loot_tables.json`, `butchering.json` | Boss rewards. |
+| **MR5** | Look: the olive v2 hide the owner saw. The armoured slate recolour from the Alpha sheet (`megarex/ref/megarex_armoured_albedo.jpg`, `tools/gait/rex_alpha_skin.py`) is not used; the sheet's horns and spike row would need another Tripo mesh. Lying clips go down on the belly (side-lying tore the thigh skin on this rig). The mesh is its left half mirrored (Tripo modelled a mid-stride pose). The plate shows "Mega Rex" (the game capitalises species names). | `megarex.json`, `make_rex_moves.py --v2` | Cosmetic choices the owner may want changed. |
+
+### CORNERED (2026-10-31) — fleeing animals fight back when chased (claude/mmo-cornered)
+
+Owner: "Animals that run away from you should get territorial and attack you if you chase them". Report `docs/orchestration/reports/claude-cornered.md`.
+
+| # | Default taken | Where | Why it matters |
+|---|---|---|---|
+| **CN1** | Chasing = the threat within `radius_m` 10 of a fleeing animal and moving at it at `pursuit_mps` 1.5 or more; each hit while it flees adds `hit_s` 1.5; pressure decays at half speed when not pressed. Turns at `pressure_s` 3 or `chase_m` 20 of pursuit. | `ai.json default.cornered` | How long a chase takes before it turns. |
+| **CN2** | The fight lasts `fight_s` 12 (wall-clock, a provocation); then the normal grazer rules run (it flees again if still pressed). Under `weak_frac` 0.3 HP it runs at once and has to be chased again to turn. | `ai.json default.cornered` | Fight length and the run-away cut-off. |
+| **CN3** | The display is the first of roar / crest_flare / stomp / alert the rig has, held `display_s` 0.8; every rig today only has `alert`. | `ai.json default.cornered.display_clips` | Real roar/stomp clips would read better. |
+| **CN4** | Any chaser counts (a pet too), not only the survivor. Timid (flee nature) animals turn too when chased (they still flee first and run sooner when hurt). Swarm/pack tactical flights and a Timid rage (enrage_flee) are exempt: they come back on their own. | `brain_cornered.gd`, `tactical_brain.gd _provoked` | Whether Timid should ever fight. |
+| **CN5** | Defaults for every species; no species override shipped. A species turns it off or retunes it with a `"cornered"` block in its tactics (e.g. `{"enabled": false}`). | species JSON tactics | Per-species tuning. |
+
