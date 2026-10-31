@@ -1,6 +1,8 @@
 #!/bin/bash
 # SP-MEGALOCEROS: rebuild both megaloceros bodies (stag, doe), their rigs and every clip.
-# Inputs (gitignored, re-download with the Tripo task ids in megaloceros.json pipeline): work/megaloceros_{stag,doe}_tripo.glb
+# Inputs (gitignored, re-download with the Tripo task ids in megaloceros.json pipeline): work/megaloceros_{stag,doe}_tripo.glb.
+# The stag's antler rack is committed, already cleaned: tools/gait/megaloceros/antlers_tripo.glb (antler_prep.py on the
+# Tripo task pipeline.tripo.stag_antlers).
 set -euo pipefail
 cd "$(dirname "$0")/../../.."
 BL=${BLENDER:-/Applications/Blender.app/Contents/MacOS/Blender}
@@ -17,6 +19,9 @@ for v in stag doe; do
   rm -f $anim/*.glb; cp $T/${v}_g/*.glb $anim/
   echo "$v: $(ls $anim/*.glb | wc -l) clips"
 done
+# MEGANTLERS: the Tripo rack against the stag's body and the floor in every clip
+"$BL" -b -P $M/check_antlers.py -- $D/megaloceros.glb $D/anim 2>&1 | grep -E "in-body|ANTLERS" | tee "$T/antlers.txt"
+grep -q "ANTLERS PASS" "$T/antlers.txt" || { echo "FAILED: antlers"; exit 1; }
 echo "BUILD OK ($T)"
 # saddles (both bodies; the doe's lives in doe/mount, model_variants.doe.mount)
 tools/blender/saddles/build.sh megaloceros

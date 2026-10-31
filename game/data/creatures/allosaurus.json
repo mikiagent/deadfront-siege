@@ -30,7 +30,12 @@
     "grab_bite": "Lunges low, the three-fingered hands clamp the prey, then two downward bites",
     "kick": "Shoulder ram: crouches, winds, then drives the right shoulder forward into prey pressed under its chin",
     "knockdown": "Buckles and falls onto its side",
-    "alert": "Head up, then a roar thrust forward with the jaws wide and a head shake"
+    "alert": "Head up, then a roar thrust forward with the jaws wide and a head shake",
+    "claw_rake": "Arm rake: rears with both arms high, claws spread and trembling, then pitches forward and rakes both arms down through prey under its chest",
+    "slash_bite": "Hatchet slash: head cocked high to its left with the jaws gaping, then the open upper jaw slashes down and across, and it pulls back off the prey (slash and retreat, Bleed)",
+    "check_left": "Shoulder-check: leans away, then slams chest, shoulder and hip sideways into prey at its left flank, the near arm raking",
+    "check_right": "Shoulder-check to its right flank (check_left mirrored)",
+    "bite_combo": "Chomp combo (the carnotaurus kit): coils with the jaws gaping, chomps left with the left arm raking, chomps right with the right arm, rears up with the jaws wide and both arms raised (the tell), then a MEGA chomp down through the middle with both arms raking and a head shake"
   },
   "taming": {
     "preferred_food": [
@@ -91,7 +96,7 @@
     "jaw": "tools/jaw/add_jaw.py --open --x-side --snout 0.135 --pivot 0.03 0.365 --blend 0.008",
     "gaits": "tools/gait/make_gait.py tools/gait/allosaurus.json: walk (0.26 units / 1.42 s), run (0.38 / 0.92 s); strafe_left/right and walk_back from the walk plan (stride 0.16)",
     "clips_from": {
-      "idle,alert,attack_primary,attack_heavy,grab_bite,kick,hit_react,knockdown,death,sleep,feed": "tools/gait/make_allo_moves.py (feet IK-planted; lying clips rest on the floor)"
+      "idle,alert,attack_primary,attack_heavy,grab_bite,kick,hit_react,knockdown,death,sleep,feed,claw_rake,slash_bite,check_left,check_right,bite_combo": "tools/gait/make_allo_moves.py (feet IK-planted; lying clips rest on the floor)"
     },
     "build": "tools/gait/build_allosaurus.sh; gate tools/gait/check_allo.py --height 6.5",
     "credits_spent": 50,
@@ -111,7 +116,12 @@
       "knockdown",
       "death",
       "sleep",
-      "feed"
+      "feed",
+      "claw_rake",
+      "slash_bite",
+      "check_left",
+      "check_right",
+      "bite_combo"
     ],
     "hit_parts": {
       "attack_primary": {
@@ -144,18 +154,72 @@
           "Neck1"
         ],
         "radius_m": 1.8
+      },
+      "claw_rake": {
+        "bones": [
+          "Hand.L",
+          "Hand.R"
+        ],
+        "radius_m": 1.4
+      },
+      "slash_bite": {
+        "bones": [
+          "Jaw",
+          "Head",
+          "Hand.R"
+        ],
+        "radius_m": 1.6
+      },
+      "check_left": {
+        "bones": [
+          "Shin.L",
+          "Metatarsal.L",
+          "Thigh.L",
+          "Chest",
+          "Hand.L"
+        ],
+        "radius_m": 1.4
+      },
+      "check_right": {
+        "bones": [
+          "Shin.R",
+          "Metatarsal.R",
+          "Thigh.R",
+          "Chest",
+          "Hand.R"
+        ],
+        "radius_m": 1.4
+      },
+      "bite_combo": {
+        "bones": [
+          "Jaw",
+          "Head",
+          "Hand.L",
+          "Hand.R"
+        ],
+        "radius_m": 1.4
+      },
+      "charge": {
+        "bones": [
+          "Head",
+          "Jaw",
+          "Chest"
+        ],
+        "radius_m": 1.8
       }
     },
     "hit_parts_note": "SP-ALLOSAURUS: each hit lands from its part (Creature.part_hit; the hitbox system is not on canon): the bites and the hatchet from the jaws/skull, the grab from the hands (then the jaws), the shoulder ram from the chest and right shoulder. # ASSUMPTION radii (metres at size 1, plus the target's radius)",
     "assumptions": [
       "# ASSUMPTION: height_meters 6.5 = 9 m real x the house 1.6 (14.3 m long); the owner's sheet draws it about twice human height (at the hips)",
-      "# ASSUMPTION: moves (hatchet bite with Bleed, grab-then-bite, shoulder ram) are the owner brief's; numbers in tactics are first guesses"
+      "# ASSUMPTION: moves (hatchet bite with Bleed, grab-then-bite, shoulder ram) are the owner brief's; numbers in tactics are first guesses",
+      "# ASSUMPTION (ALLOFEEL, owner 2026-10-31 'the arms should be moving as part of the attack animation and add more attacks generally'): arm keys in every attack; three new moves true to the animal: the arm rake (claw_rake), the hatchet slash (slash_bite: slash and retreat, the hatchet-jaw hypothesis) and the flank shoulder-check (check_left/right); numbers in tactics.moves are first guesses",
+      "# ASSUMPTION (ALLOFEEL x CARNOFEEL, owner 2026-10-31 'Carnotaurus attacks are welcome on this'): the carnotaurus kit on the allosaurus through tactics: a straight charge that runs through her and knocks her down (contact, even on a damage miss), a wide arc after it (charge_arc_r_m 6 m) and one return pass, then the 3-chomp combo (its own bite_combo clip, with arm rakes); numbers scaled from the carnotaurus' first guesses (CF1-CF4)"
     ]
   },
   "tactics": {
     "base": "pack_flanker",
     "scale": 1.8,
-    "_about": "# ASSUMPTION (SP-ALLOSAURUS, owner 2026-10-31 'yes allosaurus'): the deinonychus brain scaled to a 14 m animal, hunting in PAIRS (spawn rows count 2: surround puts the two on opposite sides of the prey). No ambush, no pounce or leaps (3 t animal): it opens with a run-in bite (charge), strafing first sometimes. Point blank: prey pressed under its chin gets the SHOULDER RAM (kick, shoves her 4 m); in front at jaw range the GRAB (hands clamp and pin, then two bites) or the HATCHET bite (attack_heavy: held gape telegraph, chop; the only move that applies Bleed: statuses_heavy_only) or the snap bite. reach_m: the jaws are ~7 m ahead of its centre at the bite.",
+    "_about": "# ASSUMPTION (SP-ALLOSAURUS, owner 2026-10-31 'yes allosaurus'): the deinonychus brain scaled to a 14 m animal, hunting in PAIRS (spawn rows count 2: surround puts the two on opposite sides of the prey). No ambush, no pounce or leaps (3 t animal): it opens with a run-in bite (charge), strafing first sometimes. Point blank: prey pressed under its chin gets the SHOULDER RAM (kick, shoves her 4 m); in front at jaw range the GRAB (hands clamp and pin, then two bites) or the HATCHET bite (attack_heavy: held gape telegraph, chop; the only move that applies Bleed: statuses_heavy_only) or the snap bite. reach_m: the jaws are ~7 m ahead of its centre at the bite. ALLOFEEL: the arms reach, grab and rake in every attack. Three more point-blank moves (tactics.moves): the ARM RAKE (claw_rake) on prey 4-6 m out under its chest; the HATCHET SLASH (slash_bite) at jaw range, the open upper jaw slashed across then a pull back (it bleeds, with the hatchet bite: status_clips); the SHOULDER-CHECK (check_left/right) on prey beside its flank (45-120 deg off its facing, within 3.2 m), shoving her sideways. Each has a held tell and a ground ring where it lands (tactics.rings). ALLOFEEL x CARNOFEEL (the carnotaurus kit): its run-in is now a STRAIGHT CHARGE on a locked line that runs through her (pass-through for charge_pass_s) and knocks her down on contact, even when the damage roll misses; at the end of the line it wheels round on a wide arc (charge_arc_r_m, no pivot), charges back once, and after a landed charge dashes in for the CHOMP COMBO (bite_combo: chomp left, chomp right, rear-up tell, MEGA chomp, the arms raking on each), which is also a point-blank move.",
     "reach_m": 7.0,
     "ring_m": 13.0,
     "ambush": false,
@@ -197,7 +261,11 @@
     ],
     "point_blank": [
       "kick",
+      "check",
       "grab",
+      "combo",
+      "rake",
+      "slash",
       "heavy",
       "bite"
     ],
@@ -217,7 +285,7 @@
     "bite_cd": 5.0,
     "charge_cd": 8.0,
     "charge_speed_mult": 1.3,
-    "charge_max_s": 2.5,
+    "charge_max_s": 2.8,
     "pounce_max_m": 0.0,
     "chase_pounce_max_m": 0.0,
     "leap_in_max_m": 0.0,
@@ -229,6 +297,95 @@
     "hop_m": 3.0,
     "leap_back_m": 4.0,
     "hop_cd": 6.0,
-    "max_retreat_m": 20.0
+    "max_retreat_m": 20.0,
+    "moves": {
+      "_doc": "ALLOFEEL: point-blank moves as data (TacticalBrain._move_row): clip (or clip_left / clip_right by the prey's side), arc front (within front_deg of its facing) or side (side_from_deg..side_to_deg off it), min_m..max_m centre to centre (+ the prey's size excess), mult, shove_m / shove_stagger_s on a landed hit; cooldown <move>_cd. # ASSUMPTION every number",
+      "rake": {
+        "clip": "claw_rake",
+        "arc": "front",
+        "front_deg": 40.0,
+        "min_m": 3.5,
+        "max_m": 5.2,
+        "mult": 1.1
+      },
+      "slash": {
+        "clip": "slash_bite",
+        "arc": "front",
+        "front_deg": 35.0,
+        "min_m": 5.2,
+        "max_m": 6.8,
+        "mult": 1.3
+      },
+      "check": {
+        "clip_left": "check_left",
+        "clip_right": "check_right",
+        "arc": "side",
+        "side_from_deg": 45.0,
+        "side_to_deg": 120.0,
+        "max_m": 3.2,
+        "mult": 0.9,
+        "shove_m": 3.5,
+        "shove_stagger_s": 0.7
+      }
+    },
+    "rake_cd": 6.0,
+    "slash_cd": 9.0,
+    "check_cd": 5.0,
+    "status_clips": [
+      "attack_heavy",
+      "slash_bite"
+    ],
+    "rings": {
+      "_doc": "ALLOFEEL: where each move's telegraph ring sits, [right m, ahead m, radius m] at body size 1 (Telegraph.show_for; the shared default is 1.2 m ahead, under this animal's chest)",
+      "claw_rake": [
+        0.0,
+        4.6,
+        1.5
+      ],
+      "slash_bite": [
+        0.0,
+        6.4,
+        1.8
+      ],
+      "check_left": [
+        -2.6,
+        1.2,
+        1.6
+      ],
+      "check_right": [
+        2.6,
+        1.2,
+        1.6
+      ]
+    },
+    "_carnokit": "ALLOFEEL x CARNOFEEL: the carnotaurus' horned_hunter charge keys (ai.json) on the allosaurus; distances x ~1.1 for the longer body (charge_through_m 10, charge_arc_r_m 6, combo ring at its jaws 6.4 m). # ASSUMPTION every number charge_arc_aim_deg 95 (the carnotaurus 15): with its 7 m reach the knocked-down survivor often sits on the far edge of its turning circle, where CARNOFEEL's arc (run straight while she is inside the circle) settles into an orbit 2 r out at 90 deg and times out with no return pass; at 95 it breaks off the arc there and charges back.",
+    "charge_straight": true,
+    "charge_through_m": 10.0,
+    "charge_mult": 1.6,
+    "charge_shove_m": 3.5,
+    "charge_shove_stagger_s": 0.7,
+    "charge_toss_deg": 60.0,
+    "charge_miss_recover_s": 1.4,
+    "charge_arc_r_m": 6.0,
+    "charge_arc_speed_mult": 1.3,
+    "charge_arc_brake_s": 0.8,
+    "charge_arc_aim_deg": 95.0,
+    "charge_arc_max_s": 7.0,
+    "charge_pass_s": 0.6,
+    "charge_turn": true,
+    "charge_turn_max_m": 22.0,
+    "charge_follow": [
+      "combo"
+    ],
+    "lunge_max_s": 2.5,
+    "combo_cd": 7.0,
+    "combo_mults": [
+      1.0,
+      1.3,
+      1.8
+    ],
+    "combo_tell_scale": 0.3,
+    "combo_tell_frac": 0.06,
+    "combo_ring_ahead_m": 6.4
   }
 }
