@@ -98,6 +98,10 @@ $GODOT_PATH --headless --path game -- --lab=ai_validation_lab
 # Inventory/Animals/Growth/UI-family state
 $GODOT_PATH --headless --path game -- --lab=ui_family_lab
 
+# FIGHT LAB (for Milan, on-screen): creature lab in GOD mode; double-click tools/fight_lab.command or run
+/Applications/Godot_mono.app/Contents/MacOS/Godot --path /Users/milankinzy/Documents/deadfront-siege/.claude/worktrees/mmo-overhaul/game -- --lab=creature_lab --god --skip-charcreate
+# (docs/current/fight-lab.md: NEXT/T next modelled species, GOD/G toggles god mode)
+
 # Other focused labs use the same --lab=<name> pattern
 # names live in game/scripts/dev/*lab.gd
 

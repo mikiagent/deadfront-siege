@@ -1,6 +1,9 @@
 extends Node3D
 ## Pack of 3 velociraptors, one deinonychus, one utahraptor. Keys 1-9 force clips; F deals 100.
-## The survivor cannot die, tire or exhaust here (god mode, this lab only) so clips can be watched up close.
+## FIGHT LAB: GOD mode (Game.god_mode, checked in Vitals) is on by default here: no damage, no death, energy and
+## fatigue never run out, cooldowns as in play. GOD button or key G toggles it; it is switched off when the lab exits.
+## With --god (tools/fight_lab.command) F is the real attack (hunt, 1-4 tactics) instead of the flat 100.
+## NEXT (or key T) clears and spawns the next modelled species, one Aggressive animal, and prints its moves.
 ## --species=deinonychus[,velociraptor...] spawns only those (one each) instead of the default roster.
 ## --ride=deinonychus spawns that species as a saddled pet and puts the survivor on it.
 ## The SPAWN button (left) opens a selector: a dropdown of every species (model-less ones as stand-ins), count 1-6, nature or Random, Alpha;
@@ -30,7 +33,8 @@ var _sheet_clips: Array[StringName] = [&"investigate", &"sniff"]
 func _ready() -> void:
 	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	Game.lab_force_clips = true
-	Game.lab_flat_attack = true
+	Game.lab_flat_attack = not ("--god" in OS.get_cmdline_user_args())  # the fight lab (--god) swings for real: hunt, tactics, damage
+	Game.god_mode = true  # FIGHT LAB default; the GOD button turns it off
 	_player = LabKit.build(self)["player"] as Player
 	_obstacle(Vector3(6, 1, 0))
 	_obstacle(Vector3(-8, 1, 5))
@@ -158,14 +162,17 @@ func _process(_dt: float) -> void:
 			_seq_n += 1
 			if _seq_n >= 100:
 				get_tree().quit()
-	if _player and _player.vitals:  # a pool no single hit can empty, refilled every frame
-		_player.vitals.max_health = maxf(_player.vitals.max_health, 1000000.0)
-		_player.vitals.health = _player.vitals.effective_max_health()
-		_player.vitals.energy = _player.vitals.effective_max_energy()
-		_player.vitals.fatigue = 0.0
-		_player.vitals.exhausted = false
+
+func _exit_tree() -> void:
+	Game.god_mode = false  # dev-only: never outlives the lab
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_G:
+		spawn_panel.toggle_god()
+		return
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_T:
+		spawn_panel.next_species()
+		return
 	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_N:
 		_enrage_nearest()
 		return
