@@ -41,7 +41,7 @@ const BRAIN_MOVES := {
 	"ClubTailBrain": "tail moves when you are round its rear (ankylosaurus: TAIL WHIP, TAIL SMASH, CLUB SWEEP; stegosaurus: TAIL SPIN, twice when you stay close), close moves in front and beside it (STOMP, SHOVE, TACKLE; ankylosaurus TAIL SPIN from the front; stegosaurus REAR SLAM, HIND STOMP), PIVOTS on a front foot, never backs into you; ankylosaurus JOUST from far off",
 	"CreatureBrain": "attack_primary, attack_heavy after 3 primaries",
 }
-const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"stomp", &"shove_left", &"shove_right", &"tackle", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"spin_left", &"spin_right", &"pivot_left", &"pivot_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"tackle_lunge", &"about_left", &"about_right", &"claw_rake", &"slash_bite", &"check_left", &"check_right"]
+const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge", &"toss", &"stalk", &"pin_stab", &"charge_turn", &"stomp", &"shove_left", &"shove_right", &"tackle", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"spin_left", &"spin_right", &"pivot_left", &"pivot_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"tackle_lunge", &"about_left", &"about_right", &"claw_rake", &"slash_bite", &"check_left", &"check_right", &"maul_bite", &"long_leap"]
 
 ## Every species in the data, sorted (owner 2026-10-28: "put all of the animals in the creature lab").
 static func all_species() -> Array[StringName]:

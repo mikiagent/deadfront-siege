@@ -546,9 +546,18 @@
               "charge"
             ],
             "weight": 1.0
+          },
+          {
+            "name": "backstep_long_leap",
+            "steps": [
+              "backstep",
+              "long_leap"
+            ],
+            "weight": 2.0
           }
         ],
         "point_blank": [
+          "maul",
           "heavy",
           "bite"
         ],
@@ -627,12 +636,13 @@
         "burst": {
           "mps": 15.5,
           "s": 2.2,
-          "min_m": 3.0
+          "min_m": 9.0
         },
         "burst_cd": 5.0,
         "bound": {
-          "min_m": 4.0,
-          "max_m": 12.0,
+          "min_m": 5.0,
+          "max_m": 15.0,
+          "land_short_m": 1.3,
           "cutoff_deg": 35.0,
           "cutoff_ahead_m": 2.0,
           "height_per_m": 0.12,
@@ -641,9 +651,31 @@
           "step_m": 3.0,
           "strike": true
         },
-        "bound_cd": 1.8,
+        "bound_cd": 1.2,
         "coiled_s": 0.6,
-        "chase_pounce_telegraph_s": 0.0
+        "chase_pounce_telegraph_s": 0.0,
+        "_smilofeel": "SMILOFEEL (owner 2026-10-31 fight lab: 'make smilodon bigger and give it more maul style attacks, pin attacks, large leap attacks'; 'when it chases after the player, it shouldn't follow so closely, it should just jump towards the player and bound toward them. burst movement'). pulse: the chase comes in pulses: after a bound that does not strike it holds crouched for pause_s, inside hold_m it prowls on the stalk creep at prowl_mps (holds still inside keep_m) instead of running at her heels, the burst sprint (burst.min_m now 9) only closes a gap wider than that and stops at hold_m, and bound_cd is 1.2 (was 1.8) so the bounds come back to back. bound: 5-15 m (was 4-12: the cat is 25 % bigger), landing land_short_m (x size) short of her, so she is under the forepaws where the strike and the pin are. long_leap: the large leap attack (the long_leap clip, the pounce state): from min_m to max_m (judged where she will be when it lands) after a telegraph_s crouch under the pounce ring, the arc height_per_m of the distance; a landing that touches her (long_leap hitbox) hits x mult and pins her into the maul; long_leap_cd; the approach opens with it, and backstep_long_leap hops back off the ring into it. pin_hold: every pin goes through PinHold (big_stomp.species.smilodon: under the right forepaw; only on prey already within pin_reach_frac of the paw, pressed under it at most pin_slide_mps). maul: the maul_bite clip (the shared MAUL BITE timing): the sabres bite (bite_mult) and pin her under the paws, two head-shake worries (worry_mult each), let go at release_frac; point blank in front (point_blank 'maul', maul_cd), and the pin's clip after a long leap (the pounce and the bound still pin into pin_stab). Every number an ASSUMPTION.",
+        "pulse": {
+          "pause_s": 0.4,
+          "hold_m": 6.0,
+          "keep_m": 3.0,
+          "prowl_mps": 1.6
+        },
+        "long_leap": {
+          "min_m": 8.0,
+          "max_m": 14.0,
+          "telegraph_s": 0.5,
+          "land_short_m": 1.3,
+          "height_per_m": 0.12,
+          "mult": 1.6
+        },
+        "long_leap_cd": 8.0,
+        "pin_hold": true,
+        "maul": {
+          "bite_mult": 1.2,
+          "worry_mult": 0.6
+        },
+        "maul_cd": 7.0
       }
     },
     "opportunist": {
@@ -1941,6 +1973,12 @@
     "pin_bite_s": 1.5,
     "pin_bite_mult": 0.6,
     "species": {
+      "smilodon": {
+        "_smilofeel": "SMILOFEEL: no big_stomp clip, so no stomp; this row only places its pin for PinHold: under the right forepaw (the wrist), started only on prey within 0.6 x height of it",
+        "pin_bone": "FrontFoot.R",
+        "pin_reach": 0.0,
+        "pin_reach_frac": 0.6
+      },
       "tyrannosaurus": {
         "land": [
           0.19,

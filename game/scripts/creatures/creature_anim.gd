@@ -11,16 +11,16 @@ signal knockdown_ended
 signal died
 
 ## One-shots that block locomotion until they finish; the attacks among them fire attack_hit.
-const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"bite_shake", &"big_stomp", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right", &"claw_rake", &"slash_bite", &"check_left", &"check_right", &"roar", &"spacing_stomp"]
+const ONESHOT: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"hit_react", &"alert", &"kick", &"sniff", &"charge_crouch", &"toss", &"pin_stab", &"charge_turn", &"charge_windup", &"impale", &"charge_recover", &"leap", &"stomp", &"shove_left", &"shove_right", &"tackle", &"bull_windup", &"flank_rake", &"grab_bite", &"arm_bite", &"spit", &"bite_shake", &"big_stomp", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"pivot_left", &"pivot_right", &"tackle_lunge", &"about_left", &"about_right", &"claw_rake", &"slash_bite", &"check_left", &"check_right", &"roar", &"spacing_stomp", &"maul_bite", &"long_leap"]
 const ATTACKS: Array[StringName] = [&"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"kick", &"pin_stab", &"stomp", &"shove_left", &"shove_right", &"tackle", &"grab_bite", &"arm_bite", &"spit", &"spin_left", &"spin_right", &"rear_slam", &"hind_stomp_left", &"hind_stomp_right", &"tackle_lunge", &"claw_rake", &"slash_bite", &"check_left", &"check_right"]
 ## One-shots during which a brain moves the body itself on an arc (TacticalBrain._arc_step), not by walking.
-const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn", &"leap", &"flank_rake"]
+const LEAPS: Array[StringName] = [&"hop_back", &"leap_back", &"pounce", &"dodge_left", &"dodge_right", &"charge_turn", &"leap", &"flank_rake", &"long_leap"]
 const HUBS: Array[StringName] = [&"idle", &"walk", &"lope", &"run", &"sprint"]
 ## The gait ladder, slowest first: set_move_speed picks among the ones the rig has (lope and sprint: smilodon).
 const GAITS: Array[StringName] = [&"walk", &"lope", &"run", &"sprint"]
 const XFADE := 0.08
 const RUN_GAITS: Array[StringName] = [&"lope", &"run", &"sprint"]
-const RUN_INTO: Array[StringName] = [&"attack_heavy", &"pounce", &"leap"]
+const RUN_INTO: Array[StringName] = [&"attack_heavy", &"pounce", &"leap", &"long_leap"]
 const GAIT_XFADE := 0.2  # walk <-> run: long enough that a gait change never pops
 const PIN_XFADE := 0.3  # the stomp into the pin, and the foot back to its print on release
 const LEGACY_TOP_MPS := 8.0  # creature.gd passes play_locomotion(speed / 8)

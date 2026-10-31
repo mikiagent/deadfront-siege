@@ -21,7 +21,8 @@ H = float(a[a.index("--height") + 1]) if "--height" in a else 2.0
 REACH = float(a[a.index("--reach") + 1]) if "--reach" in a else 1.2
 DROP = float(a[a.index("--drop") + 1]) if "--drop" in a else 0.2
 PLANT = 0.02  # m: a paw is planted while its lowest skin is this close to the floor (the cat's low swing passes 4 cm)
-HIT = {"attack_primary": ([0.42], "FrontFoot.R"), "attack_heavy": ([0.72], "Head"), "pounce": ([0.7], "Head"), "pin_stab": ([0.38, 0.74], "Head")}
+HIT = {"attack_primary": ([0.42], "FrontFoot.R"), "attack_heavy": ([0.72], "Head"), "pounce": ([0.7], "Head"), "pin_stab": ([0.38, 0.74], "Head"),
+       "long_leap": ([0.74], "Head"), "maul_bite": ([0.24, 0.5, 0.74], "Head")}  # SMILOFEEL
 FPS = 24
 GALLOPS = ("run", "lope", "sprint")  # SMILORUN: bounding gaits that must leave the ground, flex the back and keep planted paws stuck
 FLIGHT, MIN_BEND, SLIP = 0.02, 12.0, 0.03  # m clear of the floor, deg of back flex, m per frame off the ground speed
@@ -100,7 +101,7 @@ for f in sorted(os.listdir(anim_dir)):
     bad, extra = [], ""
     if stretch > 12.0: bad.append(f"stretch {stretch:.2f}")
     if lo < -0.03: bad.append(f"sinks {lo:.3f}")
-    if clip not in LYING and clip not in ("run", "lope", "sprint", "pounce", "leap") and hi_low > 0.05: bad.append(f"floats {hi_low:.3f}")
+    if clip not in LYING and clip not in ("run", "lope", "sprint", "pounce", "leap", "long_leap") and hi_low > 0.05: bad.append(f"floats {hi_low:.3f}")
     drift = {}
     if clip in ("walk", "run", "walk_back", "stalk"):
         for k, seq in feet.items():
@@ -127,6 +128,11 @@ for f in sorted(os.listdir(anim_dir)):
         if not air: bad.append("no flight phase")
         if bend < MIN_BEND: bad.append(f"spine bends only {bend:.1f} deg")
         if slip > SLIP: bad.append(f"planted paw slips {slip:.3f} m/frame")
+    if clip == "maul_bite":  # SMILOFEEL: the hind legs hold their prints through the whole maul (no skating on the hits)
+        hind = max(feet[k][i][0] for k in ("Back_L", "Back_R") for i in range(len(lows)))
+        hdrift = max(abs(feet[k][-1][1] - feet[k][0][1]) for k in ("Back_L", "Back_R"))
+        extra += f" hind_lift={hind:.3f}m hind_drift={hdrift:.3f}m"
+        if hind > PLANT or hdrift > 0.03: bad.append(f"hind paws leave their prints (lift {hind:.3f}, drift {hdrift:.3f})")
     if clip in HIT:
         fracs, bone = HIT[clip]
         for frac in fracs:

@@ -3,14 +3,14 @@
   "clade": "Machairodontinae",
   "period": "Pleistocene",
   "real_length_m": 4.4,
-  "height_meters": 2.0,
+  "height_meters": 2.5,
   "rig": "quadruped",
   "tier": 45,
   "climate": "tundra",
   "archetype": "saber_cat",
   "tameable": true,
   "capture_tier": 5,
-  "verb": "stalk, pounce and pin, sabre stab, forepaw swipe",
+  "verb": "stalk, burst-bound chase, long leap and pin, maul, sabre stab, forepaw swipe",
   "status_applied": [
     "deep_bleed"
   ],
@@ -38,7 +38,9 @@
     "attack_heavy": "Pounce windup: sinks into a flat crouch, rump wiggles, jaws gape, then springs into a sabre lunge",
     "pounce": "Launches from the crouch, forelegs reaching, slams both paws on the prey and stabs",
     "leap": "Chase bound: coils out of the stride, a long stretched leap, fronts then hinds land, straight back into the run (also the cut-off leap and the hop over steps)",
+    "long_leap": "Large leap attack from mid range: deep coil, a long flight with both forelegs thrown forward claws out and jaws wide, the forepaws slam down on her and the sabres drive in; a landed leap pins her into the maul",
     "pin_stab": "Holds the prey under both forepaws, rears the head with jaws wide and drives the sabres down twice",
+    "maul_bite": "Maul on a pinned or downed survivor: forepaws come down on her and hold, the sabres bite in, two head-shake worries, each with a forepaw raking back; hind legs planted",
     "hit_react": "Flinches back off the forepaws, head jerks away, snarls",
     "knockdown": "Big cat is thrown onto its side",
     "death": "Collapses onto its side",
@@ -92,7 +94,7 @@
       }
     ]
   },
-  "size_note": "# ASSUMPTION (SP-SMILODON): height_meters 2.0 is the top of the mane and ears (shoulder ~1.6 m, length nose to tail tip ~3.5 m on screen, the house 1.6x of a ~2.2 m long-tailed smilodon); real_length_m 4.4 is the roster's 2x convention (was 2.5). The owner's sheet draws it about twice the survivor's height at the shoulder; if he wants that, height_meters ~3.4.",
+  "size_note": "# ASSUMPTION (SP-SMILODON): height_meters 2.0 is the top of the mane and ears (shoulder ~1.6 m, length nose to tail tip ~3.5 m on screen, the house 1.6x of a ~2.2 m long-tailed smilodon); real_length_m 4.4 is the roster's 2x convention (was 2.5). The owner's sheet draws it about twice the survivor's height at the shoulder; if he wants that, height_meters ~3.4. # ASSUMPTION (SMILOFEEL, owner 2026-10-31 fight lab: 'make smilodon bigger'): height_meters 2.0 -> 2.5 (+25 %: shoulder ~2.0 m, ~4.4 m long on screen); real_length_m unchanged. Hitbox radii and the throat crit spot were re-calibrated for it.",
   "pipeline": {
     "forward_axis": "+Z",
     "source_height_m": 0.5684,
@@ -104,8 +106,8 @@
     "jaw": "tools/jaw/add_jaw.py --pivot 0.03 0.393 --split -6 --chin-depth 0.35 --blend 0.008; tools/gait/smilodon_sabres.py keeps the sabre islands rigid on Head",
     "gaits": "tools/gait/make_gait.py tools/gait/smilodon.json: walk, lope (canter), run (rotary bound with a flight phase and spine flex, SMILORUN), sprint (the burst bound), stalk; strafe_left/right and walk_back from the walk plan (stride 0.3)",
     "clips_from": {
-      "attack_primary,attack_heavy,pounce,leap,pin_stab,alert,sleep,feed,idle,hit_react": "tools/gait/make_cat_moves.py (keyed from rest, IK feet, floor pass)",
-      "knockdown,death": "the Triceratops donor transplant, moved onto the cat legs (transfer_clips.py)"
+      "knockdown,death": "the Triceratops donor transplant, moved onto the cat legs (transfer_clips.py)",
+      "attack_primary,attack_heavy,pounce,leap,long_leap,maul_bite,pin_stab,alert,sleep,feed,idle,hit_react": "tools/gait/make_cat_moves.py (keyed from rest, IK feet, floor pass)"
     },
     "grounding": "tools/gait/ground_clip.py on knockdown, death and the gaits",
     "hit_parts": {
@@ -140,9 +142,23 @@
           "Head"
         ],
         "radius_m": 1.2
+      },
+      "long_leap": {
+        "bones": [
+          "FrontFoot.L",
+          "FrontFoot.R",
+          "Head"
+        ],
+        "radius_m": 1.2
+      },
+      "maul_bite": {
+        "bones": [
+          "Head"
+        ],
+        "radius_m": 1.2
       }
     },
-    "hit_parts_note": "SP-SMILODON: each hit also needs its part (Creature.part_hit): the swipe the right forepaw, the lunge, pounce and pin stabs the sabres on Head; # ASSUMPTION radii (metres at size 1, plus the target's radius); SMILORUN: a chase bound lands its strike from either forepaw or the sabres (leap, radius 1.2)",
+    "hit_parts_note": "SP-SMILODON: each hit also needs its part (Creature.part_hit): the swipe the right forepaw, the lunge, pounce and pin stabs the sabres on Head; # ASSUMPTION radii (metres at size 1, plus the target's radius); SMILORUN: a chase bound lands its strike from either forepaw or the sabres (leap, radius 1.2); SMILOFEEL: the long leap lands from either forepaw or the sabres (long_leap), the maul bites from Head (maul_bite)",
     "model_variants": {
       "regular": "",
       "alpha": "smilodon_alpha_albedo.jpg"
@@ -162,7 +178,9 @@
       "attack_heavy",
       "pounce",
       "leap",
+      "long_leap",
       "pin_stab",
+      "maul_bite",
       "hit_react",
       "knockdown",
       "death",
@@ -196,8 +214,9 @@
   "energy": {
     "costs": {
       "burst": 12.0,
-      "leap": 8.0
+      "leap": 8.0,
+      "long_leap": 14.0
     },
-    "_note": "SMILORUN ASSUMPTION: a burst costs 12 and a bound 8 of the ~106 pool (80 + 6 x 4.4 m), on top of the run drain (13/s): about three bursts and a few bounds, then it is winded and drops to a walk"
+    "_note": "SMILORUN ASSUMPTION: a burst costs 12 and a bound 8 of the ~106 pool (80 + 6 x 4.4 m), on top of the run drain (13/s): about three bursts and a few bounds, then it is winded and drops to a walk; SMILOFEEL ASSUMPTION: the long leap costs 14"
   }
 }

@@ -23,6 +23,12 @@ idle            3.0 s  loop: breathing, a slow look round, tail sway, ear-to-ear
 leap            0.75 s the chase bound (SMILORUN): coil, drive off, stretched flight 0.12-0.78, fronts then hinds land on
                 their prints, gathered to run on.
 hit_react       0.6 s  flinch back off the forepaws, head jerks away, jaw snarls.
+long_leap       1.4 s  SMILOFEEL: the large leap attack from mid range: a deep coil, drive off at 0.2, a long flight with both
+                forelegs thrown far forward, claws out, jaws wide, the hinds trailing; the fronts slam down at 0.7 and the
+                sabres drive in at 0.74 (Head + forepaws), then it settles into the pin crouch (airborne 0.2-0.7).
+maul_bite       2.6 s  SMILOFEEL: the maul on a pinned or downed survivor, timed as the shared maul_bite (hits 0.24, 0.5,
+                0.74, jaws open at 0.86): the forepaws come down on her and hold, the sabres bite in at 0.24, then two
+                head-shake worries peaking on 0.5 and 0.74, each with a forepaw raking back; the hind legs stay planted.
 
 usage: Blender -b -P tools/gait/make_cat_moves.py -- <base.glb> <out_dir> [clip ...]
 """
@@ -153,6 +159,60 @@ CLIPS = {
         head=dict(pitch=[(0, 0), (0.25, -4), (0.72, 6), (1, 0)]),
         jaw=[(0, 6), (0.3, 14), (0.8, 10), (1, 6)],
         tail=dict(lift=[(0, 4), (0.25, 2), (0.55, 8), (0.8, 14), (1, 6)])),
+    # SMILOFEEL (ASSUMPTION shape): the large leap attack. Coiled deep, it drives off at 0.2 into a long flight with both
+    # forelegs thrown far forward, claws out (toes up), the jaws wide and the hinds trailing; the fronts slam down ahead of
+    # their prints at 0.7, the head drives the sabres down on 0.74, the hinds land on their rest prints (the maul's), crouched.
+    "long_leap": dict(
+        n=34, airborne=(0.2, 0.7),
+        body=dict(dy=[(0, 0), (0.16, 0.04), (0.22, 0.0), (0.45, -0.03), (0.7, -0.07), (0.78, -0.08), (1, -0.04)],
+                  dz=[(0, 0), (0.16, -0.13), (0.22, -0.10), (0.32, 0.07), (0.48, 0.12), (0.64, 0.04), (0.72, -0.07), (0.8, -0.08), (1, -0.07)],
+                  pitch=[(0, 0), (0.16, -5), (0.22, 4), (0.32, 18), (0.5, 4), (0.64, -12), (0.74, -16), (0.85, -11), (1, -8)]),
+        hips=dict(dz=[(0, 0), (0.08, 0.02), (0.16, 0.04), (0.22, 0.0), (1, 0)]),
+        feet=dict(FL=dict(dy=[(0, 0), (0.2, 0), (0.42, -0.27), (0.62, -0.22), (0.7, -0.16), (1, -0.16)],
+                          dz=[(0, 0), (0.2, 0), (0.36, 0.14), (0.58, 0.07), (0.68, 0), (1, 0)],
+                          pitch=[(0, 0), (0.22, 25), (0.4, -45), (0.6, -25), (0.68, 0)],
+                          follow=[(0, 0), (0.2, 0), (0.28, 0.85), (0.6, 0.85), (0.68, 0)]),
+                  FR=dict(dy=[(0, 0), (0.2, 0), (0.44, -0.29), (0.62, -0.24), (0.7, -0.18), (1, -0.18)],
+                          dz=[(0, 0), (0.2, 0), (0.38, 0.15), (0.58, 0.08), (0.69, 0), (1, 0)],
+                          pitch=[(0, 0), (0.22, 25), (0.42, -45), (0.6, -25), (0.69, 0)],
+                          follow=[(0, 0), (0.2, 0), (0.28, 0.85), (0.6, 0.85), (0.69, 0)]),
+                  HL=dict(dy=[(0, 0), (0.22, 0), (0.38, 0.16), (0.6, 0.02), (0.74, 0), (1, 0)],
+                          dz=[(0, 0), (0.22, 0), (0.4, 0.08), (0.62, 0.08), (0.74, 0), (1, 0)],
+                          pitch=[(0, 0), (0.2, 35), (0.4, 55), (0.62, 10), (0.74, 0)],
+                          follow=[(0, 0), (0.22, 0), (0.3, 0.85), (0.64, 0.85), (0.74, 0)]),
+                  HR=dict(dy=[(0, 0), (0.22, 0), (0.4, 0.18), (0.6, 0.03), (0.76, 0), (1, 0)],
+                          dz=[(0, 0), (0.22, 0), (0.4, 0.08), (0.62, 0.08), (0.76, 0), (1, 0)],
+                          pitch=[(0, 0), (0.2, 35), (0.4, 55), (0.62, 10), (0.76, 0)],
+                          follow=[(0, 0), (0.22, 0), (0.3, 0.85), (0.64, 0.85), (0.76, 0)])),
+        neck=dict(pitch=[(0, 0), (0.16, -6), (0.32, 12), (0.6, 10), (0.7, 16), (0.74, -30), (0.84, -22), (1, -12)]),
+        head=dict(pitch=[(0, 0), (0.16, 4), (0.4, 6), (0.68, 12), (0.74, -24), (1, -10)]),
+        jaw=[(0, 6), (0.16, 22), (0.3, 46), (0.7, 48), (0.75, 22), (0.88, 26), (1, 15)],
+        tail=dict(lift=[(0, 2), (0.16, -4), (0.3, 20), (0.55, 14), (0.72, -4), (1, 8)], lash=(0.72, 1.0, 1.5, 10))),
+    # SMILOFEEL (ASSUMPTION shape): the maul, on the shared maul_bite timing. Out of the hold (or a stand) both forepaws come
+    # forward and down on her (planted, holding), the head rears with the jaws wide and the sabres bite in at 0.24; then two
+    # worries, the head wrenching side to side with the jaws clamped, peaking on 0.5 and 0.74, each with one forepaw raking
+    # back across her and planting again; the jaws open at 0.86 and the head lifts. The hind legs never leave their prints.
+    "maul_bite": dict(
+        n=62,
+        body=dict(dy=[(0, -0.02), (0.18, 0.01), (0.24, -0.05), (0.42, -0.03), (0.5, 0.0), (0.58, -0.04), (0.66, -0.03), (0.74, 0.0), (0.86, -0.03), (1, -0.02)],
+                  dz=[(0, -0.04), (0.18, -0.02), (0.24, -0.09), (0.5, -0.07), (0.74, -0.07), (0.9, -0.05), (1, -0.04)],
+                  pitch=[(0, -6), (0.18, 4), (0.24, -16), (0.4, -12), (0.5, -9), (0.62, -13), (0.74, -9), (0.88, -8), (1, -6)],
+                  roll=lambda u: osc(u, 0.3, 0.86, 2, 4)),
+        feet=dict(FL=dict(dy=[(0, 0), (0.06, 0), (0.18, -0.12), (0.23, -0.17), (0.6, -0.17), (0.66, -0.12), (0.72, -0.08), (0.78, -0.16), (1, -0.16)],
+                          dz=[(0, 0), (0.06, 0), (0.13, 0.09), (0.2, 0.03), (0.23, 0), (0.6, 0), (0.66, 0.06), (0.72, 0.02), (0.76, 0), (1, 0)],
+                          pitch=[(0, 0), (0.08, 20), (0.16, -30), (0.23, 0), (0.6, 0), (0.66, -25), (0.72, 20), (0.76, 0)],
+                          follow=[(0, 0), (0.06, 0), (0.1, 0.5), (0.2, 0.5), (0.23, 0), (0.6, 0), (0.64, 0.4), (0.72, 0.4), (0.76, 0)]),
+                  FR=dict(dy=[(0, 0), (0.08, 0), (0.2, -0.14), (0.24, -0.19), (0.36, -0.19), (0.42, -0.13), (0.48, -0.09), (0.54, -0.18), (1, -0.18)],
+                          dz=[(0, 0), (0.08, 0), (0.15, 0.10), (0.21, 0.03), (0.24, 0), (0.36, 0), (0.42, 0.06), (0.48, 0.02), (0.52, 0), (1, 0)],
+                          pitch=[(0, 0), (0.1, 20), (0.18, -30), (0.24, 0), (0.36, 0), (0.42, -25), (0.48, 20), (0.52, 0)],
+                          follow=[(0, 0), (0.08, 0), (0.12, 0.5), (0.21, 0.5), (0.24, 0), (0.36, 0), (0.4, 0.4), (0.48, 0.4), (0.52, 0)]),
+                  HL=dict(dy=0.0), HR=dict(dy=0.0)),  # on their prints: the maul starts from a stand or the long leap's landing
+        neck=dict(pitch=[(0, -10), (0.16, 22), (0.2, 24), (0.24, -40), (0.4, -34), (0.86, -34), (0.94, -10), (1, -10)],
+                  yaw=lambda u: osc(u, 0.34, 0.6, 1.0, 16) + osc(u, 0.6, 0.84, 1.0, -16)),
+        head=dict(pitch=[(0, -8), (0.16, 16), (0.2, 18), (0.24, -30), (0.86, -28), (0.94, -8), (1, -8)],
+                  roll=lambda u: osc(u, 0.34, 0.6, 2, 18) + osc(u, 0.6, 0.84, 2, 18)),
+        jaw=[(0, 12), (0.14, 46), (0.21, 48), (0.25, 20), (0.84, 18), (0.88, 40), (0.94, 30), (1, 12)],
+        tail=dict(lift=[(0, 6), (0.24, 12), (1, 6)], lash=(0.0, 1.0, 3, 16))),
     "pin_stab": dict(
         n=58,
         body=dict(dy=[(0, -0.04), (1, -0.04)], dz=[(0, -0.07), (0.3, -0.06), (0.38, -0.09), (0.6, -0.06), (0.74, -0.09), (1, -0.07)],

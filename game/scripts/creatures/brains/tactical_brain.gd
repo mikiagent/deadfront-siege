@@ -162,6 +162,20 @@ var _b_phys := false  ## the current leap lifts the body itself (over steps) ins
 var _b_from_y := 0.0
 var _b_to_y := 0.0
 var _b_struck := false  ## this bound's landing strike has been judged
+## SMILOFEEL (owner 2026-10-31 fight lab: "when it chases after the player, it shouldn't follow so closely, it should just
+## jump towards the player and bound toward them. burst movement", and "more maul style attacks, pin attacks, large leap
+## attacks"). tactics.pulse: the chase comes in pulses (a bound, then a crouched hold of pulse.pause_s; inside
+## pulse.hold_m it prowls on the stalk creep or holds instead of running at her heels; the burst sprint only closes a gap
+## wider than burst.min_m and stops at hold_m). tactics.long_leap: the large leap attack from mid range (the long_leap
+## clip, the pounce machinery). tactics.maul: the maul_bite clip on a pinned or downed survivor, or point blank.
+## tactics.pin_hold: the pin goes through PinHold (only on prey already under the paws, slid at most pin_slide_mps).
+var _pounce_clip: StringName = &"pounce"  ## the leap the pounce state flies: pounce, or long_leap
+var _settle_left := 0.0  ## the crouched hold after a chase bound lands
+var _pin_held := false  ## the pin's victim is held (Pinned); a maul starts unheld until its bite lands
+var _maul_t := 0.0
+var _maul_hits := 0
+var maul_landed := 0  ## maul hits landed (tests, the review lab)
+var last_leap := PackedVector3Array()  ## the last long leap's take-off and landing points (tests)
 
 static func tactics_for(archetype: StringName) -> Dictionary:
 	var row: Variant = (Data.creature_ai.get("archetypes", {}) as Dictionary).get(str(archetype), {})
@@ -450,6 +464,11 @@ func contact_reach() -> float:
 
 ## How far short of the prey a leap lands: just past the body's radius, or for a long-snouted body (tactics.reach_m)
 ## with the jaws on the prey.
+## SMILOFEEL: a leap row's land_short_m (metres at size 1): the bound and the long leap land with her under the forepaws
+## (where their strike and the pin are), not under the chest.
+func _leap_short(row: Dictionary) -> float:
+	return float(row["land_short_m"]) * creature.size_scale() if row.has("land_short_m") else _land_short()
+
 func _land_short() -> float:
 	return contact_reach() - 0.8 if tac.has("reach_m") else creature.body_radius() + 0.2
 
@@ -493,6 +512,7 @@ func _think(delta: float) -> void:
 	_open_left = maxf(0.0, _open_left - delta)
 	_burst_left = maxf(0.0, _burst_left - delta)
 	_coiled_left = maxf(0.0, _coiled_left - delta)
+	_settle_left = maxf(0.0, _settle_left - delta)
 	if _valid_target() and state in [&"circle", &"dodge", &"hold", &"hop"] and _prey_advancing():
 		_wait_t += delta
 	_opening = _opening and _open_left > 0.0
@@ -692,7 +712,15 @@ func _approach_ring() -> void:
 		var swipe := not bool((tac.get("bound", {}) as Dictionary).get("strike", false)) or _prey_speed() < _t("swipe_max_prey_mps", 4.0)
 		if (d <= _t("chase_pounce_max_m", 8.0) and _strike(d, ["pounce"])) or (swipe and d <= reach_to(attack_target) and _strike(d, ["bite"])):
 			return
+		if _strike(d, ["long_leap"]):
+			return
+		if _settle_left > 0.0:
+			creature.stop_move()  # SMILOFEEL: crouched where the bound put it, eyes on her, before the next one
+			creature.face_towards(attack_target.global_position, delta_s())
+			return
 		if _burst_chase(d, delta_s()):
+			return
+		if _pulse_prowl(d):
 			return
 		if tac.get("approach_spit", false) and _strike(d, ["spit"]):
 			return  # SP-DILOPHOSAURUS: venom after her as she runs
@@ -706,7 +734,7 @@ func _approach_ring() -> void:
 		return
 	# tactics.approach_pounce (swarm): coming in, it opens with a pounce as soon as one is in range (not a
 	# lone one: timid alone).
-	if tac.get("approach_pounce", false) and not "alone" in _active_mods() and _strike(_flat_dist(attack_target), ["pounce"]):
+	if tac.get("approach_pounce", false) and not "alone" in _active_mods() and _strike(_flat_dist(attack_target), ["long_leap", "pounce"]):
 		return
 	# tactics.approach_spit (dilophosaurus): coming in, it opens with the venom spit as soon as she is in spit range.
 	if tac.get("approach_spit", false) and _strike(_flat_dist(attack_target), ["spit"]):
@@ -842,6 +870,20 @@ func attack_available(move: StringName, d: float) -> bool:
 			var at_hit := d + outward * (_pounce_telegraph() + _clip_len(&"pounce", _t("pounce_leap_s", 0.4)) * CreatureClips._hit_frac(&"pounce"))
 			return creature.can_sprint() and creature.can_use_special(creature.special_cost(&"pounce")) \
 				and d >= _t("pounce_min_m", 4.0) and at_hit <= far + _size_excess(attack_target)
+		&"long_leap":
+			# SMILOFEEL: the large leap from mid range, judged (like the pounce) where she will be when it lands.
+			var ll: Dictionary = tac.get("long_leap", {})
+			if ll.is_empty() or not creature.anim.has_state(&"long_leap"):
+				return false
+			var lv: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
+			var lout := maxf(0.0, Vector3(lv.x, 0.0, lv.z).dot(-_to_me()))
+			var l_hit := d + lout * (float(ll.get("telegraph_s", 0.5)) + _clip_len(&"long_leap", 1.4) * CreatureClips._hit_frac(&"long_leap"))
+			return creature.can_sprint() and creature.can_use_special(creature.special_cost(&"long_leap")) \
+				and d >= float(ll.get("min_m", 9.0)) and l_hit <= float(ll.get("max_m", 16.0)) + _size_excess(attack_target)
+		&"maul":
+			# SMILOFEEL: point blank in front, on prey it can hold; at once on a survivor lying knocked down.
+			return tac.has("maul") and creature.anim.has_state(&"maul_bite") and in_reach and not _prey_behind() \
+				and _pinnable(attack_target) != null
 		&"charge":
 			return creature.can_sprint() and d >= _t("charge_min_m", 0.0)
 		&"spit":
@@ -907,6 +949,10 @@ func _strike(d: float, only: Array = []) -> bool:
 					continue
 			&"pounce":
 				_start_pounce()
+			&"long_leap":
+				_start_pounce(&"long_leap")
+			&"maul":
+				_start_maul()
 			&"bite":
 				if in_reach:
 					_bite()
@@ -966,6 +1012,9 @@ func _terminal_ready(last: StringName, d: float) -> bool:
 	match last:
 		&"pounce":
 			return creature.can_sprint() and creature.can_use_special(creature.special_cost(&"pounce"))
+		&"long_leap":
+			return tac.has("long_leap") and creature.anim.has_state(&"long_leap") and creature.can_sprint() \
+				and creature.can_use_special(creature.special_cost(&"long_leap"))
 		&"combo":
 			return creature.anim.has_state(&"bite_combo") and creature.can_use_special(creature.special_cost(&"bite_combo")) and creature.can_sprint()
 		&"charge":
@@ -1049,6 +1098,17 @@ func _seq_next() -> void:
 				_start_pounce()
 			elif _ready_to(&"bite"):
 				_start_charge()  # out of pounce range after the reposition: run it down instead
+			else:
+				_seq = []
+				_enter_circle()
+		&"long_leap":
+			var d := _flat_dist(attack_target)
+			var ll: Dictionary = tac.get("long_leap", {})
+			if d >= float(ll.get("min_m", 9.0)) and d <= float(ll.get("max_m", 16.0)) + _size_excess(attack_target):
+				_cd[&"long_leap"] = 0.0
+				_start_pounce(&"long_leap")
+			elif d >= _t("pounce_min_m", 4.0) and d <= _t("pounce_max_m", 8.0) + _size_excess(attack_target) and _ready_to(&"pounce"):
+				_start_pounce()  # she came in during the reposition: the short pounce
 			else:
 				_seq = []
 				_enter_circle()
@@ -2026,15 +2086,16 @@ func _back_off() -> void:
 	else:
 		_start_hold()
 
-func _start_pounce() -> void:
-	if not creature.try_special(&"pounce"):
+func _start_pounce(clip: StringName = &"pounce") -> void:
+	if not creature.try_special(clip):
 		_enter_circle(0.3)
 		return
 	_set_state(&"pounce")
+	_pounce_clip = clip
 	_just_disengaged = false
 	_basic_streak = 0
 	_pounce_phase = &"windup"
-	_left = _pounce_telegraph()
+	_left = _pounce_telegraph() if clip == &"pounce" else float((tac.get("long_leap", {}) as Dictionary).get("telegraph_s", 0.5))
 	creature.stop_move()
 	# Windup pose: the heavy clip retimed to reach its strike frame as the windup ends. Coiled from a chase bound there is
 	# no crouch: the pounce clip's own 0.2 crouch is the lead-in (the ring still shows from now to the hit).
@@ -2043,10 +2104,10 @@ func _start_pounce() -> void:
 		var wclip := StringName(str(tac.get("pounce_windup_clip", "attack_heavy")))
 		creature.anim.play_timed_attack(wclip if creature.anim.has_state(wclip) else &"attack_heavy", _left)
 	_telegraph = Telegraph.show_pounce(creature, attack_target.global_position, _t("pounce_radius_m", 1.6) + _size_excess(attack_target), _left + 1.0)
-	_start_cd(&"pounce")
+	_start_cd(clip)
 	_mark_pack()
-	tactic.emit(&"pounce")
-	_log("[ai] %s pounce windup" % creature.def.id)
+	tactic.emit(clip)
+	_log("[ai] %s %s windup" % [creature.def.id, clip])
 
 ## The pounce, every physics frame. Windup: turning to the prey with the ring on it. Leap: the pounce
 ## clip (or a timed arc) to where the prey stood at take-off. Hit: at the pounce clip's hit_frac
@@ -2063,22 +2124,27 @@ func _pounce(delta: float) -> void:
 				creature.anim.end_timed_attack()
 				# Aim where the prey will be when it lands (lead by its velocity over the flight), and
 				# sometimes sail past it (overshoot): a prey that stops or sidesteps is jumped over.
-				var flight := _clip_len(&"pounce", _t("pounce_leap_s", 0.4)) * CreatureClips._hit_frac(&"pounce")
+				var ll: Dictionary = tac.get("long_leap", {}) if _pounce_clip == &"long_leap" else {}
+				var flight := _clip_len(_pounce_clip, _t("pounce_leap_s", 0.4)) * CreatureClips._hit_frac(_pounce_clip)
 				var tv: Vector3 = attack_target.velocity if attack_target is CharacterBody3D else Vector3.ZERO
 				var aim := attack_target.global_position + Vector3(tv.x, 0.0, tv.z) * flight
 				var from := creature.global_position
 				var dir := Vector3(aim.x - from.x, 0.0, aim.z - from.z)
 				dir = dir.normalized() if dir.length_squared() > 0.01 else -_to_me()
-				var land := aim - dir * _land_short()
-				_overshot = rng.randf() < _t("pounce_overshoot_chance", 0.25) * creature.nature_knob("tactic_overshoot_mult", 1.0)
+				var land := aim - dir * _leap_short(ll)
+				_overshot = ll.is_empty() and rng.randf() < _t("pounce_overshoot_chance", 0.25) * creature.nature_knob("tactic_overshoot_mult", 1.0)
 				if _overshot:
 					land = aim + dir * _t("pounce_overshoot_m", 3.0)
 				var far := maxf(_t("pounce_max_m", 8.0), _t("ambush_pounce_max_m", 0.0)) + _size_excess(attack_target) + (_t("pounce_overshoot_m", 3.0) if _overshot else 0.0)
+				if not ll.is_empty():
+					far = float(ll.get("max_m", 16.0)) + _size_excess(attack_target)
 				if from.distance_to(land) > far:
 					land = from + (land - from).normalized() * far
 				_pounce_dir = dir
-				_jump_begin(land, &"pounce", _t("pounce_leap_s", 0.4), 0.0)
-				_pounce_hit_u = _j_air.y if _j_timed else CreatureClips._hit_frac(&"pounce")
+				_jump_begin(land, _pounce_clip, _t("pounce_leap_s", 0.4), 0.0, float(ll.get("height_per_m", -1.0)))
+				if not ll.is_empty():
+					last_leap = PackedVector3Array([from, land])
+				_pounce_hit_u = _j_air.y if _j_timed else CreatureClips._hit_frac(_pounce_clip)
 				_pounce_hit_done = false
 				if is_instance_valid(_telegraph):
 					_telegraph._life = _j_len * _pounce_hit_u + Telegraph.LINGER
@@ -2087,10 +2153,10 @@ func _pounce(delta: float) -> void:
 			var done := _jump_tick(delta)
 			if not _pounce_hit_done and _j_t >= _j_len * _pounce_hit_u:
 				_pounce_hit_done = true
-				_pounce_land()
+				_pounce_land(_pounce_clip)
 			if done:
 				_jump_end()
-				if _pounce_landed and _start_pin():
+				if _pounce_landed and _start_pin(&"maul_bite" if _pounce_clip == &"long_leap" else &""):
 					return
 				_pounce_phase = &"recover"
 				# A miss (overshoot, or the prey stepped out) leaves it open longer: the punish window.
@@ -2129,9 +2195,9 @@ func _pounce_land(clip: StringName = &"pounce") -> void:
 			return
 		Hitbox.mark(tgt, hit)
 	# A roll is judged by CreatureAttack against the roll's opening window (RollRules), as for any bite.
-	var mult := _t("pounce_mult", 2.5)
+	var mult := float((tac.get("long_leap", {}) as Dictionary).get("mult", 1.6)) if clip == &"long_leap" else _t("pounce_mult", 2.5)
 	_pounce_landed = true
-	tactic_hit.emit(&"pounce", 0, mult)
+	tactic_hit.emit(clip if clip == &"long_leap" else &"pounce", 0, mult)
 	if CreatureAttack.apply_for(creature, &"attack_heavy", tgt, mult) and tgt is Player:
 		(tgt as Player).receive_creature_hit(creature, &"attack_heavy")
 
@@ -2237,7 +2303,7 @@ func _jump_end() -> void:
 	_b_phys = false
 	if creature and creature.view:
 		creature.view.position.y = 0.0
-	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right", &"charge_turn", &"leap", &"flank_rake"]:
+	if creature.anim.current_clip in [&"pounce", &"hop_back", &"leap_back", &"dodge_left", &"dodge_right", &"charge_turn", &"leap", &"flank_rake", &"long_leap"]:
 		creature.anim.release_oneshot()  # landed: the clip's last frame must not hold the next strike
 	if _j_timed:
 		_j_timed = false
@@ -2399,7 +2465,7 @@ func _burst_chase(d: float, delta: float) -> bool:
 			_start_bound(float(b.get("step_m", 3.0)))
 			return true
 		# Judged on the jump it would make: to where she will be when it lands, less the landing gap.
-		var jump := _flat_dist_to(_bound_aim()) - _land_short()
+		var jump := _flat_dist_to(_bound_aim()) - _leap_short(b)
 		if creature.can_sprint() and jump >= float(b.get("min_m", 5.0)) and jump <= float(b.get("max_m", 10.0)) + _size_excess(attack_target) \
 				and creature.try_special(&"leap"):
 			_start_bound()
@@ -2435,7 +2501,7 @@ func _start_bound(step_m: float = -1.0) -> void:
 	var dir := Vector3(aim.x - from.x, 0.0, aim.z - from.z)
 	dir = dir.normalized() if dir.length_squared() > 0.01 else -_to_me()
 	var cut := step_m <= 0.0 and tv.length() > 2.0 and rad_to_deg(tv.angle_to(to_prey)) > float(b.get("cutoff_deg", 35.0))
-	var land := aim + tv.normalized() * float(b.get("cutoff_ahead_m", 2.0)) if cut else aim - dir * _land_short()
+	var land := aim + tv.normalized() * float(b.get("cutoff_ahead_m", 2.0)) if cut else aim - dir * _leap_short(b)
 	var far := step_m if step_m > 0.0 else float(b.get("max_m", 10.0)) + _size_excess(attack_target)
 	if step_m > 0.0:
 		land = from + dir * step_m
@@ -2484,6 +2550,7 @@ func _bound(delta: float) -> void:
 	# Landed: the swipe if she is in reach, the coiled pounce if she is in its range, else run on.
 	if (d <= reach_to(attack_target) and _strike(d, ["bite"])) or _strike(d, ["pounce"]):
 		return
+	_settle_left = float((tac.get("pulse", {}) as Dictionary).get("pause_s", 0.0))  # SMILOFEEL: a crouched beat, then the next bound
 	_set_state(&"approach")
 
 func _end_pounce() -> void:
@@ -2500,11 +2567,23 @@ func _end_pounce() -> void:
 ## act; PINFEEL lays it down in its pinned pose) and is held pin_reach_m in front of the body while pin_stab drives the
 ## sabres in (anim_events pin_stab hit_fracs, x pin_mult each, from the Head part). It lets go when the clip ends, the
 ## prey is no longer Pinned, or either dies. Prey bigger than itself is not pinned.
-func _start_pin() -> bool:
-	if not tac.get("pin", false) or not creature.anim.has_state(&"pin_stab") or _pinnable(attack_target) == null:
+## SMILOFEEL: clip &"" is pin_stab; a long leap pins into the maul (maul_bite). With
+## tactics.pin_hold the pin starts only on prey already under the paws (PinHold.can_start: the leap or pounce landed on
+## her), never pulled in from where the hit reached.
+func _start_pin(clip: StringName = &"") -> bool:
+	if clip == &"":
+		clip = &"pin_stab"
+	if not tac.get("pin", false) or not creature.anim.has_state(clip) or _pinnable(attack_target) == null:
 		return false
-	_hold_victim(attack_target, &"pin_stab")  # the state change first: leaving the pounce ends its timed clip
-	creature.anim.play_clip(&"pin_stab")
+	if tac.get("pin_hold", false) and not PinHold.can_start(creature, attack_target):
+		_log("[ai] %s: not on her, no pin" % creature.def.id)
+		return false
+	_hold_victim(attack_target, clip)  # the state change first: leaving the pounce ends its timed clip
+	creature.anim.play_clip(clip)
+	if clip == &"maul_bite":
+		_maul_t = 0.0
+		_maul_hits = 0
+		tactic.emit(&"maul")
 	return true
 
 ## The statuses of prey this animal can hold down: a live survivor, or a live creature no bigger than itself.
@@ -2523,22 +2602,32 @@ func _hold_victim(tgt: Node3D, clip: StringName) -> bool:
 	_set_state(&"pin")
 	_pin_victim = tgt
 	_pin_clip = clip
+	_pin_held = true
 	st.apply(&"pinned", creature, 1)
 	creature.stop_move()
+	if tac.get("pin_hold", false):
+		PinHold.lay_down(creature, tgt)  # PINFEEL: on her back, head out in front of the paws
 	tactic.emit(&"pin")
 	_log("[ai] %s pins %s" % [creature.def.id, tgt.name])
 	return true
 
 func _pin(delta: float) -> void:
 	var v := _pin_victim
-	var gone := not is_instance_valid(v) or (v is Player and ((v as Player).dead or not (v as Player).statuses.has(&"pinned"))) \
-		or (v is Creature and ((v as Creature).health.dead or not (v as Creature).statuses.has(&"pinned")))
-	if gone or creature.anim.current_clip != _pin_clip:
+	var gone := not is_instance_valid(v) or CreatureAttack._target_dead(v) \
+		or (_pin_held and ((v is Player and not (v as Player).statuses.has(&"pinned")) or (v is Creature and not (v as Creature).statuses.has(&"pinned"))))
+	if gone or creature.anim.current_clip != _pin_clip or (_pin_clip == &"maul_bite" and not _maul_tick(delta)):
 		_end_pin()
 		if _valid_target():
 			_back_off()
 		return
 	creature.stop_move()
+	if tac.get("pin_hold", false):
+		# SMILOFEEL: planted over her, no turning on its feet; held under the paws by PinHold (slid, never a jump).
+		if _pin_held:
+			PinHold.snap(creature, v, delta)
+		else:
+			creature.face_towards(v.global_position, delta)  # the clinch maul tracks her until its bite closes
+		return
 	creature.face_towards(v.global_position, delta)
 	# Held under the forepaws: slid toward the pin point in front of the chest (the stab lands there).
 	var fwd := -creature.global_basis.z
@@ -2551,11 +2640,83 @@ func _pin(delta: float) -> void:
 func _end_pin() -> void:
 	var v := _pin_victim
 	_pin_victim = null
+	_pin_held = false
 	if not is_instance_valid(v):
 		return
 	var st: StatusEffects = (v as Player).statuses if v is Player else ((v as Creature).statuses if v is Creature else null)
 	if st:
 		st.clear_id(&"pinned")
+
+## SMILOFEEL maul (tactics.maul): the maul_bite clip (the shared MAUL BITE timing: anim_events maul_bite hit_fracs and
+## release_frac) lands its own hits, as MaulBite does: hit 0 the sabres bite (x maul.bite_mult; on prey not yet held it
+## must reach her through the maul_bite hitbox, and a landed bite pins her under the paws), hits 1 and 2 the head-shake
+## worries (x maul.worry_mult each) on held prey only; the jaws open at release_frac and she is let go. Started point
+## blank or on a downed survivor (_start_maul), or as the pin's clip after a landed leap (_start_pin).
+func _start_maul() -> void:
+	var tgt := attack_target
+	creature.stop_move()
+	_set_state(&"pin")
+	_pin_victim = tgt
+	_pin_clip = &"maul_bite"
+	_pin_held = false
+	_maul_t = 0.0
+	_maul_hits = 0
+	_just_disengaged = false
+	_basic_streak = 0
+	creature.anim.play_clip(&"maul_bite")
+	_mark_pack()
+	tactic.emit(&"maul")
+	_log("[ai] %s maul" % creature.def.id)
+
+## One frame of the maul; false once it is over (released, or the clip done).
+func _maul_tick(delta: float) -> bool:
+	_maul_t += delta
+	var ap := creature.anim.player
+	var len := (ap.get_animation(&"maul_bite").length if ap and ap.has_animation(&"maul_bite") else 2.6) / maxf(0.01, creature.anim.cadence(&"maul_bite"))
+	var fracs := CreatureClips.hit_fracs(&"maul_bite")
+	var m: Dictionary = tac.get("maul", {})
+	while _maul_hits < fracs.size() and _maul_t >= len * fracs[_maul_hits]:
+		var i := _maul_hits
+		_maul_hits += 1
+		var v := _pin_victim
+		if i > 0 and not _pin_held:
+			continue  # a missed bite has nothing under it to worry
+		if i == 0 and not _pin_held and Hitbox.applies(creature, v):
+			var hit := Hitbox.strike(creature, &"maul_bite", v, 0)
+			if hit.is_empty():
+				_log("[ai] %s maul: the sabres close on air" % creature.def.id)
+				CombatAvoid.avoided(v, creature, &"miss")
+				continue
+			Hitbox.mark(v, hit)
+		var mult := float(m.get("bite_mult", 1.2)) if i == 0 else float(m.get("worry_mult", 0.6))
+		tactic_hit.emit(&"maul_bite", i, mult)
+		if not CreatureAttack.apply_for(creature, &"maul_bite", v, mult):
+			continue
+		maul_landed += 1
+		if v is Player:
+			(v as Player).receive_creature_hit(creature, &"maul_bite")
+		if i == 0 and not _pin_held and not CreatureAttack._target_dead(v) and PinHold.can_start(creature, v):
+			_hold_victim(v, &"maul_bite")  # the bite holds her down under the paws
+	var rel := float(((Data.anim_events.get("clips", {}) as Dictionary).get("maul_bite", {}) as Dictionary).get("release_frac", 0.86))
+	return _maul_t < len * rel
+
+## SMILOFEEL pulse chase: inside pulse.hold_m it does not run at her heels; it prowls after her on the stalk creep at
+## pulse.prowl_mps (holds still inside pulse.keep_m) until she is far enough for the next bound. A burst in flight ends.
+func _pulse_prowl(d: float) -> bool:
+	var pu: Dictionary = tac.get("pulse", {})
+	if pu.is_empty() or d > float(pu.get("hold_m", 6.0)) + _size_excess(attack_target):
+		return false
+	_burst_left = 0.0
+	speed_override = -1.0
+	if d <= float(pu.get("keep_m", 3.0)) + _size_excess(attack_target):
+		creature.stop_move()
+		creature.face_towards(attack_target.global_position, delta_s())
+		return true
+	if creature.anim.has_state(&"stalk"):
+		gait_clip = &"stalk"
+	speed_override = float(pu.get("prowl_mps", 1.5))
+	creature.move_to(attack_target.global_position)
+	return true
 
 ## SNAP-AND-SHAKE (tactics.grab, SP-SPINOSAURUS): the bite_shake clip at point blank. The windup (head drawn back, the
 ## long jaws gaping, claws raised, the ground ring on her) is the tell; at the clip's hit_frac (anim_events) the jaws

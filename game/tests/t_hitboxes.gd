@@ -188,6 +188,16 @@ func _moves_of(c) -> Array:
 		out.append([&"pounce", 0, false, [land, (land + reach) * 0.5, reach]])
 	if steps.has("charge") and tac.get("charge_straight", false):
 		out.append([&"charge", 0, false, [reach]])
+	# SMILOFEEL: the chase bound's landing strike (bound.strike) and the long leap land her land_short_m short; the maul
+	# bites prey standing point blank (a held one is under it).
+	var bnd: Dictionary = tac.get("bound", {})
+	if bool(bnd.get("strike", false)) and ap.has_animation(&"leap"):
+		out.append([&"leap", 0, false, [c.brain._leap_short(bnd)]])
+	if tac.has("long_leap") and ap.has_animation(&"long_leap"):
+		var ll_land: float = c.brain._leap_short(tac["long_leap"])
+		out.append([&"long_leap", 0, false, [ll_land, (ll_land + reach) * 0.5]])
+	if tac.has("maul") and ap.has_animation(&"maul_bite"):
+		out.append([&"maul_bite", 0, false, near])
 	if tac.get("pin", false) and ap.has_animation(&"pin_stab"):
 		for i in 2:  # the sabres stab twice into prey held pin_reach_m in front (TacticalBrain._pin)
 			out.append([&"pin_stab", i, false, [float(tac.get("pin_reach_m", 1.5)) * c.size_scale()]])

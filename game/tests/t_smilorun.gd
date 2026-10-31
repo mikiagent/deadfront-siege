@@ -120,7 +120,7 @@ func _test_gaits() -> void:
 		var slip := 0.0
 		for v in speeds:
 			slip = maxf(slip, absf(v - med))
-		var nat := float(row.get(str(clip), 0.0))
+		var nat: float = float(row.get(str(clip), 0.0)) * def.height_meters / float(row.get("height_m", def.height_meters))  # baked at height_m, scaled with the body (SMILOFEEL: 2.5 m)
 		print("[t_smilorun] %s: %d/%d samples airborne, back flex %.1f deg, planted paws %.2f m/s (data %.2f), worst slip %.2f m/s" % [clip, air, N + 1, bend, med, nat, slip])
 		if clip != &"lope":
 			_expect(air >= 4, "%s has a flight phase: all four paws up in %d of %d samples" % [clip, air, N + 1])

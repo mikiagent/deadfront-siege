@@ -4,6 +4,12 @@ extends SceneTree
 ## part (the swiping paw, the sabres) at the hit frame, the brain stalks in, pounces, pins and stabs a survivor, the
 ## swipe misses a survivor the paw cannot reach (centre reach would have hit), an alpha wears the brown skin, and the
 ## spawn tables put it on tundra islands with nothing falling through.
+## SMILOFEEL (owner 2026-10-31: "make smilodon bigger and give it more maul style attacks, pin attacks, large leap
+## attacks"; "it shouldn't follow so closely, it should just jump towards the player and bound toward them. burst
+## movement"): it is 2.5 m tall (+25 %); a fleeing survivor is chased in pulses (bounds with planted pauses, never a steady
+## run at her heels inside PULSE_NEAR_M for over PULSE_TRAIL_S); the long leap covers LONG_LEAP_M or more, airborne with the
+## forepaws thrown forward, lands on her and pins her (PinHold, slid at most pin_slide_mps a second) into the maul; a pin
+## only follows a leap that landed; the maul's bite and both worries land with the hind paws planted.
 ## Run: Godot --headless --path game --script res://tests/t_sp_smilodon.gd  -> "[t_sp_smilodon] PASS", exit 0.
 
 const ID := &"smilodon"
@@ -12,7 +18,12 @@ const FEET := ["BackFoot.L", "BackFoot.R", "FrontFoot.L", "FrontFoot.R"]
 const TOES := ["BackFoot.L_end", "BackFoot.R_end", "FrontFoot.L_end", "FrontFoot.R_end"]
 const GROUND_TOL := 0.06  ## m: the lowest toe tip stays this close to its rest height in standing clips
 ## clip -> [hit frac, bone]: anim_events hit fracs and pipeline.hit_parts
-const HITS := {&"attack_primary": [0.42, "FrontFoot.R"], &"attack_heavy": [0.72, "Head"], &"pounce": [0.7, "Head"], &"pin_stab": [0.38, "Head"]}
+const HITS := {&"attack_primary": [0.42, "FrontFoot.R"], &"attack_heavy": [0.72, "Head"], &"pounce": [0.7, "Head"], &"pin_stab": [0.38, "Head"],
+	&"long_leap": [0.74, "Head"], &"maul_bite": [0.24, "Head"]}
+const HEIGHT_M := 2.5  ## SMILOFEEL: 2.0 x 1.25
+const PULSE_NEAR_M := 5.0  ## a chase never runs steadily (over 3 m/s) this close to her ...
+const PULSE_TRAIL_S := 1.0  ## ... for longer than this
+const LONG_LEAP_M := 8.5  ## the long leap's flight covers at least this
 
 var failures: Array[String] = []
 var _started := false
@@ -24,7 +35,7 @@ func _process(_d: float) -> bool:
 		return false
 	_started = true
 	data = root.get_node("Data")
-	root.get_node("Game").debug_overlay = false
+	root.get_node("Game").debug_overlay = OS.get_environment("SMILO_TRACE") != ""
 	CV = load("res://scripts/creatures/creature_view.gd")
 	_run.call_deferred()
 	return false
@@ -41,6 +52,10 @@ func _run() -> void:
 	await _test_pounce_pin()
 	await _test_stalk()
 	await _test_alpha()
+	await _test_burst_chase()
+	await _test_long_leap()
+	await _test_pin_needs_landing()
+	await _test_maul()
 	if failures.is_empty():
 		print("[t_sp_smilodon] PASS")
 		quit(0)
@@ -92,6 +107,7 @@ func _test_view() -> void:
 		first = false
 	var long_side := maxf(aabb.size.x, aabb.size.z)
 	_expect(absf(aabb.size.y - def.height_meters) < 0.15, "height %.2f m (data %.2f)" % [aabb.size.y, def.height_meters])
+	_expect(is_equal_approx(def.height_meters, HEIGHT_M) and absf(aabb.size.y - HEIGHT_M) < 0.15, "SMILOFEEL: 25 %% bigger, %.2f m tall (was 2.0)" % aabb.size.y)
 	_expect(long_side > 1.5 * aabb.size.y and long_side < 2.5 * aabb.size.y, "a cat's proportions: %.1f m long, %.1f m tall" % [long_side, aabb.size.y])
 	var ap: AnimationPlayer = view.rig.anim_player
 	sk.reset_bone_poses()
@@ -268,6 +284,7 @@ func _test_stalk() -> void:
 	var b = c.brain
 	b.attack_target = player
 	b._combat_memory_left = 30.0
+	b._cd[&"long_leap"] = 99.0  # SMILOFEEL: from 9-16 m it would open with the long leap; this checks the creep
 	b._set_state(&"approach")
 	var stalked := [0]
 	var speeds: Array[float] = []
@@ -308,3 +325,198 @@ func _albedo(v: Node) -> Texture2D:
 		if mat is StandardMaterial3D:
 			return (mat as StandardMaterial3D).albedo_texture
 	return null
+
+## A scripted survivor: one physics frame at vel, reported as her velocity (the real run would set it).
+func _step(player: Node3D, vel: Vector3) -> void:
+	player.velocity = vel
+	player.global_position += vel / float(Engine.physics_ticks_per_second)
+
+func _flat(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
+
+## SMILOFEEL burst chase: she sprints straight away for 8 s (its strikes are held off, so the chase never ends). Its
+## speed comes in pulses (bounds, then planted pauses) and it never runs steadily at her heels.
+func _test_burst_chase() -> void:
+	var a := await _arena()
+	var host: Node3D = a[0]
+	var player = a[1]
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	var c = _cat(host, Vector3(0, 0.1, -50.0))
+	c.look_at(Vector3(0, 0.1, 100), Vector3.UP)
+	var b = c.brain
+	b.tac = b.tac.duplicate(true)
+	(b.tac["bound"] as Dictionary)["strike"] = false  # the landing would pin her: here the chase itself is the test
+	for k in [&"pounce", &"long_leap", &"maul", &"bite", &"heavy"]:
+		b._cd[k] = 999.0
+	b.tac["pounce_cd"] = 999.0
+	b.tac["long_leap_cd"] = 999.0
+	player.global_position = c.global_position + Vector3(0, 0.8, 8.0)
+	var sprint: float = player.sprint_speed
+	var seen := {}
+	b.tactic.connect(func(k: StringName) -> void: seen[k] = int(seen.get(k, 0)) + 1)
+	var hz := float(Engine.physics_ticks_per_second)
+	var speeds: Array[float] = []
+	var trail := 0.0
+	var worst_trail := 0.0
+	var dmax := 0.0
+	var prev: Vector3 = c.global_position
+	for f in int(8.0 * hz):
+		_step(player, Vector3(0, 0, sprint))
+		await physics_frame
+		var v := _flat(c.global_position, prev) * hz
+		prev = c.global_position
+		speeds.append(v)
+		var d := _flat(c.global_position, player.global_position)
+		dmax = maxf(dmax, d) if f > hz else dmax
+		trail = trail + 1.0 / hz if d < PULSE_NEAR_M and v > 3.0 else 0.0
+		worst_trail = maxf(worst_trail, trail)
+	# Pulses: the flat speed rises over 12 m/s (a bound) from under 3 m/s (a pause) again and again.
+	var pulses := 0
+	var low := true
+	var slow_frames := 0
+	for v in speeds:
+		if v < 3.0:
+			low = true
+			slow_frames += 1
+		elif v > 12.0 and low:
+			pulses += 1
+			low = false
+	print("[t_sp_smilodon] burst chase: %d pulses, %d of %d frames under 3 m/s, longest steady trail within %.0f m %.2f s, farthest %.1f m, tactics %s" % [pulses, slow_frames, speeds.size(), PULSE_NEAR_M, worst_trail, dmax, seen])
+	_expect(pulses >= 4, "the chase comes in pulses: %d bursts of speed from a near stop in 8 s" % pulses)
+	_expect(slow_frames > speeds.size() / 8, "it pauses between them (%d of %d frames under 3 m/s)" % [slow_frames, speeds.size()])
+	_expect(worst_trail <= PULSE_TRAIL_S, "never a steady run at her heels: longest %.2f s moving within %.0f m (limit %.1f s)" % [worst_trail, PULSE_NEAR_M, PULSE_TRAIL_S])
+	_expect(int(seen.get(&"bound", 0)) >= 4, "it bounds at her again and again (%d bounds)" % int(seen.get(&"bound", 0)))
+	_expect(dmax < 20.0, "a %.1f m/s sprint never gets clear: farthest %.1f m" % [sprint, dmax])
+	host.free()
+
+## The long leap from 11.5 m (inside its ~12 m aggro ring): a crouch, then a flight of LONG_LEAP_M or more with the forepaws thrown out ahead, landing on
+## her: the strike lands, she is Pinned (under the paws, slid there, never jumped) and the maul follows.
+func _test_long_leap() -> void:
+	var a := await _arena()
+	var host: Node3D = a[0]
+	var player = a[1]
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	var c = _cat(host, Vector3(0, 0.1, -11.5))
+	var b = c.brain
+	b.attack_target = player
+	b._combat_memory_left = 30.0
+	root.get_node("Game").god_mode = true
+	var hits := {}
+	b.tactic_hit.connect(func(clip: StringName, _i: int, _m: float) -> void: hits[clip] = int(hits.get(clip, 0)) + 1)
+	var d0: float = _flat(c.global_position, player.global_position)
+	_expect(b.attack_available(&"long_leap", d0), "the long leap is ready from %.1f m" % d0)
+	_expect(b._strike(d0, ["long_leap"]) and b.state == &"pounce" and b._pounce_clip == &"long_leap", "it springs the long leap (state %s)" % b.state)
+	var start: Vector3 = c.global_position
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var air_top := 0.0
+	var paws_ahead := 0.0
+	var paws_up := 0.0
+	var pinned := false
+	var max_step := 0.0
+	var prev: Vector3 = player.global_position
+	var slide: float = 3.0  # ai.json big_stomp pin_slide_mps
+	for _f in 300:
+		await physics_frame
+		var lift: float = c.view.position.y
+		if lift > air_top:
+			air_top = lift
+			var fwd: Vector3 = -c.global_basis.z
+			var pa := INF
+			var pu := INF
+			for bn in ["FrontFoot.L", "FrontFoot.R"]:
+				var p := sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bn)).origin
+				pa = minf(pa, (p - c.global_position).dot(fwd))
+				pu = minf(pu, p.y - start.y)
+			paws_ahead = pa
+			paws_up = pu
+		if player.statuses.has(&"pinned"):
+			pinned = true
+			max_step = maxf(max_step, _flat(player.global_position, prev))
+		prev = player.global_position
+		if pinned and b.state != &"pin":
+			break
+	var flew: float = b.last_leap[0].distance_to(b.last_leap[1]) if b.last_leap.size() == 2 else 0.0
+	print("[t_sp_smilodon] long leap: flight %.1f m, top %.2f m, forepaws %.2f m ahead / %.2f m up at the top, hits %s, maul hits %d, pinned slide %.3f m/frame" % [flew, air_top, paws_ahead, paws_up, hits, b.maul_landed, max_step])
+	_expect(flew >= LONG_LEAP_M, "the leap covers %.1f m (>= %.0f)" % [flew, LONG_LEAP_M])
+	_expect(air_top > 1.0, "clearly airborne: %.2f m off the ground at the top" % air_top)
+	_expect(paws_ahead > 1.6 and paws_up > 0.8, "forepaws thrown out ahead in the air (%.2f m ahead, %.2f m up)" % [paws_ahead, paws_up])
+	_expect(int(hits.get(&"long_leap", 0)) == 1, "it lands on her: the leap's strike lands (%s)" % hits)
+	_expect(pinned, "a landed leap pins her")
+	_expect(b.maul_landed >= 2, "the maul follows on the pinned survivor (%d hits landed)" % b.maul_landed)
+	_expect(max_step <= slide / 60.0 + 0.01, "held under the paws by a slide, never a jump (%.3f m in one frame)" % max_step)
+	root.get_node("Game").god_mode = false
+	host.free()
+
+## A pin needs the leap to land: she sidesteps 5 m as it takes off, so it lands on nothing and nothing pins her; and a pin
+## asked for with her out of the paws' reach does not start (PinHold.can_start).
+func _test_pin_needs_landing() -> void:
+	var a := await _arena()
+	var host: Node3D = a[0]
+	var player = a[1]
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	var c = _cat(host, Vector3(0, 0.1, -11.5))
+	var b = c.brain
+	b.attack_target = player
+	b._combat_memory_left = 30.0
+	root.get_node("Game").god_mode = true
+	b._strike(_flat(c.global_position, player.global_position), ["long_leap"])
+	var moved := false
+	var ever := false
+	for _f in 200:
+		await physics_frame
+		if not moved and b._pounce_phase == &"leap":
+			player.global_position += Vector3(5.0, 0, 0)  # out of the landing
+			moved = true
+		ever = ever or player.statuses.has(&"pinned")
+	_expect(moved and not ever, "a long leap that lands on nothing never pins her (pinned seen %s)" % ever)
+	player.global_position = c.global_position + (-c.global_basis.z) * 6.0
+	b.attack_target = player
+	_expect(not b._start_pin(&"pin_stab") and not player.statuses.has(&"pinned"), "a pin with her 6 m off (not under the paws) does not start")
+	root.get_node("Game").god_mode = false
+	host.free()
+
+## The maul point blank: the sabres bite (she is pinned under the paws), two worries land, she is let go; the hind paws
+## never leave their prints.
+func _test_maul() -> void:
+	var a := await _arena()
+	var host: Node3D = a[0]
+	var player = a[1]
+	player.process_mode = Node.PROCESS_MODE_DISABLED
+	var c = _cat(host, Vector3(0, 0.1, -2.0))
+	var b = c.brain
+	b.attack_target = player
+	b._combat_memory_left = 30.0
+	root.get_node("Game").god_mode = true
+	await physics_frame
+	var sk: Skeleton3D = c.view.rig.skeleton
+	var hind := func() -> Array:
+		var out := []
+		for bn in ["BackFoot.L_end", "BackFoot.R_end"]:
+			out.append(sk.global_transform * sk.get_bone_global_pose(sk.find_bone(bn)).origin)
+		return out
+	var d: float = _flat(c.global_position, player.global_position)
+	_expect(b.attack_available(&"maul", d), "the maul is ready point blank (%.1f m)" % d)
+	b._strike(d, ["maul"])
+	_expect(b.state == &"pin" and c.anim.current_clip == &"maul_bite", "it mauls (state %s, clip %s)" % [b.state, c.anim.current_clip])
+	var p0: Array = hind.call()
+	var drift := 0.0
+	var pinned := false
+	var hits := []
+	b.tactic_hit.connect(func(clip: StringName, i: int, _m: float) -> void:
+		if clip == &"maul_bite":
+			hits.append(i))
+	for _f in 240:
+		await physics_frame
+		pinned = pinned or player.statuses.has(&"pinned")
+		if b.state != &"pin":
+			break  # let go: its next move (a hop back) is not the maul
+		var p1: Array = hind.call()
+		for i in 2:
+			drift = maxf(drift, _flat(p1[i], p0[i]))
+	print("[t_sp_smilodon] maul: hits %s landed %d, pinned %s, hind paw drift %.3f m" % [hits, b.maul_landed, pinned, drift])
+	_expect(b.maul_landed == 3 and hits == [0, 1, 2], "the bite and both worries land (%d landed, %s)" % [b.maul_landed, hits])
+	_expect(pinned, "the bite pins her under the paws")
+	_expect(not player.statuses.has(&"pinned") and b.state != &"pin", "it lets go when the jaws open (state %s)" % b.state)
+	_expect(drift < 0.05, "the hind paws stay planted through the maul (drift %.3f m)" % drift)
+	root.get_node("Game").god_mode = false
+	host.free()

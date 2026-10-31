@@ -175,6 +175,14 @@
       ],
       "note": "smilodon (SMILORUN, tools/gait/make_cat_moves.py leap, 0.75 s): the chase bound; coil out of the stride, hinds drive off at 0.12, stretched flight, fronts land on their prints at 0.78 as the body stops, hinds swing in under the chest at 0.88. TacticalBrain tactics.bound moves the body (and lifts it over steps) inside airborne."
     },
+    "long_leap": {
+      "airborne": [
+        0.2,
+        0.7
+      ],
+      "hit_frac": 0.74,
+      "note": "smilodon (SMILOFEEL, tools/gait/make_cat_moves.py long_leap, 1.4 s): the large leap attack from mid range; a deep coil, drive off at 0.2, a long flight with both forelegs thrown forward, claws out, jaws wide; the fronts slam down at 0.7 and the sabres drive in on hit_frac 0.74, then it settles into the pin crouch. TacticalBrain tactics.long_leap moves the body inside airborne; a landed leap pins (PinHold) into the maul."
+    },
     "charge_windup": {
       "note": "STYRAFIX telegraph before a horned charge (styracosaurus): horns lowered, a fore-foot paws twice, a snort; the body stands still (tools/jaw/make_styra_impale.py)"
     },
@@ -339,6 +347,13 @@
     "spacing_stomp": {
       "hit_frac": 0.4,
       "note": "SPACING STOMP (make_thero_roar.py ... spacing_stomp): the right foot slams down on its print; SpacingStomp shakes the ground, raises the dust ring and shoves the prey out to bite reach"
+    },
+    "maul_bite": {
+      "hit_frac": 0.24,
+      "hit_fracs": [0.24, 0.5, 0.74],
+      "release_frac": 0.86,
+      "windup": false,
+      "note": "MAUL BITE (make_thero_roar.py ... maul_bite; MaulBite, ai.json maul_bite): the majungasaurus' low bite and grab-shake as one shared clip: coil with the jaws gaping, the head drops and the jaws clamp at ground level on 0.24 (a landed bite grabs: Pinned, held at the jaws), worrying shakes peaking on 0.5 and 0.74 (x maul_mult each), the jaws open at release_frac 0.86 and it rises"
     }
   },
   "natural_speeds": {

@@ -81,7 +81,7 @@
     {"name": "head", "bone": "Head", "offset": [0.0, 0.32, 0.18], "radius": 0.29}
    ],
    "smilodon": [
-    {"name": "throat", "bone": "Neck", "offset": [0.0, -0.33, 0.21], "radius": 0.2}
+    {"name": "throat", "bone": "Neck", "offset": [0.0, -0.41, 0.26], "radius": 0.25, "_smilofeel": "x1.25 with height_meters 2.0 -> 2.5"}
    ],
    "spinosaurus": [
     {"name": "head", "bone": "Head", "offset": [0.03, 0.08, 1.46], "radius": 0.6},
@@ -1239,12 +1239,13 @@
      "bone": "Head"
     }
    ],
+   "_smilofeel": "SMILOFEEL: every radius re-calibrated (t_hitboxes -- --calibrate --species=smilodon) at height_meters 2.5",
    "moves": {
     "attack_primary": {
      "parts": [
       {
        "bone": "FrontFoot.R",
-       "radius": 1.06,
+       "radius": 0.74,
        "calibrated": true
       }
      ]
@@ -1253,7 +1254,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 0.85,
+       "radius": 0.53,
        "calibrated": true
       }
      ]
@@ -1262,7 +1263,7 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 0.91,
+       "radius": 1.28,
        "calibrated": true
       }
      ]
@@ -1271,9 +1272,33 @@
      "parts": [
       {
        "bone": "Head",
-       "radius": 0.76,
+       "radius": 0.99,
        "calibrated": true
       }
+     ]
+    },
+    "leap": {
+     "_smilofeel": "the chase bound's landing strike (tactics.bound.strike): the window is the forepaws coming down (the leap clip has no hit_frac; the default would judge mid-flight)",
+     "window": [0.62, 0.8],
+     "parts": [
+      {"bone": "FrontFoot.L", "radius": 0.21, "calibrated": true},
+      {"bone": "FrontFoot.R", "radius": 0.21, "calibrated": true},
+      {"bone": "Head", "radius": 0.51, "calibrated": true}
+     ]
+    },
+    "long_leap": {
+     "_smilofeel": "the large leap's landing: the forepaws slam down and the sabres drive in (hit_frac 0.74)",
+     "window": [0.62, 0.78],
+     "parts": [
+      {"bone": "FrontFoot.L", "radius": 0.45, "calibrated": true},
+      {"bone": "FrontFoot.R", "radius": 0.69, "calibrated": true},
+      {"bone": "Head", "radius": 0.77, "calibrated": true}
+     ]
+    },
+    "maul_bite": {
+     "_smilofeel": "the maul's sabre bite (hit 0) on prey not yet held; the worries land on held prey",
+     "parts": [
+      {"bone": "Head", "radius": 0.7, "calibrated": true}
      ]
     }
    },
