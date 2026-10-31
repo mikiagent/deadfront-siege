@@ -1,0 +1,129 @@
+{
+  "forward": [
+    0,
+    -1,
+    0
+  ],
+  "body": "Body",
+  "view_size": 1.15,
+  "view_centre": [
+    0.0,
+    0.14
+  ],
+  "legs": {
+    "LH": {
+      "up": "BackUpLeg.L",
+      "low": "BackLowLeg.L",
+      "foot": "BackFoot.L",
+      "root": "BackLeg.L",
+      "end": "hind",
+      "pole": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "RH": {
+      "up": "BackUpLeg.R",
+      "low": "BackLowLeg.R",
+      "foot": "BackFoot.R",
+      "root": "BackLeg.R",
+      "end": "hind",
+      "pole": [
+        0,
+        -1,
+        0
+      ]
+    },
+    "LF": {
+      "up": "FrontUpLeg.L",
+      "low": "FrontLowLeg.L",
+      "foot": "FrontFoot.L",
+      "root": "FrontLeg.L",
+      "end": "front",
+      "pole": [
+        0,
+        1,
+        0
+      ]
+    },
+    "RF": {
+      "up": "FrontUpLeg.R",
+      "low": "FrontLowLeg.R",
+      "foot": "FrontFoot.R",
+      "root": "FrontLeg.R",
+      "end": "front",
+      "pole": [
+        0,
+        1,
+        0
+      ]
+    }
+  },
+  "wiggle": {
+    "Neck": {
+      "key": "head",
+      "axis": "pitch"
+    },
+    "Tail1": {
+      "key": "tail",
+      "axis": "pitch",
+      "phase": 0.25
+    }
+  },
+  "clips": {
+    "walk": {
+      "cycle_s": 1.1,
+      "duty": 0.6,
+      "stride": 0.15,
+      "phases": {
+        "LH": 0.0,
+        "RF": 0.0,
+        "RH": 0.5,
+        "LF": 0.5
+      },
+      "lift_hind": 0.02,
+      "lift_front": 0.018,
+      "swing_curl_hind": 6,
+      "swing_curl_front": 4,
+      "toe_roll": 6,
+      "legroot_front": 0.2,
+      "legroot_hind": 0.0,
+      "foot_offset_hind": 0.0,
+      "bob": 0.003,
+      "bob_harmonic": 2,
+      "roll_deg": 1.6,
+      "wiggle_head": 2.0,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 4.0
+    },
+    "run": {
+      "cycle_s": 0.625,
+      "duty": 0.55,
+      "stride": 0.18,
+      "phases": {
+        "LH": 0.0,
+        "RF": 0.0,
+        "RH": 0.5,
+        "LF": 0.5
+      },
+      "lift_hind": 0.026,
+      "lift_front": 0.024,
+      "swing_curl_hind": 3,
+      "swing_curl_front": 3,
+      "toe_roll": 5,
+      "legroot_front": 0.2,
+      "legroot_hind": 0.05,
+      "foot_offset_hind": 0.0,
+      "crouch": 0.006,
+      "bob": 0.006,
+      "bob_harmonic": 2,
+      "roll_deg": 1.4,
+      "wiggle_head": 2.5,
+      "wiggle_harmonic_head": 2,
+      "wiggle_tail": 5.0,
+      "pitch_gain": 0.3
+    }
+  },
+  "note": "2026-10-30 ankylosaurus v3 (Tripo mesh, 1.0 units long incl. tail and club; hip ~0.10 units, legs ~0.55x the styracosaurus'): heavy lateral walk, lumbering trot run (# ASSUMPTION: a low armoured ankylosaur trots, it never gallops)"
+}

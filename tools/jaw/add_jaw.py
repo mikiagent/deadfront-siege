@@ -28,6 +28,7 @@ ap.add_argument("--reach", type=float, default=0.35, help="with --open: skin thi
 ap.add_argument("--pivot", type=float, nargs=2, default=None, metavar=("T", "Z"), help="mouth corner by hand: T along the snout from the head joint, Z height (mesh units)")
 ap.add_argument("--split", type=float, default=None, help="with --pivot: the jaw/skull boundary is the line through the pivot at this angle (deg, negative = down toward the tip); for wide-open beaked mouths where a straight lip line cuts the beak")
 ap.add_argument("--close", type=float, default=None, help="with --open: close the mouth by this many degrees instead of the measured gape minus --part")
+ap.add_argument("--blend", type=float, default=0.0, help="jaw skin fades in over +/- this many mesh units around the mouth corner instead of switching there (stops a crack behind the corner when --close is large)")
 ap.add_argument("--debug", action="store_true")
 a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
 
@@ -135,7 +136,7 @@ for v in ob.data.vertices:
     hg = next((g for g in v.groups if g.group == HI and g.weight > 0), None)
     if a.open and hg is None and t > t_corner + span and abs(p.z - lip_z(t)) < a.reach * L:
         hg = True  # open-mouth meshes: snout skin and teeth weighted to Neck or nothing still belong to the head
-    if hg is None or t < t_corner - 0.02 * L: continue
+    if hg is None or t < t_corner - max(0.02 * L, a.blend): continue
     if a.chin_depth is not None and p.z < lip_z(t) - a.chin_depth * L: continue  # throat and neck stay put
     # Meshy weights the snout about half to Neck, so the whole skull bends with the neck. Ramp both halves of the
     # head to rigid along the snout (skull -> Head, below the mouth line -> Jaw), or a rigid jaw splits off the skull.
@@ -145,7 +146,10 @@ for v in ob.data.vertices:
     share = old.pop(HI, 0.0)
     for gi, gw in old.items(): ob.vertex_groups[names[gi]].add([v.index], gw * (1 - w), "REPLACE")
     if HI in [g.group for g in v.groups]: ob.vertex_groups[a.head].remove([v.index])
-    (jaw_g if jaw else ob.vertex_groups[a.head]).add([v.index], share * (1 - w) + w, "REPLACE")
+    tot = share * (1 - w) + w
+    jw = (lambda y: y * y * (3 - 2 * y))(min(max((t - t_corner + a.blend) / (2 * a.blend), 0.0), 1.0)) if jaw and a.blend > 0 else float(jaw)
+    if jw > 0: jaw_g.add([v.index], tot * jw, "REPLACE")
+    if jw < 1: ob.vertex_groups[a.head].add([v.index], tot * (1 - jw), "REPLACE")
     moved += jaw
 print(f"jaw skin: {moved} verts moved from {a.head} to Jaw")
 
@@ -167,6 +171,8 @@ if a.open:  # close the modelled gape in the bind pose: pose the jaw shut, bake 
         cen = sum((mw @ ob.data.vertices[i].co for i in isl), Vector()) / len(isl)
         t = (cen - joint).dot(fwd)
         if t < t_corner + span or abs(cen.z - lip_z(t)) > a.reach * L: continue  # the corner's ramp keeps its blended skin
+        if a.blend > 0 and min((mw @ ob.data.vertices[i].co - joint).dot(fwd) for i in isl) < t_corner + a.blend:
+            continue  # an island reaching back to the corner (a whole lower-jaw shell) keeps the blend, or it cracks off the throat
         tgt = jaw_g if cen.z < lip_z(t) and t < t_tip - a.hook * L else ob.vertex_groups[a.head]
         for g in list(ob.vertex_groups): g.remove(isl)
         tgt.add(isl, 1.0, "REPLACE"); rigid += 1

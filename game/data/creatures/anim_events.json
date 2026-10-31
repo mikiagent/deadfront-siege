@@ -103,6 +103,23 @@
     }
   },
   "natural_speeds": {
+    "ankylosaurus": {
+      "height_m": 2.25,
+      "run_l": 2.06,
+      "run_len": 0.625,
+      "run_r": 2.06,
+      "walk_l": 0.991,
+      "walk_len": 1.083,
+      "walk_r": 0.991,
+      "walk": 0.991,
+      "run": 2.06,
+      "strafe_left": 0.991,
+      "strafe_left_len": 1.083,
+      "strafe_right": 0.991,
+      "strafe_right_len": 1.083,
+      "walk_back": 0.793,
+      "walk_back_len": 1.083
+    },
     "coelophysis": {
       "height_m": 2.0,
       "run_l": 3.843,
