@@ -14,6 +14,7 @@ var _shot_n := 0
 var _m: Dictionary = {}
 
 func _ready() -> void:
+	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot-dir="):
 			_out = a.substr(11)

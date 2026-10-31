@@ -5,6 +5,7 @@ Source of truth: the canon worktree's `game/data/*.json` (the build's own data).
 Emits (all generated files carry a generation header; never hand-edit them):
   docs/current/recipes.md       recipe data + repair tiers + station times
   docs/current/world-biomes.md  island roster, per-climate flora/materials, fauna, butchering
+  docs/current/biome-spawns.md  per biome/island: which creatures spawn, levels, alpha, tameable, model status
   docs/current/items-traits.md  full item catalog with rarity/attributes, food effects, traits
   <data>/../data_sheets/*.csv   the same rows as flat spreadsheets the owner can edit
                                 (Numbers / Excel / Google Sheets all open CSV natively)
@@ -293,13 +294,15 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
     creatures = []
     for f in sorted(Path(data, "creatures").glob("*.json")):
         d = load(data, "creatures/%s" % f.name)
-        if "species" in d:
+        if isinstance(d.get("species"), str):  # ragdoll.json keys "species" to a dict of rigs
             creatures.append((d, but.get(f.name.replace(".json", ""), {})))
     creatures.sort(key=lambda t: (t[0].get("tier", 0), t[0].get("species", "")))
 
     L = []
     a = L.append
     a("Sources: `game/data/islands/*.json`, `game/data/world/climates.json`, `game/data/world/rules.json` (weather), `game/data/world/sky.json`, `game/data/creatures/*.json`, `game/data/butchering.json`.")
+    a("")
+    a("For which creatures spawn on each biome and island (levels, alpha, tameable, model status), see [biome-spawns.md](biome-spawns.md).")
     a("")
     a("## Island roster (%d)" % len(isl))
     a("")
@@ -404,6 +407,188 @@ def gen_biomes(data: Path, docs: Path, sheets: Path) -> None:
                 rows.append([sp, kind, x["id"], x.get("min", ""), x.get("max", ""), x.get("skill", ""),
                              ";".join("%s=%s" % kv for kv in at.items())])
     write_csv(sheets / "butchering.csv", ["species", "kind", "item", "min", "max", "butcher_skill", "attributes"], rows)
+
+
+# ------------------------------------------------------------------ biome spawns
+
+def has_model(assets: Path, sp: str) -> bool:
+    """CreatureDef.has_model: res://assets/creatures/<sp>/<sp>.glb exists."""
+    return (assets / "creatures" / sp / ("%s.glb" % sp)).exists()
+
+
+def eligible(assets: Path, want: str, table, pool=()) -> str:
+    """CreatureDef.eligible (NOBOXES): want, else the next in table (wrapping), else pool's first, else ''."""
+    if has_model(assets, want):
+        return want
+    i = table.index(want) if want in table else -1
+    for k in range(len(table)):
+        sp = table[(i + 1 + k) % len(table)]
+        if has_model(assets, sp):
+            return sp
+    return next((sp for sp in pool if has_model(assets, sp)), "")
+
+
+def merged_islands(data: Path):
+    """World._load_islands: world/islands.json templates, then data/islands/*.json keys on top."""
+    out = OrderedDict()
+    for k, v in load(data, "world/islands.json").items():
+        if not k.startswith("_") and isinstance(v, dict):
+            out[str(v.get("id", k))] = dict(v)
+    for f in sorted(Path(data, "islands").glob("*.json")):
+        d = load(data, "islands/%s" % f.name)
+        out.setdefault(str(d.get("id", f.stem)), {}).update(d)
+    return out
+
+
+def spawn_rows(data: Path, assets: Path):
+    """Every spawn row the game would place, as dicts; mirrors IslandSpawns.spawn_all,
+    Creature._spawn_level and Tutorial._wild_zones (rows only, not positions or the 24 cap)."""
+    defs = {}
+    for f in sorted(Path(data, "creatures").glob("*.json")):
+        d = load(data, "creatures/%s" % f.name)
+        if isinstance(d.get("species"), str):
+            defs[f.stem] = d
+    rules = load(data, "world/rules.json")
+    rings, cap = rules.get("rings", {}), int(rules.get("level_cap", 60))
+    offs = [int(r.get("level_offset", 0)) for r in rings.values()] or [0]
+    out = []
+    for iid, isl in merged_islands(data).items():
+        override = int(isl.get("level_override", 0))
+        alphas = not isl.get("no_alphas", False)
+        fixed = [str(r.get("species", "velociraptor")) for r in isl.get("creatures", []) if isinstance(r, dict)]
+        spawns = isl.get("spawns") if isinstance(isl.get("spawns"), dict) else {}
+        pool = fixed + [str(r.get("species", "velociraptor")) for rows in spawns.values()
+                        for r in (rows if isinstance(rows, list) else []) if isinstance(r, dict)]
+        zones = [r for r in isl.get("wild_zones", []) if isinstance(r, dict)]
+        zone_table = [str(r.get("species", "compsognathus")) for r in zones]
+
+        def row(where, want, got, count, groups, chance, lv):
+            tier = int(defs.get(got, {}).get("tier", 1))
+            if override > 0:
+                lv = (min(max(override, 1), cap),) * 2
+            elif lv is None:
+                lv = (tier,) * 2
+            else:
+                lv = tuple(min(max(tier + o, 1), cap) for o in lv)
+            out.append({"island": iid, "climate": isl.get("climate", "?"), "tier": isl.get("tier"),
+                        "kind": isl.get("kind", "unstable"), "where": where, "want": want, "got": got,
+                        "count": count, "groups": groups, "chance": chance, "levels": lv,
+                        "alpha": alphas, "tameable": bool(defs.get(want, {}).get("tameable", False))})
+
+        for r in isl.get("creatures", []):
+            if isinstance(r, dict):
+                w = str(r.get("species", "velociraptor"))
+                # a fixed spot's ring comes from its position at runtime: show the span of ring offsets
+                row("fixed spot", w, eligible(assets, w, fixed, pool), int(r.get("count", 1)), 1, 1.0, (min(offs), max(offs)))
+        for ring, rows in spawns.items():
+            rows = [r for r in (rows if isinstance(rows, list) else []) if isinstance(r, dict)]
+            table = [str(r.get("species", "velociraptor")) for r in rows]
+            ro = int(rings.get(ring, {}).get("level_offset", 0))
+            for r in rows:
+                w = str(r.get("species", "velociraptor"))
+                t = int(r.get("tier_offset", 0)) + ro
+                row(ring, w, eligible(assets, w, table, pool), int(r.get("count", 1)), int(r.get("groups", 1)),
+                    float(r.get("chance", 1.0)), (t, t))
+        for r in zones:
+            w = str(r.get("species", "compsognathus"))
+            row("zone %s m" % r.get("dist", 60), w, eligible(assets, w, zone_table), int(r.get("count", 1)), 1, 1.0, None)
+    return defs, out
+
+
+def status_txt(r) -> str:
+    if r["got"] == r["want"]:
+        return "in game"
+    if r["got"]:
+        return "no model yet: spawns fall through to %s" % r["got"]
+    return "no model yet: nothing spawns"
+
+
+def lv_txt(lv) -> str:
+    return "L%d" % lv[0] if lv[0] == lv[1] else "L%d-%d" % lv
+
+
+def gen_spawns(data: Path, docs: Path) -> None:
+    assets = data.parent / "assets"
+    defs, rows = spawn_rows(data, assets)
+    alpha = load(data, "creatures/ai.json").get("alpha", {}).get("chance_per_group", 0.08)
+    cap = int(load(data, "world/rules.json").get("level_cap", 60))
+    name = lambda sp: defs.get(sp, {}).get("species", sp)
+    L = []
+    a = L.append
+    a("Which creatures can spawn on each island, grouped by biome (the island's climate). Built from "
+      "`game/data/world/islands.json` (unstable-isle templates and their ring spawns), `game/data/islands/*.json` "
+      "(fixed spots, overrides, tutorial `wild_zones`), `game/data/world/rules.json` (rings), `game/data/creatures/*.json` "
+      "and the models under `game/assets/creatures/`. Rerolled unstable isles reuse their template's spawn table.")
+    a("")
+    a("How to read it:")
+    a("")
+    a("- **status**: `in game` means the species has a model (`assets/creatures/<id>/<id>.glb`). A species without one never "
+      "spawns (NOBOXES, `CreatureDef.eligible`): its row spawns the next species in the same table that has a model, else the "
+      "first one on the island that has a model. The status column names what spawns instead.")
+    a("- **level**: the spawning species' tier + the ring's `level_offset` + the row's `tier_offset`, clamped to 1-%d "
+      "(`Creature._spawn_level`). An island with `level_override` spawns everything at that level. A fixed spot's ring "
+      "depends on its position, so it shows the full ring span." % cap)
+    a("- **count × groups, chance**: animals per group, groups per row, and the chance each group appears.")
+    a("- **alpha**: each group rolls %d%% once; on a hit its first member is an alpha (`ai.json` `alpha.chance_per_group`). "
+      "Islands with `no_alphas` never roll." % round(float(alpha) * 100))
+    a("- **tameable**: the written species' `tameable` flag. At most %s creatures spawn per island "
+      "(`Game.max_creatures_per_island`), so late rows on a crowded island can be cut." % 24)
+    a("")
+    no_model = sorted(sp for sp in defs if not has_model(assets, sp))
+    a("**Models:** %d of %d species have one. No model yet: %s." % (
+        len(defs) - len(no_model), len(defs), ", ".join("%s (`%s`)" % (name(sp), sp) for sp in no_model) or "none"))
+    a("")
+
+    by_climate = OrderedDict()
+    for r in sorted(rows, key=lambda r: (r["kind"] == "tutorial", min(x["tier"] or 0 for x in rows if x["climate"] == r["climate"]), r["climate"])):
+        by_climate.setdefault(r["climate"], []).append(r)
+    for clim, crow in by_climate.items():
+        islands = OrderedDict()
+        for r in crow:
+            islands.setdefault(r["island"], []).append(r)
+        a("## %s" % clim.replace("_", " ").capitalize())
+        a("")
+        a("Islands: %s." % ", ".join("`%s` (L%s, %s)" % (i, rs[0]["tier"], rs[0]["kind"]) for i, rs in islands.items()))
+        a("")
+        a("| species | islands | level | groups | tameable | status |")
+        a("|---|---|---|---|---|---|")
+        agg = OrderedDict()
+        for r in sorted(crow, key=lambda r: (defs.get(r["want"], {}).get("tier", 0), r["want"])):
+            agg.setdefault((r["want"], status_txt(r)), []).append(r)
+        for (want, st), rs in agg.items():
+            lo = min(r["levels"][0] for r in rs)
+            hi = max(r["levels"][1] for r in rs)
+            groups = sum(r["groups"] for r in rs)
+            a("| **%s** (`%s`) | %s | %s | %d | %s | %s |" % (
+                name(want), want, ", ".join(OrderedDict.fromkeys("`%s`" % r["island"] for r in rs)),
+                lv_txt((lo, hi)), groups, "yes" if rs[0]["tameable"] else "no", st))
+        a("")
+        for iid, rs in islands.items():
+            a("### `%s` (L%s, %s)" % (iid, rs[0]["tier"], rs[0]["kind"]))
+            a("")
+            a("| where | species | count × groups | chance | level | alpha | tameable | status |")
+            a("|---|---|---|---|---|---|---|---|")
+            for r in rs:
+                a("| %s | %s | %d × %d | %s | %s | %s | %s | %s |" % (
+                    r["where"], name(r["want"]), r["count"], r["groups"],
+                    "%d%%" % round(r["chance"] * 100), lv_txt(r["levels"]),
+                    "%d%%/group" % round(float(alpha) * 100) if r["alpha"] else "never",
+                    "yes" if r["tameable"] else "no", status_txt(r)))
+            a("")
+
+    spawned = {r["want"] for r in rows} | {r["got"] for r in rows}
+    a("## Species by home climate")
+    a("")
+    a("The `climate` field in each creature JSON is the species' home biome; spawning ignores it and uses the island tables above.")
+    a("")
+    a("| species | tier | home climate | tameable | model | on a spawn table |")
+    a("|---|---|---|---|---|---|")
+    for sp, d in sorted(defs.items(), key=lambda t: (t[1].get("tier", 0), t[0])):
+        a("| %s (`%s`) | %s | %s | %s | %s | %s |" % (
+            name(sp), sp, d.get("tier"), d.get("climate"), "yes" if d.get("tameable") else "no",
+            "yes" if has_model(assets, sp) else "no", "yes" if sp in spawned else "no"))
+    a("")
+    write_md(L, docs / "biome-spawns.md", "Biome spawns — what lives where")
 
 
 # ------------------------------------------------------------------ items/traits
@@ -549,6 +734,7 @@ def main() -> None:
         gen_items(data, staged_docs, staged_sheets)
         gen_recipes(data, staged_docs, staged_sheets)
         gen_biomes(data, staged_docs, staged_sheets)
+        gen_spawns(data, staged_docs)
         write_sheet_notes(staged_sheets, [
             SheetDoc("recipes", "data/recipes.json", "craft inputs/outputs, times, gates"),
             SheetDoc("repairs", "data/recipes.json ·repairs", "per-tier repair cost/restore"),
@@ -577,7 +763,7 @@ def main() -> None:
                 if source_dir == staged_sheets and destination.exists() and not args.force_sheets:
                     continue
                 shutil.copyfile(source, destination)
-        print("wrote docs/current/{items-traits,recipes,world-biomes}.md and %d sheets"
+        print("wrote docs/current/{items-traits,recipes,world-biomes,biome-spawns}.md and %d sheets"
               % len(list(staged_sheets.glob("*.csv"))))
 
 

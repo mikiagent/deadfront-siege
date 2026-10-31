@@ -19,6 +19,9 @@ func spawn_now() -> Array[Creature]:
 	if def == null:
 		push_error("[creature] spawner missing species %s" % species)
 		return []
+	if CreatureDef.eligible(species) != species:
+		print("[creature] spawner: %s has no model; not spawned (NOBOXES)" % species)
+		return []
 	# A lone animal is not a pack: pack 0 keeps it from flanking from the far side as an "alpha".
 	pack_id = 0
 	if as_pack and count > 1:

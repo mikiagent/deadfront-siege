@@ -46,7 +46,7 @@ that cite a removed path keep working as history pointers — treat them as
 
 ## Flow & rules
 - A doc change lands in the same commit as the change it documents.
-- Generated pages (`current/{recipes,world-biomes,items-traits}.md`) come from
+- Generated pages (`current/{recipes,world-biomes,items-traits,biome-spawns}.md`) come from
   `tools/docs_wiki/gen_game_data.py`, which reads `game/data/*.json`; re-run it after any
   balance pass or accepted sheet sync. The owner's editable sheets live in
   `game/data_sheets/` (see its `NOTES.md`).

@@ -259,10 +259,14 @@ static func _wild_zones(rt: IslandRuntime) -> void:
 	# ASSUMPTION: the town and its surroundings are free of wild zones (island data town_safe_m).
 	var safe := float(World.def_of(ISLAND).get("town_safe_m", 0.0))
 	var n := 0
+	var table := IslandSpawns._species_of(rows)  # NOBOXES: a model-less zone takes the next species with a model
 	for row in rows:
 		if not row is Dictionary:
 			continue
 		var r := row as Dictionary
+		var species := CreatureDef.eligible(StringName(str(r.get("species", "compsognathus"))), table)
+		if species == &"":
+			continue
 		var ang := deg_to_rad(float(r.get("angle", 0.0)))
 		var want := camp + Vector3(cos(ang), 0.0, sin(ang)) * maxf(safe, float(r.get("dist", 60.0)))
 		var spot := _dry_near(rt, want, safe)
@@ -270,8 +274,8 @@ static func _wild_zones(rt: IslandRuntime) -> void:
 			print("[tutorial] wild zone %s: no dry land near %s" % [r.get("species", "?"), want.snapped(Vector3.ONE)])
 			continue
 		var z := ZoneSpawner.new()
-		z.name = "WildZone_%d_%s" % [n, str(r.get("species", ""))]
-		z.species = StringName(str(r.get("species", "compsognathus")))
+		z.name = "WildZone_%d_%s" % [n, species]
+		z.species = species
 		z.count = int(r.get("count", 1))
 		z.as_pack = bool(r.get("pack", false))
 		z.position = spot

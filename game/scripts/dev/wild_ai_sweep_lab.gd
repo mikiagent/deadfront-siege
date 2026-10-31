@@ -25,6 +25,7 @@ const PERF_PASSES := 3
 const PERF_RETRY_S := 10.0
 
 func _ready() -> void:
+	CreatureDef.allow_placeholder = true  # NOBOXES: this lab may show model-less species as boxes
 	kit = LabKit.build(self, FLOOR)
 	player = kit["player"]
 	player.process_mode = Node.PROCESS_MODE_DISABLED
