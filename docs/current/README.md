@@ -26,6 +26,7 @@ trawling history. When the build changes a system, update its doc in the same co
 | Tribe members & dock recruits | [tribe.md](tribe.md) | **written 2026-10-28** (branch `claude/mmo-tribe`) — boat arrivals waiting at the dock for Accept/Deny, housing cap, orders, one job at a time, needs, gear, Tribe tab, save row |
 | Tutorial island & new-survivor flow | [tutorial.md](tutorial.md) | **written 2026-10-28** — creation → tutorial island → 18 tutorial orders on the Orders system → Tamed Island pick → ferry home; pointer, save row, dev flags |
 | Fight lab (god mode, species verdicts) | [fight-lab.md](fight-lab.md) | **written 2026-10-30**: `tools/fight_lab.command`, GOD/NEXT controls, every modelled species with its brain, moves and fight clips, a verdict column for Milan |
+| Unstable isles (generated islands) | [unstable-isles.md](unstable-isles.md) | **written 2026-10-30**: what the generator rolls (level, template, shape, size, landmarks, Rift Pool), how a player reaches one, a 6-isle contact sheet, and `tools/unstable_isle.command` to land on a fresh one |
 | Creature rigs and clips | [creature-clips.md](creature-clips.md) | **generated 2026-10-28** — per species: jaw, wings, and which of the 25 clips ship (bite_combo, leaps, dodges, strafes, walk_back, kick, charge...) |
 | Species art (owner's reference sheets) | [species-art.md](species-art.md) | **written 2026-10-30**: 52 sheets for 32 species under `docs/art/species/`, each marked regular / Alpha skin / sex variant / reference only, with in-game status and the owner's naming decisions |
 
