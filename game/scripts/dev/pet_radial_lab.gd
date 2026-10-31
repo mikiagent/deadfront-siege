@@ -147,7 +147,7 @@ func _run() -> void:
 		print("[petradial] old pet menu; stopping after pet_tap")
 		get_tree().quit(0)
 		return
-	_check(radial.visible and radial.ids() == [&"animals", &"bag", &"feed", &"ride", &"gear", &"dismiss", &"rename"], "REX radial %s" % [radial.ids()])
+	_check(radial.visible and radial.ids() == [&"animals", &"bag", &"feed", &"ride", &"gear", &"stay", &"dismiss", &"rename"], "REX radial %s" % [radial.ids()])
 	# Rename: refused with the character-name reason, then accepted.
 	await _tap_segment(&"rename")
 	var dialog := _player.pets.get("rename_dialog") as PetRenameDialog
@@ -197,7 +197,7 @@ func _run() -> void:
 	await get_tree().create_timer(1.5).timeout
 	await _tap_pet(compy)
 	await _frames(2)
-	_check(radial.visible and radial.ids() == [&"animals", &"bag", &"feed", &"dismiss", &"rename"], "compsognathus radial %s" % [radial.ids()])
+	_check(radial.visible and radial.ids() == [&"animals", &"bag", &"feed", &"stay", &"dismiss", &"rename"], "compsognathus radial %s" % [radial.ids()])
 	await _shot("radial_compy")
 	# Space with the mouse resting on a segment rolls; it does not fire the segment.
 	var mm := InputEventMouseMotion.new()

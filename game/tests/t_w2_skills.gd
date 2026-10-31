@@ -453,12 +453,12 @@ func _test_pen_cap() -> void:
 	pen.running = true
 	pen.remaining = 0.0
 	pen.force_result = 1
-	pen._process(0.0)
-	_expect(data.bonded_cap() == 3 and p.bonded.size() == 3 and pen.occupant != null and pen.running and pen._told_full, "3 / 3 bonded: the pen keeps the animal and says why (bonded %d, occupant %s)" % [p.bonded.size(), pen.occupant])
+	pen.resolve(p) # PENCLAIM: the roll holds the pet in the pen; the cap is checked at Bond
+	_expect(not pen.claim(p) and data.bonded_cap() == 3 and p.bonded.size() == 3 and pen.occupant != null and pen.tamed != null, "3 / 3 bonded: Bond is refused and the tamed animal stays in the pen (bonded %d, occupant %s)" % [p.bonded.size(), pen.occupant])
 	p.inventory.add(IS.make(&"raptor_meat", 1))
 	_expect(not pen.feed(p) and p.inventory.count_of(&"raptor_meat") == 1, "meat is refused while the finished animal waits")
 	(p.skills.trees["survival"]["unlocked"] as Array).append("animal_management_1")
-	pen._process(0.0)
+	pen.claim(p)
 	var rec: Variant = p.bonded[-1]
 	_expect(data.bonded_cap() == 4 and p.bonded.size() == 4 and pen.occupant == null and rec.origin == &"capture" and rec.level == 7, "Animal Handling I (cap 4) bonds the waiting Lv. 7 raptor (bonded %d)" % p.bonded.size())
 	p.inventory.add(IS.make(&"tamed_animal", 1, {"species": "velociraptor"}))

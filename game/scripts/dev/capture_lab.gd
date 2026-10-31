@@ -347,6 +347,7 @@ func _pen_demo() -> void:
 	pen.feed(_player)
 	await get_tree().create_timer(0.2).timeout
 	Game.time_scale = 1.0
+	pen.claim(_player) # PENCLAIM: the tame waits in the pen until Bond
 	var rec: PetRecord = _player.bonded[-1] if _player.bonded.size() > before else null
 	_check(rec != null and rec.origin == &"capture" and rec.level == clampi(wild_level, 1, 60) and _player.inventory.find_first(&"tamed_animal") < 0, "pen tame bonded %s" % _describe(rec))
 

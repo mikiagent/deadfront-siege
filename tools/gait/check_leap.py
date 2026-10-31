@@ -7,6 +7,7 @@ opening. Renders side and front frames (Workbench) to <frames_dir>/side_f###.png
 Exits 1 on penetration > 1 cm (game scale) or a planted-foot slide > 1 cm.
 
 usage: Blender -b -P tools/gait/check_leap.py -- <base.glb> <clip.glb> <frames_dir> [--game-scale 2.4] [--no-render]
+       [--grounded]  (an in-place clip with no airborne window: every frame is a ground frame)
 """
 import math
 import os
@@ -19,6 +20,7 @@ a = sys.argv[sys.argv.index("--") + 1:]
 base, clip, out = a[:3]
 SCALE = float(a[a.index("--game-scale") + 1]) if "--game-scale" in a else 2.4
 RENDER = "--no-render" not in a
+GROUNDED = "--grounded" in a
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.gltf(filepath=base)
 arm = next(o for o in bpy.data.objects if o.type == "ARMATURE")
@@ -72,7 +74,7 @@ for f in range(f0, f1 + 1):
     worst_low = min(worst_low, lz)
     for nm, p0 in feet.items():
         p = arm.matrix_world @ arm.pose.bones[nm].tail
-        if u <= 0.2 + 1e-6 or u >= 0.65 - 1e-6:
+        if GROUNDED or u <= 0.2 + 1e-6 or u >= 0.65 - 1e-6:
             slide = max(slide, (p - p0).length)
         peak = max(peak, p.z - p0.z)
     if "Jaw" in arm.pose.bones:

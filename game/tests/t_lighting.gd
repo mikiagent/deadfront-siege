@@ -23,6 +23,7 @@ func _process(_delta: float) -> bool:
 	_test_environment(wl)
 	_test_night(wl)
 	_test_warm_dawn_dusk(wl)
+	_test_golden_hour(wl)
 	_test_moon_shadow_only_at_night(wl)
 	_test_shadow_fit(wl)
 	_test_shadow_fit_perspective(wl)
@@ -54,6 +55,11 @@ func _test_environment(wl) -> void:
 	_check(e.tonemap_mode == Environment.TONE_MAPPER_AGX, "tonemap is not AgX")
 	_check(e.glow_enabled, "glow off")
 	_check(e.ambient_light_source == Environment.AMBIENT_SOURCE_SKY, "ambient is not sky-sourced")
+	# LOOKPASS: SSAO/SSIL only on Forward+ (the web/phone renderers have neither), never SDFGI.
+	var fp := RenderingServer.get_current_rendering_method() == "forward_plus"
+	_check(e.ssao_enabled == (fp and wl._f("ssao_intensity") > 0.0), "SSAO %s on renderer %s" % [e.ssao_enabled, RenderingServer.get_current_rendering_method()])
+	_check(e.ssil_enabled == (fp and wl._f("ssil_intensity") > 0.0), "SSIL %s on renderer %s" % [e.ssil_enabled, RenderingServer.get_current_rendering_method()])
+	_check(not e.sdfgi_enabled, "SDFGI is on")
 	_check((wl.sun as DirectionalLight3D).directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS, "sun shadows are not PSSM4")
 	_check((wl.sun as DirectionalLight3D).shadow_normal_bias <= 1.0, "sun normal bias above 1.0 erases thin casters' shadows")
 
@@ -69,11 +75,52 @@ func _test_warm_dawn_dusk(wl) -> void:
 		wl.drive(tod)
 		var c: Color = wl.sun.light_color
 		_check(wl.sun.visible and c.r / maxf(c.b, 0.001) >= 1.3, "sun R/B %.2f < 1.3 at tod %.2f" % [c.r / maxf(c.b, 0.001), tod])
-	# The whole day phase is neutral: warmth must not leak past DAY or before DUSK.
+	# The afternoon's core stays neutral: warmth must not leak past DAY or before the golden hour
+	# (ported from LIGHTPORT: 0.56+ warms on purpose, so the upper bound moved from DUSK).
 	var neutral: Color = wl._c("sun_color")
-	for tod in [WL.DAY, WL.DAY + 0.02, 0.5, WL.DUSK - 0.02, WL.DUSK]:
+	for tod in [WL.DAY, WL.DAY + 0.02, 0.5, WL.GOLDEN_START - 0.02]:
 		wl.drive(tod)
 		_check((wl.sun.light_color as Color).is_equal_approx(neutral), "sun is warm at day-phase tod %.2f" % tod)
+
+## LIGHTPORT (80c3c3a6): the golden hour. The sun, the fog and the sky horizon read warmer — a
+## higher red-minus-blue — in 0.62-0.70 than at noon, and the night turns them blue again.
+func _test_golden_hour(wl) -> void:
+	var noon := _warmth_at(wl, 0.5)
+	var night := _warmth_at(wl, 0.02)
+	var g66 := _warmth_at(wl, 0.66)
+	print("[t_lighting] golden: noon sun/fog/horizon R-B %.2f/%.2f/%.2f, tod 0.66 %.2f/%.2f/%.2f, night %.2f/%.2f/%.2f" % [
+		noon["sun"], noon["fog"], noon["horizon"], g66["sun"], g66["fog"], g66["horizon"],
+		night["sun"], night["fog"], night["horizon"]])
+	for tod in [0.62, 0.66, 0.70]:
+		var g := _warmth_at(wl, tod)
+		_check(wl.sun.visible and g["sun"] > noon["sun"] + 0.1, "golden hour sun at tod %.2f: R-B %.2f not above noon %.2f" % [tod, g["sun"], noon["sun"]])
+		for k in ["fog", "horizon"]:
+			_check(g[k] > noon[k] + 0.1, "golden hour (%s) at tod %.2f: R-B %.2f not above noon %.2f" % [k, tod, g[k], noon[k]])
+			_check(g[k] > night[k] + 0.1, "golden hour (%s) at tod %.2f: R-B %.2f not above night %.2f" % [k, tod, g[k], night[k]])
+		_check(g["fog"] > 0.0 and g["horizon"] > 0.0, "golden fog/horizon are not amber (R-B %.2f / %.2f) at tod %.2f" % [g["fog"], g["horizon"], tod])
+	# Night turns blue again: the golden ramp is gone by NIGHT, and the fog and horizon keep more
+	# blue than red there (the sun-light colour is not checked at night: the sun is set).
+	var deep := _warmth_at(wl, WL.NIGHT + 0.02)
+	_check(deep["fog"] < 0.0 and deep["horizon"] < 0.0, "night fog/horizon are not blue (R-B %.2f / %.2f)" % [deep["fog"], deep["horizon"]])
+	# The ramp is the profile's, not a constant: a climate that moves it moves the golden hour.
+	var moved: Dictionary = (wl.profile as Dictionary).duplicate()
+	moved["golden_start"] = 0.40
+	moved["golden_full"] = 0.44
+	var keep: Dictionary = wl.profile
+	wl.profile = moved
+	var early := _warmth_at(wl, 0.45)
+	wl.profile = keep
+	_check(early["horizon"] > _warmth_at(wl, 0.45)["horizon"] + 0.1, "a profile's golden_start/golden_full do not move the golden hour")
+	wl.drive(0.5)
+
+## Red minus blue of the live sun, fog and sky horizon at tod: the warmth the golden hour adds.
+func _warmth_at(wl, tod: float) -> Dictionary:
+	wl.drive(tod)
+	var e: Environment = wl.world_env.environment
+	var sun: Color = wl.sun.light_color
+	var fog: Color = e.fog_light_color
+	var sky: Color = wl._sky_mat.sky_horizon_color
+	return {"sun": sun.r - sun.b, "fog": fog.r - fog.b, "horizon": sky.r - sky.b}
 
 ## Only one directional light renders shadows at a time (the atlas and passes are shared).
 func _test_moon_shadow_only_at_night(wl) -> void:

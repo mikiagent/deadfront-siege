@@ -1,7 +1,7 @@
 extends Node3D
 ## UIWORLD shots (windowed): boots the home island with the real HUD, opens the four restyled screens
 ## in each state the mockups show and saves one PNG each into --shot-dir:
-## domain_declare, domain_plots, comms, radio, pen, pen_started, island_pick.
+## domain_declare, domain_plots, comms, radio, pen, pen_started, pen_tamed, island_pick.
 ## Run (desktop gate, then the landscape phone at 2x):
 ##   Godot --path game --resolution 1600x900 -- --lab=uiworld_lab --shot-dir=DIR --canvas=1600x900
 ##   Godot --path game --resolution 1688x780 -- --lab=uiworld_lab --shot-dir=DIR --canvas=844x390
@@ -94,6 +94,11 @@ func _run() -> void:
 	await _shot("pen", ui)
 	ui.call("_on_tame")
 	await _shot("pen_started", ui)
+	# PENCLAIM: the wait ends with a success: the gold Taming successful card
+	pen.force_result = 1
+	pen.remaining = 0.0
+	pen.resolve(_player)
+	await _shot("pen_tamed", ui)
 	ui.close()
 	# A2
 	var pick := IslandPick.instance_on(self)
