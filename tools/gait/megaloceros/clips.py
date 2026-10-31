@@ -301,7 +301,9 @@ def run_turn(t, T, sgn):
     """Turning gallop, sgn +1 = to the left: planted hooves follow the arc (ground() about the arc centre), the body
     banks into the turn and the spine and head look round it."""
     s = gallop(t, T, turn=sgn * TURN_R)
-    bank = 1.0 if STAG else 0.0  # the doe's run already sits at the stretch limit (11.8 of 12) at the hips: no bank
+    # MEGARUN merge: 0.6 (was 1.0): with the new gallop's fore reach a full 9 deg bank wrung the stag's forefeet past
+    # t_megarun's 30 deg twist limit. The doe's run already sits at the stretch limit (11.8 of 12) at the hips: no bank.
+    bank = 0.6 if STAG else 0.0
     s.roll += 9 * sgn * bank; s.spine_yaw = 5 * sgn * bank; s.head_yaw = 9 * sgn
     s.tail_yaw[0] = -6 * sgn
     return s
