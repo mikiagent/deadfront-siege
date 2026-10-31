@@ -61,6 +61,7 @@ func _run() -> void:
 	await _test_charge_throw()
 	await _test_throw_into_wall()
 	await _test_god_mode()
+	await _test_out_of_energy()
 	if failures.is_empty():
 		print("[t_knockdown] PASS")
 		quit(0)
@@ -147,6 +148,12 @@ func _test_ram_knockdown() -> void:
 	_expect(_flat(p.global_position - down_at).length() < 0.05, "she cannot walk while down (moved %.2f m)" % _flat(p.global_position - down_at).length())
 	p.anim.on_damaged()
 	_expect(p.anim.current_clip == &"lie", "a hit while down does not stand her up into a flinch")
+	# ROOTED: rams, shoves and light hits that land while she lies there do not slide her anywhere.
+	var lie_at: Vector3 = p.global_position
+	p.sim.shove(Vector3(_tac(&"pachycephalosaurus", "charge_shove_m"), 0, 0), 0.6, 0.0, pachy)
+	p.sim.shove(Vector3(0, 0, 0.8), 0.4)
+	await _secs(0.15)
+	_expect(_flat(p.global_position - lie_at).length() < 0.05, "hits while down do not move her (moved %.2f m)" % _flat(p.global_position - lie_at).length())
 	var t := 0.0
 	var saw_up := false
 	while p.sim.knock.active() and t < 4.0:
@@ -247,3 +254,13 @@ func _test_god_mode() -> void:
 	game.god_mode = false
 	styr.queue_free()
 	p.queue_free()
+
+## 6. Owner 2026-10-31: running until the stamina bar empties leaves her Winded (as getting up from a knockdown does).
+func _test_out_of_energy() -> void:
+	var p = _player(Vector3(-60, 0.9, 0))
+	await _frames(3)
+	p.statuses.clear_id(&"winded")
+	p.vitals.energy = 0.05
+	p.vitals.drain_energy(9.0, 0.1)
+	_expect(p.vitals.energy <= 0.0 and p.statuses.has(&"winded"), "running out of energy leaves her Winded")
+	_expect(p.statuses.has_flag(&"no_sprint"), "Winded: no sprint until she catches her breath")
