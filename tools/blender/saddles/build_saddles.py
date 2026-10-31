@@ -37,8 +37,8 @@ SPECIES = ARGS["species"]
 CONFIG = json.load(open(os.path.join(REPO, "tools/blender/saddles/saddles.json")))
 CFG = dict(CONFIG.get("defaults", {}))
 CFG.update(CONFIG.get("species", {}).get(SPECIES, {}))
-GLB = os.path.join(REPO, "game/assets/creatures/%s/%s.glb" % (SPECIES, SPECIES))
-OUT_DIR = os.path.join(REPO, "game/assets/creatures/%s/mount" % SPECIES)
+GLB = ARGS.get("glb") or os.path.join(REPO, "game/assets/creatures/%s/%s.glb" % (SPECIES, SPECIES))
+OUT_DIR = ARGS.get("out-dir") or os.path.join(REPO, "game/assets/creatures/%s/mount" % SPECIES)  # --glb/--out-dir: a body variant (megaloceros doe)
 HEIGHT = float(ARGS.get("height", CFG.get("height_meters", 1.0)))
 PREVIEW = ARGS.get("preview", "")
 

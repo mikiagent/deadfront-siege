@@ -17,6 +17,10 @@ var species_id: StringName = &""
 var count := 1
 var nature: StringName = &""  ## "" = rolled per animal
 var alpha := false
+## Body variant (megaloceros stag / doe, pipeline.model_variants): "" = picked per animal.
+var variant: StringName = &""
+var _variant_btn: Button
+var _next_v := -1  ## NEXT walks a species' variants (stag, then doe) before the next species
 var _panel: PanelContainer
 var _species_opt: OptionButton
 var _count: Label
@@ -34,6 +38,7 @@ var info: Label
 const BRAIN_MOVES := {
 	"TyrantBrain": "telegraphed bite, stomp every 3rd attack, tail whip if you are behind, roar on spotting",
 	"RaptorPackBrain": "pack flank, bites, heavy pounce from 4-7 m off-axis",
+	"ClubTailBrain": "turns its tail to you, no rush: whip, whip, smash, whip, sweep: TAIL WHIP (knockback), TAIL SMASH (knockdown + shockwave), CLUB SWEEP (also when surrounded); hits only from the club, the head is safe",
 	"CreatureBrain": "attack_primary, attack_heavy after 3 primaries",
 }
 const FIGHT_CLIPS: Array[StringName] = [&"alert", &"attack_primary", &"attack_heavy", &"tail_swipe", &"bite_combo", &"pounce", &"kick", &"charge", &"charge_turn"]
@@ -62,9 +67,9 @@ static func moves_line(id: StringName) -> String:
 	var def := Data.creature(id)
 	if def == null:
 		return ""
-	var brain := "TyrantBrain" if id == &"tyrannosaurus" else ("TacticalBrain" if TacticalBrain.has_tactics(def) else ("RaptorPackBrain" if def.mapped_archetype() == &"raptor_pack" else "CreatureBrain"))  # mirrors Creature._make_brain
+	var brain := "TyrantBrain" if id == &"tyrannosaurus" else ("ClubTailBrain" if def.archetype == &"club_tail" else ("TacticalBrain" if TacticalBrain.has_tactics(def) else ("RaptorPackBrain" if def.mapped_archetype() == &"raptor_pack" else "CreatureBrain")))  # mirrors Creature._make_brain
 	var seqs: Array[String] = []  # the distinct steps of its tactics sequences (strafe_left/right -> strafe)
-	for q in TacticalBrain.tactics_for(def.archetype).get("sequences", []):
+	for q in TacticalBrain.tactics_for_def(def).get("sequences", []):
 		for step in (q as Dictionary).get("steps", []):
 			var st := str(step).trim_suffix("_left").trim_suffix("_right")
 			if not seqs.has(st):
@@ -164,9 +169,13 @@ func setup(p: Player) -> void:
 		_refresh())
 	_alpha.visible = "alpha" in CreatureGenetics.new()  # ALPHAS have landed when genetics carries the flag
 	col.add_child(_alpha)
+	_variant_btn = SheetChrome.ghost_button("")
+	_variant_btn.name = "Variant"
+	_variant_btn.pressed.connect(_next_variant)
+	col.add_child(_variant_btn)
 	var go := SheetChrome.gold_button("SPAWN")
 	go.name = "SpawnGo"
-	go.pressed.connect(func() -> void: spawn(species_id, count, nature, alpha))
+	go.pressed.connect(func() -> void: spawn(species_id, count, nature, alpha, variant))
 	col.add_child(go)
 	var clear := SheetChrome.ghost_button("CLEAR ALL", true)
 	clear.name = "ClearAll"
@@ -194,10 +203,18 @@ func toggle_god() -> void:
 func next_species() -> Creature:
 	if _ids.is_empty():
 		return null
-	_next_i = (_next_i + 1) % _ids.size()  # the first NEXT drops the first species in the list
+	var vs := variants_of(_ids[_next_i]) if _next_i >= 0 else []
+	if _next_v + 1 < vs.size():
+		_next_v += 1  # the same species again, its next body (megaloceros: stag, then doe)
+	else:
+		_next_i = (_next_i + 1) % _ids.size()  # the first NEXT drops the first species in the list
+		_next_v = 0
+		vs = variants_of(_ids[_next_i])
 	_pick_species(_ids[_next_i])
+	variant = StringName(vs[_next_v]) if _next_v < vs.size() else &""
+	_refresh()
 	clear_all()
-	var made := spawn(species_id, 1, &"aggressive", alpha)
+	var made := spawn(species_id, 1, &"aggressive", alpha, variant)
 	if made.is_empty():
 		return null
 	made[0].brain.on_aggro(player)
@@ -209,7 +226,28 @@ func set_count(n: int) -> void:
 	_refresh()
 
 func _pick_species(id: StringName) -> void:
+	if id != species_id:
+		variant = &""
 	species_id = id
+	_refresh()
+
+## A species' body variants ([] when every variant shares one body, e.g. the stegosaurus texture looks):
+## megaloceros -> ["stag", "doe"].
+static func variants_of(id: StringName) -> Array:
+	var def := Data.creature(id) if Data else null
+	if def == null:
+		return []
+	var rows := CreatureView.model_variants(def)
+	if not rows.values().any(func(r: Variant) -> bool: return r is Dictionary and (r as Dictionary).has("model")):
+		return []
+	var ids: Array = rows.keys()
+	ids.sort()
+	ids.reverse()
+	return ids
+
+func _next_variant() -> void:
+	var all: Array = [""] + variants_of(species_id)
+	variant = StringName(all[(all.find(str(variant)) + 1) % all.size()])
 	_refresh()
 
 func _next_nature() -> void:
@@ -224,12 +262,14 @@ func _refresh() -> void:
 	_count.text = "x%d" % count
 	_nature.text = "Nature: %s" % ("Random" if nature == &"" else CreatureNatures.label(nature))
 	_alpha.text = "Alpha: %s" % ("ON" if alpha else "off")
+	_variant_btn.visible = not variants_of(species_id).is_empty()
+	_variant_btn.text = "Body: %s" % ("Random" if variant == &"" else str(variant).capitalize())
 	_stand.text = "Stand-ins: %s" % ("on" if include_stand_ins else "off")
 	_god.text = "GOD: %s" % ("ON" if Game.god_mode else "off")
 	_species_opt.select(_ids.find(species_id))
 
 ## Drop `n` of `sp` as one pack SPAWN_AHEAD_M in front of the survivor (member 0 an alpha when asked).
-func spawn(sp: StringName, n: int, nat: StringName = &"", is_alpha: bool = false) -> Array[Creature]:
+func spawn(sp: StringName, n: int, nat: StringName = &"", is_alpha: bool = false, body: StringName = &"") -> Array[Creature]:
 	if Data.creature(sp) == null or player == null:
 		return []
 	CreatureDef.allow_placeholder = true  # NOBOXES: the lab panel may drop model-less species as boxes
@@ -243,11 +283,13 @@ func spawn(sp: StringName, n: int, nat: StringName = &"", is_alpha: bool = false
 	s.as_pack = s.count > 1
 	s.nature = nat
 	s.force_alpha = is_alpha
+	s.variant = body
 	player.get_parent().add_child(s)
 	s.global_position = player.global_position + fwd * SPAWN_AHEAD_M
 	var made := s.spawn_now()
 	s.queue_free()
-	info.text = moves_line(sp)
+	var vt: Dictionary = CreatureView.variant_row(Data.creature(sp), body).get("tactics", {})
+	info.text = moves_line(sp) + (" [%s%s]" % [body, (": point blank %s, no straight ram" % ", ".join(vt.get("point_blank", []))) if not vt.get("charge_straight", true) else ""] if body != &"" else "")
 	print("[creature_lab] spawned %d %s nature=%s alpha=%s" % [made.size(), sp, nat if nat != &"" else &"random", is_alpha])
 	return made
 

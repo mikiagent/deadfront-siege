@@ -1,0 +1,15 @@
+{
+  "_about": "Megaloceros stag landmarks in the prepped Tripo mesh's own units (head to -Y, hooves at z=0, ~1 unit long). Leg joints below the belly come from cross-section centroids at these heights; the rest are placed by eye on the grid render (docs/orchestration/reports/sp-megaloceros/rig_landmarks_stag.png).",
+  "withers_raw": 0.66,
+  "withers_m": 3.36,
+  "_size": "ASSUMPTION: a big Irish elk stag stands ~2.1 m at the withers; x1.6 house exaggeration (claude-raptorscale.md) = 3.36 m.",
+  "body_z": 0.53, "hips_y": 0.40, "torso_y": 0.20, "chest_y": -0.02, "chest_end": [-0.14, 0.52],
+  "neck": [[-0.16, 0.50], [-0.25, 0.60], [-0.33, 0.68]],
+  "head_tip": [-0.49, 0.645],
+  "jaw": {"pivot": [-0.355, 0.635], "tip": [-0.47, 0.612], "split_deg": -12, "blend": 0.012},
+  "tail": [[0.465, 0.53], [0.50, 0.45], [0.50, 0.36]],
+  "front": {"fetlock_z": 0.065, "carpus_z": 0.215, "elbow_dz": 0.34, "elbow_back": 0.035, "shoulder_z": 0.46, "shoulder_fwd": 0.09, "scap_top_z": 0.60, "scap_back": 0.12, "scap_x": 0.05, "toe_fwd": 0.06},
+  "hind": {"fetlock_z": 0.065, "hock_z": 0.20, "hock_back": 0.008, "stifle_z": 0.35, "stifle_fwd": 0.105, "hip": [0.37, 0.50], "hip_x": 0.075, "toe_fwd": 0.06},
+  "ymid": 0.1,
+  "antlers": {"pedicle": [0.045, -0.31, 0.755], "span_m": 5.4}
+}

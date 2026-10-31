@@ -384,6 +384,8 @@ func _ground_sleep_visual(asleep: bool, delay: float = 0.0) -> void:
 	_sleep_ground_tween.tween_property(player.visual, "position:y", y, 0.25)
 
 func on_damaged() -> void:
+	if is_pinned_pose():
+		return  # PINFEEL: under the foot she keeps struggling; a flinch would stand her up
 	# REST: hurt while sitting, she gets up; a standing flinch from the floor would pop the pose.
 	if _sitting:
 		stand_up()
@@ -464,6 +466,38 @@ func on_tactic(clip: StringName, heavy: bool) -> void:
 func on_punch() -> void:
 	play_clip(&"punch" if rig and rig.has_clip(&"punch") else &"attack_primary")
 
+## PINFEEL (owner 2026-10-30: "pinned should force the player/animal in the lying down animation"): while Pinned
+## she goes down (knockdown) and, once on her back, struggles in the `pinned` loop (tools/make_pinned.py) until
+## the status ends, then stands. There is no break-free input: Pinned runs out on its timer. True while it holds.
+const PIN_FROM := 1.0  # s into knockdown: she is on her back (frames 24-48 of the clip are the lying pose)
+const PIN_BLEND := 0.3
+
+func _tick_pinned() -> bool:
+	var pinned := not _dead and player.statuses != null and player.statuses.has(&"pinned")
+	if not pinned:
+		if current_clip == &"pinned":
+			_busy = false
+			_forced = false
+			play_idle()
+		return false
+	if current_clip == &"pinned":
+		return true
+	if current_clip != &"knockdown":
+		play_clip(&"knockdown")
+		return true
+	var ap := rig.anim_player if rig else null
+	if ap and rig.has_clip(&"pinned") and (ap.speed_scale == 0.0 or ap.current_animation_position >= PIN_FROM):
+		current_clip = &"pinned"
+		_requested_clip = &"pinned"
+		_busy = true
+		_forced = true
+		rig.play(&"pinned", 1.0, PIN_BLEND)
+	return true
+
+## On the ground for a pin: the struggle loop, or the fall into it.
+func is_pinned_pose() -> bool:
+	return current_clip == &"pinned" or (current_clip == &"knockdown" and player != null and player.statuses != null and player.statuses.has(&"pinned"))
+
 ## The knockdown clip freezes on its last frame and stays busy; nothing released it before,
 ## so after the first knockdown the survivor slid around frozen in that pose for the rest
 ## of the session (the "walking glitch"). Release once the status is gone.
@@ -480,6 +514,8 @@ func _physics_tick(speed: float, running: bool = false) -> void:
 	if _sleeping or _waking:
 		return
 	swim_lift = move_toward(swim_lift, SWIM_LIFT.get(current_clip, 0.0) if player.swimming else 0.0, 3.0 * get_physics_process_delta_time())  # PlayerView applies it to the rig
+	if _tick_pinned():
+		return
 	if _busy and current_clip == &"knockdown" and player.statuses and not player.statuses.has_flag(&"knockdown"):
 		release_knockdown()
 	if player.rolling:
