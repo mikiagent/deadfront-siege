@@ -10,7 +10,7 @@ Owner (2026-10-30, overrides NORTHUP's yaw 0): "if the buildings face south we d
 - Minimap: already drawn turned by the camera yaw; it now carries an **N marker** on the rim where world north lies (`hunt_hud._draw_minimap_bezel`, `minimap_north`). The atlas stays north-up with its compass.
 - X/Y readout: unchanged, world coordinates (X = x, Y = -z).
 - Occlusion / sight lines: use the live camera position and `IsoCamera.right/focus/parallax`, nothing yaw-specific. t_occlude2 PASS.
-- Cards: re-baked at yaw 45 (`--lab=card_bake`, `[cardbake] PASS cards=24`, then `--import`). The bake reads the camera basis and its light uses `YAW_DEG - 10`, so it follows the constant; 24 albedo/normal pairs and `card2d.json` pivots/boxes changed. Live cards (CardProp, PropCards) take the active camera's basis every frame.
+- Cards: NOT re-baked (reverted after the merge gate). The yaw-45 bake changed card2d.json content heights (rock-a 1.85 -> 1.53 m), so island_scatter scaled rocks differently and the tutorial bot got stuck short of a rock / on its way to the fire. The cards keep NORTHUP's yaw-0 bake; live cards still turn to face the camera every frame, only the baked shading angle is 45 deg off. A re-bake needs content-height-neutral scaling first.
 - Sun / moon: lighting.json's yaw bands were tuned for camera yaw 0, so `WorldLighting` now adds `IsoCamera.yaw_deg` to them (two lines in `world_lighting.gd`, chosen so they do not touch the lines lookpass changes).
 - Dev A/B: `--cam-yaw=0 --cam-notilt` is the NORTHUP camera (north-up, iso range only); `--cam-fov` / `--cam-pitch` still override the iso end.
 
@@ -40,7 +40,11 @@ Off-screen windowed, self-quitting runs (`--position 6000,3000 ... -- --skip-cha
 - `after/`: 14, 5 (mid tilt), 3.5 (closest, behind her), 18, at dock, square and guild, both sizes, plus the atlas.
 - Looked at: no sky, no fog wash close up (fixed, see above), no popping at the far plane in these views, the survivor stays centred and lit; the corner door faces the camera at every zoom.
 
-## Gates
+## Gates after the merge gate (canon 4d460989 merged, head below)
+- t_tutorial (own HOME, TEST_TIMEOUT 1200, via tools/all_tests.sh): 3 PASS of 4 runs; 1 FAIL at step 6 tut_drink ("reached the bank but Drink is not offered", two runs in parallel). Canon passed 2 of 2 alongside, so treat it as possibly ours until it repeats. Batch line: 217 loaded (217 in all), streams out and back in; --skip-tutorial checks ok; tut_dagger ok.
+- t_camera, t_northup, t_mapui, t_card2d, t_perfgates, t_lighting PASS, run_all [tests] PASS, smoke SMOKE PASS.
+
+## Gates (first round)
 t_camera PASS (updated: yaw 45, the curve, one-frame zoom at both ends, tap ray at every zoom, far/shadow bands), t_northup PASS (rewritten for the diagonal: screen compass, SE corner lowest, stick up = north-west, minimap N marker, yaw fixed when zoomed in), t_mapui PASS (no t_minimap exists; t_mapui covers the minimap and atlas), t_card2d PASS, t_perfgates PASS, t_lighting, t_structart, t_switch2d, t_controls, t_eyetrails, t_levelbadge, t_web, t_targetui, t_hudrules, t_gather, t_tactical, t_weather, t_occlude2 PASS, run_all `[tests] PASS`, `tools/smoke.sh --no-import` SMOKE PASS.
 - t_playerturn: 1 FAIL `tap_walk_away_target_gone: no position jitter (1 velocity flips)`; canon ba65da3b fails the same case, so not from this change.
 
