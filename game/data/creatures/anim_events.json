@@ -340,6 +340,20 @@
     "about_left": {
       "note": "mirror of about_right"
     },
+    "bull_huff": {
+      "hit_frac": 0.5,
+      "windup": false,
+      "note": "allosaurus bull windup (ALLOCHARGE, make_allo_moves.py), 1.6 s: plants and lowers, head down and level at her, huffs twice (0.3, 0.6: chest heave, head bob, jaw puff), paws with the right foot (0.68-0.95); TacticalBrain's display before the charge (tactics.display_clip). Not an attack."
+    },
+    "charge_leap": {
+      "hit_frac": 0.75,
+      "airborne": [
+        0.16,
+        0.68
+      ],
+      "windup": false,
+      "note": "allosaurus jump-bite at the end of the charge (ALLOCHARGE), 0.8 s: coil, push, a low lunge-jump with both feet off the ground (airborne 0.16-0.68), jaws gaping, arms forward with the claws spread; lands at 0.68 and bites at 0.75 (TacticalBrain._charge_leap judges the charge contact from the charge_leap hitbox move then; not in ATTACKS, so the clip's own hit event lands nothing)"
+    },
     "roar": {
       "hit_frac": 0.34,
       "note": "THERO-ROAR (make_thero_roar.py): the shared rearing roar of the big theropods; hit_frac is the burst (TheroRoar: the breath and shockwave rings, dust, camera shake), when the jaw is wide and the head starts its sweep"
@@ -798,6 +812,8 @@
       "strafe_right_len": 1.417,
       "walk_back": 1.613,
       "walk_back_len": 1.417,
+      "charge": 9.38,
+      "charge_len": 0.792,
       "_note": "SP-ALLOSAURUS: make_gait stride / clip length x height_meters / source height (0.455), not a Godot bake; tuned so the run (5.9 m/s) and walk (2.6 m/s) sit at the stats' 5.2 / 2.6 m/s"
     }
   }
